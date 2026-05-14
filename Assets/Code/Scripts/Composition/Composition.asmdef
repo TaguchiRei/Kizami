@@ -1,0 +1,24 @@
+{
+    "name": "Composition",
+    "rootNamespace": "",
+    "references": [
+        "Domain",
+        "Application",
+        "Infrastructure",
+        "DataAccess",
+        "Presentation",
+        "View",
+        "Utility",
+        "UtilityUnity",
+        "AutoGenerate"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

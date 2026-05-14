@@ -1,0 +1,22 @@
+{
+    "name": "UtilityUnity",
+    "rootNamespace": "",
+    "references": [
+        "GUID:67fb5e01a156a94419dea823d5f61328",
+        "GUID:ec2669d820ea7a248ba5da2087228096",
+        "GUID:360d1c8c480e36c40acbdb447634d10c",
+        "GUID:d8b63aba1907145bea998dd612889d6b",
+        "GUID:f51ebe6a0ceec4240a699833d6309b23",
+        "GUID:2665a8d13d1b3f18800f46e256720795",
+        "GUID:e0cd26848372d4e5c891c569017e11f1"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

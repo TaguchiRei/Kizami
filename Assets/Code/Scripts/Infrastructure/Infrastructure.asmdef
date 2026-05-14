@@ -1,0 +1,21 @@
+{
+    "name": "Infrastructure",
+    "rootNamespace": "",
+    "references": [
+        "Utility",
+        "UtilityUnity",
+        "AutoGenerate",
+        "UsefulAttributes",
+        "Unity.InputSystem",
+        "Presentation"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
