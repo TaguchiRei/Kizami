@@ -1,10 +1,11 @@
 {
     "name": "View",
-    "rootNamespace": "",
+    "rootNamespace": "UsefulTools.VIew.Runtime",
     "references": [
         "Presentation",
         "UtilityUnity",
-        "Utility"
+        "Utility",
+        "UsefulAttributes"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

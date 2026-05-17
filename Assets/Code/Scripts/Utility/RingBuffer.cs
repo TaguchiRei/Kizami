@@ -1,7 +1,6 @@
 using System;
-using System.Collections.Generic;
 
-namespace Code.Scripts.Utility
+namespace UsefulTools.Utility.Runtime.Utility
 {
     public sealed class RingBuffer<T>
     {

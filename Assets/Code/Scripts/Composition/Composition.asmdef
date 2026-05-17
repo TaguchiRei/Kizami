@@ -1,6 +1,6 @@
 {
     "name": "Composition",
-    "rootNamespace": "",
+    "rootNamespace": "UsefulTools.Composition.Runtime",
     "references": [
         "Domain",
         "Application",
@@ -10,7 +10,8 @@
         "View",
         "Utility",
         "UtilityUnity",
-        "AutoGenerate"
+        "AutoGenerate",
+        "UsefulAttributes"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

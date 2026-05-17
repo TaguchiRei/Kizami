@@ -1,37 +1,40 @@
 using System;
 using UnityEngine;
 
-public class SceneRule : MonoBehaviour
+namespace UsefulTools.Infrastructure.Runtime.GameRule
 {
-    [SerializeReference, SubclassSelector] private IRule[] _rules;
-
-    private Action _updates;
-
-    private void Start()
+    public class SceneRule : MonoBehaviour
     {
-        foreach (var rule in _rules)
+        [SerializeReference, SubclassSelector] private IRule[] _rules;
+
+        private Action _updates;
+
+        private void Start()
         {
-            if (rule is IUpdateRule updateRule)
+            foreach (var rule in _rules)
             {
-                _updates += updateRule.Update;
+                if (rule is IUpdateRule updateRule)
+                {
+                    _updates += updateRule.Update;
+                }
+
+                rule.OnGameEndAction += OnGameEnd;
+
+                rule.StartGame();
             }
-
-            rule.OnGameEndAction += OnGameEnd;
-
-            rule.StartGame();
         }
-    }
 
-    private void Update()
-    {
-        _updates?.Invoke();
-    }
-
-    private void OnGameEnd(RuleState state)
-    {
-        foreach (var rule in _rules)
+        private void Update()
         {
-            rule.Stop();
+            _updates?.Invoke();
+        }
+
+        private void OnGameEnd(RuleState state)
+        {
+            foreach (var rule in _rules)
+            {
+                rule.Stop();
+            }
         }
     }
 }

@@ -1,7 +1,8 @@
-using UnityEngine;
-
-public interface IRecyclable
+namespace UsefulTools.Utility.Runtime.Utility
 {
-    int RecycleId { get; set; }
-    void OnRecycle();
+    public interface IRecyclable
+    {
+        int RecycleId { get; set; }
+        void OnRecycle();
+    }
 }

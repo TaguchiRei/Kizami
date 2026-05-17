@@ -198,9 +198,29 @@ namespace UsefulTools.Editor
                     using (var check = new EditorGUI.ChangeCheckScope())
                     {
                         _archDefinition.rootPath = EditorGUILayout.TextField("Root Path", _archDefinition.rootPath);
+                        
+                        EditorGUILayout.Space(5);
+                        EditorGUILayout.LabelField("Layer Namespaces (Empty for default)", EditorStyles.miniBoldLabel);
+                        string projectName = Application.productName.Replace(" ", "");
+
+                        foreach (var layer in _archDefinition.layers)
+                        {
+                            using (new EditorGUILayout.HorizontalScope())
+                            {
+                                EditorGUILayout.LabelField(layer.layerName, GUILayout.Width(100));
+                                layer.rootNamespace = EditorGUILayout.TextField(layer.rootNamespace);
+                                
+                                if (string.IsNullOrEmpty(layer.rootNamespace))
+                                {
+                                    GUI.enabled = false;
+                                    EditorGUILayout.LabelField($"{projectName}.{layer.layerName}.Runtime", EditorStyles.miniLabel);
+                                    GUI.enabled = true;
+                                }
+                            }
+                        }
+
                         if (check.changed) EditorUtility.SetDirty(_archDefinition);
                     }
-                    EditorGUILayout.HelpBox($"Layers: {_archDefinition.layers.Count}", MessageType.Info);
                 }
                 
                 EditorGUILayout.Space(5);
@@ -488,7 +508,7 @@ namespace UsefulTools.Editor
                 // Create Asmdef
                 if (layer.createAsmdef)
                 {
-                    CreateAsmdef(layerPath, layer.layerName, layer.references);
+                    CreateAsmdef(layerPath, layer.layerName, layer.references, layer.rootNamespace);
                 }
             }
 
@@ -497,10 +517,17 @@ namespace UsefulTools.Editor
             ScanCurrentStructure();
         }
 
-        private void CreateAsmdef(string folderPath, string assemblyName, List<string> references)
+        private void CreateAsmdef(string folderPath, string assemblyName, List<string> references, string rootNamespace)
         {
             string filePath = $"{folderPath}/{assemblyName}.asmdef";
             if (File.Exists(filePath)) return;
+
+            if (string.IsNullOrEmpty(rootNamespace))
+            {
+                // Default: [ProjectName].[LayerName].Runtime
+                string projectName = Application.productName.Replace(" ", "");
+                rootNamespace = $"{projectName}.{assemblyName}.Runtime";
+            }
 
             // Build references string
             string refStr = "";
@@ -512,7 +539,7 @@ namespace UsefulTools.Editor
 
             string content = $@"{{
     ""name"": ""{assemblyName}"",
-    ""rootNamespace"": """",
+    ""rootNamespace"": ""{rootNamespace}"",
     ""references"": [
         {refStr}
     ],

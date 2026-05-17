@@ -11,6 +11,7 @@ namespace UsefulTools.Editor
     {
         public string layerName;
         public string relativePath;
+        public string rootNamespace;
         public bool createAsmdef = true;
         public List<string> subFolders = new List<string>();
         public List<string> references = new List<string>(); // GUID or Name for asmdef references
@@ -147,6 +148,11 @@ namespace UsefulTools.Editor
                         {
                             layerDef.references = new List<string>(asmData.references);
                         }
+
+                        if (!string.IsNullOrEmpty(asmData.rootNamespace))
+                        {
+                            layerDef.rootNamespace = asmData.rootNamespace;
+                        }
                     }
                     catch
                     {
@@ -171,6 +177,7 @@ namespace UsefulTools.Editor
         private class AsmdefData
         {
             public string name;
+            public string rootNamespace;
             public string[] references;
         }
     }

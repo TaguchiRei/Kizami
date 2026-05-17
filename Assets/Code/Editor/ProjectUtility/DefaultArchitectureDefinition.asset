@@ -1,0 +1,115 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 585713d7a79a1184985f2ad3a139296d, type: 3}
+  m_Name: DefaultArchitectureDefinition
+  m_EditorClassIdentifier: EditorCode::UsefulTools.Editor.ArchitectureDefinition
+  rootPath: Assets/Code/Scripts
+  layers:
+  - layerName: Application
+    relativePath: Application
+    rootNamespace: UsefulTools.Application.Runtime
+    createAsmdef: 1
+    subFolders:
+    - DTOs
+    - Interfaces
+    - Services
+    - UseCases
+    references:
+    - Domain
+    - Utility
+    - AutoGenerate
+  - layerName: Composition
+    relativePath: Composition
+    rootNamespace: UsefulTools.Composition.Runtime
+    createAsmdef: 1
+    subFolders:
+    - Initializers
+    references:
+    - Domain
+    - Application
+    - Infrastructure
+    - DataAccess
+    - Presentation
+    - View
+    - Utility
+    - UtilityUnity
+    - AutoGenerate
+  - layerName: DataAccess
+    relativePath: DataAccess
+    rootNamespace: UsefulTools.DataAccess.Runtime
+    createAsmdef: 1
+    subFolders:
+    - Repositories
+    references:
+    - Application
+    - Domain
+    - AutoGenerate
+  - layerName: Domain
+    relativePath: Domain
+    rootNamespace: UsefulTools.Domain.Runtime
+    createAsmdef: 1
+    subFolders:
+    - Entities
+    - Services
+    - ValueObjects
+    references: []
+  - layerName: Infrastructure
+    relativePath: Infrastructure
+    rootNamespace: UsefulTools.Infrastructure.Runtime
+    createAsmdef: 1
+    subFolders:
+    - Adapters
+    - GameRule
+    - Gateways
+    - Input
+    references:
+    - Utility
+    - UtilityUnity
+    - AutoGenerate
+    - UsefulAttributes
+    - Unity.InputSystem
+    - Application
+  - layerName: Presentation
+    relativePath: Presentation
+    rootNamespace: UsefulTools.Presentation.Runtime
+    createAsmdef: 1
+    subFolders:
+    - Interfaces
+    - Presenters
+    references:
+    - GUID:9ba268f46f56008479f6ba601f342722
+    - GUID:360d1c8c480e36c40acbdb447634d10c
+    - GUID:ec2669d820ea7a248ba5da2087228096
+  - layerName: Utility
+    relativePath: Utility
+    rootNamespace: UsefulTools.Utility.Runtime
+    createAsmdef: 1
+    subFolders: []
+    references: []
+  - layerName: UtilityUnity
+    relativePath: UtilityUnity
+    rootNamespace: UsefulTools.UtilityUnity.Runtime
+    createAsmdef: 1
+    subFolders: []
+    references:
+    - GUID:67fb5e01a156a94419dea823d5f61328
+    - GUID:ec2669d820ea7a248ba5da2087228096
+    - GUID:360d1c8c480e36c40acbdb447634d10c
+  - layerName: View
+    relativePath: View
+    rootNamespace: UsefulTools.VIew.Runtime
+    createAsmdef: 1
+    subFolders: []
+    references:
+    - Presentation
+    - UtilityUnity
+    - Utility
