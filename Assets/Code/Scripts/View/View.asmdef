@@ -5,7 +5,8 @@
         "Presentation",
         "UtilityUnity",
         "Utility",
-        "UsefulAttributes"
+        "UsefulAttributes",
+        "MeshBreak"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

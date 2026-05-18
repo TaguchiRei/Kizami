@@ -23,7 +23,7 @@ public class MultiCutBlade : MonoBehaviour
     }
 
     [MethodExecutor("切断")]
-    private async void Test()
+    public async void Test()
     {
         BoxCollider box = GetComponent<BoxCollider>();
         Vector3 center = box.transform.TransformPoint(box.center);
