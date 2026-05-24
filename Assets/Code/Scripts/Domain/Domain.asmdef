@@ -1,6 +1,6 @@
 {
     "name": "Domain",
-    "rootNamespace": "UsefulTools.Domain.Runtime",
+    "rootNamespace": "Kizami.Domain.Runtime",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

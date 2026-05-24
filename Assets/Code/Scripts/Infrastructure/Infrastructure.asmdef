@@ -1,6 +1,6 @@
 {
     "name": "Infrastructure",
-    "rootNamespace": "UsefulTools.Infrastructure.Runtime",
+    "rootNamespace": "Kizami.Infrastructure.Runtime",
     "references": [
         "Utility",
         "UtilityUnity",

@@ -18,7 +18,7 @@ namespace UsefulTools.Editor
     }
 
     [CreateAssetMenu(fileName = "ArchitectureDefinition", menuName = "UsefulTools/Architecture Definition")]
-    public class ArchitectureDefinition : MethodExecutorScriptableObject
+    public class ArchitectureDefinition : ScriptableObject
     {
         public string rootPath = "Assets/Code/Scripts";
         public List<LayerDefinition> layers = new();

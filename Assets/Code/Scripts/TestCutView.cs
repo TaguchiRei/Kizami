@@ -5,7 +5,7 @@ using UsefulTools.Infrastructure.Runtime.Input;
 
 namespace View
 {
-    public class TestCutView : MethodExecutorBehaviour
+    public class TestCutView : MonoBehaviour
     {
         [SerializeField] private MultiCutBlade _blade;
 

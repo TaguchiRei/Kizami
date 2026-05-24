@@ -3,7 +3,7 @@ using UsefulAttribute;
 
 namespace UsefulTools.View.Runtime
 {
-    public class ModelTargetTracker : MethodExecutorBehaviour
+    public class ModelTargetTracker : MonoBehaviour
     {
         [SerializeField] private Transform _target;
 

@@ -14,7 +14,7 @@ namespace UsefulTools.UtilityUnity.Runtime.UtilityUnity
         {
             enabled = false;
         }
-
+        
         public virtual void Initialize()
         {
             if (Initialized) return;

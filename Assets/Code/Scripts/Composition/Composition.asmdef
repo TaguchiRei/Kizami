@@ -1,6 +1,6 @@
 {
     "name": "Composition",
-    "rootNamespace": "UsefulTools.Composition.Runtime",
+    "rootNamespace": "Kizami.Composition.Runtime",
     "references": [
         "Domain",
         "Application",

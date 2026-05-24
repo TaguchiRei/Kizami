@@ -1,12 +1,11 @@
 {
     "name": "View",
-    "rootNamespace": "UsefulTools.VIew.Runtime",
+    "rootNamespace": "Kizami.VIew.Runtime",
     "references": [
         "Presentation",
         "UtilityUnity",
         "Utility",
-        "UsefulAttributes",
-        "MeshBreak"
+        "UsefulAttributes"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,6 +1,6 @@
 {
     "name": "UtilityUnity",
-    "rootNamespace": "UsefulTools.UtilityUnity.Runtime",
+    "rootNamespace": "Kizami.UtilityUnity.Runtime",
     "references": [
         "GUID:67fb5e01a156a94419dea823d5f61328",
         "GUID:ec2669d820ea7a248ba5da2087228096",

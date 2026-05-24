@@ -1,6 +1,6 @@
 {
     "name": "DataAccess",
-    "rootNamespace": "UsefulTools.DataAccess.Runtime",
+    "rootNamespace": "Kizami.DataAccess.Runtime",
     "references": [
         "Application",
         "Domain",

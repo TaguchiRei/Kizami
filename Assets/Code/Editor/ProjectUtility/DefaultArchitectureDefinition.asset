@@ -16,7 +16,7 @@ MonoBehaviour:
   layers:
   - layerName: Application
     relativePath: Application
-    rootNamespace: UsefulTools.Application.Runtime
+    rootNamespace: Kizami.Application.Runtime
     createAsmdef: 1
     subFolders:
     - DTOs
@@ -29,7 +29,7 @@ MonoBehaviour:
     - AutoGenerate
   - layerName: Composition
     relativePath: Composition
-    rootNamespace: UsefulTools.Composition.Runtime
+    rootNamespace: Kizami.Composition.Runtime
     createAsmdef: 1
     subFolders:
     - Initializers
@@ -45,7 +45,7 @@ MonoBehaviour:
     - AutoGenerate
   - layerName: DataAccess
     relativePath: DataAccess
-    rootNamespace: UsefulTools.DataAccess.Runtime
+    rootNamespace: Kizami.DataAccess.Runtime
     createAsmdef: 1
     subFolders:
     - Repositories
@@ -55,7 +55,7 @@ MonoBehaviour:
     - AutoGenerate
   - layerName: Domain
     relativePath: Domain
-    rootNamespace: UsefulTools.Domain.Runtime
+    rootNamespace: Kizami.Domain.Runtime
     createAsmdef: 1
     subFolders:
     - Entities
@@ -64,7 +64,7 @@ MonoBehaviour:
     references: []
   - layerName: Infrastructure
     relativePath: Infrastructure
-    rootNamespace: UsefulTools.Infrastructure.Runtime
+    rootNamespace: Kizami.Infrastructure.Runtime
     createAsmdef: 1
     subFolders:
     - Adapters
@@ -80,7 +80,7 @@ MonoBehaviour:
     - Application
   - layerName: Presentation
     relativePath: Presentation
-    rootNamespace: UsefulTools.Presentation.Runtime
+    rootNamespace: Kizami.Presentation.Runtime
     createAsmdef: 1
     subFolders:
     - Interfaces
@@ -91,13 +91,13 @@ MonoBehaviour:
     - GUID:ec2669d820ea7a248ba5da2087228096
   - layerName: Utility
     relativePath: Utility
-    rootNamespace: UsefulTools.Utility.Runtime
+    rootNamespace: Kizami.Utility.Runtime
     createAsmdef: 1
     subFolders: []
     references: []
   - layerName: UtilityUnity
     relativePath: UtilityUnity
-    rootNamespace: UsefulTools.UtilityUnity.Runtime
+    rootNamespace: Kizami.UtilityUnity.Runtime
     createAsmdef: 1
     subFolders: []
     references:
@@ -106,7 +106,7 @@ MonoBehaviour:
     - GUID:360d1c8c480e36c40acbdb447634d10c
   - layerName: View
     relativePath: View
-    rootNamespace: UsefulTools.VIew.Runtime
+    rootNamespace: Kizami.VIew.Runtime
     createAsmdef: 1
     subFolders: []
     references:
