@@ -1,9 +1,9 @@
 using System;
 using UnityEngine;
 
-namespace Kizami.Presentation.Runtime.MeshCut
+namespace Kizami.Application.Runtime
 {
-    public interface IBlade
+    public interface IBladePresenter
     {
         void SetRotation(Quaternion rotation);
 

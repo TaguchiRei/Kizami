@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Kizami.View.Runtime.MeshCut
 {
-    public class Blade : MonoBehaviour, IBlade
+    public class BladeView : MonoBehaviour, IBladeView
     {
         [SerializeField] private MultiCutBlade _multiCutBlade;
 
