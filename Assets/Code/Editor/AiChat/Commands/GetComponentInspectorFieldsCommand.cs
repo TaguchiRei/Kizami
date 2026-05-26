@@ -15,21 +15,40 @@ namespace UsefulTools.Editor.Ai.Commands
         public string Execute(List<string> arguments)
         {
             if (arguments == null || arguments.Count < 2)
-                return "Error: Missing arguments. Expected 2 (Path, Component).";
+                return "Error: Missing arguments. Expected 2 (Path/ID, ComponentName).";
 
             var go = GameObjectResolver.Resolve(arguments[0]);
             if (go == null) return $"Error: GameObject not found at {arguments[0]}.";
 
-            var comp = go.GetComponent(arguments[1]);
-            if (comp == null) return $"Error: Component {arguments[1]} not found.";
+            string searchName = arguments[1];
+            Component targetComp = null;
 
-            SerializedObject so = new SerializedObject(comp);
+            // 部分一致または完全一致でコンポーネントを探索
+            foreach (var comp in go.GetComponents<Component>())
+            {
+                if (comp == null) continue;
+                string typeName = comp.GetType().Name;
+                if (typeName.Equals(searchName, StringComparison.OrdinalIgnoreCase) || 
+                    typeName.Contains(searchName))
+                {
+                    targetComp = comp;
+                    break;
+                }
+            }
+
+            if (targetComp == null)
+            {
+                var allComps = string.Join(", ", Array.ConvertAll(go.GetComponents<Component>(), c => c != null ? c.GetType().Name : "Missing"));
+                return $"Error: Component '{searchName}' not found. Available components: {allComps}";
+            }
+
+            SerializedObject so = new SerializedObject(targetComp);
             SerializedProperty iterator = so.GetIterator();
             
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"Inspector Fields for {arguments[1]} on {arguments[0]}:");
+            sb.AppendLine($"Inspector Fields for {targetComp.GetType().Name} on {arguments[0]}:");
 
-            Type compType = comp.GetType();
+            Type compType = targetComp.GetType();
 
             bool enterChildren = true;
             while (iterator.NextVisible(enterChildren))

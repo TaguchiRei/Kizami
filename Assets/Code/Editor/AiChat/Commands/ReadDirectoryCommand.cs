@@ -5,6 +5,7 @@ namespace UsefulTools.Editor.Ai.Commands
 {
     public class ReadDirectoryCommand : IAiCommand
     {
+        
         public string Name => "ReadDirectory";
         public string Description => "ReadDirectory [Path]";
 

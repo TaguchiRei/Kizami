@@ -64,6 +64,11 @@ namespace UsefulTools.Editor.Ai
                     "Max Output Tokens",
                     settings.MaxOutputTokens);
 
+            settings.TimeoutSeconds =
+                EditorGUILayout.IntField(
+                    "Timeout (Seconds)",
+                    settings.TimeoutSeconds);
+
             GUILayout.Space(10);
 
             using (new EditorGUILayout.HorizontalScope())

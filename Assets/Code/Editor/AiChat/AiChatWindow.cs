@@ -1,3 +1,4 @@
+using System;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -23,20 +24,34 @@ namespace UsefulTools.Editor.Ai
         private TextField _inputField;
         private Button _sendButton;
         private Button _stopButton;
-        private GeminiClient _client;
         private GeminiSettings _settings;
         private VisualElement _commandPanel;
         private Label _statusLabel;
         private Label _tokenLabel;
         private CancellationTokenSource _cts;
 
+        [SerializeField]
         private List<FileContextItem> _fileContexts = new List<FileContextItem>();
         private VisualElement _fileContextPanel;
         private VisualElement _rightPanel;
 
+        [Serializable]
         private struct ChatMessage { public string sender; public string message; public bool isUser; public int promptTokens; public int totalTokens; }
+        
+        [SerializeField]
         private List<ChatMessage> _persistentHistory = new List<ChatMessage>();
         
+        [SerializeField]
+        private GeminiClient _client;
+        
+        [SerializeField]
+        private string _pendingCommandResult = "";
+
+        [SerializeField]
+        private bool _hasPendingResult = false;
+
+        [SerializeField]
+        private bool _isProcessing = false;
         
         public void CreateGUI()
         {
@@ -47,7 +62,7 @@ namespace UsefulTools.Editor.Ai
             if (_settings == null)
                 _settings = GeminiSettings.Load();
 
-            if (_client == null && _settings != null)
+            if ((_client == null || !_client.IsInitialized) && _settings != null)
                 _client = new GeminiClient(_settings.ApiKey, _settings.GetModelEnum());
 
             RegisterCommands();
@@ -57,6 +72,25 @@ namespace UsefulTools.Editor.Ai
 
             BuildLayout(root);
             RestoreHistoryUI();
+
+            // コンパイル中断からの復帰処理：メッセージは挿入せず結果のみ再送
+            if (_hasPendingResult && !string.IsNullOrEmpty(_pendingCommandResult))
+            {
+                var resultToReport = _pendingCommandResult;
+                _hasPendingResult = false;
+                _pendingCommandResult = "";
+                
+                _ = ProcessAiResponse(resultToReport, null, "system");
+            }
+
+            // 通信中のドメインリロードからのUI復帰処理
+            if (_isProcessing)
+            {
+                _isProcessing = false;
+                AddMessage("System", "ドメインリロード（コンパイル）によりAIとの通信が中断されました。", false, 0, 0, new Color(0.6f, 0.3f, 0.1f));
+                SetUIEnabled(true);
+                _inputField?.Focus();
+            }
         }
         
         private void BuildLayout(VisualElement root)
@@ -198,11 +232,105 @@ namespace UsefulTools.Editor.Ai
             }
         }
         
+        public AiChatContext ExportContext()
+        {
+            var context = new AiChatContext();
+            foreach (var h in _persistentHistory)
+            {
+                context.History.Add(new AiChatContext.ChatMessageData
+                {
+                    sender = h.sender,
+                    message = h.message,
+                    isUser = h.isUser,
+                    promptTokens = h.promptTokens,
+                    totalTokens = h.totalTokens
+                });
+            }
+            context.FileContexts = _fileContexts;
+            if (_client != null)
+            {
+                context.GeminiConversationJson = _client.ExportConversationJson();
+            }
+            return context;
+        }
+
+        public void ImportContext(AiChatContext context)
+        {
+            if (context == null) return;
+
+            _persistentHistory.Clear();
+            _fileContexts = context.FileContexts ?? new List<FileContextItem>();
+
+            if (_settings != null)
+            {
+                _client = new GeminiClient(_settings.ApiKey, _settings.GetModelEnum());
+                if (!string.IsNullOrEmpty(context.GeminiConversationJson))
+                {
+                    _client.ImportConversationJson(context.GeminiConversationJson);
+                }
+            }
+
+            // Historyが明示的に保存されている場合はそれを使用
+            if (context.History != null && context.History.Count > 0)
+            {
+                foreach (var h in context.History)
+                {
+                    _persistentHistory.Add(new ChatMessage
+                    {
+                        sender = h.sender,
+                        message = h.message,
+                        isUser = h.isUser,
+                        promptTokens = h.promptTokens,
+                        totalTokens = h.totalTokens
+                    });
+                }
+            }
+            // Historyが空で、生データがある場合は生データから復元
+            else if (_client != null && !string.IsNullOrEmpty(context.GeminiConversationJson))
+            {
+                var history = _client.GetConversationHistory();
+                foreach (var (role, text) in history)
+                {
+                    bool isUser = role == "user";
+                    string sender = isUser ? "You" : (role == "model" ? "AI" : "System");
+                    
+                    string displayMsg = text;
+                    if (role == "system" && displayMsg.StartsWith("[SYSTEM] "))
+                        displayMsg = displayMsg.Substring(9);
+
+                    _persistentHistory.Add(new ChatMessage
+                    {
+                        sender = sender,
+                        message = displayMsg,
+                        isUser = isUser,
+                        promptTokens = 0,
+                        totalTokens = 0
+                    });
+                }
+            }
+
+            RestoreHistoryUI();
+            InitializeFilePanel();
+        }
+
         private void OnEnable()
         {
             _settings = GeminiSettings.Load();
 
-            if (_settings != null)
+            // 1. Unityのシリアル化による復元を試みる
+            bool hasSerializedData = _persistentHistory != null && _persistentHistory.Count > 0;
+
+            if (!hasSerializedData)
+            {
+                // 2. シリアル化データがない場合（エディタ起動時など）、外部ファイルからロード
+                var context = AiChatContext.Load();
+                if (context.History.Count > 0 || context.FileContexts.Count > 0 || !string.IsNullOrEmpty(context.GeminiConversationJson))
+                {
+                    ImportContext(context);
+                }
+            }
+
+            if ((_client == null || !_client.IsInitialized) && _settings != null)
             {
                 _client = new GeminiClient(
                     _settings.ApiKey,
@@ -213,19 +341,35 @@ namespace UsefulTools.Editor.Ai
             _fileContexts ??= new List<FileContextItem>();
             _persistentHistory ??= new List<ChatMessage>();
         }
+
+        private void OnDisable()
+        {
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = null;
+
+            if (_persistentHistory == null || _persistentHistory.Count == 0) return;
+
+            var context = ExportContext();
+            context.Save();
+        }
+
+        private void OnDestroy()
+        {
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = null;
+        }
         private void RegisterCommands()
         {
+            AiCommandRegistry.Register(new Commands.FindAssetsCommand());
             AiCommandRegistry.Register(new Commands.AddComponentCommand());
             AiCommandRegistry.Register(new Commands.SetComponentValueCommand());
             AiCommandRegistry.Register(new Commands.GetComponentInspectorFieldsCommand());
             AiCommandRegistry.Register(new Commands.GetComponentScriptPathCommand());
             AiCommandRegistry.Register(new Commands.InvokeMenuItemCommand());
-            AiCommandRegistry.Register(new Commands.ChangeFileCommand());
             AiCommandRegistry.Register(new Commands.ClearContextCommand());
-            AiCommandRegistry.Register(new Commands.ListFilesCommand());
-            AiCommandRegistry.Register(new Commands.ReadFileCommand());
-            AiCommandRegistry.Register(new Commands.DeletePathCommand());
-            AiCommandRegistry.Register(new Commands.DeleteFileCommand());
+            AiCommandRegistry.Register(new Commands.DeleteAssetCommand());
             AiCommandRegistry.Register(new Commands.CaptureGameViewCommand());
             AiCommandRegistry.Register(new Commands.WriteFileCommand());
             AiCommandRegistry.Register(new Commands.MoveFileCommand());
@@ -238,11 +382,14 @@ namespace UsefulTools.Editor.Ai
             AiCommandRegistry.Register(new Commands.GetSelectionCommand());
             AiCommandRegistry.Register(new Commands.GetCompileErrorsCommand());
             AiCommandRegistry.Register(new Commands.ExistsCommand());
-            AiCommandRegistry.Register(new Commands.FindAssetsCommand());
             AiCommandRegistry.Register(new Commands.CreateGameObjectCommand());
             AiCommandRegistry.Register(new Commands.AttachComponentReferenceCommand());
             AiCommandRegistry.Register(new Commands.PatchFileCommand());
-            AiCommandRegistry.Register(new Commands.DeleteGameObjectCommand());
+            AiCommandRegistry.Register(new Commands.DestroyGameObjectCommand());
+            AiCommandRegistry.Register(new Commands.SearchCodeCommand());
+            AiCommandRegistry.Register(new Commands.GetObjectDetailCommand());
+            AiCommandRegistry.Register(new Commands.GetScriptsOnObjectCommand());
+            AiCommandRegistry.Register(new Commands.BatchReadFileCommand());
             
             // 再生系
             AiCommandRegistry.Register(new Commands.EnterPlayModeCommand());
@@ -270,17 +417,83 @@ namespace UsefulTools.Editor.Ai
             UserCommandRegistry.Register(new UserCommands.FileCommands("UnblockDirectory", "ディレクトリをアクセス拒否リストから削除", args => {
                 if(args.Length > 0) FileSecurity.UnblockDirectory(args[0]);
             }));
-            UserCommandRegistry.Register(new UserCommands.FileCommands("AddFile", "コンテキストへファイル追加", _ => Debug.Log("AddFile")));
-            UserCommandRegistry.Register(new UserCommands.FileCommands("RemoveFile", "コンテキストからファイル除外", _ => Debug.Log("RemoveFile")));
-            UserCommandRegistry.Register(new UserCommands.FileCommands("ListFiles", "認識ファイル一覧表示", _ => Debug.Log("ListFiles")));
-            UserCommandRegistry.Register(new UserCommands.FileCommands("RefreshFile", "ファイルを再読み込み", _ => Debug.Log("RefreshFile")));
-            UserCommandRegistry.Register(new UserCommands.FileCommands("PinFile", "重要ファイルを優先保持", _ => Debug.Log("PinFile")));
+            UserCommandRegistry.Register(new UserCommands.FileCommands("AddFile", "コンテキストへファイル追加", args => {
+                if (args.Length > 0) {
+                    string path = args[0];
+                    if (File.Exists(path)) {
+                        if (!_fileContexts.Any(f => f.FilePath == path)) {
+                            _fileContexts.Add(new FileContextItem(path));
+                            InitializeFilePanel();
+                            AddMessage("System", $"File added: {path}", false, 0, 0, new Color(0.2f, 0.5f, 0.2f));
+                        }
+                    } else {
+                        AddMessage("System", $"File not found: {path}", false, 0, 0, new Color(0.5f, 0.2f, 0.2f));
+                    }
+                }
+            }));
+            UserCommandRegistry.Register(new UserCommands.FileCommands("RemoveFile", "コンテキストからファイル除外", args => {
+                if (args.Length > 0) {
+                    string path = args[0];
+                    var item = _fileContexts.FirstOrDefault(f => f.FilePath == path || f.FileName == path);
+                    if (item != null) {
+                        _fileContexts.Remove(item);
+                        InitializeFilePanel();
+                        AddMessage("System", $"File removed: {item.FilePath}", false, 0, 0, new Color(0.5f, 0.5f, 0.2f));
+                    }
+                }
+            }));
+            UserCommandRegistry.Register(new UserCommands.FileCommands("ListFiles", "認識ファイル一覧表示", _ => {
+                if (_fileContexts.Count == 0) {
+                    AddMessage("System", "No files in context.", false, 0, 0);
+                } else {
+                    string list = string.Join("\n", _fileContexts.Select(f => $"- {(f.IsEnabled ? "[x]" : "[ ]")} {f.FilePath}"));
+                    AddMessage("System", $"Context files:\n{list}", false, 0, 0);
+                }
+            }));
+            UserCommandRegistry.Register(new UserCommands.FileCommands("RefreshFile", "ファイルを再読み込み", args => {
+                if (args.Length > 0) {
+                    string path = args[0];
+                    var item = _fileContexts.FirstOrDefault(f => f.FilePath == path || f.FileName == path);
+                    if (item != null) {
+                        item.Content = File.ReadAllText(item.FilePath);
+                        AddMessage("System", $"Refreshed: {item.FilePath}", false, 0, 0);
+                    }
+                } else {
+                    foreach (var item in _fileContexts) {
+                        if (File.Exists(item.FilePath)) item.Content = File.ReadAllText(item.FilePath);
+                    }
+                    AddMessage("System", "All files refreshed.", false, 0, 0);
+                }
+            }));
+            UserCommandRegistry.Register(new UserCommands.FileCommands("PinFile", "重要ファイルを有効化", args => {
+                if (args.Length > 0) {
+                    string path = args[0];
+                    var item = _fileContexts.FirstOrDefault(f => f.FilePath == path || f.FileName == path);
+                    if (item != null) {
+                        item.IsEnabled = true;
+                        InitializeFilePanel();
+                        AddMessage("System", $"File Enabled: {item.FilePath}", false, 0, 0);
+                    }
+                }
+            }));
 
             // AI実行制御コマンド
-            UserCommandRegistry.Register(new UserCommands.ControlCommands("DryRun", "変更予定のみ表示", _ => Debug.Log("DryRun")));
-            UserCommandRegistry.Register(new UserCommands.ControlCommands("Apply", "提案変更を適用", _ => Debug.Log("Apply")));
-            UserCommandRegistry.Register(new UserCommands.ControlCommands("Revert", "AI変更を巻き戻す", _ => Debug.Log("Revert")));
-            UserCommandRegistry.Register(new UserCommands.ControlCommands("ApprovePlan", "計画承認を要求", _ => Debug.Log("ApprovePlan")));
+            UserCommandRegistry.Register(new UserCommands.ControlCommands("DryRun", "変更予定のみ表示するように指示", _ => {
+                _inputField.value = "提案されている変更のDryRun（プレビュー）をお願いします。ファイル書き換えは行わないでください。";
+                OnSendClicked();
+            }));
+            UserCommandRegistry.Register(new UserCommands.ControlCommands("Apply", "提案変更を適用するように指示", _ => {
+                _inputField.value = "提案された変更を適用してください。";
+                OnSendClicked();
+            }));
+            UserCommandRegistry.Register(new UserCommands.ControlCommands("Revert", "変更の巻き戻しを指示", _ => {
+                _inputField.value = "直前の変更を元に戻してください。";
+                OnSendClicked();
+            }));
+            UserCommandRegistry.Register(new UserCommands.ControlCommands("ApprovePlan", "計画の承認", _ => {
+                _inputField.value = "その計画で進めてください。";
+                OnSendClicked();
+            }));
         }
 
         private void InitializeRightPanel()
@@ -362,12 +575,13 @@ namespace UsefulTools.Editor.Ai
 
         private void OnFocus()
         {
-            if (_settings == null || _client == null)
-                return;
+            if (_settings == null)
+                _settings = GeminiSettings.Load();
 
             var newSettings = GeminiSettings.Load();
 
-            if (_settings.ApiKey != newSettings.ApiKey ||
+            if (_client == null ||
+                _settings.ApiKey != newSettings.ApiKey ||
                 _settings.GetModelEnum() != newSettings.GetModelEnum())
             {
                 _settings = newSettings;
@@ -455,6 +669,9 @@ namespace UsefulTools.Editor.Ai
         private async Task ProcessAiResponse(string text, string imagePath = null, string role = "user")
         {
             SetUIEnabled(false);
+            _isProcessing = true;
+            _cts?.Cancel();
+            _cts?.Dispose();
             _cts = new CancellationTokenSource();
 
             try
@@ -481,6 +698,7 @@ namespace UsefulTools.Editor.Ai
             }
             finally
             {
+                _isProcessing = false;
                 if (!_cts.Token.IsCancellationRequested)
                 {
                     SetUIEnabled(true);
@@ -507,6 +725,10 @@ namespace UsefulTools.Editor.Ai
         private async Task HandleCommandResult(GeminiClient.GeminiResponse response, string result)
         {
             if (string.IsNullOrEmpty(result)) return;
+
+            // コンパイル中断用：結果を一時保存
+            _pendingCommandResult = result;
+            _hasPendingResult = true;
 
             bool isError = result.Contains("Error:");
             
@@ -541,6 +763,10 @@ namespace UsefulTools.Editor.Ai
             }
 
             await ProcessAiResponse(result, nextImagePath, "system");
+            
+            // 正常終了したら保存したデータをクリア
+            _hasPendingResult = false;
+            _pendingCommandResult = "";
         }
 
         public string ExportConversationJson()
@@ -553,10 +779,10 @@ namespace UsefulTools.Editor.Ai
             return string.Join("\n", _persistentHistory.Select(m => $"{m.sender}: {m.message}"));
         }
 
-        public async Task<string> RequestSummary(string history)
+        public async Task<string> RequestSummary(string history, CancellationToken ct = default)
         {
             // 要約プロンプトを投げて結果を返す
-            var response = await _client.SendAsync($"以下の会話履歴を簡潔に要約してください。\n\n{history}", "user", null, _fileContexts, CancellationToken.None);
+            var response = await _client.SendAsync($"以下の会話履歴を簡潔に要約してください。\n\n{history}", "user", null, _fileContexts, ct);
             return response.Message;
         }
 
@@ -582,6 +808,7 @@ namespace UsefulTools.Editor.Ai
         private void OnClearClicked()
         {
             ClearConversation();
+            AiChatContext.Clear();
             _tokenLabel.text = "Prompt: 0 | Total: 0";
             AddMessage("Gemini", "会話をリセットしました。", false, 0, 0);
         }
@@ -638,6 +865,7 @@ namespace UsefulTools.Editor.Ai
 
             container.Add(bubble);
             _chatHistory.Add(container);
+            _chatHistory.UnregisterCallback<GeometryChangedEvent>(OnGeometryChanged);
             _chatHistory.RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
         }
 

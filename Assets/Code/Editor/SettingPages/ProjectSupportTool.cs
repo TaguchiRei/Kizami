@@ -36,29 +36,13 @@ namespace UsefulTools.Editor
         private const string VContainerUrlKey = "UsefulTools.Code.VContainerUrl";
         private const string AddressablesPkgKey = "UsefulTools.Code.AddressablesPkg";
 
-        private const string DefaultUniTaskUrl =
-            "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask";
-
+        private const string DefaultUniTaskUrl = "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask";
         private const string DefaultVContainerUrl = "https://github.com/hadashiA/VContainer.git";
         private const string DefaultAddressablesPkg = "com.unity.addressables";
 
-        public static string UniTaskUrl
-        {
-            get => EditorPrefs.GetString(UniTaskUrlKey, DefaultUniTaskUrl);
-            set => EditorPrefs.SetString(UniTaskUrlKey, value);
-        }
-
-        public static string VContainerUrl
-        {
-            get => EditorPrefs.GetString(VContainerUrlKey, DefaultVContainerUrl);
-            set => EditorPrefs.SetString(VContainerUrlKey, value);
-        }
-
-        public static string AddressablesPkg
-        {
-            get => EditorPrefs.GetString(AddressablesPkgKey, DefaultAddressablesPkg);
-            set => EditorPrefs.SetString(AddressablesPkgKey, value);
-        }
+        public static string UniTaskUrl { get => EditorPrefs.GetString(UniTaskUrlKey, DefaultUniTaskUrl); set => EditorPrefs.SetString(UniTaskUrlKey, value); }
+        public static string VContainerUrl { get => EditorPrefs.GetString(VContainerUrlKey, DefaultVContainerUrl); set => EditorPrefs.SetString(VContainerUrlKey, value); }
+        public static string AddressablesPkg { get => EditorPrefs.GetString(AddressablesPkgKey, DefaultAddressablesPkg); set => EditorPrefs.SetString(AddressablesPkgKey, value); }
 
         private const string ArchDefGuidKey = "UsefulTools.Code.ArchDefGuid";
         private ArchitectureDefinition _archDefinition;
@@ -74,44 +58,6 @@ namespace UsefulTools.Editor
 
         private HashSet<string> _gitIgnoreEntries = new HashSet<string>();
         private string _gitIgnorePath;
-
-        [System.Serializable]
-        private class AsmdefFile
-        {
-            public string name;
-
-            public string rootNamespace;
-
-            public string[] references;
-
-            public string[] includePlatforms;
-
-            public string[] excludePlatforms;
-
-            public bool allowUnsafeCode;
-
-            public bool overrideReferences;
-
-            public string[] precompiledReferences;
-
-            public bool autoReferenced;
-
-            public string[] defineConstraints;
-
-            public VersionDefine[] versionDefines;
-
-            public bool noEngineReferences;
-        }
-
-        [System.Serializable]
-        private class VersionDefine
-        {
-            public string name;
-
-            public string expression;
-
-            public string define;
-        }
 
         public override void Initialize()
         {
@@ -135,7 +81,7 @@ namespace UsefulTools.Editor
         private void RefreshIntendedStructure()
         {
             _intendedStructure = new List<DirectoryHierarchy>();
-
+            
             var art = new DirectoryHierarchy("Art", "Assets/Art");
             art.children.Add(new DirectoryHierarchy("Materials", "Assets/Art/Materials"));
             art.children.Add(new DirectoryHierarchy("Models", "Assets/Art/Models"));
@@ -205,13 +151,11 @@ namespace UsefulTools.Editor
             // 3. Architecture Structure Setup
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                EditorGUILayout.LabelField("Architecture Structure Setup (Clean Architecture)",
-                    EditorStyles.miniBoldLabel);
-
+                EditorGUILayout.LabelField("Architecture Structure Setup (Clean Architecture)", EditorStyles.miniBoldLabel);
+                
                 using (var check = new EditorGUI.ChangeCheckScope())
                 {
-                    _archDefinition = (ArchitectureDefinition)EditorGUILayout.ObjectField("Architecture Definition",
-                        _archDefinition, typeof(ArchitectureDefinition), false);
+                    _archDefinition = (ArchitectureDefinition)EditorGUILayout.ObjectField("Architecture Definition", _archDefinition, typeof(ArchitectureDefinition), false);
                     if (check.changed)
                     {
                         if (_archDefinition != null)
@@ -228,8 +172,7 @@ namespace UsefulTools.Editor
 
                 if (_archDefinition == null)
                 {
-                    EditorGUILayout.HelpBox("Please assign an ArchitectureDefinition ScriptableObject.",
-                        MessageType.Warning);
+                    EditorGUILayout.HelpBox("Please assign an ArchitectureDefinition ScriptableObject.", MessageType.Warning);
                     if (GUILayout.Button("Create New Definition Asset"))
                     {
                         string defaultDir = "Assets/Code/AutoGenerate";
@@ -238,8 +181,7 @@ namespace UsefulTools.Editor
                             EnsureFolderExists(defaultDir);
                         }
 
-                        string path = EditorUtility.SaveFilePanelInProject("Save Architecture Definition",
-                            "NewArchitectureDefinition", "asset", "Save architecture definition asset", defaultDir);
+                        string path = EditorUtility.SaveFilePanelInProject("Save Architecture Definition", "NewArchitectureDefinition", "asset", "Save architecture definition asset", defaultDir);
                         if (!string.IsNullOrEmpty(path))
                         {
                             var asset = ScriptableObject.CreateInstance<ArchitectureDefinition>();
@@ -256,7 +198,7 @@ namespace UsefulTools.Editor
                     using (var check = new EditorGUI.ChangeCheckScope())
                     {
                         _archDefinition.rootPath = EditorGUILayout.TextField("Root Path", _archDefinition.rootPath);
-
+                        
                         EditorGUILayout.Space(5);
                         EditorGUILayout.LabelField("Layer Namespaces (Empty for default)", EditorStyles.miniBoldLabel);
                         string projectName = Application.productName.Replace(" ", "");
@@ -267,12 +209,11 @@ namespace UsefulTools.Editor
                             {
                                 EditorGUILayout.LabelField(layer.layerName, GUILayout.Width(100));
                                 layer.rootNamespace = EditorGUILayout.TextField(layer.rootNamespace);
-
+                                
                                 if (string.IsNullOrEmpty(layer.rootNamespace))
                                 {
                                     GUI.enabled = false;
-                                    EditorGUILayout.LabelField($"{projectName}.{layer.layerName}.Runtime",
-                                        EditorStyles.miniLabel);
+                                    EditorGUILayout.LabelField($"{projectName}.{layer.layerName}.Runtime", EditorStyles.miniLabel);
                                     GUI.enabled = true;
                                 }
                             }
@@ -281,7 +222,7 @@ namespace UsefulTools.Editor
                         if (check.changed) EditorUtility.SetDirty(_archDefinition);
                     }
                 }
-
+                
                 EditorGUILayout.Space(5);
 
                 using (new EditorGUILayout.HorizontalScope())
@@ -294,8 +235,7 @@ namespace UsefulTools.Editor
                             return;
                         }
 
-                        if (EditorUtility.DisplayDialog("Setup Architecture",
-                                $"Generate the architecture under {_archDefinition.rootPath}?", "Yes", "Cancel"))
+                        if (EditorUtility.DisplayDialog("Setup Architecture", $"Generate the architecture under {_archDefinition.rootPath}?", "Yes", "Cancel"))
                         {
                             SetupArchitectureStructure();
                         }
@@ -305,8 +245,7 @@ namespace UsefulTools.Editor
                     {
                         if (_archDefinition == null)
                         {
-                            EditorUtility.DisplayDialog("Info",
-                                "Please assign or create an Architecture Definition asset first.", "OK");
+                            EditorUtility.DisplayDialog("Info", "Please assign or create an Architecture Definition asset first.", "OK");
                         }
                         else
                         {
@@ -326,15 +265,14 @@ namespace UsefulTools.Editor
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    _showCurrent =
-                        EditorGUILayout.Foldout(_showCurrent, ".gitignore Management & Folder Structure", true);
+                    _showCurrent = EditorGUILayout.Foldout(_showCurrent, ".gitignore Management & Folder Structure", true);
                     if (GUILayout.Button("Scan", GUILayout.Width(60))) ScanCurrentStructure();
                 }
 
                 if (_showCurrent)
                 {
                     EditorGUILayout.HelpBox("Select folders to add to or remove from .gitignore.", MessageType.Info);
-
+                    
                     if (_currentStructure == null || _currentStructure.Count == 0)
                     {
                         EditorGUILayout.HelpBox("Press 'Scan' to visualize structure.", MessageType.None);
@@ -355,7 +293,6 @@ namespace UsefulTools.Editor
                         {
                             SaveGitIgnore();
                         }
-
                         if (GUILayout.Button("Reload .gitignore", GUILayout.Width(120), GUILayout.Height(30)))
                         {
                             LoadGitIgnore();
@@ -375,7 +312,7 @@ namespace UsefulTools.Editor
                 {
                     GUILayout.Space(depth * 16);
                     bool hasChildren = item.children != null && item.children.Count > 0;
-
+                    
                     // Foldout
                     Rect rect = GUILayoutUtility.GetRect(16, 16, GUILayout.ExpandWidth(false));
                     if (hasChildren) item.isExpanded = EditorGUI.Foldout(rect, item.isExpanded, "", true);
@@ -384,7 +321,7 @@ namespace UsefulTools.Editor
                     // Folder Icon
                     bool exists = AssetDatabase.IsValidFolder(item.folderPath);
                     GUILayout.Label(exists ? "📁" : "⚪", GUILayout.Width(18));
-
+                    
                     // Folder Name
                     EditorGUILayout.LabelField(item.folderName, EditorStyles.miniLabel);
 
@@ -393,7 +330,7 @@ namespace UsefulTools.Editor
                         GUILayout.FlexibleSpace();
                         bool prevIgnored = item.isIgnored;
                         item.isIgnored = EditorGUILayout.ToggleLeft("Ignore", item.isIgnored, GUILayout.Width(60));
-
+                        
                         // 子階層も再帰的に変更するかどうか（オプション）
                         if (prevIgnored != item.isIgnored && Event.current.shift)
                         {
@@ -405,9 +342,7 @@ namespace UsefulTools.Editor
                         GUILayout.FlexibleSpace();
                     }
                 }
-
-                if (item.isExpanded && item.children != null && item.children.Count > 0)
-                    DrawHierarchyList(item.children, depth + 1, showIgnoreToggle);
+                if (item.isExpanded && item.children != null && item.children.Count > 0) DrawHierarchyList(item.children, depth + 1, showIgnoreToggle);
             }
         }
 
@@ -433,7 +368,7 @@ namespace UsefulTools.Editor
         private DirectoryHierarchy BuildHierarchyRecursive(string relativePath)
         {
             var hierarchy = new DirectoryHierarchy(Path.GetFileName(relativePath), relativePath);
-
+            
             // gitignoreの状態を確認
             string ignorePath = relativePath.EndsWith("/") ? relativePath : relativePath + "/";
             hierarchy.isIgnored = _gitIgnoreEntries.Contains(ignorePath);
@@ -446,7 +381,6 @@ namespace UsefulTools.Editor
                     hierarchy.children.Add(BuildHierarchyRecursive(relativePath + "/" + Path.GetFileName(subDir)));
                 }
             }
-
             return hierarchy;
         }
 
@@ -481,8 +415,7 @@ namespace UsefulTools.Editor
 
             // 既存の行を整理
             // 1. UIに表示されているパスに関連する既存のエントリを一度クリア
-            lines.RemoveAll(line =>
-            {
+            lines.RemoveAll(line => {
                 string trimmed = line.Trim();
                 return trimmed.StartsWith("Assets/") && (trimmed.EndsWith("/") || !trimmed.Contains("."));
             });
@@ -518,7 +451,6 @@ namespace UsefulTools.Editor
                     string path = item.folderPath.EndsWith("/") ? item.folderPath : item.folderPath + "/";
                     result.Add(path);
                 }
-
                 CollectIgnoredPaths(item.children, result);
             }
         }
@@ -536,10 +468,8 @@ namespace UsefulTools.Editor
                         AssetDatabase.CreateFolder(parent, folder);
                     }
                 }
-
                 if (item.children.Count > 0) ApplyStructure(item.children);
             }
-
             AssetDatabase.Refresh();
         }
 
@@ -548,13 +478,12 @@ namespace UsefulTools.Editor
             // Move
             MoveAsset("Assets/Scenes", "Assets/Level/Scenes");
             MoveAsset("Assets/Settings", "Assets/Data/Settings");
-            MoveAsset("Assets/InputSystem_Actions.inputactions",
-                "Assets/Data/InputSystem/InputSystem_Actions.inputactions");
+            MoveAsset("Assets/InputSystem_Actions.inputactions", "Assets/Data/InputSystem/InputSystem_Actions.inputactions");
 
             // Delete
             DeleteAsset("Assets/TutorialInfo");
             DeleteAsset("Assets/Readme.asset");
-
+            
             AssetDatabase.Refresh();
         }
 
@@ -576,141 +505,16 @@ namespace UsefulTools.Editor
                     EnsureFolderExists($"{layerPath}/{sub}");
                 }
 
-                // Create or Update Asmdef
+                // Create Asmdef
                 if (layer.createAsmdef)
                 {
-                    CreateOrUpdateAsmdef(
-                        layerPath,
-                        layer.layerName,
-                        layer.references,
-                        layer.rootNamespace);
+                    CreateAsmdef(layerPath, layer.layerName, layer.references, layer.rootNamespace);
                 }
             }
 
             AssetDatabase.Refresh();
-
             Debug.Log("[UsefulTools] Architecture structure and asmdefs setup completed successfully.");
-
             ScanCurrentStructure();
-        }
-
-        private void CreateOrUpdateAsmdef(
-            string folderPath,
-            string assemblyName,
-            List<string> references,
-            string rootNamespace)
-        {
-            string filePath = $"{folderPath}/{assemblyName}.asmdef";
-
-            // Default Namespace
-            if (string.IsNullOrEmpty(rootNamespace))
-            {
-                string projectName = Application.productName.Replace(" ", "");
-                rootNamespace = $"{projectName}.{assemblyName}.Runtime";
-            }
-
-            AsmdefFile asmdef;
-
-            // Existing asmdef
-            if (File.Exists(filePath))
-            {
-                try
-                {
-                    string json = File.ReadAllText(filePath);
-
-                    asmdef = JsonUtility.FromJson<AsmdefFile>(json);
-
-                    if (asmdef == null)
-                    {
-                        asmdef = CreateDefaultAsmdef();
-                    }
-                }
-                catch
-                {
-                    Debug.LogWarning(
-                        $"[UsefulTools] Failed to parse asmdef. Recreating: {filePath}");
-
-                    asmdef = CreateDefaultAsmdef();
-                }
-            }
-            else
-            {
-                asmdef = CreateDefaultAsmdef();
-            }
-
-            // ------------------------------
-            // Sync Required Fields
-            // ------------------------------
-
-            // Name
-            asmdef.name = assemblyName;
-
-            // Root Namespace
-            asmdef.rootNamespace = rootNamespace;
-
-            // References
-            asmdef.references ??= new string[0];
-
-            HashSet<string> mergedRefs = new HashSet<string>(asmdef.references);
-
-            if (references != null)
-            {
-                foreach (var reference in references)
-                {
-                    if (!string.IsNullOrWhiteSpace(reference))
-                    {
-                        mergedRefs.Add(reference);
-                    }
-                }
-            }
-
-            asmdef.references = mergedRefs.ToArray();
-
-            // Null Safety
-            asmdef.includePlatforms ??= new string[0];
-            asmdef.excludePlatforms ??= new string[0];
-            asmdef.precompiledReferences ??= new string[0];
-            asmdef.defineConstraints ??= new string[0];
-            asmdef.versionDefines ??= new VersionDefine[0];
-
-            // Default Values
-            asmdef.allowUnsafeCode = false;
-            asmdef.overrideReferences = false;
-            asmdef.autoReferenced = true;
-            asmdef.noEngineReferences = false;
-
-            // Save
-            string output = JsonUtility.ToJson(asmdef, true);
-
-            File.WriteAllText(filePath, output);
-
-            Debug.Log($"[UsefulTools] Asmdef synced: {filePath}");
-        }
-
-        private AsmdefFile CreateDefaultAsmdef()
-        {
-            return new AsmdefFile
-            {
-                name = "",
-                rootNamespace = "",
-                references = new string[0],
-
-                includePlatforms = new string[0],
-                excludePlatforms = new string[0],
-
-                allowUnsafeCode = false,
-                overrideReferences = false,
-
-                precompiledReferences = new string[0],
-
-                autoReferenced = true,
-
-                defineConstraints = new string[0],
-
-                versionDefines = new VersionDefine[0],
-
-                noEngineReferences = false
-            };
         }
 
         private void CreateAsmdef(string folderPath, string assemblyName, List<string> references, string rootNamespace)
@@ -811,17 +615,11 @@ namespace UsefulTools.Editor
 
         private static void Progress()
         {
-            if (_request == null)
-            {
-                EditorApplication.update -= Progress;
-                return;
-            }
-
+            if (_request == null) { EditorApplication.update -= Progress; return; }
             if (_request.IsCompleted)
             {
                 if (_request.Status == StatusCode.Success) Debug.Log("[UsefulTools] Package installed successfully.");
-                else if (_request.Status >= StatusCode.Failure)
-                    Debug.LogError($"[UsefulTools] Package install failed: {_request.Error.message}");
+                else if (_request.Status >= StatusCode.Failure) Debug.LogError($"[UsefulTools] Package install failed: {_request.Error.message}");
                 EditorApplication.update -= Progress;
                 _request = null;
             }

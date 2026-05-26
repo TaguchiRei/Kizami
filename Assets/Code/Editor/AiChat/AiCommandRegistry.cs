@@ -26,6 +26,17 @@ namespace UsefulTools.Editor.Ai
             _commands[command.Name] = command;
         }
 
+        public static bool Execute(string name, List<string> args, out string result)
+        {
+            if (_commands.TryGetValue(name, out var command))
+            {
+                result = command.Execute(args);
+                return true;
+            }
+            result = $"Error: Unknown command '{name}'";
+            return false;
+        }
+
         public static bool TryExecute(string input, out string result)
         {
             result = string.Empty;
@@ -35,13 +46,7 @@ namespace UsefulTools.Editor.Ai
             var name = parts[0];
             var args = parts.Length > 1 ? parts[1].Split(' ').ToList() : new List<string>();
 
-            if (_commands.TryGetValue(name, out var command))
-            {
-                result = command.Execute(args);
-                return true;
-            }
-
-            return false;
+            return Execute(name, args, out result);
         }
 
         public static IEnumerable<IAiCommand> GetAllCommands()

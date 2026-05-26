@@ -13,7 +13,7 @@ namespace UsefulTools.Editor.Ai.Commands
         {
             if (arguments.Count < 4) return "Error: Missing arguments (GameObjectName, ComponentName, FieldName, TargetPathOrName).";
 
-            var go = GameObject.Find(arguments[0]);
+            var go = GameObjectResolver.Resolve(arguments[0]);
             if (go == null) return "Error: GameObject not found.";
 
             var comp = go.GetComponent(arguments[1]);
@@ -24,7 +24,7 @@ namespace UsefulTools.Editor.Ai.Commands
             if (prop == null) return "Error: Field not found.";
 
             // ターゲットを探す（まず名前で検索、見つからなければパスとしてロード）
-            UnityEngine.Object target = GameObject.Find(arguments[3]);
+            UnityEngine.Object target = GameObjectResolver.Resolve(arguments[3]);
             if (target == null) target = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(arguments[3]);
 
             if (target == null) return $"Error: Target '{arguments[3]}' not found as GameObject or Asset.";

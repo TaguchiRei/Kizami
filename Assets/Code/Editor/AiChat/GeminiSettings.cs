@@ -19,6 +19,8 @@ namespace UsefulTools.Editor.Ai
         public bool EnableHistoryLimit = false;
         public int MaxHistoryCount = 10;
 
+        public int TimeoutSeconds = 30;
+
         public GeminiModel GetModelEnum() => GeminiModelExtensions.FromModelId(ModelName);
 
         private const string SavePath =
