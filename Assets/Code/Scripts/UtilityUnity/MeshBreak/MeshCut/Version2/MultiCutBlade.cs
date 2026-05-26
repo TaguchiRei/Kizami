@@ -21,9 +21,8 @@ public class MultiCutBlade : MonoBehaviour
     {
         _slicer.LimitMs = _LimitMs;
     }
-
-    [MethodExecutor("切断")]
-    public async void Test()
+    
+    public async UniTask CutAsync()
     {
         BoxCollider box = GetComponent<BoxCollider>();
         Vector3 center = box.transform.TransformPoint(box.center);
@@ -84,8 +83,8 @@ public class MultiCutBlade : MonoBehaviour
 
         Stopwatch frameStopwatch = Stopwatch.StartNew();
 
-        // 4. 結果を各破片に反映
-        for (int i = 0; i < targets.Length; i++)
+        // 結果を各破片に反映
+        for (int i = 0; i < fragmentStubs.Count; i++)
         {
             var target = targets[i];
 

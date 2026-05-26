@@ -45,7 +45,7 @@ namespace View
         {
             if (_blade == null) return;
 
-            _blade.Test();
+            _blade.CutAsync();
         }
     }
 }

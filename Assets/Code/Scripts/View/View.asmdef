@@ -1,6 +1,6 @@
 {
     "name": "View",
-    "rootNamespace": "Kizami.VIew.Runtime",
+    "rootNamespace": "Kizami.View.Runtime",
     "references": [
         "Presentation",
         "UtilityUnity",

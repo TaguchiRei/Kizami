@@ -6,10 +6,10 @@ namespace UsefulTools.AutoGenerate
     {
         Move,
         Look,
-        Attack,
-        Interact,
-        Crouch,
-        Jump,
+        AttackVertical,
+        AttackHorizontal,
+        AttackUpperRight,
+        AttackUpperLeft,
         Previous,
         Next,
         Sprint
