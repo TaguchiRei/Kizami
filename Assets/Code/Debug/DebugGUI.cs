@@ -1,20 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
-public class DebugGUI : MonoBehaviour
+public sealed class DebugGUI : MonoBehaviour
 {
 #if UNITY_EDITOR
 
-    private Vector2 Position => new Vector2(UnityEditor.EditorPrefs.GetFloat("UsefulTools.Debug.PosX", 10f),
+    private Vector2 Position => new(
+        UnityEditor.EditorPrefs.GetFloat("UsefulTools.Debug.PosX", 10f),
         UnityEditor.EditorPrefs.GetFloat("UsefulTools.Debug.PosY", 10f));
 
     private int FontSize => UnityEditor.EditorPrefs.GetInt("UsefulTools.Debug.FontSize", 20);
     private int FPSSampling => UnityEditor.EditorPrefs.GetInt("UsefulTools.Debug.FPSSampling", 10);
-    private bool RemoveMissingReferences => UnityEditor.EditorPrefs.GetBool("UsefulTools.Debug.RemoveMissing", true);
     private int MaxLogCount => UnityEditor.EditorPrefs.GetInt("UsefulTools.Debug.MaxLogCount", 10);
     private float LogTimeout => UnityEditor.EditorPrefs.GetFloat("UsefulTools.Debug.LogTimeout", 5.0f);
 
@@ -25,9 +26,33 @@ public class DebugGUI : MonoBehaviour
         public float Time;
     }
 
-#endif
+    private struct ObserveData
+    {
+        public string Name;
+        public Func<string> Getter;
+    }
 
-    private readonly List<(string, Func<string>)> _getValueFunc = new();
+    private sealed class ObserveHandle : IDisposable
+    {
+        private DebugGUI _owner;
+        private readonly int _id;
+
+        public ObserveHandle(DebugGUI owner, int id)
+        {
+            _owner = owner;
+            _id = id;
+        }
+
+        public void Dispose()
+        {
+            if (_owner == null) return;
+
+            _owner.RemoveObserve(_id);
+            _owner = null;
+        }
+    }
+
+#endif
 
     private static DebugGUI _instance;
 
@@ -39,6 +64,12 @@ public class DebugGUI : MonoBehaviour
 
 #if UNITY_EDITOR
 
+    private readonly Dictionary<int, ObserveData> _observes = new(32);
+    
+    private readonly List<int> _observeKeys = new(32);
+
+    private int _nextObserveId;
+
     private LogData[] _logs;
     private int _logStart;
     private int _logCount;
@@ -47,12 +78,9 @@ public class DebugGUI : MonoBehaviour
     private int _fpsIndex;
     private int _fpsCount;
 
-    private readonly List<int> _removeIndexes = new();
-
     private readonly StringBuilder _stringBuilder = new(256);
 
-    // スレッドセーフなログキュー
-    private readonly System.Collections.Concurrent.ConcurrentQueue<LogData> _threadedLogQueue = new();
+    private readonly ConcurrentQueue<LogData> _threadedLogQueue = new();
 
 #endif
 
@@ -65,6 +93,7 @@ public class DebugGUI : MonoBehaviour
 #if UNITY_EDITOR
             InitializeStyles();
             InitializeBuffers();
+
             Application.logMessageReceivedThreaded += OnLogReceived;
 #endif
 
@@ -81,23 +110,14 @@ public class DebugGUI : MonoBehaviour
 #if UNITY_EDITOR
         Application.logMessageReceivedThreaded -= OnLogReceived;
 #endif
-        _instance = null;
+
+        if (_instance == this)
+        {
+            _instance = null;
+        }
     }
 
 #if UNITY_EDITOR
-
-    private void OnLogReceived(string condition, string stackTrace, LogType type)
-    {
-        if (!UnityEditor.EditorPrefs.GetBool("UsefulTools.Debug.LogCaptureEnabled", false)) return;
-
-        // メインスレッド以外からも呼ばれるためキューに積む
-        _threadedLogQueue.Enqueue(new LogData
-        {
-            Message = condition,
-            Type = type,
-            Time = -1f // UpdateでTime.timeを代入
-        });
-    }
 
     private void InitializeStyles()
     {
@@ -127,140 +147,19 @@ public class DebugGUI : MonoBehaviour
         _fpsSamples = new float[FPSSampling];
     }
 
-    private void OnGUI()
+    private void OnLogReceived(string condition, string stackTrace, LogType type)
     {
-        if (_debugStyle == null || _debugStyle.fontSize != FontSize)
+        if (!UnityEditor.EditorPrefs.GetBool("UsefulTools.Debug.LogCaptureEnabled", false))
         {
-            InitializeStyles();
-        }
-        if (_logs == null || _logs.Length != MaxLogCount)
-        {
-            InitializeBuffers();
-            _logStart = 0;
-            _logCount = 0;
+            return;
         }
 
-        if (!Mathf.Approximately(_rect.width, Screen.width) ||
-            !Mathf.Approximately(_rect.height, Screen.height))
+        _threadedLogQueue.Enqueue(new LogData
         {
-            var pos = Position;
-            _rect = new Rect(pos.x, pos.y, Screen.width, Screen.height);
-        }
-
-        var prevEnabled = GUI.enabled;
-        var prevColor = GUI.color;
-
-        GUI.enabled = false;
-        GUI.color = Color.white;
-
-        GUI.BeginGroup(_rect);
-        GUILayout.BeginVertical();
-
-        DrawFPS();
-        DrawVariables();
-
-        GUILayout.EndVertical();
-        GUI.EndGroup();
-
-        DrawLogs();
-
-        GUI.enabled = prevEnabled;
-        GUI.color = prevColor;
-    }
-
-    private void DrawFPS()
-    {
-        _stringBuilder.Clear();
-        _stringBuilder.Append("FPS : ");
-        _stringBuilder.Append((1f / Time.deltaTime).ToString("000.0"));
-        GUILayout.Label(_stringBuilder.ToString(), _debugStyle);
-
-        _stringBuilder.Clear();
-        _stringBuilder.Append("Average FPS : ");
-        _stringBuilder.Append(GetAverageFPS().ToString("000.0"));
-        GUILayout.Label(_stringBuilder.ToString(), _debugStyle);
-    }
-
-    private void DrawVariables()
-    {
-        int index = 0;
-        foreach (var item in _getValueFunc)
-        {
-            try
-            {
-                _stringBuilder.Clear();
-                _stringBuilder.Append(item.Item1);
-                _stringBuilder.Append(" : ");
-                _stringBuilder.Append(item.Item2.Invoke());
-
-                GUILayout.Label(_stringBuilder.ToString(), _debugStyle);
-            }
-            catch (Exception)
-            {
-                DrawMissing(item.Item1, index);
-            }
-            index++;
-        }
-
-        if (RemoveMissingReferences && _removeIndexes.Count > 0)
-        {
-            _removeIndexes.Sort();
-            _removeIndexes.Reverse();
-            foreach (var i in _removeIndexes)
-            {
-                _getValueFunc.RemoveAt(i);
-            }
-            _removeIndexes.Clear();
-        }
-    }
-
-    private void DrawMissing(string name, int index)
-    {
-        _stringBuilder.Clear();
-        _stringBuilder.Append(name);
-        _stringBuilder.Append(" : 値が見つかりません");
-
-        GUILayout.Label(_stringBuilder.ToString(), _errorStyle);
-
-        if (RemoveMissingReferences)
-        {
-            _removeIndexes.Add(index);
-        }
-    }
-
-    private void DrawLogs()
-    {
-        float areaWidth = Screen.width * 0.5f;
-        Rect logArea = new Rect(Screen.width - areaWidth - 10, 10, areaWidth, Screen.height - 20);
-
-        GUILayout.BeginArea(logArea);
-        GUILayout.BeginVertical();
-
-        var prevContentColor = GUI.contentColor;
-
-        for (int i = 0; i < _logCount; i++)
-        {
-            int index = (_logStart + _logCount - 1 - i + _logs.Length) % _logs.Length;
-            var log = _logs[index];
-
-            GUI.contentColor = GetLogColor(log.Type);
-            GUILayout.Label(log.Message, _logStyle);
-        }
-
-        GUI.contentColor = prevContentColor;
-
-        GUILayout.EndVertical();
-        GUILayout.EndArea();
-    }
-
-    private Color GetLogColor(LogType type)
-    {
-        return type switch
-        {
-            LogType.Error or LogType.Exception or LogType.Assert => Color.red,
-            LogType.Warning => Color.yellow,
-            _ => Color.white
-        };
+            Message = condition,
+            Type = type,
+            Time = -1f
+        });
     }
 
     private void Update()
@@ -280,9 +179,19 @@ public class DebugGUI : MonoBehaviour
 
     private void UpdateFPS()
     {
-        if (_fpsSamples == null || _fpsSamples.Length == 0) return;
+        if (_fpsSamples == null || _fpsSamples.Length == 0)
+        {
+            return;
+        }
+
         _fpsSamples[_fpsIndex] = Time.deltaTime;
-        _fpsIndex = (_fpsIndex + 1) % _fpsSamples.Length;
+
+        _fpsIndex++;
+
+        if (_fpsIndex >= _fpsSamples.Length)
+        {
+            _fpsIndex = 0;
+        }
 
         if (_fpsCount < _fpsSamples.Length)
         {
@@ -292,7 +201,10 @@ public class DebugGUI : MonoBehaviour
 
     private void UpdateLogs()
     {
-        if (_logCount == 0) return;
+        if (_logCount == 0)
+        {
+            return;
+        }
 
         float current = Time.time;
         float timeout = LogTimeout;
@@ -310,19 +222,209 @@ public class DebugGUI : MonoBehaviour
         }
     }
 
-#endif
-
-    [Conditional("UNITY_EDITOR")]
-    public static void ObserveVariable(string name, Func<string> debugValue)
+    private void OnGUI()
     {
-#if UNITY_EDITOR
-        if (_instance == null)
+        if (_debugStyle == null || _debugStyle.fontSize != FontSize)
         {
-            Debug.LogWarning("DebugGUIの初期化前に登録メソッドが呼ばれました");
-            return;
+            InitializeStyles();
         }
 
-        _instance._getValueFunc.Add((name, debugValue));
+        if (_logs == null || _logs.Length != MaxLogCount)
+        {
+            InitializeBuffers();
+
+            _logStart = 0;
+            _logCount = 0;
+        }
+
+        if (!Mathf.Approximately(_rect.width, Screen.width) ||
+            !Mathf.Approximately(_rect.height, Screen.height))
+        {
+            Vector2 pos = Position;
+
+            _rect = new Rect(
+                pos.x,
+                pos.y,
+                Screen.width,
+                Screen.height);
+        }
+
+        bool prevEnabled = GUI.enabled;
+        Color prevColor = GUI.color;
+
+        GUI.enabled = false;
+        GUI.color = Color.white;
+
+        GUI.BeginGroup(_rect);
+
+        GUILayout.BeginVertical();
+
+        DrawFPS();
+        DrawVariables();
+
+        GUILayout.EndVertical();
+
+        GUI.EndGroup();
+
+        DrawLogs();
+
+        GUI.enabled = prevEnabled;
+        GUI.color = prevColor;
+    }
+
+    private void DrawFPS()
+    {
+        _stringBuilder.Clear();
+        _stringBuilder.Append("FPS : ");
+        _stringBuilder.Append((1f / Time.deltaTime).ToString("000.0"));
+
+        GUILayout.Label(_stringBuilder.ToString(), _debugStyle);
+
+        _stringBuilder.Clear();
+        _stringBuilder.Append("Average FPS : ");
+        _stringBuilder.Append(GetAverageFPS().ToString("000.0"));
+
+        GUILayout.Label(_stringBuilder.ToString(), _debugStyle);
+    }
+
+    private void DrawVariables()
+    {
+        _observeKeys.Clear();
+
+        foreach (var pair in _observes)
+        {
+            _observeKeys.Add(pair.Key);
+        }
+
+        int count = _observeKeys.Count;
+
+        for (int i = 0; i < count; i++)
+        {
+            int key = _observeKeys[i];
+
+            if (!_observes.TryGetValue(key, out var observe))
+            {
+                continue;
+            }
+
+            try
+            {
+                _stringBuilder.Clear();
+
+                _stringBuilder.Append(observe.Name);
+                _stringBuilder.Append(" : ");
+                _stringBuilder.Append(observe.Getter());
+
+                GUILayout.Label(_stringBuilder.ToString(), _debugStyle);
+            }
+            catch (MissingReferenceException)
+            {
+                _stringBuilder.Clear();
+
+                _stringBuilder.Append(observe.Name);
+                _stringBuilder.Append(" : Missing Reference");
+
+                GUILayout.Label(_stringBuilder.ToString(), _errorStyle);
+
+                _observes.Remove(key);
+            }
+            catch (NullReferenceException)
+            {
+                _stringBuilder.Clear();
+
+                _stringBuilder.Append(observe.Name);
+                _stringBuilder.Append(" : Null");
+
+                GUILayout.Label(_stringBuilder.ToString(), _errorStyle);
+
+                _observes.Remove(key);
+            }
+        }
+    }
+
+    private void DrawLogs()
+    {
+        float areaWidth = Screen.width * 0.5f;
+
+        Rect logArea = new(
+            Screen.width - areaWidth - 10,
+            10,
+            areaWidth,
+            Screen.height - 20);
+
+        GUILayout.BeginArea(logArea);
+
+        GUILayout.BeginVertical();
+
+        Color prevContentColor = GUI.contentColor;
+
+        for (int i = 0; i < _logCount; i++)
+        {
+            int index =
+                (_logStart + _logCount - 1 - i + _logs.Length) %
+                _logs.Length;
+
+            ref LogData log = ref _logs[index];
+
+            GUI.contentColor = GetLogColor(log.Type);
+
+            GUILayout.Label(log.Message, _logStyle);
+        }
+
+        GUI.contentColor = prevContentColor;
+
+        GUILayout.EndVertical();
+
+        GUILayout.EndArea();
+    }
+
+    private static Color GetLogColor(LogType type)
+    {
+        return type switch
+        {
+            LogType.Error or LogType.Exception or LogType.Assert => Color.red,
+            LogType.Warning => Color.yellow,
+            _ => Color.white
+        };
+    }
+
+    private void AddObserve(int id, string name, Func<string> getter)
+    {
+        _observes.Add(id, new ObserveData
+        {
+            Name = name,
+            Getter = getter
+        });
+    }
+
+    private void RemoveObserve(int id)
+    {
+        _observes.Remove(id);
+    }
+
+#endif
+    public static IDisposable ObserveVariable(
+        string name,
+        Func<string> getter)
+    {
+#if UNITY_EDITOR
+
+        if (_instance == null)
+        {
+            Debug.LogWarning(
+                "DebugGUIの初期化前にObserveVariableが呼ばれました");
+
+            return null;
+        }
+
+        int id = _instance._nextObserveId++;
+
+        _instance.AddObserve(id, name, getter);
+
+        return new ObserveHandle(_instance, id);
+
+#else
+        return null;
 #endif
     }
 
@@ -347,20 +449,33 @@ public class DebugGUI : MonoBehaviour
     private static void AddLog(string message, LogType type)
     {
 #if UNITY_EDITOR
-        // コンソールに流す。購読している OnLogReceived がこれをキャッチして画面にも表示される
+
         switch (type)
         {
-            case LogType.Log: UnityEngine.Debug.Log(message); break;
-            case LogType.Warning: UnityEngine.Debug.LogWarning(message); break;
-            case LogType.Error: UnityEngine.Debug.LogError(message); break;
+            case LogType.Log:
+                Debug.Log(message);
+                break;
+
+            case LogType.Warning:
+                Debug.LogWarning(message);
+                break;
+
+            case LogType.Error:
+                Debug.LogError(message);
+                break;
         }
+
 #endif
     }
 
     private void AddLogInternal(string message, LogType type)
     {
 #if UNITY_EDITOR
-        if (_logs == null || _logs.Length == 0) return;
+
+        if (_logs == null || _logs.Length == 0)
+        {
+            return;
+        }
 
         int index = (_logStart + _logCount) % _logs.Length;
 
@@ -376,21 +491,28 @@ public class DebugGUI : MonoBehaviour
         {
             _logStart = (_logStart + 1) % _logs.Length;
         }
+
 #endif
     }
 
     private float GetAverageFPS()
     {
 #if UNITY_EDITOR
-        if (_fpsCount == 0) return 0f;
 
-        float sum = 0;
+        if (_fpsCount == 0)
+        {
+            return 0f;
+        }
+
+        float sum = 0f;
+
         for (int i = 0; i < _fpsCount; i++)
         {
             sum += _fpsSamples[i];
         }
 
         return 1f / (sum / _fpsCount);
+
 #else
         return 0f;
 #endif
