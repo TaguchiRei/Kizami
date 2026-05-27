@@ -1,3 +1,4 @@
+using Kizami.Application.Runtime;
 using UnityEngine;
 using UsefulTools.Infrastructure.Runtime.Input;
 using UsefulVr.Application.Runtime.Player;
@@ -18,13 +19,16 @@ namespace UsefulVr.Composition.Runtime.Player
         [SerializeField] private float _moveSpeed = 3f;
         [SerializeField] private float _rotateSpeed = 45f;
         [SerializeField] private float _deadZone = 0.1f;
-        
+
         private VrPlayerMovementService _playerMovementService;
         private VrVrPlayerMovementPresenter _vrVrPlayerPresenter;
         private VrPlayerMovementEntity _vrPlayerMovementEntity;
+        private IBladePresenter _bladePresenter;
 
-        public void Initialize(IInputDispatcher inputDispatcher)
+        public void Initialize(IInputDispatcher inputDispatcher, IBladePresenter bladePresenter)
         {
+            _bladePresenter = bladePresenter;
+            
             _vrVrPlayerPresenter = new(_vrPlayerMovementView);
             _vrPlayerMovementEntity = new(
                 new(_gravityVector, _gravityPower),
