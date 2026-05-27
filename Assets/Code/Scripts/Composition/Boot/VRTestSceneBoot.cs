@@ -1,7 +1,8 @@
+using Kizami.Application.Runtime;
+using Kizami.Composition.Runtime.Player;
 using UnityEngine;
 using UsefulTools.Composition.Runtime.Input;
 using UsefulTools.Infrastructure.Runtime.Input;
-using UsefulVr.Composition.Runtime.Player;
 
 namespace VRTest.Composition.Runtime.Boot
 {
@@ -10,7 +11,7 @@ namespace VRTest.Composition.Runtime.Boot
         [SerializeField] private VRTestSceneContainer _container;
 
         [SerializeField] private InputInitializer _inputInitializer;
-        [SerializeField] private VrPlayerInitializer vrPlayerInitializer;
+        [SerializeField] private PlayerPlatformSelector _playerPlatformSelector;
 
         private void Start()
         {
@@ -20,16 +21,25 @@ namespace VRTest.Composition.Runtime.Boot
 
         private void Inject()
         {
-            if (vrPlayerInitializer != null && _container.TryGet<IInputDispatcher>(out var arg_playerInitializer_0))
+            if (_playerPlatformSelector != null)
             {
-                vrPlayerInitializer.Inject(arg_playerInitializer_0);
+                if (_container.TryGet<IInputDispatcher>(out var dispatcher))
+                {
+                    _playerPlatformSelector.Inject(dispatcher);
+                }
+                
+                if (_container.TryGet<IBladePresenter>(out var bladePresenter))
+                {
+                    _playerPlatformSelector.Inject(bladePresenter);
+                }
             }
         }
 
         private void Initialize()
         {
             if (_inputInitializer != null) _inputInitializer.Initialize();
-            if (vrPlayerInitializer != null) vrPlayerInitializer.Initialize();
+            if (_playerPlatformSelector != null) _playerPlatformSelector.Initialize();
         }
     }
 }
+

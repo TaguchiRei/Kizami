@@ -1,5 +1,6 @@
 using Code.Scripts.Domain.Player;
 using UnityEngine;
+using UsefulVr.Domain.Runtime.Player;
 
 namespace Kizami.Domain.Runtime.Player
 {
