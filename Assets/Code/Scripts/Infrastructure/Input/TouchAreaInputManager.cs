@@ -7,11 +7,9 @@ using UsefulTools.Application.Runtime.Input;
 namespace UsefulTools.Infrastructure.Runtime.Input
 {
     /// <summary>
-    /// タッチエリア入力システムを管理するルール実装。
-    /// SceneRuleなどのIRule管理クラスに登録して利用する。
+    /// タッチエリア入力システムを管理するクラス。
     /// </summary>
-    [Serializable]
-    public sealed class TouchAreaRule : IUpdateRule
+    public sealed class TouchAreaInputManager
     {
         [SerializeField] private GraphicRaycaster _raycaster;
 
@@ -19,15 +17,11 @@ namespace UsefulTools.Infrastructure.Runtime.Input
         private EnhancedTouchInputInfra _infra;
         private TouchAreaManagement _management;
 
-        public RuleState State => _infra?.State ?? RuleState.Playing;
-
-        public event Action<RuleState> OnGameEndAction;
-
         public void StartGame()
         {
             if (_raycaster == null)
             {
-                Debug.LogError("[TouchAreaRule] GraphicRaycasterが設定されていません。");
+                Debug.LogError("[TouchAreaInputManager] GraphicRaycasterが設定されていません。");
                 return;
             }
 
@@ -53,13 +47,9 @@ namespace UsefulTools.Infrastructure.Runtime.Input
             _infra?.Stop();
         }
 
-        public void Update()
+        public void Tick()
         {
-            // 物理タッチ入力をUseCaseに流し込む
             _infra?.Update();
-            
-            // フレームの最後に仮想デバイスのDelta値をリセットする
-            // 注意: このUpdateが実行されるタイミングにより、Deltaの有効期間が決まる
             _useCase?.LateTick();
         }
     }
