@@ -1,6 +1,5 @@
 using System;
 using Kizami.Domain.Runtime.Player;
-using Kizami.Presentation.Runtime.Player;
 using UnityEngine;
 using UsefulTools.AutoGenerate;
 using UsefulTools.Infrastructure.Runtime.Input;
