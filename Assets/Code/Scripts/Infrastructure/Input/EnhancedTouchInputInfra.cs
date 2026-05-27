@@ -64,7 +64,7 @@ namespace UsefulTools.Infrastructure.Runtime.Input
                 {
                     OnTouchBegan?.Invoke(inputData);
                 }
-                else if (touch.phase == UnityEngine.InputSystem.TouchPhase.Moved || touch.phase == UnityEngine.InputSystem.TouchPhase.Stationary)
+                else if (touch.phase == UnityEngine.InputSystem.TouchPhase.Moved)
                 {
                     OnTouchMoved?.Invoke(inputData);
                 }

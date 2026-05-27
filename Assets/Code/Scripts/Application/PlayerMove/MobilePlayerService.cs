@@ -61,7 +61,7 @@ namespace Kizami.Application.Runtime
 
         private void OnMove(InputContext<Vector2> input)
         {
-            if (!input.IsActive) return;
+            if (!input.IsActive || !input.IsPerformed) return;
 
             Vector3 currentVelocity = _mobilePlayerPresenter.Velocity;
             // 前回移動分除去
