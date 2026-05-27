@@ -16,108 +16,139 @@ namespace UsefulTools.Infrastructure.Runtime
 
         private readonly EventSystem _eventSystem;
 
-        private readonly PointerEventData _pointerEventData;
-
         private readonly List<RaycastResult> _results = new();
 
-        private readonly Dictionary<string, Pointer> _devices = new();
+        private readonly Dictionary<string, VirtualPointerDevice> _devices = new();
 
         public TouchAreaManagement(GraphicRaycaster raycaster)
         {
             _raycaster = raycaster;
-
             _eventSystem = EventSystem.current;
-
-            _pointerEventData = new PointerEventData(_eventSystem);
         }
 
         public bool TryGetGroupName(Vector2 screenPosition, out string groupName)
         {
-            _pointerEventData.position = screenPosition;
+            PointerEventData pointerEventData = new(_eventSystem)
+            {
+                position = screenPosition
+            };
 
             _results.Clear();
 
-            _raycaster.Raycast(_pointerEventData, _results);
+            _raycaster.Raycast(pointerEventData, _results);
 
-            if (_results.Count == 0)
+            for (int i = 0; i < _results.Count; i++)
             {
-                groupName = null;
-                return false;
-            }
+                GameObject target = _results[i].gameObject;
 
-            // 提供されたロジックに合わせ、最前面（index 0）のオブジェクトのみを対象とする
-            GameObject target = _results[0].gameObject;
+                if (target == null)
+                {
+                    continue;
+                }
 
-            if (target == null)
-            {
-                groupName = null;
-                return false;
-            }
+                if (target.TryGetComponent(out TouchArea view))
+                {
+                    groupName = view.GroupName;
+                    return true;
+                }
 
-            // TouchAreaコンポーネントがある場合はそのGroupNameを優先
-            if (target.TryGetComponent(out TouchArea view))
-            {
-                groupName = view.GroupName;
-                return true;
-            }
-
-            // タグによる判定（提供された最小構成ロジックへの互換性）
-            if (target.CompareTag(TOUCH_AREA_TAG))
-            {
-                groupName = target.name; // タグのみの場合はオブジェクト名をGroupNameとする
-                return true;
+                if (target.CompareTag(TOUCH_AREA_TAG))
+                {
+                    groupName = target.name;
+                    return true;
+                }
             }
 
             groupName = null;
             return false;
         }
 
-        public void Press(string groupName)
+        public void Press(string groupName, Vector2 position)
         {
-            Pointer device = GetOrCreateDevice(groupName);
+            VirtualPointerDevice device = GetOrCreateDevice(groupName);
 
-            InputState.Change(device.press, 1f);
-        }
+            device.Position = position;
+            device.Delta = Vector2.zero;
+            device.IsPressed = true;
 
-        public void Release(string groupName)
-        {
-            if (!_devices.TryGetValue(groupName, out Pointer device))
-            {
-                return;
-            }
-
-            InputState.Change(device.press, 0f);
-
-            InputState.Change(device.delta, Vector2.zero);
+            InputState.Change(device.Pointer.position, device.Position);
+            InputState.Change(device.Pointer.delta, device.Delta);
         }
 
         public void Move(string groupName, Vector2 delta)
         {
-            Pointer device = GetOrCreateDevice(groupName);
+            if (!_devices.TryGetValue(groupName, out VirtualPointerDevice device))
+            {
+                return;
+            }
 
-            InputState.Change(device.delta, delta);
+            device.Delta = delta;
+            device.Position += delta;
+
+            InputState.Change(device.Pointer.position, device.Position);
+            InputState.Change(device.Pointer.delta, device.Delta);
+        }
+
+        public void Release(string groupName)
+        {
+            if (!_devices.TryGetValue(groupName, out VirtualPointerDevice device))
+            {
+                return;
+            }
+
+            device.IsPressed = false;
+            device.Delta = Vector2.zero;
+
+            InputState.Change(device.Pointer.delta, Vector2.zero);
         }
 
         public void LateTick()
         {
-            foreach (Pointer device in _devices.Values)
+            foreach (VirtualPointerDevice device in _devices.Values)
             {
-                InputState.Change(device.delta, Vector2.zero);
+                if (device.Delta == Vector2.zero)
+                {
+                    continue;
+                }
+
+                device.Delta = Vector2.zero;
+
+                InputState.Change(device.Pointer.delta, Vector2.zero);
             }
         }
 
-        private Pointer GetOrCreateDevice(string groupName)
+        private VirtualPointerDevice GetOrCreateDevice(string groupName)
         {
-            if (_devices.TryGetValue(groupName, out Pointer device))
+            if (_devices.TryGetValue(groupName, out VirtualPointerDevice device))
             {
                 return device;
             }
 
-            device = (Pointer)InputSystem.AddDevice("Pointer", groupName);
+            Pointer pointer = (Pointer)InputSystem.AddDevice("Pointer");
+
+            InputSystem.SetDeviceUsage(pointer, groupName);
+
+            device = new VirtualPointerDevice(pointer);
 
             _devices.Add(groupName, device);
 
             return device;
+        }
+
+        private sealed class VirtualPointerDevice
+        {
+            public Pointer Pointer { get; }
+
+            public Vector2 Position { get; set; }
+
+            public Vector2 Delta { get; set; }
+
+            public bool IsPressed { get; set; }
+
+            public VirtualPointerDevice(Pointer pointer)
+            {
+                Pointer = pointer;
+            }
         }
     }
 }

@@ -91,7 +91,7 @@ namespace Kizami.Application.Runtime
 
         private void OnLook(InputContext<Vector2> input)
         {
-            if (!input.IsActive) return;
+            if (!input.IsActive || !input.IsPerformed) return;
 
             // スマホ版のOnLookはDeltaを想定しているため、そのまま感度を掛けて回転させる
             float turnAngle = input.Value.x * _entity.LookSensitivity;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UsefulTools.Application.Runtime;
 using UsefulTools.AutoGenerate;
 using UsefulTools.UtilityUnity.Runtime.UtilityUnity;
 
@@ -12,7 +13,7 @@ namespace UsefulTools.Infrastructure.Runtime.Input
         [SerializeField] private InputActionAsset _actionAsset;
         [SerializeField] private UnityEngine.UI.GraphicRaycaster _raycaster;
 
-        private Application.Runtime.TouchAreaUseCase _touchAreaUseCase;
+        private TouchAreaUseCase _touchAreaUseCase;
         private EnhancedTouchInputInfra _touchAreaInfra;
         private TouchAreaManagement _touchAreaManagement;
 
@@ -33,17 +34,17 @@ namespace UsefulTools.Infrastructure.Runtime.Input
 
             _touchAreaManagement = new TouchAreaManagement(_raycaster);
             _touchAreaInfra = new EnhancedTouchInputInfra();
-            _touchAreaUseCase = new Application.Runtime.TouchAreaUseCase(_touchAreaInfra, _touchAreaManagement);
+            _touchAreaUseCase = new TouchAreaUseCase(_touchAreaInfra, _touchAreaManagement);
 
             _touchAreaInfra.StartGame();
         }
 
         private void Update()
         {
+            _touchAreaInfra?.Update();
+
             foreach (var updateAction in _registeredReadActions.Values)
                 updateAction();
-
-            _touchAreaInfra?.Update();
         }
 
         private void LateUpdate()

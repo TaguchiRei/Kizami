@@ -6,7 +6,7 @@ namespace UsefulTools.Application.Runtime.Input
     {
         bool TryGetGroupName(Vector2 screenPosition, out string groupName);
 
-        void Press(string groupName);
+        void Press(string groupName, Vector2 position);
 
         void Release(string groupName);
 
