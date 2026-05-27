@@ -2,10 +2,11 @@ using System;
 using Cysharp.Threading.Tasks;
 using Kizami.Presentation.Runtime.MeshCut;
 using UnityEngine;
+using UsefulTools.UtilityUnity.Runtime.UtilityUnity;
 
 namespace Kizami.View.Runtime.MeshCut
 {
-    public class BladeView : MonoBehaviour, IBladeView
+    public class BladeView : InitializableMonoBehaviour, IBladeView
     {
         [SerializeField] private MultiCutBlade _multiCutBlade;
 

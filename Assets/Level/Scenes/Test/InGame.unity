@@ -7252,6 +7252,7 @@ GameObject:
   m_Component:
   - component: {fileID: 850377536}
   - component: {fileID: 850377535}
+  - component: {fileID: 850377538}
   - component: {fileID: 850377534}
   - component: {fileID: 850377537}
   m_Layer: 0
@@ -7340,6 +7341,20 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!114 &850377538
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 850377533}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f89dfcb0ba9cd4a4683c981698fd768b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: View::Kizami.View.Runtime.MeshCut.BladeView
+  InitializationOrder: 0
+  _multiCutBlade: {fileID: 850377534}
 --- !u!1 &872199616
 GameObject:
   m_ObjectHideFlags: 0
@@ -8202,6 +8217,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 994250208}
+  - component: {fileID: 994250209}
   m_Layer: 0
   m_Name: '-------------Player------------ '
   m_TagString: Untagged
@@ -8224,6 +8240,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &994250209
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 994250207}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 75568e041f64fe94fa287a0067617aa1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Composition::Kizami.Composition.Runtime.PlayerInitializer
+  InitializationOrder: 0
+  _isVr: 0
+  _vrPlayerInitializer: {fileID: 578451513}
+  _mobilePlayerInitializer: {fileID: 1305476775}
 --- !u!1 &1010052744
 GameObject:
   m_ObjectHideFlags: 0

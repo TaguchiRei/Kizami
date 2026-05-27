@@ -14,24 +14,28 @@ namespace Kizami.Composition.Runtime
         [SerializeField] private VrPlayerInitializer _vrPlayerInitializer;
         [SerializeField] private MobilePlayerInitializer _mobilePlayerInitializer;
 
-        private IInputDispatcher inputDispatcher;
-        private IBladePresenter bladePresenter;
+        private IInputDispatcher _inputDispatcher;
+        private IBladePresenter _bladePresenter;
 
         public override void Initialize()
         {
             base.Initialize();
             if (_isVr)
             {
-                _vrPlayerInitializer.Initialize(inputDispatcher, bladePresenter);
+                _vrPlayerInitializer.Initialize(_inputDispatcher, _bladePresenter);
+                _mobilePlayerInitializer.gameObject.SetActive(false);
             }
             else
             {
-                _mobilePlayerInitializer.Initialize(inputDispatcher, bladePresenter);
+                _mobilePlayerInitializer.Initialize(_inputDispatcher, _bladePresenter);
+                _vrPlayerInitializer.gameObject.SetActive(false);
             }
         }
 
         public void Inject(IInputDispatcher obj, IBladePresenter presenter)
         {
+            _inputDispatcher = obj;
+            _bladePresenter = presenter;
         }
     }
 }
