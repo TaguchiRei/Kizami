@@ -5341,6 +5341,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Infrastructure::UsefulTools.Infrastructure.Runtime.Input.InputDispatcher
   InitializationOrder: 0
   _actionAsset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  _raycaster: {fileID: 2066463151}
 --- !u!114 &668765688
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12057,7 +12058,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1399797371
 RectTransform:
   m_ObjectHideFlags: 0
@@ -12091,7 +12092,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.OnScreen.OnScreenStick
   m_MovementRange: 50
   m_DynamicOriginRange: 100
-  m_ControlPath: <Joystick>/stick
+  m_ControlPath: <Gamepad>/leftStick
   m_Behaviour: 0
   m_UseIsolatedInputActions: 0
   m_PointerDownAction:
@@ -16602,6 +16603,7 @@ GameObject:
   - component: {fileID: 2145007579}
   - component: {fileID: 2145007581}
   - component: {fileID: 2145007580}
+  - component: {fileID: 2145007582}
   m_Layer: 5
   m_Name: ToughtchField
   m_TagString: TouchArea
@@ -16666,6 +16668,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2145007578}
   m_CullTransparentMesh: 1
+--- !u!114 &2145007582
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2145007578}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db4795f3e661474419e2da707329b32c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Infrastructure::UsefulTools.Infrastructure.Runtime.TouchArea
+  _groupId: 
 --- !u!33 &135031362093797347
 MeshFilter:
   m_ObjectHideFlags: 0

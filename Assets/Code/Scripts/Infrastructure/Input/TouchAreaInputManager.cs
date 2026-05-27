@@ -11,11 +11,16 @@ namespace UsefulTools.Infrastructure.Runtime.Input
     /// </summary>
     public sealed class TouchAreaInputManager
     {
-        [SerializeField] private GraphicRaycaster _raycaster;
+        private GraphicRaycaster _raycaster;
 
         private TouchAreaUseCase _useCase;
         private EnhancedTouchInputInfra _infra;
         private TouchAreaManagement _management;
+
+        public void SetRaycaster(GraphicRaycaster raycaster)
+        {
+            _raycaster = raycaster;
+        }
 
         public void StartGame()
         {
@@ -25,9 +30,9 @@ namespace UsefulTools.Infrastructure.Runtime.Input
                 return;
             }
 
-            _management = new TouchAreaManagement(_raycaster);
-            _infra = new EnhancedTouchInputInfra();
-            _useCase = new TouchAreaUseCase(_infra, _management);
+            if (_management == null) _management = new TouchAreaManagement(_raycaster);
+            if (_infra == null) _infra = new EnhancedTouchInputInfra();
+            if (_useCase == null) _useCase = new TouchAreaUseCase(_infra, _management);
 
             _infra.StartGame();
         }
@@ -50,6 +55,10 @@ namespace UsefulTools.Infrastructure.Runtime.Input
         public void Tick()
         {
             _infra?.Update();
+        }
+
+        public void LateTick()
+        {
             _useCase?.LateTick();
         }
     }

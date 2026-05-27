@@ -10,6 +10,9 @@ namespace UsefulTools.Infrastructure.Runtime.Input
     public class InputDispatcher : InitializableMonoBehaviour, IInputDispatcher
     {
         [SerializeField] private InputActionAsset _actionAsset;
+        [SerializeField] private UnityEngine.UI.GraphicRaycaster _raycaster;
+
+        private TouchAreaInputManager _touchAreaInputManager;
 
         private readonly Dictionary<Delegate, Action> _registeredReadActions = new();
 
@@ -25,12 +28,23 @@ namespace UsefulTools.Infrastructure.Runtime.Input
         {
             base.Initialize();
             _actionAsset.Enable();
+
+            _touchAreaInputManager = new TouchAreaInputManager();
+            _touchAreaInputManager.SetRaycaster(_raycaster);
+            _touchAreaInputManager.StartGame();
         }
 
         private void Update()
         {
             foreach (var updateAction in _registeredReadActions.Values)
                 updateAction();
+
+            _touchAreaInputManager?.Tick();
+        }
+
+        private void LateUpdate()
+        {
+            _touchAreaInputManager?.LateTick();
         }
 
         private void OnDestroy()
