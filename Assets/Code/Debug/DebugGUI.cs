@@ -65,7 +65,8 @@ public sealed class DebugGUI : MonoBehaviour
 #if UNITY_EDITOR
 
     private readonly Dictionary<int, ObserveData> _observes = new(32);
-    
+
+    // foreach時のGC回避用
     private readonly List<int> _observeKeys = new(32);
 
     private int _nextObserveId;
@@ -403,6 +404,7 @@ public sealed class DebugGUI : MonoBehaviour
     }
 
 #endif
+
     public static IDisposable ObserveVariable(
         string name,
         Func<string> getter)
@@ -453,15 +455,15 @@ public sealed class DebugGUI : MonoBehaviour
         switch (type)
         {
             case LogType.Log:
-                Debug.Log(message);
+                UnityEngine.Debug.Log(message);
                 break;
 
             case LogType.Warning:
-                Debug.LogWarning(message);
+                UnityEngine.Debug.LogWarning(message);
                 break;
 
             case LogType.Error:
-                Debug.LogError(message);
+                UnityEngine.Debug.LogError(message);
                 break;
         }
 

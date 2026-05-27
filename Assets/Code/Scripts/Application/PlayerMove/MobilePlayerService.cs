@@ -4,12 +4,13 @@ using UsefulTools.Infrastructure.Runtime.Input;
 
 namespace Kizami.Application.Runtime
 {
-    public class SmartphonePlayerService
+    public class MobilePlayerService
     {
         private IInputDispatcher _inputDispatcher;
         private IBladePresenter _bladePresenter;
+        
 
-        public SmartphonePlayerService(IInputDispatcher inputDispatcher, IBladePresenter bladePresenter)
+        public MobilePlayerService(IInputDispatcher inputDispatcher, IBladePresenter bladePresenter)
         {
             _inputDispatcher = inputDispatcher;
             _bladePresenter = bladePresenter;
@@ -69,6 +70,8 @@ namespace Kizami.Application.Runtime
 
         private void OnAttack(InputContext<Vector2> input, Quaternion cutFaceRotation)
         {
+            _bladePresenter.SetRotation(cutFaceRotation);
+            _bladePresenter.Cut(null);
         }
     }
 }

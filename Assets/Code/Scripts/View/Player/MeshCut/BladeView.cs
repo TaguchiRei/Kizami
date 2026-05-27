@@ -60,5 +60,10 @@ namespace Kizami.View.Runtime.MeshCut
                 _cutting = false;
             }
         }
+
+        private void OnDrawGizmos()
+        {
+            BladePlaneDebugger.OnDrawGizmos(transform);
+        }
     }
 }
