@@ -23,12 +23,12 @@ namespace Kizami.Composition.Runtime
             if (_isVr)
             {
                 _vrPlayerInitializer.Initialize(_inputDispatcher, _bladePresenter);
-                _mobilePlayerInitializer.gameObject.SetActive(false);
+                Destroy(_mobilePlayerInitializer.gameObject);
             }
             else
             {
                 _mobilePlayerInitializer.Initialize(_inputDispatcher, _bladePresenter);
-                _vrPlayerInitializer.gameObject.SetActive(false);
+                Destroy(_vrPlayerInitializer.gameObject);
             }
         }
 

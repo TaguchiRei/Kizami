@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-
 namespace UsefulTools.Composition.Runtime.Boot
 {
     public sealed class InGameContainer : MonoBehaviour
@@ -21,7 +20,6 @@ namespace UsefulTools.Composition.Runtime.Boot
                         _instance = go.AddComponent<InGameContainer>();
                     }
                 }
-
                 return _instance;
             }
         }

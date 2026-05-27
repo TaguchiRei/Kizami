@@ -3796,6 +3796,50 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.OnScreen.OnScreenButton
   m_ControlPath: <Gamepad>/buttonSouth
+--- !u!1 &503864397
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 503864399}
+  - component: {fileID: 503864398}
+  m_Layer: 0
+  m_Name: DebugGUI
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &503864398
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 503864397}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a2fea45a2b701a4d8d17e2e4e80021b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UsefulDebug::DebugGUI
+--- !u!4 &503864399
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 503864397}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &507476105
 GameObject:
   m_ObjectHideFlags: 0
@@ -5250,6 +5294,67 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 668697949}
   m_Mesh: {fileID: 2959467708922500008, guid: 9d15888e9268e3644b7f6555fef61baf, type: 3}
+--- !u!1 &668765685
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 668765686}
+  - component: {fileID: 668765688}
+  - component: {fileID: 668765687}
+  m_Layer: 0
+  m_Name: InputDIspatcher
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &668765686
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 668765685}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.18814, y: -0.256, z: 1.23679}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &668765687
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 668765685}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57460871bddf6e94f800ad9cbcd8ca6b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Infrastructure::UsefulTools.Infrastructure.Runtime.Input.InputDispatcher
+  InitializationOrder: 0
+  _actionAsset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+--- !u!114 &668765688
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 668765685}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 164305228d964ed4abee352785fcf1fe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Composition::UsefulTools.Composition.Runtime.Input.InputInitializer
+  InitializationOrder: -1
+  _inputDispatcher: {fileID: 668765687}
 --- !u!1 &673467680
 GameObject:
   m_ObjectHideFlags: 0
@@ -7252,6 +7357,7 @@ GameObject:
   m_Component:
   - component: {fileID: 850377536}
   - component: {fileID: 850377535}
+  - component: {fileID: 850377539}
   - component: {fileID: 850377538}
   - component: {fileID: 850377534}
   - component: {fileID: 850377537}
@@ -7355,6 +7461,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: View::Kizami.View.Runtime.MeshCut.BladeView
   InitializationOrder: 0
   _multiCutBlade: {fileID: 850377534}
+--- !u!114 &850377539
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 850377533}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ee816035c3e42de4c9ca83d733cb57ed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Composition::Kizami.Composition.Runtime.BladeInitializer
+  InitializationOrder: 0
+  _bladeView: {fileID: 850377538}
 --- !u!1 &872199616
 GameObject:
   m_ObjectHideFlags: 0
@@ -13324,6 +13444,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1469068001}
+  - component: {fileID: 1469068003}
+  - component: {fileID: 1469068002}
   m_Layer: 0
   m_Name: Boot
   m_TagString: Untagged
@@ -13346,6 +13468,34 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1469068002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1469067998}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6eb1fd78c92db0443bf27abb1b628792, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Composition::UsefulTools.Composition.Runtime.Boot.InGameContainer
+--- !u!114 &1469068003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1469067998}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bd31e4b85eea53840bffcbdf06086881, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Composition::UsefulTools.Composition.Runtime.Boot.InGameBoot
+  _container: {fileID: 1469068002}
+  _bladeInitializer: {fileID: 850377539}
+  _playerInitializer: {fileID: 994250209}
+  _inputInitializer: {fileID: 0}
 --- !u!1 &1534423960
 GameObject:
   m_ObjectHideFlags: 0
@@ -16452,7 +16602,6 @@ GameObject:
   - component: {fileID: 2145007579}
   - component: {fileID: 2145007581}
   - component: {fileID: 2145007580}
-  - component: {fileID: 2145007582}
   m_Layer: 5
   m_Name: ToughtchField
   m_TagString: TouchArea
@@ -16517,24 +16666,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2145007578}
   m_CullTransparentMesh: 1
---- !u!114 &2145007582
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2145007578}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1aa050d0a19d74e49bb1cc09b6deae91, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Infrastructure::Kizami.Infrastructure.Runtime.TouchArea
-  _rayCaster: {fileID: 2066463151}
-  _eventSystem: {fileID: 0}
-  _initialized: 0
-  _isTracking: 0
-  _trackedTouchID: -1
-  _legacyPosition: {x: 0, y: 0}
 --- !u!33 &135031362093797347
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -18081,3 +18212,5 @@ SceneRoots:
   - {fileID: 606308395}
   - {fileID: 1819890271}
   - {fileID: 405382065}
+  - {fileID: 668765686}
+  - {fileID: 503864399}
