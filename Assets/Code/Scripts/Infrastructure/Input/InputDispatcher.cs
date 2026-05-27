@@ -12,7 +12,9 @@ namespace UsefulTools.Infrastructure.Runtime.Input
         [SerializeField] private InputActionAsset _actionAsset;
         [SerializeField] private UnityEngine.UI.GraphicRaycaster _raycaster;
 
-        private TouchAreaInputManager _touchAreaInputManager;
+        private Application.Runtime.TouchAreaUseCase _touchAreaUseCase;
+        private EnhancedTouchInputInfra _touchAreaInfra;
+        private TouchAreaManagement _touchAreaManagement;
 
         private readonly Dictionary<Delegate, Action> _registeredReadActions = new();
 
@@ -29,9 +31,11 @@ namespace UsefulTools.Infrastructure.Runtime.Input
             base.Initialize();
             _actionAsset.Enable();
 
-            _touchAreaInputManager = new TouchAreaInputManager();
-            _touchAreaInputManager.SetRaycaster(_raycaster);
-            _touchAreaInputManager.StartGame();
+            _touchAreaManagement = new TouchAreaManagement(_raycaster);
+            _touchAreaInfra = new EnhancedTouchInputInfra();
+            _touchAreaUseCase = new Application.Runtime.TouchAreaUseCase(_touchAreaInfra, _touchAreaManagement);
+
+            _touchAreaInfra.StartGame();
         }
 
         private void Update()
@@ -39,16 +43,18 @@ namespace UsefulTools.Infrastructure.Runtime.Input
             foreach (var updateAction in _registeredReadActions.Values)
                 updateAction();
 
-            _touchAreaInputManager?.Tick();
+            _touchAreaInfra?.Update();
         }
 
         private void LateUpdate()
         {
-            _touchAreaInputManager?.LateTick();
+            _touchAreaUseCase?.LateTick();
         }
 
         private void OnDestroy()
         {
+            _touchAreaInfra?.Stop();
+
             _registeredReadActions.Clear();
 
             foreach (var pair in _registeredInputActions)

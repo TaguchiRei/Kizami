@@ -10,6 +10,8 @@ namespace UsefulTools.Infrastructure.Runtime
 {
     public sealed class TouchAreaManagement : ITouchAreaManagement
     {
+        private const string TOUCH_AREA_TAG = "TouchArea";
+
         private readonly GraphicRaycaster _raycaster;
 
         private readonly EventSystem _eventSystem;
@@ -18,7 +20,7 @@ namespace UsefulTools.Infrastructure.Runtime
 
         private readonly List<RaycastResult> _results = new();
 
-        private readonly Dictionary<string, TouchAreaDevice> _devices = new();
+        private readonly Dictionary<string, Pointer> _devices = new();
 
         public TouchAreaManagement(GraphicRaycaster raycaster)
         {
@@ -37,67 +39,81 @@ namespace UsefulTools.Infrastructure.Runtime
 
             _raycaster.Raycast(_pointerEventData, _results);
 
-            for (int i = 0; i < _results.Count; i++)
+            if (_results.Count == 0)
             {
-                GameObject target = _results[i].gameObject;
+                groupName = null;
+                return false;
+            }
 
-                if (!target.TryGetComponent(out TouchArea view))
-                {
-                    continue;
-                }
+            // 提供されたロジックに合わせ、最前面（index 0）のオブジェクトのみを対象とする
+            GameObject target = _results[0].gameObject;
 
-                groupName = new string(view.GroupName);
+            if (target == null)
+            {
+                groupName = null;
+                return false;
+            }
 
+            // TouchAreaコンポーネントがある場合はそのGroupNameを優先
+            if (target.TryGetComponent(out TouchArea view))
+            {
+                groupName = view.GroupName;
+                return true;
+            }
+
+            // タグによる判定（提供された最小構成ロジックへの互換性）
+            if (target.CompareTag(TOUCH_AREA_TAG))
+            {
+                groupName = target.name; // タグのみの場合はオブジェクト名をGroupNameとする
                 return true;
             }
 
             groupName = null;
-
             return false;
         }
 
         public void Press(string groupName)
         {
-            TouchAreaDevice device = GetOrCreateDevice(groupName);
+            Pointer device = GetOrCreateDevice(groupName);
 
-            InputState.Change(device.Press, true);
+            InputState.Change(device.press, 1f);
         }
 
         public void Release(string groupName)
         {
-            if (!_devices.TryGetValue(groupName, out TouchAreaDevice device))
+            if (!_devices.TryGetValue(groupName, out Pointer device))
             {
                 return;
             }
 
-            InputState.Change(device.Press, false);
+            InputState.Change(device.press, 0f);
 
-            InputState.Change(device.Delta, Vector2.zero);
+            InputState.Change(device.delta, Vector2.zero);
         }
 
         public void Move(string groupName, Vector2 delta)
         {
-            TouchAreaDevice device = GetOrCreateDevice(groupName);
+            Pointer device = GetOrCreateDevice(groupName);
 
-            InputState.Change(device.Delta, delta);
+            InputState.Change(device.delta, delta);
         }
 
         public void LateTick()
         {
-            foreach (TouchAreaDevice device in _devices.Values)
+            foreach (Pointer device in _devices.Values)
             {
-                InputState.Change(device.Delta, Vector2.zero);
+                InputState.Change(device.delta, Vector2.zero);
             }
         }
 
-        private TouchAreaDevice GetOrCreateDevice(string groupName)
+        private Pointer GetOrCreateDevice(string groupName)
         {
-            if (_devices.TryGetValue(groupName, out TouchAreaDevice device))
+            if (_devices.TryGetValue(groupName, out Pointer device))
             {
                 return device;
             }
 
-            device = InputSystem.AddDevice<TouchAreaDevice>();
+            device = (Pointer)InputSystem.AddDevice("Pointer", groupName);
 
             _devices.Add(groupName, device);
 

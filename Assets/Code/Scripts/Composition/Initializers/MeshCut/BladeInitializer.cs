@@ -1,3 +1,4 @@
+using Kizami.Application.Runtime;
 using Kizami.Presentation.Runtime;
 using Kizami.View.Runtime.MeshCut;
 using UnityEngine;
@@ -16,7 +17,7 @@ namespace Kizami.Composition.Runtime
         {
             _presenter = new BladePresenter(_bladeView);
 
-            InGameContainer.Register(_presenter);
+            InGameContainer.Register<IBladePresenter>(_presenter);
         }
 
         public override void Initialize()

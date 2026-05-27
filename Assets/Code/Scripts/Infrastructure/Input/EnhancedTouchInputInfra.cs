@@ -3,6 +3,7 @@ using UnityEngine.InputSystem.EnhancedTouch;
 using UsefulTools.Application.Runtime.Input;
 using UsefulTools.Domain.Runtime;
 using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
+using UnityEngine.InputSystem.UI;
 
 namespace UsefulTools.Infrastructure.Runtime.Input
 {
@@ -24,6 +25,14 @@ namespace UsefulTools.Infrastructure.Runtime.Input
             {
                 EnhancedTouchSupport.Enable();
             }
+
+#if UNITY_EDITOR
+            // Unity上ではクリックをタッチとしてシミュレーションを有効化
+            if (!TouchSimulation.instance?.enabled ?? true)
+            {
+                TouchSimulation.Enable();
+            }
+#endif
             State = RuleState.Playing;
         }
 
@@ -37,27 +46,29 @@ namespace UsefulTools.Infrastructure.Runtime.Input
             {
                 EnhancedTouchSupport.Disable();
             }
+#if UNITY_EDITOR
+            TouchSimulation.Disable();
+#endif
         }
 
         public void Update()
         {
             foreach (var touch in Touch.activeTouches)
             {
-                var inputData = new TouchInputData(touch.finger.index, touch.screenPosition);
+                // touchIdを使用して追跡の一貫性を確保
+                var inputData = new TouchInputData(touch.touchId, touch.screenPosition);
 
-                switch (touch.phase)
+                if (touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
                 {
-                    case UnityEngine.InputSystem.TouchPhase.Began:
-                        OnTouchBegan?.Invoke(inputData);
-                        break;
-                    case UnityEngine.InputSystem.TouchPhase.Moved:
-                    case UnityEngine.InputSystem.TouchPhase.Stationary:
-                        OnTouchMoved?.Invoke(inputData);
-                        break;
-                    case UnityEngine.InputSystem.TouchPhase.Ended:
-                    case UnityEngine.InputSystem.TouchPhase.Canceled:
-                        OnTouchEnded?.Invoke(touch.finger.index);
-                        break;
+                    OnTouchBegan?.Invoke(inputData);
+                }
+                else if (touch.phase == UnityEngine.InputSystem.TouchPhase.Moved || touch.phase == UnityEngine.InputSystem.TouchPhase.Stationary)
+                {
+                    OnTouchMoved?.Invoke(inputData);
+                }
+                else if (touch.phase == UnityEngine.InputSystem.TouchPhase.Ended || touch.phase == UnityEngine.InputSystem.TouchPhase.Canceled)
+                {
+                    OnTouchEnded?.Invoke(touch.touchId);
                 }
             }
         }
