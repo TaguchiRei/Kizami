@@ -25,16 +25,16 @@ namespace UsefulTools.Application.Runtime
 
         private void OnTouchBegan(TouchInputData input)
         {
-            if (!_management.TryGetGroupId(input.ScreenPosition, out string groupId))
+            if (!_management.TryGetGroupName(input.ScreenPosition, out string groupName))
             {
                 return;
             }
 
-            if (!_groups.TryGetValue(groupId, out TouchAreaGroup group))
+            if (!_groups.TryGetValue(groupName, out TouchAreaGroup group))
             {
-                group = new TouchAreaGroup(groupId);
+                group = new TouchAreaGroup(groupName);
 
-                _groups.Add(groupId, group);
+                _groups.Add(groupName, group);
             }
 
             if (!group.CanAcceptTouch())
@@ -44,11 +44,11 @@ namespace UsefulTools.Application.Runtime
 
             group.BeginTracking();
 
-            var session = new TouchSession(input.TouchId, groupId, input.ScreenPosition);
+            var session = new TouchSession(input.TouchId, groupName, input.ScreenPosition);
 
             _sessions.Add(input.TouchId, session);
 
-            _management.Press(groupId);
+            _management.Press(groupName);
         }
 
         private void OnTouchMoved(TouchInputData input)
@@ -60,7 +60,7 @@ namespace UsefulTools.Application.Runtime
 
             Vector2 delta = session.UpdatePosition(input.ScreenPosition);
 
-            _management.Move(session.GroupId, delta);
+            _management.Move(session.GroupName, delta);
         }
 
         private void OnTouchEnded(int touchId)
@@ -72,11 +72,11 @@ namespace UsefulTools.Application.Runtime
 
             _sessions.Remove(touchId);
 
-            TouchAreaGroup group = _groups[session.GroupId];
+            TouchAreaGroup group = _groups[session.GroupName];
 
             group.EndTracking();
 
-            _management.Release(session.GroupId);
+            _management.Release(session.GroupName);
         }
 
         public void LateTick()

@@ -16605,7 +16605,7 @@ GameObject:
   - component: {fileID: 2145007580}
   - component: {fileID: 2145007582}
   m_Layer: 5
-  m_Name: ToughtchField
+  m_Name: TouchArea
   m_TagString: TouchArea
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -16680,7 +16680,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db4795f3e661474419e2da707329b32c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Infrastructure::UsefulTools.Infrastructure.Runtime.TouchArea
-  _groupId: 
+  _groupId: LookArea
 --- !u!33 &135031362093797347
 MeshFilter:
   m_ObjectHideFlags: 0

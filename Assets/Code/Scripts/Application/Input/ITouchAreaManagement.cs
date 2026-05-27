@@ -4,13 +4,13 @@ namespace UsefulTools.Application.Runtime.Input
 {
     public interface ITouchAreaManagement
     {
-        bool TryGetGroupId(Vector2 screenPosition, out string groupId);
+        bool TryGetGroupName(Vector2 screenPosition, out string groupName);
 
-        void Press(string groupId);
+        void Press(string groupName);
 
-        void Release(string groupId);
+        void Release(string groupName);
 
-        void Move(string groupId, Vector2 delta);
+        void Move(string groupName, Vector2 delta);
 
         void LateTick();
     }

@@ -4,13 +4,13 @@ namespace UsefulTools.Domain.Runtime.Input
 {
     public sealed class TouchAreaGroup
     {
-        public string Id { get; }
+        public string GroupName { get; }
 
         public bool IsTracking { get; private set; }
 
-        public TouchAreaGroup(string id)
+        public TouchAreaGroup(string groupName)
         {
-            Id = id;
+            GroupName = groupName;
         }
 
         public bool CanAcceptTouch()

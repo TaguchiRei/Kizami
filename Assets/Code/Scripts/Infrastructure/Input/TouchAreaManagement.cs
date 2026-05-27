@@ -27,11 +27,9 @@ namespace UsefulTools.Infrastructure.Runtime
             _eventSystem = EventSystem.current;
 
             _pointerEventData = new PointerEventData(_eventSystem);
-
-            InputSystem.RegisterLayout<TouchAreaDevice>();
         }
 
-        public bool TryGetGroupId(Vector2 screenPosition, out string groupId)
+        public bool TryGetGroupName(Vector2 screenPosition, out string groupName)
         {
             _pointerEventData.position = screenPosition;
 
@@ -48,26 +46,26 @@ namespace UsefulTools.Infrastructure.Runtime
                     continue;
                 }
 
-                groupId = new string(view.GroupId);
+                groupName = new string(view.GroupName);
 
                 return true;
             }
 
-            groupId = null;
+            groupName = null;
 
             return false;
         }
 
-        public void Press(string groupId)
+        public void Press(string groupName)
         {
-            TouchAreaDevice device = GetOrCreateDevice(groupId);
+            TouchAreaDevice device = GetOrCreateDevice(groupName);
 
             InputState.Change(device.Press, true);
         }
 
-        public void Release(string groupId)
+        public void Release(string groupName)
         {
-            if (!_devices.TryGetValue(groupId, out TouchAreaDevice device))
+            if (!_devices.TryGetValue(groupName, out TouchAreaDevice device))
             {
                 return;
             }
@@ -77,9 +75,9 @@ namespace UsefulTools.Infrastructure.Runtime
             InputState.Change(device.Delta, Vector2.zero);
         }
 
-        public void Move(string groupId, Vector2 delta)
+        public void Move(string groupName, Vector2 delta)
         {
-            TouchAreaDevice device = GetOrCreateDevice(groupId);
+            TouchAreaDevice device = GetOrCreateDevice(groupName);
 
             InputState.Change(device.Delta, delta);
         }
@@ -92,16 +90,16 @@ namespace UsefulTools.Infrastructure.Runtime
             }
         }
 
-        private TouchAreaDevice GetOrCreateDevice(string groupId)
+        private TouchAreaDevice GetOrCreateDevice(string groupName)
         {
-            if (_devices.TryGetValue(groupId, out TouchAreaDevice device))
+            if (_devices.TryGetValue(groupName, out TouchAreaDevice device))
             {
                 return device;
             }
 
             device = InputSystem.AddDevice<TouchAreaDevice>();
 
-            _devices.Add(groupId, device);
+            _devices.Add(groupName, device);
 
             return device;
         }
