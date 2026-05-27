@@ -41,19 +41,19 @@ namespace Kizami.Application.Runtime
                 ActionMaps.Player,
                 PlayerActions.Look,
                 OnLook, isRegister);
-            _inputDispatcher.RegistrationStarted<Vector2, PlayerActions>(
+            _inputDispatcher.RegistrationStarted<float, PlayerActions>(
                 ActionMaps.Player,
                 PlayerActions.AttackHorizontal,
                 OnAttackHorizontal, isRegister);
-            _inputDispatcher.RegistrationStarted<Vector2, PlayerActions>(
+            _inputDispatcher.RegistrationStarted<float, PlayerActions>(
                 ActionMaps.Player,
                 PlayerActions.AttackVertical,
                 OnAttackVertical, isRegister);
-            _inputDispatcher.RegistrationStarted<Vector2, PlayerActions>(
+            _inputDispatcher.RegistrationStarted<float, PlayerActions>(
                 ActionMaps.Player,
                 PlayerActions.AttackUpperLeft,
                 OnAttackUpperLeft, isRegister);
-            _inputDispatcher.RegistrationStarted<Vector2, PlayerActions>(
+            _inputDispatcher.RegistrationStarted<float, PlayerActions>(
                 ActionMaps.Player,
                 PlayerActions.AttackUpperRight,
                 OnAttackUpperRight, isRegister);
@@ -111,23 +111,23 @@ namespace Kizami.Application.Runtime
             _mobilePlayerPresenter.AddForce(_entity.Gravity.GravityForce, ForceMode.Acceleration);
         }
 
-        private void OnAttackHorizontal(InputContext<Vector2> input)
+        private void OnAttackHorizontal(InputContext<float> input)
         {
         }
 
-        private void OnAttackVertical(InputContext<Vector2> input)
+        private void OnAttackVertical(InputContext<float> input)
         {
         }
 
-        private void OnAttackUpperLeft(InputContext<Vector2> input)
+        private void OnAttackUpperLeft(InputContext<float> input)
         {
         }
 
-        private void OnAttackUpperRight(InputContext<Vector2> input)
+        private void OnAttackUpperRight(InputContext<float> input)
         {
         }
 
-        private void OnAttack(InputContext<Vector2> input, Quaternion cutFaceRotation)
+        private void OnAttack(InputContext<float> input, Quaternion cutFaceRotation)
         {
             _bladePresenter.SetRotation(cutFaceRotation);
             _bladePresenter.Cut(null);
