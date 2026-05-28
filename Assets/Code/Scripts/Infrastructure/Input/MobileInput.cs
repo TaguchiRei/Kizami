@@ -48,7 +48,7 @@ namespace UsefulTools.Infrastructure.Runtime
 
         private void Awake()
         {
-            _inputDispatcher.RegisterExternalInput(ActionMaps.Player, ExternalActions.MobileInput, this);
+            _inputDispatcher.RegisterExternalInput(ActionMaps.ExternalInput, ExternalActions.MobileInput, this);
         }
 
         private void Update()
@@ -163,6 +163,7 @@ namespace UsefulTools.Infrastructure.Runtime
 
         public void RegisterAction(Action<InputContext<Vector2>> input)
         {
+            Debug.Log("MobileInput RegisterAction");
             _onInput += input;
         }
 

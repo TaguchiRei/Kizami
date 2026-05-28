@@ -11,7 +11,6 @@ namespace UsefulTools.Composition.Runtime.Input
 
         private void Awake()
         {
-            //SceneBootに登録する処理
             InGameContainer.Register<IInputDispatcher>(_inputDispatcher);
         }
 

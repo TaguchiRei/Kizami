@@ -7,6 +7,7 @@ using UnityEngine;
 using UsefulTools.Infrastructure.Runtime.Input;
 using UsefulVr.Domain.Runtime.Domain;
 using Code.Scripts.Domain.Player;
+using Kizami.Application.Runtime.Input;
 
 namespace Kizami.Composition.Runtime.Player
 {

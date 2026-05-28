@@ -5,7 +5,7 @@ using UsefulTools.AutoGenerate;
 using UsefulTools.Infrastructure.Runtime.Input;
 using UsefulVr.Domain.Runtime.Domain;
 
-namespace Kizami.Application.Runtime
+namespace Kizami.Application.Runtime.Input
 {
     public class MobilePlayerService : IDisposable
     {
@@ -37,9 +37,9 @@ namespace Kizami.Application.Runtime
                 ActionMaps.Player,
                 PlayerActions.Move,
                 OnMove, isRegister);
-            _inputDispatcher.RegistrationReadValue<Vector2, PlayerActions>(
-                ActionMaps.Player,
-                PlayerActions.Look,
+            _inputDispatcher.RegistrationAll<Vector2, ExternalActions>(
+                ActionMaps.ExternalInput,
+                ExternalActions.MobileInput,
                 OnLook, isRegister);
             _inputDispatcher.RegistrationStarted<float, PlayerActions>(
                 ActionMaps.Player,
@@ -91,7 +91,9 @@ namespace Kizami.Application.Runtime
 
         private void OnLook(InputContext<Vector2> input)
         {
+            Debug.Log("Input On Look");
             if (!input.IsActive || !input.IsPerformed) return;
+            Debug.Log($"InputValue{input}");
 
             // スマホ版のOnLookはDeltaを想定しているため、そのまま感度を掛けて回転させる
             float turnAngle = input.Value.x * _entity.LookSensitivity;

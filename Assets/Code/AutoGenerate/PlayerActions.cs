@@ -5,7 +5,6 @@ namespace UsefulTools.AutoGenerate
     public enum PlayerActions
     {
         Move,
-        Look,
         AttackVertical,
         AttackHorizontal,
         AttackUpperRight,

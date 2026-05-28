@@ -7,6 +7,7 @@ namespace UsefulTools.AutoGenerate
         Player,
         UI,
         VRTransform,
-        VRControllers
+        VRControllers,
+        ExternalInput
     }
 }
