@@ -1743,10 +1743,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 179837955}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: db4795f3e661474419e2da707329b32c, type: 3}
+  m_Script: {fileID: 11500000, guid: 44dc9b955ffa8e942b543f21d68809d8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Infrastructure::UsefulTools.Infrastructure.Runtime.TouchArea
-  _groupName: LookArea
+  m_EditorClassIdentifier: Infrastructure::UsefulTools.Infrastructure.Runtime.Input.MobileInput
+  _rayCaster: {fileID: 2066463151}
+  _controlPath: <Pointer>/delta
 --- !u!1 &180895952
 GameObject:
   m_ObjectHideFlags: 0
@@ -5719,7 +5720,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Infrastructure::UsefulTools.Infrastructure.Runtime.Input.InputDispatcher
   InitializationOrder: 0
   _actionAsset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-  _raycaster: {fileID: 2066463151}
 --- !u!114 &668765688
 MonoBehaviour:
   m_ObjectHideFlags: 0
