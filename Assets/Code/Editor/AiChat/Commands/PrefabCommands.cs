@@ -13,7 +13,7 @@ namespace UsefulTools.Editor.Ai.Commands
         {
             if (arguments.Count < 2) return "Error: Missing arguments. Expected 2 (GOName, Path).";
             
-            var go = GameObject.Find(arguments[0]);
+            var go = GameObjectResolver.Resolve(arguments[0]);
             if (go == null) return $"Error: GameObject {arguments[0]} not found.";
 
             string path = arguments[1];
@@ -37,7 +37,7 @@ namespace UsefulTools.Editor.Ai.Commands
         {
             if (arguments.Count < 1) return "Error: Missing GameObjectName.";
             
-            var go = GameObject.Find(arguments[0]);
+            var go = GameObjectResolver.Resolve(arguments[0]);
             if (go == null) return $"Error: GameObject {arguments[0]} not found.";
 
             if (!PrefabUtility.IsPartOfPrefabInstance(go))

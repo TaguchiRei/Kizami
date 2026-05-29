@@ -19,10 +19,9 @@ namespace UsefulTools.Editor.Ai
                 var args = cmd.arguments ?? new List<string>();
                 
                 // Registry経由でコマンド実行を委譲するラッパーを作成
-                actions.Add(new PendingCommand($"{cmd.name}: {string.Join(", ", args)}", () => 
+                actions.Add(new PendingCommand($"{cmd.name}: {string.Join(", ", args.Take(1))}{(args.Count > 1 ? "..." : "")}", () => 
                 {
-                    string commandInput = $"/{cmd.name} {string.Join(" ", args)}";
-                    if (AiCommandRegistry.TryExecute(commandInput, out var result))
+                    if (AiCommandRegistry.Execute(cmd.name, args, out var result))
                     {
                         return result;
                     }

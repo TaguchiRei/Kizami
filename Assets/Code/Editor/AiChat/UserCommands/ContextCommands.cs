@@ -15,7 +15,8 @@ namespace UsefulTools.Editor.Ai.UserCommands
             string path = EditorUtility.SaveFilePanel("Save Conversation Context", "", "ConversationContext.json", "json");
             if (!string.IsNullOrEmpty(path))
             {
-                string json = window.ExportConversationJson();
+                var context = window.ExportContext();
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(context, Newtonsoft.Json.Formatting.Indented);
                 System.IO.File.WriteAllText(path, json);
                 Debug.Log($"User Command: SaveContext executed. Saved to {path}");
             }
@@ -28,7 +29,24 @@ namespace UsefulTools.Editor.Ai.UserCommands
         public string Description => "保存済みContextを読み込みます";
         public void Execute(string[] args)
         {
-            Debug.Log("User Command: LoadContext executed.");
+            var window = EditorWindow.GetWindow<AiChatWindow>();
+            if (window == null) return;
+
+            string path = EditorUtility.OpenFilePanel("Load Conversation Context", "", "json");
+            if (!string.IsNullOrEmpty(path))
+            {
+                try
+                {
+                    string json = System.IO.File.ReadAllText(path);
+                    var context = AiChatContext.FromJson(json);
+                    window.ImportContext(context);
+                    Debug.Log($"User Command: LoadContext executed. Loaded from {path}");
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"Failed to load context: {e.Message}");
+                }
+            }
         }
     }
 

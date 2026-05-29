@@ -74,22 +74,38 @@ namespace UsefulTools.Editor.Ai
         }
     }
 
+    [Serializable]
     public sealed class GeminiClient
     {
         private const int MaxRetryCount = 3;
 
-        private readonly string apiKey;
+        [SerializeField]
+        private string apiKey;
 
-        private readonly GeminiModel model;
+        [SerializeField]
+        private GeminiModel model;
 
-        private readonly string modelName;
+        [SerializeField]
+        private string modelName;
 
-        private readonly List<Content>
-            conversation =
-                new();
+        [SerializeField]
+        private List<Content>
+            conversation;
 
+        private List<Content> Conversation
+        {
+            get
+            {
+                if (conversation == null) conversation = new List<Content>();
+                return conversation;
+            }
+        }
+
+        [SerializeField]
         private string systemInstructionText =
             "";
+
+        public bool IsInitialized => !string.IsNullOrEmpty(apiKey) && !string.IsNullOrEmpty(modelName);
 
         public GeminiClient(
             string apiKey,
@@ -105,6 +121,8 @@ namespace UsefulTools.Editor.Ai
             modelName =
                 model.ToModelId();
 
+            conversation = new List<Content>();
+
             systemInstructionText =
                 "あなたはUnity/C#専門AIです。\n" +
                 "\n" +
@@ -112,17 +130,25 @@ namespace UsefulTools.Editor.Ai
                 "返答は必ず以下のJSON形式に厳密に従ってください。\n" +
                 "{\"message\": \"...\", \"intent\": \"...\", \"commands\": [{\"name\": \"コマンド名\", \"arguments\": [\"引数1\"]}]}\n" +
                 "\n" +
+                "【重要：GameObjectの特定と操作】\n" +
+                "1. システムは 'InstanceID' (#数値) と '名前/パス' の両方での特定をサポートしています。\n" +
+                "2. まずは GetObjectDetail や GetHierarchy でIDを確認し、ID指定を試みてください。\n" +
+                "3. **IDで解決できない場合、名前解決を試みてください。** システムは名前からの探索を自動的にフォールバックとして処理します。\n" +
+                "4. 階層構造が複雑な場合は、'親/子/孫' のようなパス形式で指定してください。\n" +
+                "\n" +
+                "【重要：探索コマンド】\n" +
+                "- 指定したファイルやフォルダの場所が不明な場合は、'FindPath [検索名]' を使用してください。存在する場合はパスを返します。\n" +
+                "\n" +
                 "【ルール】\n" +
-                "1. 絶対に 'commands' 配列内には、以下の利用可能なコマンド一覧に記載されている正確な名前のみを使用してください。\n" +
-                "2. 目的を達成するために必要なコマンドを配列に並べて一括出力してください。\n" +
-                "3. **必要な情報はユーザーに質問する前に、まず利用可能なコマンドを実行して自律的に取得してください。**\n" +
-                "4. **単に「使えるコマンドを教えて」等の質問に対しては、コマンドは実行せず、メッセージとして説明を返してください。**\n" +
+                "1. 絶対に 'commands' 配列内には、正確なコマンド名のみを使用してください。\n" +
+                "2. 目的達成に必要なコマンドを一括出力してください。\n" +
+                "3. **必要な情報はユーザーに質問する前に、自律的に取得してください。**\n" +
                 "\n" +
                 "【利用可能なコマンド一覧】\n" +
-                "AddComponent, SetComponentValue, GetComponentInspectorFields, GetComponentScriptPath, InvokeMenuItem, ChangeFile, PatchFile, Clear, ListFiles, ReadFile, DeleteFile, DeletePath, CaptureGameView, WriteFile, MoveFile, CopyFile, ReadDirectory, CreateDirectory, GetLoadedScenes, GetHierarchy, FindGameObjects, GetSelection, GetCompileErrors, Exists, FindAssets, CreateGameObject, AttachComponentReference, DeleteGameObject, EnterPlayMode, ExitPlayMode, IsPlaying, GetMaterialProperties, SetMaterialProperty, CreatePrefab, ApplyPrefabInstance\n" +
+                "AddComponent, SetComponentValue, GetComponentInspectorFields, GetComponentScriptPath, InvokeMenuItem, PatchFile, Clear, FindAssets, DeleteAsset, CaptureGameView, WriteFile, MoveFile, CopyFile, ReadDirectory, CreateDirectory, GetLoadedScenes, GetHierarchy, FindGameObjects, GetSelection, GetCompileErrors, Exists, CreateGameObject, AttachComponentReference, DestroyGameObject, SearchCode, GetObjectDetail, GetScriptsOnObject, BatchReadFile, EnterPlayMode, ExitPlayMode, IsPlaying, GetMaterialProperties, SetMaterialProperty, CreatePrefab, ApplyPrefabInstance\n" +
                 "\n" +
                 "例：\n" +
-                "{\"message\": \"Assetsディレクトリとシーンを確認します\", \"intent\": \"Explore\", \"commands\": [{\"name\": \"ReadDirectory\", \"arguments\": [\"Assets\"]}, {\"name\": \"GetLoadedScenes\", \"arguments\": []}]}";
+                "{\"message\": \"Assetsディレクトリを検索し、シーンを確認します\", \"intent\": \"Explore\", \"commands\": [{\"name\": \"FindPath\", \"arguments\": [\"Assets\"]}, {\"name\": \"GetLoadedScenes\", \"arguments\": []}]}";
         }
 
         public void AddSystemInstruction(
@@ -134,7 +160,7 @@ namespace UsefulTools.Editor.Ai
 
         public void ClearConversation()
         {
-            conversation.Clear();
+            Conversation.Clear();
         }
 
         public void SetSystemInstruction(string text)
@@ -160,7 +186,7 @@ namespace UsefulTools.Editor.Ai
             builder.AppendLine(
                 result);
 
-            conversation.Add(
+            Conversation.Add(
                 Content.System(
                     builder.ToString()));
         }
@@ -168,7 +194,7 @@ namespace UsefulTools.Editor.Ai
         public string ExportConversationJson()
         {
             return JsonConvert.SerializeObject(
-                conversation,
+                Conversation,
                 Formatting.Indented);
         }
 
@@ -185,16 +211,16 @@ namespace UsefulTools.Editor.Ai
                 return;
             }
 
-            conversation.Clear();
+            Conversation.Clear();
 
-            conversation.AddRange(
+            Conversation.AddRange(
                 imported);
         }
 
         public List<(string role, string text)>
             GetConversationHistory()
         {
-            return conversation
+            return Conversation
                 .Select(c =>
                 {
                     string text =
@@ -267,6 +293,10 @@ namespace UsefulTools.Editor.Ai
             string url =
                 $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={apiKey}";
 
+            Debug.Log($"[AI] Sending request to: {url}");
+            if (string.IsNullOrEmpty(apiKey)) Debug.LogError("[AI] API Key is null or empty!");
+            if (string.IsNullOrEmpty(modelName)) Debug.LogError("[AI] Model Name is null or empty!");
+
             GenerateContentRequest
                 requestBody =
                     BuildRequest(
@@ -284,6 +314,8 @@ namespace UsefulTools.Editor.Ai
                             NullValueHandling.Ignore
                     });
 
+            GeminiSettings settings = GeminiSettings.Load();
+
             for (int retry = 0;
                  retry < MaxRetryCount;
                  retry++)
@@ -293,6 +325,8 @@ namespace UsefulTools.Editor.Ai
                         new UnityWebRequest(
                             url,
                             "POST");
+
+                request.timeout = settings.TimeoutSeconds;
 
                 byte[] bodyRaw =
                     Encoding.UTF8.GetBytes(
@@ -315,7 +349,18 @@ namespace UsefulTools.Editor.Ai
 
                 while (!operation.isDone)
                 {
+                    if (ct.IsCancellationRequested)
+                    {
+                        request.Abort();
+                        ct.ThrowIfCancellationRequested();
+                    }
                     await Task.Yield();
+                }
+
+                if (ct.IsCancellationRequested)
+                {
+                    request.Abort();
+                    ct.ThrowIfCancellationRequested();
                 }
 
                 bool success =
@@ -324,7 +369,7 @@ namespace UsefulTools.Editor.Ai
 
                 if (success)
                 {
-                    conversation.Add(
+                    Conversation.Add(
                         nextContent);
 
                     return ParseResponse(
@@ -334,7 +379,14 @@ namespace UsefulTools.Editor.Ai
                 long code =
                     request.responseCode;
 
+                bool isNetworkError =
+                    request.result == UnityWebRequest.Result.ConnectionError ||
+                    request.result == UnityWebRequest.Result.ProtocolError ||
+                    request.result == UnityWebRequest.Result.DataProcessingError;
+
                 bool retryable =
+                    isNetworkError ||
+                    code == 0 ||
                     code == 429 ||
                     code == 500 ||
                     code == 503;
@@ -359,7 +411,7 @@ namespace UsefulTools.Editor.Ai
                 int delayMs =
                     (retry + 1) * 2000;
 
-                await Task.Delay(delayMs);
+                await Task.Delay(delayMs, ct);
             }
 
             throw new Exception(
@@ -408,7 +460,7 @@ namespace UsefulTools.Editor.Ai
                         "Structured response null.");
                 }
 
-                conversation.Add(
+                Conversation.Add(
                     Content.Model(rawText));
 
                 Debug.Log(
@@ -480,12 +532,11 @@ namespace UsefulTools.Editor.Ai
                 Content nextContent,
                 List<FileContextItem> activeFiles = null)
         {
-            List<Content> conversationCopy = new(conversation);
+            List<Content> conversationCopy = new(Conversation);
             GeminiSettings settings = GeminiSettings.Load();
 
             if (settings.EnableHistoryLimit && conversationCopy.Count > settings.MaxHistoryCount)
             {
-                // 最新のメッセージをMaxHistoryCount分だけ残す
                 conversationCopy = conversationCopy
                     .Skip(conversationCopy.Count - settings.MaxHistoryCount)
                     .ToList();
@@ -494,18 +545,55 @@ namespace UsefulTools.Editor.Ai
             string fileInfo = "";
             if (activeFiles != null)
             {
+                var sb = new StringBuilder();
                 foreach (var file in activeFiles.Where(f => f.IsEnabled))
                 {
-                    fileInfo += $"\n\n--- File: {file.FileName} ---\n{file.Content}\n";
+                    sb.Append("\n\n--- File: ").Append(file.FileName).Append(" ---\n").Append(file.Content).Append("\n");
                 }
+                fileInfo = sb.ToString();
             }
 
             List<Content> contentsForApi = new();
+
+            // 共通の処理ロジック（[SYSTEM]プレフィックス付与）
+            Content ProcessContent(Content c)
+            {
+                var role = c.role == "system" ? "user" : c.role;
+                var parts = c.parts;
+
+                if (c.role == "system" && parts != null && parts.Length > 0)
+                {
+                    // テキストが含まれる最初のPartを探して[SYSTEM]を付与
+                    bool prefixAdded = false;
+                    var newParts = new List<Part>();
+                    foreach (var p in parts)
+                    {
+                        if (!prefixAdded && !string.IsNullOrEmpty(p.text))
+                        {
+                            newParts.Add(new Part { text = "[SYSTEM] " + p.text });
+                            prefixAdded = true;
+                        }
+                        else
+                        {
+                            newParts.Add(p);
+                        }
+                    }
+
+                    // テキストPartが一つもなかった場合は、先頭に[SYSTEM]だけのPartを追加
+                    if (!prefixAdded)
+                    {
+                        newParts.Insert(0, new Part { text = "[SYSTEM]" });
+                    }
+                    parts = newParts.ToArray();
+                }
+                return new Content { role = role, parts = parts };
+            }
+
             foreach (var c in conversationCopy)
             {
-                contentsForApi.Add(new Content { role = c.role == "system" ? "user" : c.role, parts = c.parts });
+                contentsForApi.Add(ProcessContent(c));
             }
-            contentsForApi.Add(new Content { role = nextContent.role == "system" ? "user" : nextContent.role, parts = nextContent.parts });
+            contentsForApi.Add(ProcessContent(nextContent));
 
             // コンテキスト情報の取得
             string activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
@@ -676,8 +764,10 @@ namespace UsefulTools.Editor.Ai
         [Serializable]
         private sealed class Part
         {
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
             public string text;
 
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
             public InlineData inline_data;
         }
 

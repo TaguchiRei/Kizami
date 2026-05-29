@@ -11,6 +11,8 @@ namespace UsefulTools.Editor.Ai
         public string Content;
         public bool IsEnabled = true;
 
+        public FileContextItem() { }
+
         public FileContextItem(string path)
         {
             FilePath = path;

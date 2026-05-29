@@ -12,8 +12,10 @@ namespace UsefulTools.Editor.Ai.Commands
         public string Execute(List<string> arguments)
         {
             string filter = arguments.Count > 0 ? arguments[0] : "";
-            var gos = GameObject.FindObjectsOfType<GameObject>();
-            var results = gos.Where(go => go.name.Contains(filter)).Select(go => go.name).ToList();
+            var gos = Object.FindObjectsOfType<GameObject>();
+            var results = gos.Where(go => go.name.Contains(filter))
+                             .Select(go => $"{go.name} (#{go.GetInstanceID()})")
+                             .ToList();
             return results.Count > 0 ? string.Join("\n", results) : "No GameObjects found.";
         }
     }
