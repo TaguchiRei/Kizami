@@ -42,6 +42,7 @@ namespace Kizami.View.Runtime.MeshCut
         {
             if (_cutting) return;
 
+            Debug.Log("切断処理が呼ばれた");
             _cutting = true;
             CutInternal(onComplete).Forget();
         }
@@ -53,7 +54,7 @@ namespace Kizami.View.Runtime.MeshCut
             try
             {
                 await _multiCutBlade.CutAsync();
-
+                
                 onComplete?.Invoke();
             }
             catch (Exception e)

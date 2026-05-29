@@ -133,10 +133,10 @@ namespace Kizami.Application.Runtime.Input
 
         private void OnAttack(InputContext<float> input, Quaternion cutFaceRotation)
         {
-            Debug.Log("切断処理が呼び出された");
-            if (input.IsCanceled)
+            if (input.IsStarted)
             {
-                _bladePresenter.SetRotation(_bladePresenter.DefaultRotation * cutFaceRotation);
+                Debug.Log("切断処理が呼ばれた");
+                _bladePresenter.SetRotation(cutFaceRotation * _bladePresenter.DefaultRotation);
                 _bladePresenter.Cut(null);
             }
         }

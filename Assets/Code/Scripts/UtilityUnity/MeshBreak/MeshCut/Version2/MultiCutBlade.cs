@@ -21,7 +21,7 @@ public class MultiCutBlade : MonoBehaviour
     {
         _slicer.LimitMs = _LimitMs;
     }
-    
+
     public async UniTask CutAsync()
     {
         BoxCollider box = GetComponent<BoxCollider>();
@@ -52,6 +52,8 @@ public class MultiCutBlade : MonoBehaviour
         if (cuttables.Count > 0)
         {
             await ExecuteCut(cuttables.ToArray());
+
+            Debug.Log(_slicer.Log);
         }
         else
         {
@@ -83,20 +85,48 @@ public class MultiCutBlade : MonoBehaviour
 
         Stopwatch frameStopwatch = Stopwatch.StartNew();
 
-        // 結果を各破片に反映
-        for (int i = 0; i < fragmentStubs.Count; i++)
+        int creatableTargetCount = Mathf.Min(
+            targets.Length,
+            fragmentStubs.Count / 2,
+            _slicer.CutMesh.Length / 2,
+            _slicer.SamplingPoints.Count / 2);
+
+        for (int targetIndex = 0; targetIndex < creatableTargetCount; targetIndex++)
         {
-            var target = targets[i];
+            var target = targets[targetIndex];
 
-            // Front側 (index: i*2)
-            var frontData = fragmentStubs[i * 2];
-            ApplyResult(frontData, _slicer.CutMesh[i * 2], _slicer.SamplingPoints[i * 2], target, blade);
+            int frontIndex = targetIndex * 2;
+            int backIndex = frontIndex + 1;
+            var frontSampling = _slicer.SamplingPoints[frontIndex];
+            var backSampling = _slicer.SamplingPoints[backIndex];
 
-            // Back側 (index: i*2 + 1)
-            var backData = fragmentStubs[i * 2 + 1];
-            ApplyResult(backData, _slicer.CutMesh[i * 2 + 1], _slicer.SamplingPoints[i * 2 + 1], target, blade);
+            if (frontSampling == null || frontSampling.Count < 3)
+            {
+                Debug.LogWarning($"Front sampling invalid : {frontIndex}");
+                continue;
+            }
 
-            // 元のオブジェクトを非アクティブ化
+            if (backSampling == null || backSampling.Count < 3)
+            {
+                Debug.LogWarning($"Back sampling invalid : {backIndex}");
+                continue;
+            }
+
+
+            ApplyResult(
+                fragmentStubs[frontIndex],
+                _slicer.CutMesh[frontIndex],
+                _slicer.SamplingPoints[frontIndex],
+                target,
+                blade);
+
+            ApplyResult(
+                fragmentStubs[backIndex],
+                _slicer.CutMesh[backIndex],
+                _slicer.SamplingPoints[backIndex],
+                target,
+                blade);
+
             target.gameObject.SetActive(false);
 
             await CheckTime(frameStopwatch, _LimitMs);

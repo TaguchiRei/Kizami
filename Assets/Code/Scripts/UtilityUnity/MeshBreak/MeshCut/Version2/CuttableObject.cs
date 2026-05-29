@@ -43,6 +43,8 @@ public class CuttableObject : MonoBehaviour, IRecyclable
 
     private void Awake()
     {
+        _colliderNum = Mathf.Max(_colliderNum, 6);
+
         _colliders = new List<SphereCollider>(_colliderNum);
 
         for (int i = 0; i < _colliderNum; i++)

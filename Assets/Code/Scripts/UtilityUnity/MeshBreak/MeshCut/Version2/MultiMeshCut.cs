@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text;
 using Cysharp.Threading.Tasks;
 using MeshBreak.MeshCut.Version2;
 using Unity.Collections;
@@ -12,11 +13,13 @@ using Debug = UnityEngine.Debug;
 
 public class MultiMeshCut
 {
+    public string Log => _logSb.ToString();
     public float LimitMs = 5;
     public bool Complete { private set; get; }
     public Mesh[] CutMesh { private set; get; }
     public List<List<Vector3>> SamplingPoints { private set; get; }
 
+    private StringBuilder _logSb = new();
     private UniTask _cutTask;
     private int _batchCount = 32;
     private int _sampling = 150;
@@ -37,7 +40,7 @@ public class MultiMeshCut
     {
         if (batchCount <= 0)
         {
-            Debug.LogWarning("Batch count must be > 0");
+            _logSb.AppendLine("Batch count must be > 0");
         }
 
         _batchCount = batchCount;
@@ -51,7 +54,7 @@ public class MultiMeshCut
     {
         if (sampling < 10)
         {
-            Debug.LogWarning("サンプリング数が少なすぎます");
+            _logSb.AppendLine("サンプリング数が少なすぎます");
             return;
         }
 
@@ -120,7 +123,7 @@ public class MultiMeshCut
                 startIndex += cached.VertexCount;
             }
 
-            Debug.Log($"計測: 初期化処理 - {stopwatch.ElapsedMilliseconds} ms");
+            _logSb.AppendLine($"計測: 初期化処理 - {stopwatch.ElapsedMilliseconds} ms");
             stopwatch.Restart();
 
 
@@ -141,8 +144,8 @@ public class MultiMeshCut
 
             await Awaitable.MainThreadAsync();
 
-            Debug.Log("頂点群データ取得完了");
-            
+            _logSb.AppendLine("頂点群データ取得完了");
+
             // 頂点サイド判定 (既存通り)
             var vertexGetSideJob = new VertexGetSideJob
             {
@@ -157,9 +160,9 @@ public class MultiMeshCut
 
             await vertexGetSideHandle.ToUniTask(PlayerLoopTiming.Update);
 
-            Debug.Log($"計測: 頂点仕分け処理 - {stopwatch.ElapsedMilliseconds} ms");
+            _logSb.AppendLine($"計測: 頂点仕分け処理 - {stopwatch.ElapsedMilliseconds} ms");
             stopwatch.Restart();
-            
+
             // [バックグラウンド] 左右分け・面分類
             // (pure C# ループ。JobのComplete後なので NativeArray 読み取りは安全)
             await Awaitable.BackgroundThreadAsync();
@@ -234,7 +237,7 @@ public class MultiMeshCut
                 context.breakMeshes.Add(backSide);
             }
 
-            Debug.Log($"計測: 面仕分け処理 - {stopwatch.ElapsedMilliseconds} ms");
+            _logSb.AppendLine($"計測: 面仕分け処理 - {stopwatch.ElapsedMilliseconds} ms");
             stopwatch.Restart();
 
             // ────────────────────────────────────────────
@@ -275,7 +278,7 @@ public class MultiMeshCut
 
             await triangleCutHandle.ToUniTask(PlayerLoopTiming.Update);
 
-            Debug.Log($"計測: 面切断処理 - {stopwatch.ElapsedMilliseconds} ms");
+            _logSb.AppendLine($"計測: 面切断処理 - {stopwatch.ElapsedMilliseconds} ms");
             stopwatch.Restart();
 
             // ────────────────────────────────────────────
@@ -304,7 +307,7 @@ public class MultiMeshCut
                 }
             }
 
-            Debug.Log($"計測: 断面生成 - {stopwatch.ElapsedMilliseconds} ms");
+            _logSb.AppendLine($"計測: 断面生成 - {stopwatch.ElapsedMilliseconds} ms");
             stopwatch.Restart();
 
             // コライダー用配列
@@ -333,24 +336,24 @@ public class MultiMeshCut
 
             // FinalizeMeshes は内部でメインスレッドへの切り替えを自前で行う
             CutMesh = await FinalizeMeshes(context.breakMeshes);
-            
+
             await UniTask.SwitchToMainThread();
-            
+
             SamplingPoints = colliderVerticesPerFragment;
             Complete = true;
 
-            Debug.Log($"計測: メッシュ生成 - {stopwatch.ElapsedMilliseconds} ms");
+            _logSb.AppendLine($"計測: メッシュ生成 - {stopwatch.ElapsedMilliseconds} ms");
         }
         catch (Exception e)
         {
-            Debug.LogError(e);
+            _logSb.AppendLine(e.Message);
             throw new Exception(e.Message);
         }
         finally
         {
             context.Dispose();
             totalStopwatch.Stop();
-            Debug.Log($"計測: MultiMeshCut.CutAsync 全体処理時間 - {totalStopwatch.ElapsedMilliseconds} ms");
+            _logSb.AppendLine($"計測: MultiMeshCut.CutAsync 全体処理時間 - {totalStopwatch.ElapsedMilliseconds} ms");
         }
     }
 
@@ -492,7 +495,7 @@ public class MultiMeshCut
             }
             else
             {
-                Debug.Log($"Object {objIndex}: No edges found in CutEdges.");
+                _logSb.AppendLine($"Object {objIndex}: No edges found in CutEdges.");
             }
 
             HashSet<(int, int)> visitedEdges = new HashSet<(int, int)>();
@@ -558,7 +561,7 @@ public class MultiMeshCut
             }
         }
 
-        Debug.Log($"切断面ループ捜索完了 処理時間{sw.ElapsedMilliseconds}ms");
+        _logSb.AppendLine($"切断面ループ捜索完了 処理時間{sw.ElapsedMilliseconds}ms");
 
         return allLoops;
     }
