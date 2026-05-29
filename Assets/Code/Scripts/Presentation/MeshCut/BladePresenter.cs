@@ -14,6 +14,8 @@ namespace Kizami.Presentation.Runtime
             _bladeView = bladeView;
         }
 
+        public Quaternion DefaultRotation => _bladeView.DefaultRotation;
+
         public void SetRotation(Quaternion rotation)
         {
             _bladeView.SetRotation(rotation);

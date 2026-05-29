@@ -8,6 +8,8 @@ namespace Kizami.View.Runtime.MeshCut
 {
     public class BladeView : InitializableMonoBehaviour, IBladeView
     {
+        public Quaternion DefaultRotation { get; private set; }
+
         [SerializeField] private MultiCutBlade _multiCutBlade;
 
         private bool _cutting = false;
@@ -17,6 +19,7 @@ namespace Kizami.View.Runtime.MeshCut
 #endif
         private void Start()
         {
+            DefaultRotation = transform.rotation;
 #if UNITY_EDITOR
             _obs = DebugGUI.ObserveVariable("Cutting", () => _cutting.ToString());
 #endif
@@ -28,6 +31,7 @@ namespace Kizami.View.Runtime.MeshCut
             _obs.Dispose();
 #endif
         }
+
 
         public void SetRotation(Quaternion rotation)
         {

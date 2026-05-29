@@ -1619,7 +1619,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6d54531977ecb194c95e2d3aa7a5d72a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.OnScreen.OnScreenButton
-  m_ControlPath: <Keyboard>/0
+  m_ControlPath: <Gamepad>/buttonNorth
 --- !u!114 &170126432
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2364,7 +2364,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6d54531977ecb194c95e2d3aa7a5d72a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.OnScreen.OnScreenButton
-  m_ControlPath: <Keyboard>/2
+  m_ControlPath: <Gamepad>/buttonNorth
 --- !u!114 &317823177
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3361,7 +3361,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6d54531977ecb194c95e2d3aa7a5d72a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.OnScreen.OnScreenButton
-  m_ControlPath: <Keyboard>/1
+  m_ControlPath: <Gamepad>/buttonNorth
 --- !u!114 &390257449
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7721,13 +7721,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 850377533}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.06, z: 0}
+  m_LocalRotation: {x: -0.13528317, y: 0, z: 0, w: 0.990807}
+  m_LocalPosition: {x: 0, y: -0.146752, z: 5.739422}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_Father: {fileID: 1197755633}
+  m_LocalEulerAnglesHint: {x: -15.55, y: 0, z: 0}
 --- !u!54 &850377537
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -8982,7 +8982,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6d54531977ecb194c95e2d3aa7a5d72a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.OnScreen.OnScreenButton
-  m_ControlPath: <Keyboard>/3
+  m_ControlPath: <Gamepad>/buttonSouth
 --- !u!114 &1038641103
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10750,13 +10750,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1197755632}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.00023153899, z: -0, w: 1}
-  m_LocalPosition: {x: 0.0011343956, y: 0, z: -2.4494896}
+  m_LocalRotation: {x: 0.13528326, y: 0, z: 0, w: 0.990807}
+  m_LocalPosition: {x: 0, y: 1.68, z: -3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 850377536}
   m_Father: {fileID: 1305476772}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 15.55, y: 0, z: 0}
 --- !u!114 &1197755634
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18242,7 +18243,6 @@ SceneRoots:
   - {fileID: 1010052748}
   - {fileID: 1699643398}
   - {fileID: 360009940}
-  - {fileID: 850377536}
   - {fileID: 606308395}
   - {fileID: 1819890271}
   - {fileID: 405382065}

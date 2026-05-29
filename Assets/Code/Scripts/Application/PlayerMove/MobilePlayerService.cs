@@ -91,9 +91,7 @@ namespace Kizami.Application.Runtime.Input
 
         private void OnLook(InputContext<Vector2> input)
         {
-            Debug.Log("Input On Look");
             if (!input.IsActive || !input.IsPerformed) return;
-            Debug.Log($"InputValue{input}");
 
             // スマホ版のOnLookはDeltaを想定しているため、そのまま感度を掛けて回転させる
             float turnAngle = input.Value.x * _entity.LookSensitivity;
@@ -115,24 +113,32 @@ namespace Kizami.Application.Runtime.Input
 
         private void OnAttackHorizontal(InputContext<float> input)
         {
+            OnAttack(input, Quaternion.identity);
         }
 
         private void OnAttackVertical(InputContext<float> input)
         {
+            OnAttack(input, Quaternion.Euler(0f, 0f, 90));
         }
 
         private void OnAttackUpperLeft(InputContext<float> input)
         {
+            OnAttack(input, Quaternion.Euler(0f, 0f, 135));
         }
 
         private void OnAttackUpperRight(InputContext<float> input)
         {
+            OnAttack(input, Quaternion.Euler(0f, 0f, 45));
         }
 
         private void OnAttack(InputContext<float> input, Quaternion cutFaceRotation)
         {
-            _bladePresenter.SetRotation(cutFaceRotation);
-            _bladePresenter.Cut(null);
+            Debug.Log("切断処理が呼び出された");
+            if (input.IsCanceled)
+            {
+                _bladePresenter.SetRotation(_bladePresenter.DefaultRotation * cutFaceRotation);
+                _bladePresenter.Cut(null);
+            }
         }
 
         public void Dispose()

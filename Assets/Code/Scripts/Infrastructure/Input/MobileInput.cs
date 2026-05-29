@@ -86,7 +86,7 @@ namespace UsefulTools.Infrastructure.Runtime
 
                 return;
             }
-
+            
             // 新規入力検出
             foreach (var touch in touches)
             {
