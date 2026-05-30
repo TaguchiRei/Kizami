@@ -145,7 +145,7 @@ public class MultiCutBlade : MonoBehaviour
                 target,
                 blade);
 
-            if (targets[frontIndex].gameObject.CompareTag("MultiCuttable"))
+            if (target.gameObject.CompareTag("MultiCuttable"))
             {
                 fragmentStubs[frontIndex].IsCuttable = false;
                 fragmentStubs[backIndex].IsCuttable = false;

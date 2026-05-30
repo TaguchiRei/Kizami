@@ -1737,7 +1737,7 @@ GameObject:
   - component: {fileID: 850377538}
   - component: {fileID: 850377534}
   - component: {fileID: 850377537}
-  m_Layer: 3
+  m_Layer: 0
   m_Name: MeshCutBlade_V2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
