@@ -39,7 +39,7 @@ namespace Kizami.Application.Runtime.Input
 
         private void Registration(bool isRegister)
         {
-            _inputDispatcher.RegistrationReadValue<Vector2, PlayerActions>(
+            _inputDispatcher.RegistrationAll<Vector2, PlayerActions>(
                 ActionMaps.Player,
                 PlayerActions.Move,
                 OnMoveInput, isRegister);
