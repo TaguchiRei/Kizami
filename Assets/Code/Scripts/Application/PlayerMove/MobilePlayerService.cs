@@ -153,7 +153,7 @@ namespace Kizami.Application.Runtime.Input
             if (input.IsStarted)
             {
                 Debug.Log("切断処理が呼ばれた");
-                _bladePresenter.SetRotation(cutFaceRotation * _bladePresenter.DefaultRotation);
+                _bladePresenter.SetRotation(cutFaceRotation);
                 _bladePresenter.Cut(null);
             }
         }
