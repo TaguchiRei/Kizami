@@ -4,6 +4,7 @@ namespace UsefulTools.AutoGenerate
 {
     public enum OutListSceneName
     {
+        OutGame,
         VRTestScene
     }
 }
