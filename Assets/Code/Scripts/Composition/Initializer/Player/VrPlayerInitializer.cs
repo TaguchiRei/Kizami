@@ -1,4 +1,6 @@
+using System;
 using Kizami.Application.Runtime;
+using Kizami.Presentation.Runtime;
 using UnityEngine;
 using UsefulTools.Infrastructure.Runtime.Input;
 using UsefulVr.Application.Runtime.Player;
@@ -13,6 +15,7 @@ namespace UsefulVr.Composition.Runtime.Player
     /// </summary>
     public class VrPlayerInitializer : MonoBehaviour
     {
+        public PlayerInfra playerInfra;
         [SerializeField] private VrPlayerMovementView _vrPlayerMovementView;
         [SerializeField] private Vector3 _gravityVector = Vector3.down;
         [SerializeField] private float _gravityPower = 9.81f;
@@ -28,7 +31,7 @@ namespace UsefulVr.Composition.Runtime.Player
         public void Initialize(IInputDispatcher inputDispatcher, IBladePresenter bladePresenter)
         {
             _bladePresenter = bladePresenter;
-            
+
             _vrVrPlayerPresenter = new(_vrPlayerMovementView);
             _vrPlayerMovementEntity = new(
                 new(_gravityVector, _gravityPower),

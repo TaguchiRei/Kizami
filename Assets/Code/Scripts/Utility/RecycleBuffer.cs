@@ -53,6 +53,67 @@ namespace UsefulTools.Utility.Runtime.Utility
         }
 
         /// <summary>
+        /// すべての使用中の要素を取得する
+        /// リサイクルはされない
+        /// </summary>
+        /// <returns></returns>
+        public T[] GetAllUsed()
+        {
+            int count = 0;
+
+            for (int i = 0; i < _capacity; i++)
+            {
+                if (_used[i])
+                {
+                    count++;
+                }
+            }
+
+            T[] result = new T[count];
+            int index = 0;
+
+            for (int i = 0; i < _capacity; i++)
+            {
+                if (_used[i])
+                {
+                    result[index++] = _buffer[i];
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// すべての未使用の要素を取得する
+        /// </summary>
+        /// <returns></returns>
+        public T[] GetAllUnused()
+        {
+            int count = 0;
+
+            for (int i = 0; i < _capacity; i++)
+            {
+                if (!_used[i])
+                {
+                    count++;
+                }
+            }
+
+            T[] result = new T[count];
+            int index = 0;
+
+            for (int i = 0; i < _capacity; i++)
+            {
+                if (!_used[i])
+                {
+                    result[index++] = _buffer[i];
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// IDを利用して返却する
         /// </summary>
         public void Release(T item)

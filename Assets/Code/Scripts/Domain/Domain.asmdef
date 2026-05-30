@@ -1,7 +1,9 @@
 {
     "name": "Domain",
     "rootNamespace": "Kizami.Domain.Runtime",
-    "references": [],
+    "references": [
+        "GUID:ec2669d820ea7a248ba5da2087228096"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

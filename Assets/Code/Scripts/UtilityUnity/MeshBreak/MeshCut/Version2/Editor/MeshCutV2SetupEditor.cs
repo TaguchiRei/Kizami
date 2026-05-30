@@ -10,12 +10,12 @@ namespace MeshBreak.MeshCut.Editor
         private GameObject _cuttablePrefab;
         private int _poolCapacity = 20;
 
-        // Default settings for CuttableObject
+        // CuttableObjectのデフォルト設定
         private Material _defaultCapMaterial;
         private PhysicsMaterial _defaultPhysicsMaterial;
         private int _defaultColliderNum = 10;
 
-        // Collider Configs
+        // コライダー設定
         private float _baseShrink = 0.95f;
         private float _densityShrinkMin = 0.85f;
         private int _densityThreshold = 10;
@@ -33,7 +33,7 @@ namespace MeshBreak.MeshCut.Editor
 
         private void OnEnable()
         {
-            // Try to load default assets
+            // デフォルトアセットのロード試行
             if (_defaultCapMaterial == null)
                 _defaultCapMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Art/Materials/CapMat.mat");
             if (_defaultPhysicsMaterial == null)
@@ -100,11 +100,11 @@ namespace MeshBreak.MeshCut.Editor
             GUILayout.Label(new GUIContent(" Selection Tools", EditorGUIUtility.IconContent("FilterSelectedOnly").image), EditorStyles.boldLabel);
             EditorGUILayout.Space(5);
 
-            EditorGUILayout.HelpBox("Select objects in Hierarchy to attach CuttableObject.\nRigidbody is only assigned if already present.", MessageType.Info);
+            EditorGUILayout.HelpBox("Hierarchyでオブジェクトを選択して CuttableEnemy をアタッチします。\nRigidbodyは既に存在する場合のみ割り当てられます。", MessageType.Info);
 
             EditorGUILayout.Space(10);
-            
-            // Basic Settings
+
+            // 基本設定
             GUILayout.Label("Basic Component Settings", EditorStyles.miniBoldLabel);
             _defaultCapMaterial = (Material)EditorGUILayout.ObjectField("Cap Material", _defaultCapMaterial, typeof(Material), false);
             _defaultPhysicsMaterial = (PhysicsMaterial)EditorGUILayout.ObjectField("Phys Material", _defaultPhysicsMaterial, typeof(PhysicsMaterial), false);
@@ -112,36 +112,36 @@ namespace MeshBreak.MeshCut.Editor
 
             EditorGUILayout.Space(10);
 
-            // Collider Settings
+            // コライダー設定
             GUILayout.Label("Advanced Collider Config", EditorStyles.miniBoldLabel);
             _baseShrink = EditorGUILayout.Slider("Base Shrink", _baseShrink, 0.5f, 1f);
-            _densityShrinkMin = EditorGUILayout.Slider("Density Shrink Min", _densityShrinkMin, 0.5f, 1f);
-            _densityThreshold = EditorGUILayout.IntSlider("Density Threshold", _densityThreshold, 1, 50);
+            _densityShrinkMin = EditorGUILayout.Slider("Density Shrink Min", _densityShrinkMin, 0.5f, 1f);      
+            _densityThreshold = EditorGUILayout.IntSlider("Density Threshold", _densityThreshold, 1, 50);       
             _maxRadius = EditorGUILayout.FloatField("Max Radius", _maxRadius);
 
             EditorGUILayout.Space(15);
 
             var selectedCount = Selection.gameObjects.Length;
             GUI.enabled = selectedCount > 0;
-            
+
             var btnStyle = new GUIStyle(GUI.skin.button);
             btnStyle.fontStyle = FontStyle.Bold;
             btnStyle.fontSize = 13;
             if (EditorGUIUtility.isProSkin) btnStyle.normal.textColor = new Color(0.8f, 1f, 0.8f);
 
-            if (GUILayout.Button($"Attach & Setup CuttableObject ({selectedCount})", btnStyle, GUILayout.Height(40)))
+            if (GUILayout.Button($"Attach & Setup CuttableEnemy ({selectedCount})", btnStyle, GUILayout.Height(40)))
             {
                 AddCuttableToSelected();
             }
-            
+
             EditorGUILayout.Space(5);
-            
-            if (GUILayout.Button("Remove CuttableObject from Selected"))
+
+            if (GUILayout.Button("Remove CuttableEnemy from Selected"))
             {
                 RemoveCuttableFromSelected();
             }
             GUI.enabled = true;
-            
+
             EditorGUILayout.EndVertical();
         }
 
@@ -150,7 +150,7 @@ namespace MeshBreak.MeshCut.Editor
             EditorGUILayout.BeginVertical("helpBox");
             GUILayout.Label(new GUIContent(" Status", EditorGUIUtility.IconContent("console.infoicon").image), EditorStyles.boldLabel);
             EditorGUILayout.Space(5);
-            
+
             DrawStatusRow("System Root", GameObject.Find("MeshCutSystem_V2") != null);
             DrawStatusRow("Blade", GameObject.Find("MeshCutBlade_V2") != null);
             DrawStatusRow("Object Pool", FindFirstObjectByType<MeshCutObjectPool>() != null);
@@ -179,7 +179,7 @@ namespace MeshBreak.MeshCut.Editor
                 Undo.RegisterCreatedObjectUndo(systemRoot, "Create System Root");
             }
 
-            // 2. Cache オブジェクトの作成 (これから切るオブジェクトをこの下に置く)
+            // 2. Cache オブジェクトの作成 (これから切るオブジェクトをこの下に置く)  
             GameObject cacheObj = GameObject.Find("MeshCutCache_V2");
             if (cacheObj == null)
             {
@@ -266,26 +266,58 @@ namespace MeshBreak.MeshCut.Editor
                     continue;
                 }
 
-                // CuttableObject の追加（無ければ）
-                var cuttable = obj.GetComponent<CuttableObject>();
+                // CuttableEnemy の追加（無ければ）
+                var cuttable = obj.GetComponent<CuttableEnemy>();
                 if (cuttable == null)
                 {
-                    cuttable = Undo.AddComponent<CuttableObject>(obj);
+                    cuttable = Undo.AddComponent<CuttableEnemy>(obj);
                 }
 
-                // ★ SerializedObject はコンポーネント取得/追加の後に作成
-                var so = new SerializedObject(cuttable);
-                so.Update(); // ★ 必ず Update() を呼ぶ
+                // BoxColliderのセットアップ
+                var colliders = obj.GetComponents<BoxCollider>();
+                BoxCollider bodyCol = null;
+                BoxCollider surfaceCol = null;
 
-                // Public フィールドも SerializedObject 経由で統一
-                so.FindProperty("Renderer").objectReferenceValue = renderer;
-                so.FindProperty("Mesh").objectReferenceValue = mf;
-                so.FindProperty("Rig").objectReferenceValue = obj.GetComponent<Rigidbody>();
+                if (colliders.Length >= 2)
+                {
+                    bodyCol = colliders[0];
+                    surfaceCol = colliders[1];
+                }
+                else
+                {
+                    // 不足分を補充
+                    if (colliders.Length == 1)
+                    {
+                        bodyCol = colliders[0];
+                        surfaceCol = Undo.AddComponent<BoxCollider>(obj);
+                    }
+                    else
+                    {
+                        bodyCol = Undo.AddComponent<BoxCollider>(obj);
+                        surfaceCol = Undo.AddComponent<BoxCollider>(obj);
+                    }
+                }
+
+                // 属性設定
+                surfaceCol.isTrigger = true;
+
+                // シリアライズオブジェクトの作成
+                var so = new SerializedObject(cuttable);
+                so.Update();
+
+                // 公開フィールドの参照設定
+                so.FindProperty("CuttableRenderer").objectReferenceValue = renderer;
+                so.FindProperty("CuttableMeshFilter").objectReferenceValue = mf;
+                so.FindProperty("CuttableRigidbody").objectReferenceValue = obj.GetComponent<Rigidbody>();
+
+                // CuttableEnemy 固有の Collider 参照
+                so.FindProperty("_bodyCollider").objectReferenceValue = bodyCol;
+                so.FindProperty("_cutSurfaceCollider").objectReferenceValue = surfaceCol;
 
                 if (_defaultCapMaterial != null)
                     so.FindProperty("CapMaterial").objectReferenceValue = _defaultCapMaterial;
 
-                // Private [SerializeField] フィールド
+                // インスペクター設定項目
                 so.FindProperty("_physicsMaterial").objectReferenceValue = _defaultPhysicsMaterial;
                 so.FindProperty("_colliderNum").intValue = _defaultColliderNum;
                 so.FindProperty("_baseShrink").floatValue = _baseShrink;
@@ -293,14 +325,13 @@ namespace MeshBreak.MeshCut.Editor
                 so.FindProperty("_densityThreshold").intValue = _densityThreshold;
                 so.FindProperty("_maxRadius").floatValue = _maxRadius;
 
-                // ★ ApplyModifiedProperties() で確定させる
                 so.ApplyModifiedProperties();
-                EditorUtility.SetDirty(obj); // ★ コンポーネントではなくGameObject側もDirtyに
+                EditorUtility.SetDirty(obj);
 
                 count++;
             }
 
-            Debug.Log($"[MeshCut V2] {count} 個のオブジェクトに CuttableObject をセットアップしました。");
+            Debug.Log($"[MeshCut V2] {count} 個のオブジェクトに CuttableEnemy をセットアップしました。");
         }
 
         private void RemoveCuttableFromSelected()
@@ -308,14 +339,24 @@ namespace MeshBreak.MeshCut.Editor
             int count = 0;
             foreach (var obj in Selection.gameObjects)
             {
+                bool removed = false;
+                var enemy = obj.GetComponent<CuttableEnemy>();
+                if (enemy != null)
+                {
+                    Undo.DestroyObjectImmediate(enemy);
+                    removed = true;
+                }
+                
                 var cuttable = obj.GetComponent<CuttableObject>();
                 if (cuttable != null)
                 {
                     Undo.DestroyObjectImmediate(cuttable);
-                    count++;
+                    removed = true;
                 }
+
+                if (removed) count++;
             }
-            Debug.Log($"[MeshCut V2] {count} 個のオブジェクトから CuttableObject を削除しました。");
+            Debug.Log($"[MeshCut V2] {count} 個のオブジェクトから Cuttable コンポーネントを削除しました。");
         }
     }
 }

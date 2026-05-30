@@ -11,7 +11,8 @@
         "Utility",
         "UtilityUnity",
         "AutoGenerate",
-        "UsefulAttributes"
+        "UsefulAttributes",
+        "MeshBreak"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
