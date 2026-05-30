@@ -12,12 +12,12 @@ namespace Kizami.View.Runtime.Enemy
         [HideInInspector] public int EnemyCount;
 
         [SerializeField] private MeshDataCache _meshDataCache;
-        [SerializeField] private Transform[] _enemies;
         [SerializeField] private Transform _enemyPrefab;
         [SerializeField] private EnemyEffectView _killVfxPrefab;
 
         [Header("エフェクト")] [SerializeField] private int _bufferCount;
 
+        private Transform[] _enemies;
         private RecycleBuffer<EnemyEffectView> _effectBuffer;
 
         public override void Initialize()
