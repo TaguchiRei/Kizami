@@ -1,3 +1,4 @@
+using System;
 using Kizami.Domain.Runtime.Enemy;
 using Kizami.Utility.Runtime.Enemy;
 using Kizami.Application.Runtime.Player;
@@ -5,26 +6,30 @@ using UnityEngine;
 
 namespace Kizami.Application.Runtime.Enemy
 {
-    public class EnemyMoveApplication
+    public class EnemyMoveApplication : IDisposable
     {
         private readonly EnemyGroup _group;
         private readonly ArchimedesSpiral _spiral;
         private readonly IAllEnemyManagementPresenter _presenter;
         private readonly IPlayerDataGateway _player;
+        private readonly IEnemyMoveInfra _infra;
 
         public EnemyMoveApplication(
             EnemyGroup group,
             ArchimedesSpiral spiral,
             IAllEnemyManagementPresenter presenter,
-            IPlayerDataGateway player)
+            IPlayerDataGateway player, IEnemyMoveInfra infra)
         {
             _group = group;
             _spiral = spiral;
             _presenter = presenter;
             _player = player;
+            _infra = infra;
+
+            _infra.UpdateEvent += UpdateEvent;
         }
 
-        public void Update(float deltaTime)
+        public void UpdateEvent(float deltaTime)
         {
             // プレイヤー位置取得
             Vector3 playerPosition = _player.Position;
@@ -70,6 +75,11 @@ namespace Kizami.Application.Runtime.Enemy
             }
 
             return result;
+        }
+
+        public void Dispose()
+        {
+            _infra.UpdateEvent -= UpdateEvent;
         }
     }
 }

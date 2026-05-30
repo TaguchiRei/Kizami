@@ -32,6 +32,7 @@ namespace Kizami.View.Runtime.Enemy
                 effects[i].gameObject.transform.position = Vector3.forward * 2;
             }
 
+            _enemies = new Transform[EnemyCount];
 
             for (int i = 0; i < EnemyCount; i++)
             {

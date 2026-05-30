@@ -2,6 +2,7 @@ using System;
 using Kizami.Application.Runtime.Enemy;
 using Kizami.Application.Runtime.Player;
 using Kizami.Domain.Runtime.Enemy;
+using Kizami.Infrastructure.Runtime.Enemy;
 using Kizami.Presentation.Runtime;
 using Kizami.Utility.Runtime.Enemy;
 using Kizami.View.Runtime.Enemy;
@@ -13,6 +14,7 @@ namespace Kizami.Composition.Runtime.Enemy
 {
     public class EnemyInitializer : InitializerBase, IInjectable<IPlayerDataGateway>
     {
+        [SerializeField] private EnemyInfra _enemyInfra;
         [SerializeField] private AllEnemyManager _allEnemyManager;
         [SerializeField] private Vector3 centerPosition;
 
@@ -39,6 +41,7 @@ namespace Kizami.Composition.Runtime.Enemy
 
         public override void Initialize()
         {
+            _allEnemyManager.EnemyCount = _colonyEnemyCount * _colonyCount;
             _allEnemyManager.Initialize();
             _enemyPresenter = new AllEnemyManagementPresenter(_allEnemyManager);
 
@@ -59,7 +62,7 @@ namespace Kizami.Composition.Runtime.Enemy
 
             ArchimedesSpiral archimedes = new ArchimedesSpiral(_angleStep, _radiusStep);
 
-            _enemyMoveApplication = new(group, archimedes, _enemyPresenter, _playerDataGateway);
+            _enemyMoveApplication = new(group, archimedes, _enemyPresenter, _playerDataGateway, _enemyInfra);
         }
 
         public void Inject(IPlayerDataGateway obj)
