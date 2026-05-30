@@ -1603,6 +1603,7 @@ GameObject:
   m_Component:
   - component: {fileID: 710263084}
   - component: {fileID: 710263085}
+  - component: {fileID: 710263086}
   m_Layer: 0
   m_Name: '-------------Enemy------------ '
   m_TagString: Untagged
@@ -1644,6 +1645,32 @@ MonoBehaviour:
   _enemyPrefab: {fileID: 6675407673122844532, guid: 973849951a3f751479fd318c5c9541bb, type: 3}
   _killVfxPrefab: {fileID: 8337559163524586830, guid: 64bd6dab4de01464e9d88256d53c716b, type: 3}
   _bufferCount: 50
+--- !u!114 &710263086
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 710263083}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 299ed3d7a87ac45438b7a4ad13933f86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Composition::Kizami.Composition.Runtime.Enemy.EnemyInitializer
+  InitializationOrder: 0
+  _allEnemyManager: {fileID: 0}
+  centerPosition: {x: 0, y: 0, z: 0}
+  _colonyCount: 0
+  _colonyEnemyCount: 0
+  _moveForce: 0
+  _colonyRepulsionRadius: 0
+  _colonyRepulsionForce: 0
+  _playerRepulsionRadius: 0
+  _playerRepulsionForce: 0
+  _maxSpeed: 0
+  _moveSpeed: 0
+  _angleStep: 0
+  _radiusStep: 0
 --- !u!1 &768508096
 GameObject:
   m_ObjectHideFlags: 0
@@ -2850,9 +2877,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Composition::UsefulTools.Composition.Runtime.Boot.InGameBoot
   _container: {fileID: 1469068002}
   _inputInitializer: {fileID: 668765688}
-  _bladeInitializer: {fileID: 850377539}
   _uiInitializer: {fileID: 207421032}
+  _enemyInitializer: {fileID: 0}
   _playerInitializer: {fileID: 994250209}
+  _bladeInitializer: {fileID: 850377539}
+  _meshDataCache: {fileID: 13542313}
 --- !u!1 &1660729629
 GameObject:
   m_ObjectHideFlags: 0
