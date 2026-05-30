@@ -48,7 +48,7 @@ namespace Kizami.Composition.Runtime.Enemy
                 EnemyData[] data = new EnemyData[_colonyEnemyCount];
                 for (int k = 0; k < _colonyEnemyCount; k++)
                 {
-                    data[i] = new EnemyData(Vector3.zero, Vector3.zero, _moveSpeed, k);
+                    data[k] = new EnemyData(Vector3.zero, Vector3.zero, _moveSpeed, k);
                 }
 
                 colonies[i] = new EnemyColony(data, Vector3.zero);
@@ -64,6 +64,7 @@ namespace Kizami.Composition.Runtime.Enemy
 
         public void Inject(IPlayerDataGateway obj)
         {
+            _playerDataGateway = obj;
         }
     }
 }

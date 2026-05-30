@@ -1277,11 +1277,11 @@ Transform:
   m_GameObject: {fileID: 503864397}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -3.2605, y: -1.07381, z: 1.71702}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 606308395}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &548674166
 GameObject:
@@ -1460,7 +1460,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd0d6256d84c1f74fa3d96cdd78d5f19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Composition::UsefulVr.Composition.Runtime.Player.VrPlayerInitializer
-  playerDataGateway: {fileID: 0}
+  playerDataGateway: {fileID: 578451515}
   _vrPlayerMovementView: {fileID: 578451514}
   _gravityVector: {x: 0, y: -1, z: 0}
   _gravityPower: 9.81
@@ -1529,7 +1529,6 @@ Transform:
   - {fileID: 1819890271}
   - {fileID: 405382065}
   - {fileID: 668765686}
-  - {fileID: 503864399}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &668765685
@@ -1658,19 +1657,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Composition::Kizami.Composition.Runtime.Enemy.EnemyInitializer
   InitializationOrder: 0
-  _allEnemyManager: {fileID: 0}
+  _allEnemyManager: {fileID: 710263085}
   centerPosition: {x: 0, y: 0, z: 0}
-  _colonyCount: 0
-  _colonyEnemyCount: 0
-  _moveForce: 0
-  _colonyRepulsionRadius: 0
-  _colonyRepulsionForce: 0
-  _playerRepulsionRadius: 0
-  _playerRepulsionForce: 0
-  _maxSpeed: 0
-  _moveSpeed: 0
-  _angleStep: 0
-  _radiusStep: 0
+  _colonyCount: 3
+  _colonyEnemyCount: 10
+  _moveForce: 5
+  _colonyRepulsionRadius: 10
+  _colonyRepulsionForce: 2
+  _playerRepulsionRadius: 5
+  _playerRepulsionForce: 10
+  _maxSpeed: 15
+  _moveSpeed: 3
+  _angleStep: 0.5
+  _radiusStep: 0.1
 --- !u!1 &768508096
 GameObject:
   m_ObjectHideFlags: 0
@@ -2767,7 +2766,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c30553be1387f0f438e5a349ff55ea1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Composition::Kizami.Composition.Runtime.Player.MobilePlayerInitializer
-  playerDataGateway: {fileID: 0}
+  playerDataGateway: {fileID: 1305476776}
   _mobilePlayerView: {fileID: 1305476774}
   _gravityVector: {x: 0, y: -1, z: 0}
   _gravityPower: 9.81
@@ -2878,7 +2877,7 @@ MonoBehaviour:
   _container: {fileID: 1469068002}
   _inputInitializer: {fileID: 668765688}
   _uiInitializer: {fileID: 207421032}
-  _enemyInitializer: {fileID: 0}
+  _enemyInitializer: {fileID: 710263086}
   _playerInitializer: {fileID: 994250209}
   _bladeInitializer: {fileID: 850377539}
   _meshDataCache: {fileID: 13542313}
@@ -3079,3 +3078,4 @@ SceneRoots:
   - {fileID: 710263084}
   - {fileID: 606308395}
   - {fileID: 768508097}
+  - {fileID: 503864399}
