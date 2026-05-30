@@ -1,116 +1,121 @@
-using System.Numerics;
-using Kizami.Domain.Runtime.Enemy;
-using Vector3 = UnityEngine.Vector3;
+using UnityEngine;
 
-public class EnemyGroup
+namespace Kizami.Domain.Runtime.Enemy
 {
-    public EnemyColony[] Colonies { get; }
-
-    public Vector3 CenterPosition { get; private set; }
-
-    private readonly float _moveForce;
-    private readonly float _colonyRepulsionRadius;
-    private readonly float _colonyRepulsionForce;
-    private readonly float _playerRepulsionRadius;
-    private readonly float _playerRepulsionForce;
-    private readonly float _maxSpeed;
-
-    public void Update(
-        Vector3 playerPosition,
-        float deltaTime)
+    /// <summary>
+    /// 各コロニーを動かすためのドメインロジックを含むエンティティ
+    /// </summary>
+    public class EnemyGroup
     {
-        for (int i = 0; i < Colonies.Length; i++)
+        public EnemyColony[] Colonies { get; }
+
+        public Vector3 CenterPosition { get; private set; }
+
+        // 処理順に依存して形状が変化しないようにするための計算バッファ
+        private readonly Vector3[] _nextVelocity;
+        private readonly Vector3[] _nextPosition;
+
+        // パラメータ
+        private readonly float _moveForce;
+        private readonly float _colonyRepulsionRadius;
+        private readonly float _colonyRepulsionForce;
+        private readonly float _playerRepulsionRadius;
+        private readonly float _playerRepulsionForce;
+        private readonly float _maxSpeed;
+
+        public EnemyGroup(EnemyColony[] colonies,
+            Vector3 centerPosition, float moveForce,
+            float colonyRepulsionRadius, float colonyRepulsionForce,
+            float playerRepulsionRadius, float playerRepulsionForce,
+            float maxSpeed)
         {
-            EnemyColony colony = Colonies[i];
+            Colonies = colonies;
+            CenterPosition = centerPosition;
 
-            Vector3 force = Vector3.zero;
+            _nextVelocity = new Vector3[colonies.Length];
+            _nextPosition = new Vector3[colonies.Length];
 
-            //
-            // プレイヤーへ近づく
-            //
-            Vector3 seekDirection =
-                playerPosition - colony.CenterPosition;
+            _moveForce = moveForce;
+            _colonyRepulsionRadius = colonyRepulsionRadius;
+            _colonyRepulsionForce = colonyRepulsionForce;
+            _playerRepulsionRadius = playerRepulsionRadius;
+            _playerRepulsionForce = playerRepulsionForce;
+            _maxSpeed = maxSpeed;
+        }
 
-            if (seekDirection.sqrMagnitude > 0.0001f)
+        public void Update(Vector3 playerPosition, float dt)
+        {
+            EnemyColony[] colonies = Colonies;
+
+            // 移動先をすべて計算
+            for (int i = 0; i < colonies.Length; i++)
             {
-                force += seekDirection.normalized * _moveForce;
-            }
+                EnemyColony colony = colonies[i];
 
-            //
-            // コロニー同士の反発
-            //
-            for (int j = 0; j < Colonies.Length; j++)
-            {
-                if (i == j)
+                Vector3 force = Vector3.zero;
+
+                // プレイヤーへ接近 
+                Vector3 seek = playerPosition - colony.CenterPosition;
+
+                if (seek.sqrMagnitude > 0.0001f)
                 {
-                    continue;
+                    force += seek.normalized * _moveForce;
                 }
 
-                EnemyColony other = Colonies[j];
-
-                Vector3 offset =
-                    colony.CenterPosition -
-                    other.CenterPosition;
-
-                float distance = offset.magnitude;
-
-                if (distance <= 0f)
+                // コロニー同士の反発 
+                for (int j = 0; j < colonies.Length; j++)
                 {
-                    continue;
+                    if (i == j) continue;
+
+                    EnemyColony other = colonies[j];
+                    Vector3 offset = colony.CenterPosition - other.CenterPosition;
+                    float dist = offset.magnitude;
+
+                    if (dist <= 0f || dist > _colonyRepulsionRadius) continue;
+
+                    float ratio = 1f - dist / _colonyRepulsionRadius;
+                    force += offset.normalized * ratio * _colonyRepulsionForce;
                 }
 
-                if (distance > _colonyRepulsionRadius)
+                // プレイヤー反発
                 {
-                    continue;
+                    Vector3 offset =
+                        colony.CenterPosition - playerPosition;
+
+                    float dist = offset.magnitude;
+
+                    if (dist > 0f && dist < _playerRepulsionRadius)
+                    {
+                        float ratio =
+                            1f - dist / _playerRepulsionRadius;
+
+                        force +=
+                            offset.normalized *
+                            ratio *
+                            _playerRepulsionForce;
+                    }
                 }
 
-                float ratio =
-                    1f - distance / _colonyRepulsionRadius;
+                // 速度更新
+                Vector3 velocity = colony.Velocity + force * dt;
 
-                force +=
-                    offset.normalized *
-                    ratio *
-                    _colonyRepulsionForce;
+                float maxSqr = _maxSpeed * _maxSpeed;
+
+                if (velocity.sqrMagnitude > maxSqr)
+                {
+                    velocity = velocity.normalized * _maxSpeed;
+                }
+
+                _nextVelocity[i] = velocity;
+                _nextPosition[i] = colony.CenterPosition + velocity * dt;
             }
-
-            //
-            // プレイヤーとの反発
-            //
+            
+            // 一括で反映を行う
+            for (int i = 0; i < colonies.Length; i++)
             {
-                Vector3 offset =
-                    colony.CenterPosition -
-                    playerPosition;
-
-                float distance = offset.magnitude;
-
-                if (distance > 0f &&
-                    distance < _playerRepulsionRadius)
-                {
-                    float ratio =
-                        1f - distance / _playerRepulsionRadius;
-
-                    force +=
-                        offset.normalized *
-                        ratio *
-                        _playerRepulsionForce;
-                }
+                colonies[i].SetVelocity(_nextVelocity[i]);
+                colonies[i].SetCenterPosition(_nextPosition[i]);
             }
-
-            Vector3 velocity = colony.Velocity + force * deltaTime;
-
-            if (velocity.sqrMagnitude >
-                _maxSpeed * _maxSpeed)
-            {
-                velocity =
-                    velocity.normalized *
-                    _maxSpeed;
-            }
-
-            colony.SetVelocity(velocity);
-
-            colony.SetCenterPosition(
-                colony.CenterPosition +
-                velocity * deltaTime);
         }
     }
 }

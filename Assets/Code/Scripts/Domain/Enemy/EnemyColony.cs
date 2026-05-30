@@ -15,7 +15,9 @@ namespace Kizami.Domain.Runtime.Enemy
 
         public Vector3 Velocity { get; private set; }
 
-        public EnemyColony(EnemyData[] enemies, Vector3 centerPosition)
+        public EnemyColony(
+            EnemyData[] enemies,
+            Vector3 centerPosition)
         {
             Enemies = enemies;
             CenterPosition = centerPosition;
@@ -29,21 +31,6 @@ namespace Kizami.Domain.Runtime.Enemy
         public void SetVelocity(Vector3 velocity)
         {
             Velocity = velocity;
-        }
-
-        public void IncrementIndex()
-        {
-            GlobalIndex++;
-        }
-
-        public void DecrementIndex()
-        {
-            GlobalIndex--;
-        }
-
-        public void ReverseRotation()
-        {
-            IsClockwise = !IsClockwise;
         }
     }
 }
