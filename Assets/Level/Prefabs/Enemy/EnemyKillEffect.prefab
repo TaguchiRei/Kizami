@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 4872006617059080863}
   - component: {fileID: 6962722593930241244}
   - component: {fileID: 411029924091329506}
+  - component: {fileID: 8337559163524586830}
   m_Layer: 0
   m_Name: EnemyKillEffect
   m_TagString: Untagged
@@ -124,3 +125,16 @@ VFXRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
+--- !u!114 &8337559163524586830
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3154847612867361756}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09c6dfbf6ab447640bafe071f7e0f593, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: View::Kizami.View.Runtime.Enemy.EnemyEffectView
+  _killVfx: {fileID: 6962722593930241244}
