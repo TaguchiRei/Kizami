@@ -322,7 +322,7 @@ GameObject:
   - component: {fileID: 31974058}
   - component: {fileID: 31974057}
   - component: {fileID: 31974060}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Main Camera
   m_TagString: MainCamera
   m_Icon: {fileID: 0}
@@ -2822,7 +2822,7 @@ GameObject:
   - component: {fileID: 358678136}
   - component: {fileID: 358678135}
   - component: {fileID: 358678134}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: RightControllerTracker
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4705,7 +4705,7 @@ GameObject:
   - component: {fileID: 578451513}
   - component: {fileID: 578451512}
   - component: {fileID: 578451511}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: XR Origin (VR)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -7669,7 +7669,7 @@ GameObject:
   - component: {fileID: 850377538}
   - component: {fileID: 850377534}
   - component: {fileID: 850377537}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: MeshCutBlade_V2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -10735,7 +10735,7 @@ GameObject:
   - component: {fileID: 1197755636}
   - component: {fileID: 1197755635}
   - component: {fileID: 1197755634}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Camera
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -10756,6 +10756,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 850377536}
+  - {fileID: 1773739136}
   m_Father: {fileID: 1305476772}
   m_LocalEulerAnglesHint: {x: 15.55, y: 0, z: 0}
 --- !u!114 &1197755634
@@ -10874,7 +10875,7 @@ GameObject:
   - component: {fileID: 1226848498}
   - component: {fileID: 1226848497}
   - component: {fileID: 1226848496}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: LeftControllerTracker
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -11480,7 +11481,7 @@ GameObject:
   - component: {fileID: 1305476774}
   - component: {fileID: 1305476769}
   - component: {fileID: 1305476773}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: MobilePlayer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -12901,7 +12902,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1439917011}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: VrPlayer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -14559,7 +14560,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1660729630}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: Camera Offset
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -14919,8 +14920,7 @@ Transform:
   m_LocalPosition: {x: -1.65795, y: 0, z: 5.74818}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1773739136}
+  m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1723068410
@@ -15285,7 +15285,7 @@ VisualEffect:
       m_Array: []
     m_Vector3f:
       m_Array:
-      - m_Value: {x: 0, y: -100, z: 0}
+      - m_Value: {x: 50, y: -100, z: 0}
         m_Name: SpawnPosition
         m_Overridden: 1
     m_Vector4f:
@@ -15312,12 +15312,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1773739133}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -2.8420515, y: 5.94, z: -1.358839}
+  m_LocalRotation: {x: -0.13528326, y: -0, z: -0, w: 0.990807}
+  m_LocalPosition: {x: 0, y: 0.9, z: 3.24}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1712363267}
+  m_Father: {fileID: 1197755633}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1796884867
 GameObject:
