@@ -1,8 +1,6 @@
-using System;
 using Kizami.Presentation.Runtime.Enemy;
 using Kizami.Utility.Runtime.Enemy;
 using UnityEngine;
-using UnityEngine.VFX;
 using UsefulTools.Utility.Runtime.Utility;
 using UsefulTools.UtilityUnity.Runtime.UtilityUnity;
 
@@ -10,9 +8,6 @@ namespace Kizami.View.Runtime.Enemy
 {
     public class AllEnemyManager : InitializableMonoBehaviour, IAllEnemyManagementView
     {
-        public int EnemyCount { get; private set; }
-        public EnemyData[] Enemies { get; set; }
-
         [SerializeField] private Transform[] _enemies;
         [SerializeField] private Transform[] _enemyPrefab;
         [SerializeField] private EnemyEffectView _killVfxPrefab;
@@ -45,11 +40,11 @@ namespace Kizami.View.Runtime.Enemy
             _enemies[index].transform.position = respawnPoint;
         }
 
-        public void Update()
+        public void MoveEnemy(EnemyData[] enemies)
         {
             for (int i = 0; i < _enemies.Length; i++)
             {
-                var enemyData = Enemies[i];
+                var enemyData = enemies[i];
                 _enemies[i].position =
                     Vector3.MoveTowards(_enemies[i].position, enemyData.TargetPosition,
                         enemyData.Speed * Time.deltaTime);

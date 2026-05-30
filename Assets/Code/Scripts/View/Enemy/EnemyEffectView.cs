@@ -3,7 +3,7 @@ using UnityEngine.VFX;
 using UsefulTools.Utility.Runtime.Utility;
 using UsefulTools.UtilityUnity.Runtime.Pause;
 
-namespace Kizami.View.Runtime
+namespace Kizami.View.Runtime.Enemy
 {
     public class EnemyEffectView : MonoBehaviour, IRecyclable, IPausable
     {
@@ -25,7 +25,6 @@ namespace Kizami.View.Runtime
             _killVfx.SetVector3(ENEMY_EFFECT_SPAWN_POINT, position);
             _killVfx.Play();
         }
-
 
         public void Pause()
         {
