@@ -39,7 +39,8 @@ namespace Kizami.Composition.Runtime.Player
                 inputDispatcher,
                 bladePresenter,
                 _mobilePlayerPresenter,
-                _mobilePlayerMovementEntity);
+                _mobilePlayerMovementEntity,
+                playerInfra);
         }
 
         private void FixedUpdate()
