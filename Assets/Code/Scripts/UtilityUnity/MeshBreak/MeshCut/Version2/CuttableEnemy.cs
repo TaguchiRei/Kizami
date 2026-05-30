@@ -3,7 +3,8 @@ using UnityEngine;
 
 public class CuttableEnemy : CuttableObject
 {
-    [SerializeField] private BoxCollider _collider;
+    [SerializeField] private BoxCollider _bodyCollider;
+    [SerializeField] private BoxCollider _cutSurfaceCollider;
 
     /*
      private void Awake()
@@ -24,88 +25,89 @@ public class CuttableEnemy : CuttableObject
      }
      */
 
-    public override void SetupCollider(NativePlane worldBlade, List<Vector3> samplingPoints)
+    public override void SetupCollider(
+        NativePlane worldBlade,
+        List<Vector3> samplingPoints)
     {
-        var bounds = CuttableMeshFilter.sharedMesh.bounds;
+        // ---------- 本体Collider ----------
 
-        Vector3 center = bounds.center;
-        Vector3 size = bounds.size;
+        var localPlanePos =
+            transform.InverseTransformPoint(worldBlade.Position);
 
-        // 切断面法線をローカル空間へ変換
-        Vector3 localNormal =
+        var localPlaneNormal =
             transform.InverseTransformDirection(worldBlade.Normal);
 
-        localNormal.Normalize();
+        Bounds bodyBounds = default;
+        bool initialized = false;
 
-        // 法線が最も向いている軸を取得
-        int axis;
-        float absX = Mathf.Abs(localNormal.x);
-        float absY = Mathf.Abs(localNormal.y);
-        float absZ = Mathf.Abs(localNormal.z);
+        foreach (var point in samplingPoints)
+        {
+            float distance =
+                Vector3.Dot(point - localPlanePos, localPlaneNormal);
 
-        if (absX >= absY && absX >= absZ)
-            axis = 0;
-        else if (absY >= absZ)
-            axis = 1;
+            // 切断面より内側だけ採用
+            if (distance < 0f)
+            {
+                if (!initialized)
+                {
+                    bodyBounds = new Bounds(point, Vector3.zero);
+                    initialized = true;
+                }
+                else
+                {
+                    bodyBounds.Encapsulate(point);
+                }
+            }
+        }
+
+        if (initialized)
+        {
+            _bodyCollider.center = bodyBounds.center;
+            _bodyCollider.size = bodyBounds.size;
+        }
+
+        // ---------- 切断面Collider ----------
+
+        var meshBounds = CuttableMeshFilter.sharedMesh.bounds;
+
+        Vector3 localNormalAbs = new(
+            Mathf.Abs(localPlaneNormal.x),
+            Mathf.Abs(localPlaneNormal.y),
+            Mathf.Abs(localPlaneNormal.z));
+
+        Vector3 cutSize;
+        Vector3 cutCenter = localPlanePos;
+
+        const float thickness = 0.02f;
+
+        if (localNormalAbs.x >= localNormalAbs.y &&
+            localNormalAbs.x >= localNormalAbs.z)
+        {
+            cutSize = new Vector3(
+                thickness,
+                meshBounds.size.y,
+                meshBounds.size.z);
+        }
+        else if (localNormalAbs.y >= localNormalAbs.z)
+        {
+            cutSize = new Vector3(
+                meshBounds.size.x,
+                thickness,
+                meshBounds.size.z);
+        }
         else
-            axis = 2;
-
-        // 切断面頂点群の平均位置
-        Vector3 cutCenter = Vector3.zero;
-
-        foreach (var p in samplingPoints)
         {
-            cutCenter += p;
+            cutSize = new Vector3(
+                meshBounds.size.x,
+                meshBounds.size.y,
+                thickness);
         }
 
-        cutCenter /= samplingPoints.Count;
+        _cutSurfaceCollider.center = cutCenter;
+        _cutSurfaceCollider.size = cutSize;
 
-        Vector3 min = bounds.min;
-        Vector3 max = bounds.max;
+        #region 旧コード
 
-        switch (axis)
-        {
-            case 0:
-            {
-                bool positiveSide = localNormal.x > 0f;
-
-                if (positiveSide)
-                    max.x = cutCenter.x;
-                else
-                    min.x = cutCenter.x;
-
-                break;
-            }
-
-            case 1:
-            {
-                bool positiveSide = localNormal.y > 0f;
-
-                if (positiveSide)
-                    max.y = cutCenter.y;
-                else
-                    min.y = cutCenter.y;
-
-                break;
-            }
-
-            case 2:
-            {
-                bool positiveSide = localNormal.z > 0f;
-
-                if (positiveSide)
-                    max.z = cutCenter.z;
-                else
-                    min.z = cutCenter.z;
-
-                break;
-            }
-        }
-
-        bounds.SetMinMax(min, max);
-
-        _collider.center = bounds.center;
-        _collider.size = bounds.size;
         /*
          int sampleCount = samplingPoints.Count;
 
@@ -197,5 +199,7 @@ public class CuttableEnemy : CuttableObject
 
         DisableUnusedColliders(clusterCount);
         */
+
+        #endregion
     }
 }
