@@ -22,12 +22,15 @@ namespace Kizami.Domain.Runtime.Enemy
         private readonly float _playerRepulsionRadius;
         private readonly float _playerRepulsionForce;
         private readonly float _maxSpeed;
+        private readonly float _friction;
+        private readonly float _stopDistance;
+        private readonly float _slowDistance;
 
         public EnemyGroup(EnemyColony[] colonies,
             Vector3 centerPosition, float moveForce,
             float colonyRepulsionRadius, float colonyRepulsionForce,
             float playerRepulsionRadius, float playerRepulsionForce,
-            float maxSpeed)
+            float maxSpeed, float friction, float stopDistance, float slowDistance)
         {
             Colonies = colonies;
             CenterPosition = centerPosition;
@@ -41,6 +44,9 @@ namespace Kizami.Domain.Runtime.Enemy
             _playerRepulsionRadius = playerRepulsionRadius;
             _playerRepulsionForce = playerRepulsionForce;
             _maxSpeed = maxSpeed;
+            _friction = friction;
+            _stopDistance = stopDistance;
+            _slowDistance = slowDistance;
         }
 
         public void Update(Vector3 playerPosition, float dt)
@@ -54,13 +60,30 @@ namespace Kizami.Domain.Runtime.Enemy
 
                 Vector3 force = Vector3.zero;
 
-                // プレイヤーへ接近 
-                Vector3 seek = playerPosition - colony.CenterPosition;
-                seek.y = 0; // 高さを無視
+                // プレイヤーへ接近 (Arrive 挙動)
+                Vector3 toPlayer = playerPosition - colony.CenterPosition;
+                toPlayer.y = 0;
+                float distToPlayer = toPlayer.magnitude;
 
-                if (seek.sqrMagnitude > 0.0001f)
+                if (distToPlayer > _stopDistance)
                 {
-                    force += seek.normalized * _moveForce;
+                    // プレイヤーへの推進力
+                    float speedScale = 1.0f;
+                    if (distToPlayer < _slowDistance)
+                    {
+                        // 減衰距離内であれば、距離に応じて力を弱める
+                        speedScale = (distToPlayer - _stopDistance) / (_slowDistance - _stopDistance);
+                    }
+                    
+                    if (toPlayer.sqrMagnitude > 0.0001f)
+                    {
+                        force += (toPlayer / distToPlayer) * _moveForce * speedScale;
+                    }
+                }
+                else
+                {
+                    // 停止距離内であれば、即座に速度を殺すための強い逆方向の力をかけるか、直接速度を0にする
+                    // ここでは力ではなく速度更新時に処理する
                 }
 
                 // コロニー同士の反発 
@@ -70,12 +93,11 @@ namespace Kizami.Domain.Runtime.Enemy
 
                     EnemyColony other = colonies[j];
                     Vector3 offset = colony.CenterPosition - other.CenterPosition;
-                    offset.y = 0; // 高さを無視
+                    offset.y = 0;
                     float dist = offset.magnitude;
 
                     if (dist > _colonyRepulsionRadius) continue;
 
-                    // 完全に重なっている場合は、インデックスに基づいて分離方向を決める
                     if (dist <= 0.0001f)
                     {
                         float angle = (float)i / colonies.Length * Mathf.PI * 2f;
@@ -89,33 +111,18 @@ namespace Kizami.Domain.Runtime.Enemy
                     }
                 }
 
-                // プレイヤー反発
-                {
-                    Vector3 offset = colony.CenterPosition - playerPosition;
-                    offset.y = 0; // 高さを無視
-                    float dist = offset.magnitude;
+                // 速度更新
+                Vector3 velocity = colony.Velocity * Mathf.Pow(_friction, dt * 60f); // 摩擦の適用
+                velocity += force * dt;
+                velocity.y = 0;
 
-                    if (dist < _playerRepulsionRadius)
-                    {
-                        if (dist <= 0.0001f)
-                        {
-                            // プレイヤーの真上にいる場合は真後ろ（適当な方向）へ飛ばす
-                            force += Vector3.back * _playerRepulsionForce;
-                        }
-                        else
-                        {
-                            float ratio = 1f - dist / _playerRepulsionRadius;
-                            force += (offset / dist) * ratio * _playerRepulsionForce;
-                        }
-                    }
+                // 停止距離内の場合は停止
+                if (distToPlayer <= _stopDistance)
+                {
+                    velocity = Vector3.zero;
                 }
 
-                // 速度更新
-                Vector3 velocity = colony.Velocity + force * dt;
-                velocity.y = 0; // 垂直方向の速度を排除
-
                 float maxSqr = _maxSpeed * _maxSpeed;
-
                 if (velocity.sqrMagnitude > maxSqr)
                 {
                     velocity = velocity.normalized * _maxSpeed;

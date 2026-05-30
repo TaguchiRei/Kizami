@@ -27,6 +27,11 @@ namespace Kizami.Composition.Runtime.Enemy
         [SerializeField] private float _playerRepulsionRadius;
         [SerializeField] private float _playerRepulsionForce;
         [SerializeField] private float _maxSpeed;
+        [SerializeField] private float _friction = 0.95f;
+
+        [Header("プレイヤー接近制御")] 
+        [SerializeField] private float _stopDistance = 2.0f;
+        [SerializeField] private float _slowDistance = 5.0f;
 
         [Header("敵単体ごとの設定")] [SerializeField] private float _moveSpeed;
 
@@ -65,7 +70,8 @@ namespace Kizami.Composition.Runtime.Enemy
             }
 
             EnemyGroup group = new(colonies, Vector3.zero, _moveForce, _colonyRepulsionRadius,
-                _colonyRepulsionForce, _playerRepulsionRadius, _playerRepulsionForce, _maxSpeed);
+                _colonyRepulsionForce, _playerRepulsionRadius, _playerRepulsionForce, _maxSpeed,
+                _friction, _stopDistance, _slowDistance);
 
             ArchimedesSpiral archimedes = new ArchimedesSpiral(_angleStep, _radiusStep, _spiralWidth);
 
