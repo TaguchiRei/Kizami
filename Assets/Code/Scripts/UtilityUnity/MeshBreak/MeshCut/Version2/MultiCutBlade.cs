@@ -40,7 +40,7 @@ public class MultiCutBlade : MonoBehaviour
                 continue; // 既に追加済みならスキップ
 
             CuttableObject cuttable = obj.GetComponent<CuttableObject>();
-            if (cuttable != null)
+            if (cuttable != null && cuttable.IsCuttable)
             {
                 cuttables.Add(cuttable);
                 addedObjects.Add(obj);
@@ -144,6 +144,12 @@ public class MultiCutBlade : MonoBehaviour
                 _slicer.SamplingPoints[backIndex],
                 target,
                 blade);
+
+            if (targets[frontIndex].gameObject.CompareTag("MultiCuttable"))
+            {
+                fragmentStubs[frontIndex].IsCuttable = false;
+                fragmentStubs[backIndex].IsCuttable = false;
+            }
 
             target.gameObject.SetActive(false);
 

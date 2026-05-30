@@ -4,6 +4,7 @@ public static class BladePlaneDebugger
 {
     public static void OnDrawGizmos(Transform transform)
     {
+#if UNITY_EDITOR
         float _planeSize = 10.0f;
         int _gridCount = 10;
 
@@ -58,6 +59,7 @@ public static class BladePlaneDebugger
 
         // Zテスト設定を戻す
         UnityEditor.Handles.zTest = UnityEngine.Rendering.CompareFunction.Always;
+#endif
     }
 
     /// <summary>
@@ -65,6 +67,8 @@ public static class BladePlaneDebugger
     /// </summary>
     private static void DrawOutline(Vector3 center, Vector3 right, Vector3 forward, float size, Color color)
     {
+#if UNITY_EDITOR
+
         Vector3 r = right * size;
         Vector3 f = forward * size;
 
@@ -78,5 +82,6 @@ public static class BladePlaneDebugger
         UnityEditor.Handles.DrawLine(p2, p3);
         UnityEditor.Handles.DrawLine(p3, p4);
         UnityEditor.Handles.DrawLine(p4, p1);
+#endif
     }
 }

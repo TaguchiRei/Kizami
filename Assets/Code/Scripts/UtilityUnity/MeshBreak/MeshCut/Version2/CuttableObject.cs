@@ -6,6 +6,7 @@ using Random = UnityEngine.Random;
 
 public abstract class CuttableObject : MonoBehaviour, IRecyclable
 {
+    public bool IsCuttable { get; set; }
     public int RecycleId { get; set; }
     public int MeshId { get; set; }
 
