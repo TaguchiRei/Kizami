@@ -74,7 +74,7 @@ namespace Kizami.Application.Runtime.Input
             else if (input.IsCanceled)
             {
                 _entity.UpdateMovementState(false, Vector2.zero);
-                
+
                 // 停止処理
                 Vector3 currentVelocity = _mobilePlayerPresenter.Velocity;
                 Vector3 velocityWithoutLastMove =

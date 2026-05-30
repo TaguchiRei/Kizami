@@ -1,3 +1,4 @@
+using System;
 using Kizami.Application.Runtime;
 using Kizami.Domain.Runtime.Player;
 using Kizami.Presentation.Runtime;
@@ -16,7 +17,7 @@ namespace Kizami.Composition.Runtime.Player
     /// </summary>
     public class MobilePlayerInitializer : MonoBehaviour
     {
-        public PlayerInfra playerInfra;
+        public PlayerInfra _playerInfra;
         [SerializeField] private MobilePlayerView _mobilePlayerView;
         [SerializeField] private Vector3 _gravityVector = Vector3.down;
         [SerializeField] private float _gravityPower = 9.81f;
@@ -40,12 +41,18 @@ namespace Kizami.Composition.Runtime.Player
                 bladePresenter,
                 _mobilePlayerPresenter,
                 _mobilePlayerMovementEntity,
-                playerInfra);
+                _playerInfra);
+            _playerInfra.Initialize();
         }
 
         private void FixedUpdate()
         {
             _playerService?.ApplyGravity();
+        }
+
+        private void OnDestroy()
+        {
+            _playerService.Dispose();
         }
     }
 }
