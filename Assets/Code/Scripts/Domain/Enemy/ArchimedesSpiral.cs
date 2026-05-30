@@ -7,11 +7,13 @@ namespace Kizami.Domain.Runtime.Enemy
     {
         private readonly float _angleStep;
         private readonly float _radiusStep;
+        private readonly float _spiralWidth;
 
-        public ArchimedesSpiral(float angleStep, float radiusStep)
+        public ArchimedesSpiral(float angleStep, float radiusStep, float spiralWidth)
         {
             _angleStep = angleStep;
             _radiusStep = radiusStep;
+            _spiralWidth = spiralWidth;
         }
 
         /// <summary>
@@ -33,7 +35,7 @@ namespace Kizami.Domain.Runtime.Enemy
                     angle = -angle;
                 }
 
-                float radius = angle * _radiusStep;
+                float radius = angle * _radiusStep * _spiralWidth;
 
                 Vector3 spiralPosition = new(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
 

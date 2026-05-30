@@ -56,6 +56,7 @@ namespace Kizami.Domain.Runtime.Enemy
 
                 // プレイヤーへ接近 
                 Vector3 seek = playerPosition - colony.CenterPosition;
+                seek.y = 0; // 高さを無視
 
                 if (seek.sqrMagnitude > 0.0001f)
                 {
@@ -69,35 +70,49 @@ namespace Kizami.Domain.Runtime.Enemy
 
                     EnemyColony other = colonies[j];
                     Vector3 offset = colony.CenterPosition - other.CenterPosition;
+                    offset.y = 0; // 高さを無視
                     float dist = offset.magnitude;
 
-                    if (dist <= 0f || dist > _colonyRepulsionRadius) continue;
+                    if (dist > _colonyRepulsionRadius) continue;
 
-                    float ratio = 1f - dist / _colonyRepulsionRadius;
-                    force += offset.normalized * ratio * _colonyRepulsionForce;
+                    // 完全に重なっている場合は、インデックスに基づいて分離方向を決める
+                    if (dist <= 0.0001f)
+                    {
+                        float angle = (float)i / colonies.Length * Mathf.PI * 2f;
+                        Vector3 pushDir = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle));
+                        force += pushDir * _colonyRepulsionForce;
+                    }
+                    else
+                    {
+                        float ratio = 1f - dist / _colonyRepulsionRadius;
+                        force += (offset / dist) * ratio * _colonyRepulsionForce;
+                    }
                 }
 
                 // プレイヤー反発
                 {
-                    Vector3 offset =
-                        colony.CenterPosition - playerPosition;
-
+                    Vector3 offset = colony.CenterPosition - playerPosition;
+                    offset.y = 0; // 高さを無視
                     float dist = offset.magnitude;
 
-                    if (dist > 0f && dist < _playerRepulsionRadius)
+                    if (dist < _playerRepulsionRadius)
                     {
-                        float ratio =
-                            1f - dist / _playerRepulsionRadius;
-
-                        force +=
-                            offset.normalized *
-                            ratio *
-                            _playerRepulsionForce;
+                        if (dist <= 0.0001f)
+                        {
+                            // プレイヤーの真上にいる場合は真後ろ（適当な方向）へ飛ばす
+                            force += Vector3.back * _playerRepulsionForce;
+                        }
+                        else
+                        {
+                            float ratio = 1f - dist / _playerRepulsionRadius;
+                            force += (offset / dist) * ratio * _playerRepulsionForce;
+                        }
                     }
                 }
 
                 // 速度更新
                 Vector3 velocity = colony.Velocity + force * dt;
+                velocity.y = 0; // 垂直方向の速度を排除
 
                 float maxSqr = _maxSpeed * _maxSpeed;
 

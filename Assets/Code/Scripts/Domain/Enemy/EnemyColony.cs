@@ -15,10 +15,12 @@ namespace Kizami.Domain.Runtime.Enemy
 
         public Vector3 Velocity { get; private set; }
 
-        public EnemyColony(EnemyData[] enemies, Vector3 centerPosition)
+        public EnemyColony(EnemyData[] enemies, Vector3 centerPosition, int globalIndex, bool isClockwise)
         {
             Enemies = enemies;
             CenterPosition = centerPosition;
+            GlobalIndex = globalIndex;
+            IsClockwise = isClockwise;
         }
 
         public void SetCenterPosition(Vector3 centerPosition)

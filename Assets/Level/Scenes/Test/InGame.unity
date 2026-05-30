@@ -1664,14 +1664,16 @@ MonoBehaviour:
   _colonyCount: 3
   _colonyEnemyCount: 10
   _moveForce: 5
-  _colonyRepulsionRadius: 10
-  _colonyRepulsionForce: 2
-  _playerRepulsionRadius: 5
+  _colonyRepulsionRadius: 20
+  _colonyRepulsionForce: 5
+  _playerRepulsionRadius: 15
   _playerRepulsionForce: 10
   _maxSpeed: 15
   _moveSpeed: 3
   _angleStep: 0.5
   _radiusStep: 0.1
+  _spiralWidth: 5.9
+  _randomOffsetRadius: 3
 --- !u!114 &710263087
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2638,7 +2640,7 @@ CapsuleCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1305476768}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 7c05b1eede2c0e943bf8c200b36d5b9c, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0

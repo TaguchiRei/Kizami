@@ -34,6 +34,9 @@ namespace Kizami.Composition.Runtime.Enemy
         private float _angleStep;
 
         [SerializeField] private float _radiusStep;
+        [SerializeField] private float _spiralWidth = 1.0f;
+
+        [Header("ランダム設定")] [SerializeField] private float _randomOffsetRadius = 1.0f;
 
         private EnemyMoveApplication _enemyMoveApplication;
         private AllEnemyManagementPresenter _enemyPresenter;
@@ -51,16 +54,20 @@ namespace Kizami.Composition.Runtime.Enemy
                 EnemyData[] data = new EnemyData[_colonyEnemyCount];
                 for (int k = 0; k < _colonyEnemyCount; k++)
                 {
-                    data[k] = new EnemyData(Vector3.zero, Vector3.zero, _moveSpeed, k);
+                    // 設定された半径でランダムなオフセットを付与（Y軸は固定）
+                    Vector3 randomOffset = UnityEngine.Random.insideUnitSphere * _randomOffsetRadius;
+                    randomOffset.y = 0; 
+                    data[k] = new EnemyData(Vector3.zero, randomOffset, _moveSpeed, k);
                 }
 
-                colonies[i] = new EnemyColony(data, Vector3.zero);
+                // 小隊ごとに異なるインデックスと回転方向（交互）を設定
+                colonies[i] = new EnemyColony(data, Vector3.zero, i * _colonyEnemyCount, i % 2 == 0);
             }
 
             EnemyGroup group = new(colonies, Vector3.zero, _moveForce, _colonyRepulsionRadius,
                 _colonyRepulsionForce, _playerRepulsionRadius, _playerRepulsionForce, _maxSpeed);
 
-            ArchimedesSpiral archimedes = new ArchimedesSpiral(_angleStep, _radiusStep);
+            ArchimedesSpiral archimedes = new ArchimedesSpiral(_angleStep, _radiusStep, _spiralWidth);
 
             _enemyMoveApplication = new(group, archimedes, _enemyPresenter, _playerDataGateway, _enemyInfra);
         }

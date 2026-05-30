@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 3672819654630602194}
   - component: {fileID: 2419073783074565485}
   - component: {fileID: 308427857433517631}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: FrontLeftUpperLeg.001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -174,7 +174,7 @@ GameObject:
   - component: {fileID: 6988658372205410068}
   - component: {fileID: 7238872278972412763}
   - component: {fileID: 1149960940622793180}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Body
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -338,7 +338,7 @@ GameObject:
   - component: {fileID: 4774949220442928330}
   - component: {fileID: 8129900680405719920}
   - component: {fileID: 2329566119115348462}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: GunTurret
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -498,7 +498,7 @@ GameObject:
   - component: {fileID: 5692767396713243567}
   - component: {fileID: 3049307597415897715}
   - component: {fileID: 5996659917277274751}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: FrontRightUpperLeg.001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -658,7 +658,7 @@ GameObject:
   - component: {fileID: 304864229374165132}
   - component: {fileID: 4267594111911488514}
   - component: {fileID: 3651471028651704628}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Gun
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -817,7 +817,7 @@ GameObject:
   - component: {fileID: 8768051747380712926}
   - component: {fileID: 6756964220475983043}
   - component: {fileID: 1431799226743292495}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: FrontLeftUnderLeg.001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -976,7 +976,7 @@ GameObject:
   - component: {fileID: 3469006307619112906}
   - component: {fileID: 4844413941578756841}
   - component: {fileID: 3990750089881893729}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: FrontLeftUnderLeg
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1135,7 +1135,7 @@ GameObject:
   - component: {fileID: 6049679109204260621}
   - component: {fileID: 8326434823971488374}
   - component: {fileID: 2124155729590536220}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: FrontLeftUpperLeg
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1290,7 +1290,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6675407673122844532}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: AttakkerEnemy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1327,7 +1327,7 @@ GameObject:
   - component: {fileID: 8893998658405502262}
   - component: {fileID: 1950452940922901317}
   - component: {fileID: 3678908334722733769}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: FrontRightUnderLeg
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1486,7 +1486,7 @@ GameObject:
   - component: {fileID: 1657412853283968979}
   - component: {fileID: 5420447952454965799}
   - component: {fileID: 4325204795905046596}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: FrontRightUnderLeg.001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1645,7 +1645,7 @@ GameObject:
   - component: {fileID: 5162607556225784473}
   - component: {fileID: 7632474629513240555}
   - component: {fileID: 4951789692458107233}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: FrontRightUpperLeg
   m_TagString: Untagged
   m_Icon: {fileID: 0}
