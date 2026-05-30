@@ -14,6 +14,8 @@ namespace Kizami.Domain.Runtime.Player
         public LookDirectionValue LookDirection { get; private set; }
         public MoveSpeed MoveSpeed { get; private set; }
         public float LookSensitivity { get; private set; }
+        public bool IsMoving { get; private set; }
+        public Vector2 InputVector { get; private set; }
 
         public MobilePlayerMovementEntity(
             GravityValue gravity,
@@ -28,6 +30,12 @@ namespace Kizami.Domain.Runtime.Player
 
             // 初期値としてのみ使用
             LookDirection = new LookDirectionValue(Vector3.forward);
+        }
+
+        public void UpdateMovementState(bool isMoving, Vector2 inputVector)
+        {
+            IsMoving = isMoving;
+            InputVector = inputVector;
         }
 
         public void UpdateMovePower(Vector3 newPower)

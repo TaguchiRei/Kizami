@@ -1,4 +1,5 @@
 using System;
+using Kizami.Application.Runtime.Player;
 using Kizami.Domain.Runtime.Player;
 using UnityEngine;
 using UsefulTools.AutoGenerate;
@@ -13,17 +14,22 @@ namespace Kizami.Application.Runtime.Input
         private readonly IBladePresenter _bladePresenter;
         private readonly IMobilePlayerPresenter _mobilePlayerPresenter;
         private readonly MobilePlayerMovementEntity _entity;
+        private readonly IPlayerInfra _playerInfra;
 
         public MobilePlayerService(
             IInputDispatcher inputDispatcher,
             IBladePresenter bladePresenter,
             IMobilePlayerPresenter mobilePlayerPresenter,
-            MobilePlayerMovementEntity entity)
+            MobilePlayerMovementEntity entity,
+            IPlayerInfra playerInfra)
         {
             _inputDispatcher = inputDispatcher;
             _bladePresenter = bladePresenter;
             _mobilePlayerPresenter = mobilePlayerPresenter;
             _entity = entity;
+            _playerInfra = playerInfra;
+
+            _playerInfra.UpdateEvent += OnUpdate;
 
             _inputDispatcher.EnableActionMap(ActionMaps.Player);
             _inputDispatcher.EnableInput();
@@ -33,10 +39,10 @@ namespace Kizami.Application.Runtime.Input
 
         private void Registration(bool isRegister)
         {
-            _inputDispatcher.RegistrationReadValue<Vector2, PlayerActions>(
+            _inputDispatcher.RegistrationAll<Vector2, PlayerActions>(
                 ActionMaps.Player,
                 PlayerActions.Move,
-                OnMove, isRegister);
+                OnMoveInput, isRegister);
             _inputDispatcher.RegistrationAll<Vector2, ExternalActions>(
                 ActionMaps.ExternalInput,
                 ExternalActions.MobileInput,
@@ -59,34 +65,45 @@ namespace Kizami.Application.Runtime.Input
                 OnAttackUpperRight, isRegister);
         }
 
-        private void OnMove(InputContext<Vector2> input)
+        private void OnMoveInput(InputContext<Vector2> input)
         {
-            if (!input.IsActive || !input.IsPerformed) return;
+            if (input.IsPerformed)
+            {
+                _entity.UpdateMovementState(true, input.Value);
+            }
+            else if (input.IsCanceled)
+            {
+                _entity.UpdateMovementState(false, Vector2.zero);
+
+                // 停止処理
+                Vector3 currentVelocity = _mobilePlayerPresenter.Velocity;
+                Vector3 velocityWithoutLastMove =
+                    MovementLogic.CalculateVelocityAfterStop(currentVelocity, _entity.LastMovePower.Value);
+                _mobilePlayerPresenter.Velocity = velocityWithoutLastMove;
+                _entity.UpdateMovePower(Vector3.zero);
+            }
+        }
+
+        private void OnUpdate()
+        {
+            if (!_entity.IsMoving) return;
 
             Vector3 currentVelocity = _mobilePlayerPresenter.Velocity;
             // 前回移動分除去
             Vector3 velocityWithoutLastMove =
                 MovementLogic.CalculateVelocityAfterStop(currentVelocity, _entity.LastMovePower.Value);
 
-            if (input.IsPerformed)
-            {
-                // 新規移動方向 
-                Vector3 moveVector = MovementLogic.CalculateMoveVector(
-                    input.Value, _entity.Gravity.Direction,
-                    _entity.LookDirection.Value);
-                moveVector *= _entity.MoveSpeed.Value;
+            // 新規移動方向 
+            Vector3 moveVector = MovementLogic.CalculateMoveVector(
+                _entity.InputVector, _entity.Gravity.Direction,
+                _entity.LookDirection.Value);
+            moveVector *= _entity.MoveSpeed.Value;
 
-                // Entity更新
-                _entity.UpdateMovePower(moveVector);
+            // Entity更新
+            _entity.UpdateMovePower(moveVector);
 
-                // Velocity反映
-                _mobilePlayerPresenter.Velocity = velocityWithoutLastMove + moveVector;
-            }
-            else if (input.IsCanceled)
-            {
-                _mobilePlayerPresenter.Velocity = velocityWithoutLastMove;
-                _entity.UpdateMovePower(Vector3.zero);
-            }
+            // Velocity反映
+            _mobilePlayerPresenter.Velocity = velocityWithoutLastMove + moveVector;
         }
 
         private void OnLook(InputContext<Vector2> input)
@@ -136,7 +153,7 @@ namespace Kizami.Application.Runtime.Input
             if (input.IsStarted)
             {
                 Debug.Log("切断処理が呼ばれた");
-                _bladePresenter.SetRotation(cutFaceRotation * _bladePresenter.DefaultRotation);
+                _bladePresenter.SetRotation(cutFaceRotation);
                 _bladePresenter.Cut(null);
             }
         }
@@ -144,6 +161,7 @@ namespace Kizami.Application.Runtime.Input
         public void Dispose()
         {
             Registration(false);
+            _playerInfra.UpdateEvent -= OnUpdate;
         }
     }
 }

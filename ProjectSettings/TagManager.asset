@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 3
   tags:
   - TouchArea
+  - MultiCuttable
   layers:
   - Default
   - TransparentFX

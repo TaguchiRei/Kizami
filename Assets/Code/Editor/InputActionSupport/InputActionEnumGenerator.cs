@@ -1,11 +1,11 @@
 using System;
 using UnityEngine;
 using UnityEditor;
-using UnityEngine.InputSystem;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using UnityEngine.InputSystem;
 using UsefulTools.Infrastructure.Runtime.Input;
 
 namespace UsefulTools.Editor

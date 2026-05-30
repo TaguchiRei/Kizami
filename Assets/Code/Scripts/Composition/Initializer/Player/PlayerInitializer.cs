@@ -29,7 +29,7 @@ namespace Kizami.Composition.Runtime
             }
             else
             {
-                InGameContainer.Register<IPlayerDataGateway>(_mobilePlayerInitializer.playerInfra);
+                InGameContainer.Register<IPlayerDataGateway>(_mobilePlayerInitializer._playerInfra);
                 Destroy(_vrPlayerInitializer.gameObject);
             }
         }

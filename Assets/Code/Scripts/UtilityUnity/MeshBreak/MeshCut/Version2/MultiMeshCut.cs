@@ -239,11 +239,8 @@ public class MultiMeshCut
 
             _logSb.AppendLine($"計測: 面仕分け処理 - {stopwatch.ElapsedMilliseconds} ms");
             stopwatch.Restart();
-
-            // ────────────────────────────────────────────
+            
             // ここで一度メインスレッドに戻り、Jobをスケジュール
-            // (JobHandle.Schedule はメインスレッド必須)
-            // ────────────────────────────────────────────
             await Awaitable.MainThreadAsync();
 
             int triangleCount = triangleObjectTable.Count;
@@ -281,9 +278,8 @@ public class MultiMeshCut
             _logSb.AppendLine($"計測: 面切断処理 - {stopwatch.ElapsedMilliseconds} ms");
             stopwatch.Restart();
 
-            // ────────────────────────────────────────────
-            // [バックグラウンド] 断面穴埋め・ループ抽出・コライダー配列作成
-            // ────────────────────────────────────────────
+
+            // 断面穴埋め・ループ抽出・コライダー配列作成
             await Awaitable.BackgroundThreadAsync();
 
             for (int i = 0; i < context.NewTriangles.Length; i++)
