@@ -30,6 +30,7 @@ namespace Kizami.View.Runtime.Enemy
             for (int i = 0; i < _bufferCount; i++)
             {
                 effects[i] = Instantiate(_killVfxPrefab, Camera.main.transform);
+                effects[i].gameObject.transform.position = Vector3.forward * 2;
             }
 
             _effectBuffer = new(effects);
@@ -48,6 +49,10 @@ namespace Kizami.View.Runtime.Enemy
         {
             for (int i = 0; i < _enemies.Length; i++)
             {
+                var enemyData = Enemies[i];
+                _enemies[i].position =
+                    Vector3.MoveTowards(_enemies[i].position, enemyData.TargetPosition,
+                        enemyData.Speed * Time.deltaTime);
             }
         }
     }

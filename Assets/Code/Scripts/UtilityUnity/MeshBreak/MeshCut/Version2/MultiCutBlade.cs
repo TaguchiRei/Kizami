@@ -43,7 +43,25 @@ public class MultiCutBlade : MonoBehaviour
             if (cuttable != null)
             {
                 cuttables.Add(cuttable);
-                addedObjects.Add(obj); // 追加済みとして記録
+                addedObjects.Add(obj);
+
+                // 子を一段上へ昇格
+                Transform parent = obj.transform.parent;
+
+                if (parent != null)
+                {
+                    List<Transform> children = new();
+
+                    for (int i = 0; i < obj.transform.childCount; i++)
+                    {
+                        children.Add(obj.transform.GetChild(i));
+                    }
+
+                    foreach (Transform child in children)
+                    {
+                        child.SetParent(parent, true);
+                    }
+                }
             }
         }
 
