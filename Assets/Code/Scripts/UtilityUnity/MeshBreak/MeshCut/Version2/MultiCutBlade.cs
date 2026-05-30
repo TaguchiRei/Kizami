@@ -152,11 +152,11 @@ public class MultiCutBlade : MonoBehaviour
         fragObj.transform.localScale = original.transform.localScale;
 
         // メッシュ設定 
-        cuttable.Mesh.sharedMesh = mesh;
+        cuttable.CuttableMeshFilter.sharedMesh = mesh;
 
         // マテリアルコピー処理
-        var originalRenderer = original.Renderer;
-        var fragmentRenderer = cuttable.Renderer;
+        var originalRenderer = original.CuttableRenderer;
+        var fragmentRenderer = cuttable.CuttableRenderer;
 
         if (originalRenderer != null && fragmentRenderer != null)
         {
@@ -183,10 +183,10 @@ public class MultiCutBlade : MonoBehaviour
         cuttable.SetupCollider(worldBlade, samplingPoints);
 
         // 物理初速の継承
-        if (original.Rig && cuttable.Rig)
+        if (original.CuttableRigidbody && cuttable.CuttableRigidbody)
         {
-            cuttable.Rig.linearVelocity = original.Rig.linearVelocity;
-            cuttable.Rig.angularVelocity = original.Rig.angularVelocity;
+            cuttable.CuttableRigidbody.linearVelocity = original.CuttableRigidbody.linearVelocity;
+            cuttable.CuttableRigidbody.angularVelocity = original.CuttableRigidbody.angularVelocity;
         }
     }
 

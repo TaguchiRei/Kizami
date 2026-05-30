@@ -30,7 +30,7 @@ namespace MeshBreak.MeshCut.Version2
 
             foreach (var cuttable in objects)
             {
-                var mesh = cuttable.Mesh.sharedMesh;
+                var mesh = cuttable.CuttableMeshFilter.sharedMesh;
                 if (mesh == null) continue;
 
                 int index = registeredMeshes.IndexOf(mesh);
