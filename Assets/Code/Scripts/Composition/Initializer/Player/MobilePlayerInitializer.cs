@@ -16,7 +16,7 @@ namespace Kizami.Composition.Runtime.Player
     /// </summary>
     public class MobilePlayerInitializer : MonoBehaviour
     {
-        public PlayerDataGateway playerDataGateway;
+        public PlayerInfra playerInfra;
         [SerializeField] private MobilePlayerView _mobilePlayerView;
         [SerializeField] private Vector3 _gravityVector = Vector3.down;
         [SerializeField] private float _gravityPower = 9.81f;

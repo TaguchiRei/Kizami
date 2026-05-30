@@ -15,7 +15,7 @@ namespace UsefulVr.Composition.Runtime.Player
     /// </summary>
     public class VrPlayerInitializer : MonoBehaviour
     {
-        public PlayerDataGateway playerDataGateway;
+        public PlayerInfra playerInfra;
         [SerializeField] private VrPlayerMovementView _vrPlayerMovementView;
         [SerializeField] private Vector3 _gravityVector = Vector3.down;
         [SerializeField] private float _gravityPower = 9.81f;

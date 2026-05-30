@@ -24,12 +24,12 @@ namespace Kizami.Composition.Runtime
         {
             if (_isVr)
             {
-                InGameContainer.Register<IPlayerDataGateway>(_vrPlayerInitializer.playerDataGateway);
+                InGameContainer.Register<IPlayerDataGateway>(_vrPlayerInitializer.playerInfra);
                 Destroy(_mobilePlayerInitializer.gameObject);
             }
             else
             {
-                InGameContainer.Register<IPlayerDataGateway>(_mobilePlayerInitializer.playerDataGateway);
+                InGameContainer.Register<IPlayerDataGateway>(_mobilePlayerInitializer.playerInfra);
                 Destroy(_vrPlayerInitializer.gameObject);
             }
         }
