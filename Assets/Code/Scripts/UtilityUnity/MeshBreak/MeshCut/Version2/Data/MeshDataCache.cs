@@ -1,9 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UsefulTools.UtilityUnity.Runtime.UtilityUnity;
 
 namespace MeshBreak.MeshCut.Version2
 {
-    public class MeshDataCache : MonoBehaviour
+    public class MeshDataCache : InitializerBase
     {
         public static MeshDataCache Instance { get; private set; }
 
@@ -21,10 +22,11 @@ namespace MeshBreak.MeshCut.Version2
             Initialize();
         }
 
-        public void Initialize()
+        public override void Initialize()
         {
+            base.Initialize();
             _cache.Clear();
-    
+
             var objects = GetComponentsInChildren<CuttableObject>();
             List<Mesh> registeredMeshes = new();
 
@@ -35,18 +37,18 @@ namespace MeshBreak.MeshCut.Version2
 
                 int index = registeredMeshes.IndexOf(mesh);
 
-                if (index == -1) 
+                if (index == -1)
                 {
                     registeredMeshes.Add(mesh);
                     _cache.Add(new CachedMeshData(mesh));
                     cuttable.MeshId = registeredMeshes.Count - 1;
                 }
-                else 
+                else
                 {
                     cuttable.MeshId = index;
                 }
             }
-    
+
             Debug.Log($"[MeshDataCache V2] Cache Completed. Cache Count: {_cache.Count}");
         }
 

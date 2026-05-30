@@ -30,7 +30,7 @@ namespace Kizami.Application.Runtime.Enemy
             Vector3 playerPosition = _player.Position;
 
 
-            // 群れ全体の移動（コロニー中心）
+            // 群れ全体の移動
             _group.Update(playerPosition, deltaTime);
 
 

@@ -1,5 +1,6 @@
 using Kizami.Presentation.Runtime.Enemy;
 using Kizami.Utility.Runtime.Enemy;
+using MeshBreak.MeshCut.Version2;
 using UnityEngine;
 using UsefulTools.Utility.Runtime.Utility;
 using UsefulTools.UtilityUnity.Runtime.UtilityUnity;
@@ -8,8 +9,11 @@ namespace Kizami.View.Runtime.Enemy
 {
     public class AllEnemyManager : InitializableMonoBehaviour, IAllEnemyManagementView
     {
+        [HideInInspector] public int EnemyCount;
+
+        [SerializeField] private MeshDataCache _meshDataCache;
         [SerializeField] private Transform[] _enemies;
-        [SerializeField] private Transform[] _enemyPrefab;
+        [SerializeField] private Transform _enemyPrefab;
         [SerializeField] private EnemyEffectView _killVfxPrefab;
 
         [Header("エフェクト")] [SerializeField] private int _bufferCount;
@@ -28,7 +32,21 @@ namespace Kizami.View.Runtime.Enemy
                 effects[i].gameObject.transform.position = Vector3.forward * 2;
             }
 
+
+            for (int i = 0; i < EnemyCount; i++)
+            {
+                _enemies[i] = Instantiate(_enemyPrefab, _meshDataCache.transform);
+            }
+
             _effectBuffer = new(effects);
+        }
+
+        public void SetPositionAll(Vector3[] positions)
+        {
+            for (int i = 0; i < _enemies.Length; i++)
+            {
+                _enemies[i].position = positions[i];
+            }
         }
 
         public void Kill(int index, Vector3 respawnPoint)
