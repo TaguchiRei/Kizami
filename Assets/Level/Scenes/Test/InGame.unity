@@ -423,6 +423,7 @@ GameObject:
   - component: {fileID: 170126431}
   - component: {fileID: 170126433}
   - component: {fileID: 170126432}
+  - component: {fileID: 170126434}
   m_Layer: 0
   m_Name: Button_Attack_Vertical
   m_TagString: Untagged
@@ -456,7 +457,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 170126429}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6d54531977ecb194c95e2d3aa7a5d72a, type: 3}
   m_Name: 
@@ -500,6 +501,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 170126429}
   m_CullTransparentMesh: 1
+--- !u!114 &170126434
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 170126429}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 845c77cca8dcda3489517d2c6389cdca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Kizami.Composition.Runtime.WebGLOnScreenButton
+  _controlPath: <Gamepad>/buttonWest
 --- !u!1 &179837955
 GameObject:
   m_ObjectHideFlags: 0
@@ -1206,7 +1220,7 @@ MonoBehaviour:
   m_TrackedDevicePositionAction: {fileID: 6564999863303420839, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
   m_TrackedDeviceOrientationAction: {fileID: 7970375526676320489, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
   m_DeselectOnBackgroundClick: 1
-  m_PointerBehavior: 0
+  m_PointerBehavior: 2
   m_CursorLockBehavior: 0
   m_ScrollDeltaPerTick: 6
 --- !u!114 &405382064
