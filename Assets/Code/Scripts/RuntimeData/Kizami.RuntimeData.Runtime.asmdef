@@ -1,0 +1,14 @@
+{
+    "name": "Kizami.RuntimeData.Runtime",
+    "rootNamespace": "Kizami.RuntimeData",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
