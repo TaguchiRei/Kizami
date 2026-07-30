@@ -1,5 +1,21 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-1534652520527243759
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00a22af5d3fb3ec46ab44b53ceb1ec88, type: 3}
+  m_Name: ScreenSpaceBooleanFeature
+  m_EditorClassIdentifier: Assembly-CSharp::ScreenSpaceBoolean.ScreenSpaceBooleanFeature
+  m_Active: 1
+  composeMaterial: {fileID: 2100000, guid: a8547838798b8a948827a20380730097, type: 2}
+  compositeMaterial: {fileID: 2100000, guid: 12f6d18d06ea4ae43bd6274fded4fe6b, type: 2}
+  subtractorPasses: 2
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24,8 +40,10 @@ MonoBehaviour:
     probeSamplingDebugMesh: {fileID: 0}
     probeSamplingDebugTexture: {fileID: 0}
     probeVolumeBlendStatesCS: {fileID: 0}
-  m_RendererFeatures: []
-  m_RendererFeatureMap: 
+  m_RendererFeatures:
+  - {fileID: 572057993923937779}
+  - {fileID: -1534652520527243759}
+  m_RendererFeatureMap: f345c2eeb65bf00711d650dca9d1b3ea
   m_UseNativeRenderPass: 0
   xrSystemData: {fileID: 0}
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
@@ -35,7 +53,7 @@ MonoBehaviour:
     m_Bits: 4294967295
   m_OpaqueLayerMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 255
   m_TransparentLayerMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -54,3 +72,17 @@ MonoBehaviour:
   m_DepthTextureFormat: 0
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 1
+--- !u!114 &572057993923937779
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40725f93f6c701344aa2da9f6bc9a21b, type: 3}
+  m_Name: ScreenSpaceEmbeddedFeature
+  m_EditorClassIdentifier: Assembly-CSharp::ScreenSpaceBoolean.ScreenSpaceBooleanFeature
+  m_Active: 1
+  compositeMaterial: {fileID: 2100000, guid: 70979cda5fab65d4e8548c469992763e, type: 2}
