@@ -40,7 +40,10 @@ Shader "ScreenSpaceBoolean/FrontBack"
             ENDHLSL
         }
 
-        Pass // 1: back + HasBack（一番奥の背面を採用。reversed-Z前提でZTest GEqual）
+        // ZTestは「意味」で指定する（LEqual=手前が通る / GEqual=奥が通る）。
+        // reversed-Zプラットフォームでの比較の反転はUnityが内部で行うので分岐不要。
+        // 対応するRTのクリア値も同じ表現（1=遠クリップ）で指定すること。
+        Pass // 1: back + HasBack（一番奥の背面を採用するのでGEqual。RTはnear=0でクリア）
         {
             Cull Front
             ZTest GEqual

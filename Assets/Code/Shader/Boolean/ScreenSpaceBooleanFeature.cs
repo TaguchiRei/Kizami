@@ -45,11 +45,15 @@ namespace ScreenSpaceBoolean
         static readonly int CompositeSrcId = Shader.PropertyToID("_CompositeSrcDepth");
         static readonly int SubtractionDepthId = Shader.PropertyToID("_SubtractionDepth");
 
-        static readonly int NearZId = Shader.PropertyToID("_SSBooleanNearZ");
-        static readonly int FarZId = Shader.PropertyToID("_SSBooleanFarZ");
-
         const int ComposePass_Init = 0;
         const int ComposePass_Copy = 1;
+
+        // ClearRenderTargetのdepth引数は「1=遠クリップ / 0=近クリップ」という
+        // プラットフォーム非依存の表現で渡す（reversed-Zへの変換はUnityが行う）。
+        // ここに生のクリップ空間Z（reversed-Zならfar=0）を渡すと near/far が
+        // 入れ替わり、以降のZTestが全て素通り or 全て棄却になる。
+        const float ClearDepthFar = 1f;
+        const float ClearDepthNear = 0f;
 
         readonly Material composeMaterial;
         readonly Material compositeMaterial;
@@ -66,28 +70,24 @@ namespace ScreenSpaceBoolean
         class CaptureFrontPassData
         {
             public TextureHandle frontDepth, hasFront;
-            public float farZ;
         }
 
         class CaptureBackPassData
         {
             public TextureHandle backDepth, hasBack;
-            public float nearZ;
         }
 
         class ComposeInitPassData
         {
-            public TextureHandle frontDepth, hasFront, backDepth, hasBack;
+            public TextureHandle frontDepth, hasFront, hasBack;
             public TextureHandle destDepth, dummyColor;
             public Material material;
-            public float nearZ, farZ;
         }
 
         class SubtractorFrontPassData
         {
             public TextureHandle frontDepth, hasFront;
             public Subtractor subtractor;
-            public float farZ;
         }
 
         class CopyPassData
@@ -100,10 +100,9 @@ namespace ScreenSpaceBoolean
         {
             public TextureHandle srcCompositeDepth, destCompositeDepth;
             public TextureHandle subtractorFrontDepth, subtractorHasFront;
-            public TextureHandle subtracteeBackDepth, subtracteeHasBack;
+            public TextureHandle subtracteeBackDepth, subtracteeHasFront, subtracteeHasBack;
             public TextureHandle dummyColor;
             public Subtractor subtractor;
-            public float nearZ, farZ;
         }
 
         class FinalCopyPassData
@@ -111,7 +110,6 @@ namespace ScreenSpaceBoolean
             public TextureHandle compositeDepth;
             public TextureHandle cameraColor, cameraDepth;
             public Material material;
-            public float farZ;
         }
 
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
@@ -119,10 +117,6 @@ namespace ScreenSpaceBoolean
             var resourceData = frameData.Get<UniversalResourceData>();
             var cameraData = frameData.Get<UniversalCameraData>();
             var camDesc = cameraData.cameraTargetDescriptor;
-
-            bool reversedZ = SystemInfo.usesReversedZBuffer;
-            float nearZ = reversedZ ? 1f : 0f;
-            float farZ = reversedZ ? 0f : 1f;
 
             var depthDesc = new TextureDesc(camDesc.width, camDesc.height)
             {
@@ -168,14 +162,13 @@ namespace ScreenSpaceBoolean
 
             // ============================================================
             // 1) Subtractee前面デプス + HasFrontマスク
-            //    「何も無い場所」はfarZ(奥)扱いにクリアする
+            //    一番手前の前面を採る（ZTest LEqual）ので、遠クリップでクリアする
             // ============================================================
             using (var builder =
                    renderGraph.AddUnsafePass<CaptureFrontPassData>("SSBoolean_SubtracteeFront", out var pd))
             {
                 pd.frontDepth = subtracteeFront;
                 pd.hasFront = subtracteeHasFront;
-                pd.farZ = farZ;
                 builder.UseTexture(subtracteeFront, AccessFlags.Write);
                 builder.UseTexture(subtracteeHasFront, AccessFlags.Write);
                 builder.AllowPassCulling(false);
@@ -185,7 +178,7 @@ namespace ScreenSpaceBoolean
                     CommandBuffer cmd = CommandBufferHelpers.GetNativeCommandBuffer(ctx.cmd);
                     cmd.SetViewProjectionMatrices(cameraData.GetViewMatrix(), cameraData.GetProjectionMatrix());
                     cmd.SetRenderTarget(data.hasFront, data.frontDepth);
-                    cmd.ClearRenderTarget(true, true, Color.black, data.farZ);
+                    cmd.ClearRenderTarget(true, true, Color.black, ClearDepthFar);
                     foreach (var s in Subtractee.GetAll())
                         s.IssueDrawFront(cmd);
                 });
@@ -193,13 +186,12 @@ namespace ScreenSpaceBoolean
 
             // ============================================================
             // 2) Subtractee背面デプス + HasBackマスク（一番奥の背面を採用）
-            //    「何も無い場所」はnearZ(手前)扱いにクリアする
+            //    ZTest GEqualで奥を勝たせるので、近クリップでクリアする
             // ============================================================
             using (var builder = renderGraph.AddUnsafePass<CaptureBackPassData>("SSBoolean_SubtracteeBack", out var pd))
             {
                 pd.backDepth = subtracteeBack;
                 pd.hasBack = subtracteeHasBack;
-                pd.nearZ = nearZ;
                 builder.UseTexture(subtracteeBack, AccessFlags.Write);
                 builder.UseTexture(subtracteeHasBack, AccessFlags.Write);
                 builder.AllowPassCulling(false);
@@ -209,7 +201,7 @@ namespace ScreenSpaceBoolean
                     CommandBuffer cmd = CommandBufferHelpers.GetNativeCommandBuffer(ctx.cmd);
                     cmd.SetViewProjectionMatrices(cameraData.GetViewMatrix(), cameraData.GetProjectionMatrix());
                     cmd.SetRenderTarget(data.hasBack, data.backDepth);
-                    cmd.ClearRenderTarget(true, true, Color.black, data.nearZ);
+                    cmd.ClearRenderTarget(true, true, Color.black, ClearDepthNear);
                     foreach (var s in Subtractee.GetAll())
                         s.IssueDrawBack(cmd);
                 });
@@ -218,8 +210,8 @@ namespace ScreenSpaceBoolean
             // ============================================================
             // 3) 合成デプス初期化
             //    HasFront==1            : frontDepthを採用
-            //    HasFront==0, HasBack==1: カメラがSubtractee内部 → nearZ
-            //    HasFront==0, HasBack==0: 何も無い → farZ(貫通マーカー)
+            //    HasFront==0, HasBack==1: カメラがSubtractee内部 → nearZ(番兵)
+            //    HasFront==0, HasBack==0: 何も無い → farZ(番兵)
             // ============================================================
             TextureHandle compositeRead = compositeA;
             TextureHandle compositeWrite = compositeB;
@@ -228,34 +220,26 @@ namespace ScreenSpaceBoolean
             {
                 pd.frontDepth = subtracteeFront;
                 pd.hasFront = subtracteeHasFront;
-                pd.backDepth = subtracteeBack;
                 pd.hasBack = subtracteeHasBack;
                 pd.destDepth = compositeRead;
                 pd.dummyColor = dummyColor;
                 pd.material = composeMaterial;
-                pd.nearZ = nearZ;
-                pd.farZ = farZ;
 
                 builder.UseTexture(subtracteeFront, AccessFlags.Read);
                 builder.UseTexture(subtracteeHasFront, AccessFlags.Read);
-                builder.UseTexture(subtracteeBack, AccessFlags.Read);
                 builder.UseTexture(subtracteeHasBack, AccessFlags.Read);
                 builder.UseTexture(compositeRead, AccessFlags.Write);
                 builder.UseTexture(dummyColor, AccessFlags.Write);
-                builder.AllowPassCulling(false);
+                builder.AllowGlobalStateModification(true);
 
                 builder.SetRenderFunc((ComposeInitPassData data, UnsafeGraphContext ctx) =>
                 {
                     CommandBuffer cmd = CommandBufferHelpers.GetNativeCommandBuffer(ctx.cmd);
-                    cmd.SetViewProjectionMatrices(cameraData.GetViewMatrix(), cameraData.GetProjectionMatrix());
                     cmd.SetGlobalTexture(SubtracteeFrontDepthId, data.frontDepth);
                     cmd.SetGlobalTexture(SubtracteeHasFrontId, data.hasFront);
-                    cmd.SetGlobalTexture(SubtracteeBackDepthId, data.backDepth);
                     cmd.SetGlobalTexture(SubtracteeHasBackId, data.hasBack);
-                    cmd.SetGlobalFloat(NearZId, data.nearZ);
-                    cmd.SetGlobalFloat(FarZId, data.farZ);
                     cmd.SetRenderTarget(data.dummyColor, data.destDepth);
-                    cmd.ClearRenderTarget(true, true, Color.black, data.farZ);
+                    cmd.ClearRenderTarget(true, true, Color.black, ClearDepthFar);
                     cmd.DrawProcedural(Matrix4x4.identity, data.material, ComposePass_Init, MeshTopology.Triangles, 3,
                         1);
                 });
@@ -269,13 +253,14 @@ namespace ScreenSpaceBoolean
                 foreach (var subtractor in Subtractor.GetAll())
                 {
                     // 4a) このSubtractorの前面デプス + HasFront
+                    //     カメラがSubtractor内部にいるとここが空(HasFront==0)になり、
+                    //     Carve側でnearZフォールバックが効く
                     using (var builder =
                            renderGraph.AddUnsafePass<SubtractorFrontPassData>("SSBoolean_SubtractorFront", out var pd))
                     {
                         pd.frontDepth = subtractorFront;
                         pd.hasFront = subtractorHasFront;
                         pd.subtractor = subtractor;
-                        pd.farZ = farZ;
                         builder.UseTexture(subtractorFront, AccessFlags.Write);
                         builder.UseTexture(subtractorHasFront, AccessFlags.Write);
                         builder.AllowPassCulling(false);
@@ -285,7 +270,7 @@ namespace ScreenSpaceBoolean
                             CommandBuffer cmd = CommandBufferHelpers.GetNativeCommandBuffer(ctx.cmd);
                             cmd.SetViewProjectionMatrices(cameraData.GetViewMatrix(), cameraData.GetProjectionMatrix());
                             cmd.SetRenderTarget(data.hasFront, data.frontDepth);
-                            cmd.ClearRenderTarget(true, true, Color.black, data.farZ);
+                            cmd.ClearRenderTarget(true, true, Color.black, ClearDepthFar);
                             data.subtractor.IssueDrawFront(cmd);
                         });
                     }
@@ -299,14 +284,13 @@ namespace ScreenSpaceBoolean
                         pd.dummyColor = dummyColor;
                         pd.material = composeMaterial;
                         builder.UseTexture(compositeRead, AccessFlags.Read);
-                        builder.UseTexture(compositeWrite, AccessFlags.ReadWrite);
+                        builder.UseTexture(compositeWrite, AccessFlags.Write);
                         builder.UseTexture(dummyColor, AccessFlags.Write);
-                        builder.AllowPassCulling(false);
+                        builder.AllowGlobalStateModification(true);
 
                         builder.SetRenderFunc((CopyPassData data, UnsafeGraphContext ctx) =>
                         {
                             CommandBuffer cmd = CommandBufferHelpers.GetNativeCommandBuffer(ctx.cmd);
-                            cmd.SetViewProjectionMatrices(cameraData.GetViewMatrix(), cameraData.GetProjectionMatrix());
                             cmd.SetGlobalTexture(CompositeSrcId, data.srcDepth);
                             cmd.SetRenderTarget(data.dummyColor, data.destDepth);
                             cmd.DrawProcedural(Matrix4x4.identity, data.material, ComposePass_Copy,
@@ -315,7 +299,9 @@ namespace ScreenSpaceBoolean
                     }
 
                     // 4c) このSubtractorで削る
-                    //     Cull Front / ZTest GEqual で compositeWrite に直接書き込む
+                    //     Cull Front / ZTest GEqual で compositeWrite に直接書き込む。
+                    //     4bの結果を読んでZTestするのでReadWriteで宣言する（Writeだけだと
+                    //     RenderGraphが「全面上書き」と判断して直前の内容を捨てうる）
                     using (var builder = renderGraph.AddUnsafePass<CarvePassData>("SSBoolean_Carve", out var pd))
                     {
                         pd.srcCompositeDepth = compositeRead;
@@ -323,20 +309,20 @@ namespace ScreenSpaceBoolean
                         pd.subtractorFrontDepth = subtractorFront;
                         pd.subtractorHasFront = subtractorHasFront;
                         pd.subtracteeBackDepth = subtracteeBack;
+                        pd.subtracteeHasFront = subtracteeHasFront;
                         pd.subtracteeHasBack = subtracteeHasBack;
                         pd.dummyColor = dummyColor;
                         pd.subtractor = subtractor;
-                        pd.nearZ = nearZ;
-                        pd.farZ = farZ;
 
                         builder.UseTexture(compositeRead, AccessFlags.Read);
-                        builder.UseTexture(compositeWrite, AccessFlags.Write);
+                        builder.UseTexture(compositeWrite, AccessFlags.ReadWrite);
                         builder.UseTexture(subtractorFront, AccessFlags.Read);
                         builder.UseTexture(subtractorHasFront, AccessFlags.Read);
                         builder.UseTexture(subtracteeBack, AccessFlags.Read);
+                        builder.UseTexture(subtracteeHasFront, AccessFlags.Read);
                         builder.UseTexture(subtracteeHasBack, AccessFlags.Read);
                         builder.UseTexture(dummyColor, AccessFlags.Write);
-                        builder.AllowPassCulling(false);
+                        builder.AllowGlobalStateModification(true);
 
                         builder.SetRenderFunc((CarvePassData data, UnsafeGraphContext ctx) =>
                         {
@@ -346,9 +332,8 @@ namespace ScreenSpaceBoolean
                             cmd.SetGlobalTexture(SubtractorFrontDepthId, data.subtractorFrontDepth);
                             cmd.SetGlobalTexture(SubtractorHasFrontId, data.subtractorHasFront);
                             cmd.SetGlobalTexture(SubtracteeBackDepthId, data.subtracteeBackDepth);
+                            cmd.SetGlobalTexture(SubtracteeHasFrontId, data.subtracteeHasFront);
                             cmd.SetGlobalTexture(SubtracteeHasBackId, data.subtracteeHasBack);
-                            cmd.SetGlobalFloat(NearZId, data.nearZ);
-                            cmd.SetGlobalFloat(FarZId, data.farZ);
                             cmd.SetRenderTarget(data.dummyColor, data.destCompositeDepth);
                             data.subtractor.IssueDrawCarve(cmd);
                         });
@@ -361,6 +346,8 @@ namespace ScreenSpaceBoolean
 
             // ============================================================
             // 5) 結果をカメラの本物のデプスバッファへコピー
+            //    番兵値(far/near)のピクセルはシェーダ側でdiscardされ、
+            //    通常のシーン描画がそのまま見える
             // ============================================================
             using (var builder =
                    renderGraph.AddUnsafePass<FinalCopyPassData>("SSBoolean_CopyToCameraDepth", out var pd))
@@ -369,18 +356,16 @@ namespace ScreenSpaceBoolean
                 pd.cameraColor = resourceData.activeColorTexture;
                 pd.cameraDepth = resourceData.activeDepthTexture;
                 pd.material = compositeMaterial;
-                pd.farZ = farZ;
 
                 builder.UseTexture(compositeRead, AccessFlags.Read);
                 builder.UseTexture(resourceData.activeColorTexture, AccessFlags.Write);
-                builder.UseTexture(resourceData.activeDepthTexture, AccessFlags.Write);
-                builder.AllowPassCulling(false);
+                builder.UseTexture(resourceData.activeDepthTexture, AccessFlags.ReadWrite);
+                builder.AllowGlobalStateModification(true);
 
                 builder.SetRenderFunc((FinalCopyPassData data, UnsafeGraphContext ctx) =>
                 {
                     CommandBuffer cmd = CommandBufferHelpers.GetNativeCommandBuffer(ctx.cmd);
                     cmd.SetGlobalTexture(SubtractionDepthId, data.compositeDepth);
-                    cmd.SetGlobalFloat(FarZId, data.farZ);
                     cmd.SetRenderTarget(data.cameraColor, data.cameraDepth);
                     cmd.DrawProcedural(Matrix4x4.identity, data.material, 0, MeshTopology.Triangles, 3, 1);
                 });

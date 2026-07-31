@@ -8,6 +8,8 @@ Shader "Hidden/ScreenSpaceBoolean/Carve"
     // ラスタライズされず _SubtractorHasFront が0のままになる。
     // その場合は前面デプス＝nearZ（カメラ直前）とみなすことで、
     // カメラ自身から背面までを正しく削り込む。
+    // これにより「削れた穴の中にカメラが入った」状態でも、
+    // 穴の内壁（Subtractorの背面）が可視サーフェスとして残る。
     SubShader
     {
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" }
@@ -23,14 +25,14 @@ Shader "Hidden/ScreenSpaceBoolean/Carve"
             #pragma vertex Vert
             #pragma fragment Frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "SSBoolean_Common.hlsl"
 
             TEXTURE2D(_CompositeSrcDepth);     SAMPLER(sampler_CompositeSrcDepth);
             TEXTURE2D(_SubtractorFrontDepth);  SAMPLER(sampler_SubtractorFrontDepth);
             TEXTURE2D(_SubtractorHasFront);    SAMPLER(sampler_SubtractorHasFront);
             TEXTURE2D(_SubtracteeBackDepth);   SAMPLER(sampler_SubtracteeBackDepth);
+            TEXTURE2D(_SubtracteeHasFront);    SAMPLER(sampler_SubtracteeHasFront);
             TEXTURE2D(_SubtracteeHasBack);     SAMPLER(sampler_SubtracteeHasBack);
-            float _SSBooleanNearZ;
-            float _SSBooleanFarZ;
 
             struct Attributes { float4 positionOS : POSITION; };
             struct Varyings
@@ -47,45 +49,42 @@ Shader "Hidden/ScreenSpaceBoolean/Carve"
                 return o;
             }
 
-            // 「奥」かどうかの判定。reversed-Zでは値が小さいほど奥
-            // (実機で挙動がおかしい場合はここを反転してみてください)
-            bool IsFartherOrEqual(float a, float b)
-            {
-            #if UNITY_REVERSED_Z
-                return a <= b;
-            #else
-                return a >= b;
-            #endif
-            }
-
             struct FragOut { float depth : SV_Depth; };
 
             FragOut Frag(Varyings i)
             {
                 float2 uv = i.screenPos.xy / i.screenPos.w;
 
+                float seHasFront = SAMPLE_TEXTURE2D(_SubtracteeHasFront, sampler_SubtracteeHasFront, uv).r;
+                float seHasBack  = SAMPLE_TEXTURE2D(_SubtracteeHasBack,  sampler_SubtracteeHasBack,  uv).r;
+
+                // このピクセルにSubtracteeが一切写っていないなら削る対象が無い。
+                // （Subtractorだけが画面を覆っている領域を誤って書き換えないための早期棄却）
+                if (seHasFront < 0.5 && seHasBack < 0.5) discard;
+
                 float currentSurface = SAMPLE_TEXTURE2D(_CompositeSrcDepth, sampler_CompositeSrcDepth, uv).r;
 
                 float srHasFront = SAMPLE_TEXTURE2D(_SubtractorHasFront, sampler_SubtractorHasFront, uv).r;
                 float srFront = srHasFront > 0.5
                     ? SAMPLE_TEXTURE2D(_SubtractorFrontDepth, sampler_SubtractorFrontDepth, uv).r
-                    : _SSBooleanNearZ; // カメラがSubtractor内部にいる場合のフォールバック
+                    : SSB_NEAR_Z; // カメラがSubtractor内部にいる場合のフォールバック
 
-                // 自分自身(背面)のクリップスペースZ = このピクセルでのSubtractor出口(srBack)
+                // 自分自身(背面)のクリップスペースZ = このピクセルでのSubtractor出口(srBack)。
+                // フラグメントのSV_POSITION.zは既にw除算済みのウィンドウ空間デプスなので
+                // ここで .w で割ってはいけない。
                 float srBack = i.positionHCS.z;
 
                 // 現在の可視サーフェスがこのSubtractorの範囲[srFront, srBack)に
                 // 入っていなければ、このSubtractorはこのピクセルには無関係
-                if (!IsFartherOrEqual(currentSurface, srFront)) discard;
+                if (!SSB_IsFartherOrEqual(currentSurface, srFront)) discard;
 
-                float seHasBack = SAMPLE_TEXTURE2D(_SubtracteeHasBack, sampler_SubtracteeHasBack, uv).r;
                 float seBack = seHasBack > 0.5
                     ? SAMPLE_TEXTURE2D(_SubtracteeBackDepth, sampler_SubtracteeBackDepth, uv).r
-                    : _SSBooleanFarZ; // Subtracteeの境界が不明な場合は制約なしとして扱う
+                    : SSB_FAR_Z; // Subtracteeの境界が不明な場合は制約なしとして扱う
 
                 // Subtractorの出口(srBack)がまだSubtracteeの内側なら、そこが新しい可視面
                 // (穴の内壁)。Subtracteeの範囲を超えていたら完全に貫通（先に何も無い）
-                float newDepth = IsFartherOrEqual(seBack, srBack) ? srBack : _SSBooleanFarZ;
+                float newDepth = SSB_IsFartherOrEqual(seBack, srBack) ? srBack : SSB_FAR_Z;
 
                 FragOut o;
                 o.depth = newDepth;

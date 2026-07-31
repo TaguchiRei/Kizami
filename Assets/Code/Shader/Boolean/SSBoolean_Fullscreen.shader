@@ -6,6 +6,7 @@ Shader "Hidden/ScreenSpaceBoolean/Fullscreen"
 
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+        #include "SSBoolean_Common.hlsl"
 
         struct Varyings
         {
@@ -39,10 +40,7 @@ Shader "Hidden/ScreenSpaceBoolean/Fullscreen"
 
             TEXTURE2D(_SubtracteeFrontDepth); SAMPLER(sampler_SubtracteeFrontDepth);
             TEXTURE2D(_SubtracteeHasFront);   SAMPLER(sampler_SubtracteeHasFront);
-            TEXTURE2D(_SubtracteeBackDepth);  SAMPLER(sampler_SubtracteeBackDepth);
             TEXTURE2D(_SubtracteeHasBack);    SAMPLER(sampler_SubtracteeHasBack);
-            float _SSBooleanNearZ;
-            float _SSBooleanFarZ;
 
             FragOut Frag(Varyings i)
             {
@@ -57,13 +55,16 @@ Shader "Hidden/ScreenSpaceBoolean/Fullscreen"
                 }
                 else if (hasBack > 0.5)
                 {
-                    // 前面が無いのに背面はある = カメラがSubtractee内部にいる
-                    d = _SSBooleanNearZ;
+                    // 前面が無いのに背面はある = カメラがSubtractee内部にいる。
+                    // カメラ位置に可視サーフェスがあるものとして扱うことで、
+                    // Carveパスが「削れた空間の内側にいる」状態を正しく判定できる。
+                    // この値は番兵で、最終的なカメラデプスには書き込まれない。
+                    d = SSB_NEAR_Z;
                 }
                 else
                 {
                     // Subtracteeが存在しない場所
-                    d = _SSBooleanFarZ;
+                    d = SSB_FAR_Z;
                 }
 
                 FragOut o;

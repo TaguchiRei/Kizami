@@ -70,12 +70,13 @@ Shader "ScreenSpaceBoolean/Lit"
             Varyings Vert(Attributes v)
             {
                 Varyings o;
-                VertexPositionInputs posInputs = GetVertexPositionInputs(v.positionOS.xyz);
-                VertexNormalInputs normInputs = GetVertexNormalInputs(v.normalOS);
-
-                o.positionHCS = posInputs.positionCS;
-                o.positionWS  = posInputs.positionWS;
-                o.normalWS    = normInputs.normalWS;
+                // ZTest Equal で合成デプスと一致させる必要があるので、クリップ座標は
+                // デプスを書いた側（FrontBack / Carve）とまったく同じ式で求める。
+                // GetVertexPositionInputs は world 経由で計算するため、最下位ビットが
+                // ずれてサーフェスが丸ごと消えることがある。
+                o.positionHCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.positionWS  = TransformObjectToWorld(v.positionOS.xyz);
+                o.normalWS    = TransformObjectToWorldNormal(v.normalOS);
                 o.uv          = TRANSFORM_TEX(v.uv, _BaseMap);
                 return o;
             }

@@ -1,5 +1,8 @@
 Shader "Hidden/ScreenSpaceBoolean/CompositeSubtraction"
 {
+    // 合成デプスをカメラの本物のデプスバッファへ書き戻す。
+    // 番兵値のピクセルは「ブーリアン結果としての可視サーフェスが無い」という意味なので
+    // 書き込まずに捨て、通常のシーン描画にそのまま任せる。
     SubShader
     {
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" }
@@ -16,12 +19,10 @@ Shader "Hidden/ScreenSpaceBoolean/CompositeSubtraction"
             #pragma fragment Frag
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "SSBoolean_Common.hlsl"
 
             TEXTURE2D(_SubtractionDepth);
             SAMPLER(sampler_SubtractionDepth);
-
-            // 【追加】Mask.shaderと同じ「未処理/貫通」マーカー値
-            float _SSBooleanFarZ;
 
             struct Varyings
             {
@@ -46,8 +47,13 @@ Shader "Hidden/ScreenSpaceBoolean/CompositeSubtraction"
             {
                 float d = SAMPLE_TEXTURE2D(_SubtractionDepth, sampler_SubtractionDepth, i.uv).r;
 
-                // 【修正】ハードコードされた 1.0 ではなく、実際に使っているマーカー値と比較
-                if (abs(d - _SSBooleanFarZ) < 1e-6) discard;
+                // 貫通した / そもそもSubtracteeが無い
+                if (SSB_IsFarMarker(d)) discard;
+
+                // カメラがSubtractee内部にいて、どのSubtractorにも削られなかったピクセル。
+                // ここにnearZを書くと「何も描かれないのに全部を遮る壁」になってしまうため、
+                // 書き込まずに背面カリングされた通常のメッシュと同じ扱いにする。
+                if (SSB_IsNearMarker(d)) discard;
 
                 FragOut o;
                 o.depth = d;
