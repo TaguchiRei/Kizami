@@ -31,7 +31,7 @@ Material:
     m_Floats:
     - _LowerY: -1
     - _WaveIntensity: 7.52
-    - _WaveScale: -0.37
+    - _WaveScale: 0.04
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _WaveCenter: {r: -0.37, g: 0.69, b: 0.14, a: 0.5}

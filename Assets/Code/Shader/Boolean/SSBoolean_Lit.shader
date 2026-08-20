@@ -1,12 +1,29 @@
 Shader "ScreenSpaceBoolean/Lit"
 {
+    // ========================================================================
     // Subtractee / Subtractor 本体の"見た目"を描くシェーダー。
-    // Renderer Feature が確定させたデプスに対して ZTest Equal で色だけを乗せる。
+    // Renderer Feature が確定させた合成デプスに対して ZTest Equal で色だけを乗せる。
     //
-    // Subtractee用マテリアル : Cull = Back（通常通り）
-    // Subtractor用マテリアル : Cull = Back のままでも良いが、
-    //   削った穴の内壁（Subtractorの裏面）を見せたい場合は Cull = Front にする
-    //   （その場合、Fragでの法線は自動的に裏面基準になるので反転が必要なことがある）
+    // ■ ZTest Equal である理由
+    //   Featureは「ブーリアン後に見えるべき面はこのデプス」というところまでを
+    //   カメラデプスへ焼いてある。ZWrite Off / ZTest Equal にしておくと、
+    //   そのデプスとぴったり一致した面＝残すべき面だけが描かれ、削られた面は
+    //   自動的に落ちる。マスクもクリップも要らない。
+    //
+    //   逆に言うと、頂点のクリップ座標がデプスを書いた側（FrontBack / Carve）と
+    //   ビット単位で一致していないと面ごと消える。Vertで式を揃えているのはこのため。
+    //
+    // ■ マテリアルごとの設定
+    //   Subtractee用マテリアル : Cull = Back（通常通り）
+    //   Subtractor用マテリアル : Cull = Front
+    //     削る側は普段は見えないが、削った穴の内壁＝Subtractorの背面だけは
+    //     見せたいので背面を描く。Carveパスが可視面として書き込んでいるのも
+    //     この背面なので、ZTest Equal がそこだけ通る。
+    //     （Fragでの法線は裏面基準になるので IS_FRONT_VFACE で反転している）
+    //
+    // ■ 影について
+    //   ShadowCasterは通常描画のままなので、影は「削る前の形」で落ちる。
+    // ========================================================================
     Properties
     {
         _BaseMap("Base Map", 2D) = "white" {}
@@ -25,8 +42,8 @@ Shader "ScreenSpaceBoolean/Lit"
             Tags { "LightMode"="UniversalForward" }
 
             Cull [_Cull]
-            ZWrite Off
-            ZTest Equal
+            ZWrite Off  // デプスはFeatureが確定済み。ここでは触らない
+            ZTest Equal // 合成デプスと一致した面＝残すべき面だけ色を乗せる
 
             HLSLPROGRAM
             #pragma vertex Vert
