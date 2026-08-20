@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using UnityEngine.InputSystem;
 
 namespace UsefulTools.Infrastructure.Runtime.Input
@@ -21,3 +23,4 @@ namespace UsefulTools.Infrastructure.Runtime.Input
         public bool IsStarted => Phase == InputActionPhase.Started;
     }
 }
+#endif

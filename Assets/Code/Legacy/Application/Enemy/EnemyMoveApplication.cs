@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using System;
 using Kizami.Domain.Runtime.Enemy;
 using Kizami.Utility.Runtime.Enemy;
@@ -83,3 +85,4 @@ namespace Kizami.Application.Runtime.Enemy
         }
     }
 }
+#endif

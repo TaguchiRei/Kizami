@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using UnityEngine;
 
 [DefaultExecutionOrder(10000)]
@@ -22,3 +24,4 @@ public class CameraMover : MonoBehaviour
         transform.rotation = _target.rotation * _rotationOffset;
     }
 }
+#endif

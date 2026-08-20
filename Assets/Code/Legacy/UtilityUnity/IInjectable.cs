@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 namespace UsefulTools.UtilityUnity.Runtime.Initialize
 {
     public interface IInjectable<in T>
@@ -20,3 +22,4 @@ namespace UsefulTools.UtilityUnity.Runtime.Initialize
         void Inject(T1 obj1, T2 obj2, T3 obj3, T4 obj4);
     }
 }
+#endif

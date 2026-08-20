@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using System;
 using Cysharp.Threading.Tasks;
 using Kizami.Presentation.Runtime.MeshCut;
@@ -73,3 +75,4 @@ namespace Kizami.View.Runtime.MeshCut
         }
     }
 }
+#endif

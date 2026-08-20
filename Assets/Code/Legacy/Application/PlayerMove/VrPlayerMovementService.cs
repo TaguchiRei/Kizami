@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using System;
 using UnityEngine;
 using UsefulTools.AutoGenerate;
@@ -134,3 +136,4 @@ namespace UsefulVr.Application.Runtime.Player
         }
     }
 }
+#endif

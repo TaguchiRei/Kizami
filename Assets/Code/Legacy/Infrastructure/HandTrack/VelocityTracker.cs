@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using Kizami.Application.Runtime;
 
 namespace Kizami.Infrastructure.Runtime.Player
@@ -43,3 +45,4 @@ namespace Kizami.Infrastructure.Runtime.Player
         }
     }
 }
+#endif

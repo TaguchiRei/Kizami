@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using UnityEngine;
 
 namespace Kizami.Utility.Runtime.Enemy
@@ -19,3 +21,4 @@ namespace Kizami.Utility.Runtime.Enemy
         public int Id;
     }
 }
+#endif

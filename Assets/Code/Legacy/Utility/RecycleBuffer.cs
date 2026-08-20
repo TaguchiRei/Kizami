@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using System;
 
 namespace UsefulTools.Utility.Runtime.Utility
@@ -150,3 +152,4 @@ namespace UsefulTools.Utility.Runtime.Utility
         }
     }
 }
+#endif

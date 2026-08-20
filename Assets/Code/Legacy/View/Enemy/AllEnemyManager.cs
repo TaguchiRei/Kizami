@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using Kizami.Presentation.Runtime.Enemy;
 using Kizami.Utility.Runtime.Enemy;
 using MeshBreak.MeshCut.Version2;
@@ -71,3 +73,4 @@ namespace Kizami.View.Runtime.Enemy
         }
     }
 }
+#endif

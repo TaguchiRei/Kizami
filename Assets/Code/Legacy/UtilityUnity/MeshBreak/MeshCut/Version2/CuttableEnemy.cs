@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -203,3 +205,4 @@ public class CuttableEnemy : CuttableObject
         #endregion
     }
 }
+#endif
