@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using Kizami.Application.Runtime;
 using Kizami.Presentation.Runtime.Player;
 using UnityEngine;
@@ -31,3 +33,4 @@ namespace Kizami.Presentation.Runtime
         }
     }
 }
+#endif

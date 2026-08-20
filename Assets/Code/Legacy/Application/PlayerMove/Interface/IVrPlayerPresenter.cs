@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using UnityEngine;
 
 public interface IVrPlayerPresenter
@@ -20,3 +22,4 @@ public interface IVrPlayerPresenter
     /// <summary> カメラの座標をプレイヤー座標に同期する </summary>
     void SetOffset(Vector3 offset);
 }
+#endif

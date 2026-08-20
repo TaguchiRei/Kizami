@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -130,3 +132,4 @@ public struct EarClippingAlgorithmJob : IJobParallelFor
     /// <returns></returns>
     private float Cross(float2 a, float2 b) => a.x * b.y - a.y * b.x;
 }
+#endif

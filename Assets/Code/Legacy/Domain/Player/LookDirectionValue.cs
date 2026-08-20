@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using UnityEngine;
 
 namespace UsefulVr.Domain.Runtime.Player
@@ -27,3 +29,4 @@ namespace UsefulVr.Domain.Runtime.Player
             new LookDirectionValue(Vector3.forward);
     }
 }
+#endif

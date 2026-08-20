@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using Kizami.Utility.Runtime.Enemy;
 using UnityEngine;
 
@@ -44,3 +46,4 @@ namespace Kizami.Domain.Runtime.Enemy
         }
     }
 }
+#endif

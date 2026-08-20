@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using Kizami.Application.Runtime;
 using Kizami.Presentation.Runtime;
 using Kizami.View.Runtime.MeshCut;
@@ -26,3 +28,4 @@ namespace Kizami.Composition.Runtime
         }
     }
 }
+#endif

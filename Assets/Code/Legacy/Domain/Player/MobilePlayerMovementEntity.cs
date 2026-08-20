@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using Code.Scripts.Domain.Player;
 using UnityEngine;
 using UsefulVr.Domain.Runtime.Player;
@@ -65,3 +67,4 @@ namespace Kizami.Domain.Runtime.Player
         }
     }
 }
+#endif

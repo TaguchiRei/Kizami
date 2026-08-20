@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using UnityEngine;
 
 namespace Code.Scripts.Domain.Player
@@ -17,3 +19,4 @@ namespace Code.Scripts.Domain.Player
         public static MovePowerValue Zero => new MovePowerValue(Vector3.zero);
     }
 }
+#endif

@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using UnityEngine;
 
 namespace UsefulVr.Presentation.Runtime.Player
@@ -43,3 +45,4 @@ namespace UsefulVr.Presentation.Runtime.Player
         }
     }
 }
+#endif

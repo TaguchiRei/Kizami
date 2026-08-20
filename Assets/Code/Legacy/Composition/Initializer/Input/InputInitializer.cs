@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using UnityEngine;
 using UsefulTools.Composition.Runtime.Boot;
 using UsefulTools.Infrastructure.Runtime.Input;
@@ -21,3 +23,4 @@ namespace UsefulTools.Composition.Runtime.Input
         }
     }
 }
+#endif

@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -162,3 +164,4 @@ public struct TriangleCutJob : IJobParallelFor
         };
     }
 }
+#endif

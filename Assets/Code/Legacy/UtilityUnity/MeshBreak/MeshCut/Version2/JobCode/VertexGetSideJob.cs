@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -18,3 +20,4 @@ public struct VertexGetSideJob : IJobParallelFor
         VertexSides[index] = math.dot(Vertices[index] - blade.Position, blade.Normal) > 0f ? 1 : 0;
     }
 }
+#endif

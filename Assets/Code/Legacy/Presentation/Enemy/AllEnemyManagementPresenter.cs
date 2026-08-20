@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using Kizami.Application.Runtime.Enemy;
 using Kizami.Presentation.Runtime.Enemy;
 using Kizami.Utility.Runtime.Enemy;
@@ -30,3 +32,4 @@ namespace Kizami.Presentation.Runtime
         }
     }
 }
+#endif

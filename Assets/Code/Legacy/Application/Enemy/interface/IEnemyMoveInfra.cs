@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using System;
 
 namespace Kizami.Application.Runtime
@@ -7,3 +9,4 @@ namespace Kizami.Application.Runtime
         event Action<float> UpdateEvent;
     }
 }
+#endif

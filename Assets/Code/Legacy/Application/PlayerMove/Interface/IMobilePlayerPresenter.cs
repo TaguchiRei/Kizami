@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using UnityEngine;
 
 namespace Kizami.Application.Runtime
@@ -13,3 +15,4 @@ namespace Kizami.Application.Runtime
         void AddForce(Vector3 force, ForceMode mode);
     }
 }
+#endif

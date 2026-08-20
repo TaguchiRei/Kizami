@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using UnityEngine;
 using UsefulTools.UtilityUnity.Runtime.UtilityUnity;
 using UsefulVr.Presentation.Runtime.Player;
@@ -81,3 +83,4 @@ namespace UsefulVr.View.Runtime.Player
         }
     }
 }
+#endif

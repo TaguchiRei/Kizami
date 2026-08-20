@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -21,3 +23,4 @@ public struct NativeTransform
         Scale = transform.localScale;
     }
 }
+#endif

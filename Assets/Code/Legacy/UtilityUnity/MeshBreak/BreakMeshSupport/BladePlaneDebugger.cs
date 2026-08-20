@@ -1,3 +1,5 @@
+// [Legacy] 作り直しに伴い全体を無効化
+#if false
 using UnityEngine;
 
 public static class BladePlaneDebugger
@@ -85,3 +87,4 @@ public static class BladePlaneDebugger
 #endif
     }
 }
+#endif
