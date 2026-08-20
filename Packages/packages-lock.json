@@ -5,7 +5,59 @@
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "a9e27c03d411d2fca01cc7410c24c97cd77cb539"
+      "hash": "ceac8d6946b1125fe782cd171fbcb245b567dbf9"
+    },
+    "com.rei.usefultoolkit.aitool": {
+      "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.aitool",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.rei.usefultoolkit.framework": "1.0.0"
+      },
+      "hash": "afd8802a291551e7b487819bfc362cac8bd06b49"
+    },
+    "com.rei.usefultoolkit.architecture": {
+      "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.architecture",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.rei.usefultoolkit.framework": "1.0.0"
+      },
+      "hash": "afd8802a291551e7b487819bfc362cac8bd06b49"
+    },
+    "com.rei.usefultoolkit.debugging": {
+      "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.debugging",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.rei.usefultoolkit.framework": "1.0.0"
+      },
+      "hash": "afd8802a291551e7b487819bfc362cac8bd06b49"
+    },
+    "com.rei.usefultoolkit.framework": {
+      "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.framework",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "afd8802a291551e7b487819bfc362cac8bd06b49"
+    },
+    "com.rei.usefultoolkit.gitsupport": {
+      "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.gitsupport",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.rei.usefultoolkit.framework": "1.0.0"
+      },
+      "hash": "afd8802a291551e7b487819bfc362cac8bd06b49"
+    },
+    "com.rei.usefultoolkit.programtools": {
+      "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.programtools",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.rei.usefultoolkit.framework": "1.0.0"
+      },
+      "hash": "afd8802a291551e7b487819bfc362cac8bd06b49"
     },
     "com.unity.ai.navigation": {
       "version": "2.0.10",
