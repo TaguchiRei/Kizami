@@ -14,7 +14,7 @@
       "dependencies": {
         "com.rei.usefultoolkit.framework": "1.0.0"
       },
-      "hash": "1ee37b2cd8f06f9d234ae609216a25a128382900"
+      "hash": "faa8552ed0f43435a090544c319b57dbc51908dc"
     },
     "com.rei.usefultoolkit.architecture": {
       "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.architecture",
@@ -39,7 +39,7 @@
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "1ee37b2cd8f06f9d234ae609216a25a128382900"
+      "hash": "faa8552ed0f43435a090544c319b57dbc51908dc"
     },
     "com.rei.usefultoolkit.gitsupport": {
       "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.gitsupport",
