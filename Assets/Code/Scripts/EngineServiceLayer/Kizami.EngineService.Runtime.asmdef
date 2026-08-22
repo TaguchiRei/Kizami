@@ -1,13 +1,12 @@
 {
-    "name": "Kizami.Application.Runtime",
-    "rootNamespace": "Kizami.Application",
+    "name": "Kizami.EngineService.Runtime",
+    "rootNamespace": "Kizami.EngineService",
     "references": [
         "Kizami.BlackBoard.Runtime",
-        "Kizami.External.Runtime",
-        "UsefulToolkit.Framework.Application.Runtime",
+        "UsefulToolkit.Framework.EngineService.Runtime",
         "UsefulToolkit.Framework.BlackBoard.Runtime",
-        "UsefulToolkit.Input.Runtime",
-        "Unity.InputSystem",
+        "UsefulToolkit.Architecture.Runtime",
+        "UsefulToolkit.MeshCut.Runtime",
         "UniTask"
     ],
     "includePlatforms": [],
