@@ -4,6 +4,7 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 
 namespace Kizami.BlackBoard
 {
+    [RegisterBoard(typeof(PlayerBoard))]
     public class PlayerMovementState : SceneStateBase, IPlayerMovementState
     {
         public Vector3 MovementDirection => _movementDirection;
