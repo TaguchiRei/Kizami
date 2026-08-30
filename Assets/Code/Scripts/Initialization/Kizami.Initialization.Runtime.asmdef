@@ -14,7 +14,8 @@
         "UsefulToolkit.Framework.EngineService.Runtime",
         "UsefulToolkit.Input.Runtime",
         "Unity.InputSystem",
-        "UniTask"
+        "UniTask",
+        "UsefulToolkit.Framework.Initialization.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

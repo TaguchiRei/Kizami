@@ -1,7 +1,7 @@
 using Kizami.BlackBoard;
-using UnityEngine;
 using UnityEngine.XR;
-using UsefulToolkit.Architecture;
+using UsefulToolkit.BlackBoard.BlackBoard;
+using UsefulToolkit.Initialization;
 
 namespace Kizami.Initialization
 {
@@ -9,9 +9,9 @@ namespace Kizami.Initialization
     {
         private BuildModeState _buildModeState;
 
-        public override void Initialize()
+        public override void Initialize(IBlackBoard blackBoard)
         {
-            base.Initialize();
+            base.Initialize( blackBoard);
             _buildModeState = new BuildModeState();
 #if UNITY_STANDALONE
             _buildModeState.SetBuildMode(BuildMode.PC);

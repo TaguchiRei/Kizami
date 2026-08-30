@@ -86,3 +86,6 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ss]ceneDependencyCache*
 Assets/Art/
 Assets/LocalAssets/
+# Claude Code / uloop (ローカルツール設定)
+.claude/
+.uloop/
