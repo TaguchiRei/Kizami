@@ -15,7 +15,8 @@
         "Unity.InputSystem",
         "UniTask",
         "UsefulToolkit.Framework.Initialization.Runtime",
-        "UsefulToolkit.ProgramTools.BlackBoard.Runtime"
+        "UsefulToolkit.ProgramTools.BlackBoard.Runtime",
+        "UsefulToolkit.Input.Initialization.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
