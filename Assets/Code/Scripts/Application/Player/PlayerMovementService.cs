@@ -20,22 +20,25 @@ namespace Kizami.Application
         private readonly List<IDisposable> _subscriptions = new();
 
         /// <param name="playerBoard">PlayerMovementState の登録先</param>
-        /// <param name="inputBoard">移動入力チャンネルの取得元</param>
+        /// <param name="inputState">移動入力の取得元</param>
+        /// <param name="inputController">ActionMap 制御用</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         /// <param name="moveSpeed">MovementSpeed の上限値（m/s）</param>
-        public PlayerMovementService(PlayerBoard playerBoard, InputBoard inputBoard, int sceneId, float moveSpeed)
+        public PlayerMovementService(PlayerBoard playerBoard, IInputState inputState, IInputController inputController, int sceneId, float moveSpeed)
         {
             _moveSpeed = moveSpeed;
 
             playerBoard.RegisterSceneState<IPlayerMovementState>(_state, sceneId);
 
-            var moveChannel = inputBoard.GetChannel<Vector2>(ActionMaps.Player, PlayerActions.Move);
-            _subscriptions.Add(moveChannel.Register(OnMove));
+            _subscriptions.Add(inputState.RegisterInput<Vector2>(ActionMaps.Player, PlayerActions.Move, OnMove));
+
+            // ゲームプレイ中は Player ActionMap を有効にする
+            inputController.SwitchActionMap(ActionMaps.Player);
         }
 
         private void OnMove(InputContext<Vector2> context)
         {
-            if (context.IsCanceled)
+            if (context.Phase == InputPhase.Canceled)
             {
                 _state.ChangeMovementDirection(Vector3.zero);
                 _state.ChangeMovementSpeed(0f);

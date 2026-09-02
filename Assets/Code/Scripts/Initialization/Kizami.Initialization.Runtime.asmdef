@@ -12,6 +12,7 @@
         "UsefulToolkit.Framework.External.Runtime",
         "UsefulToolkit.Framework.EngineService.Runtime",
         "UsefulToolkit.Input.BlackBoard.Runtime",
+        "UsefulToolkit.Input.EngineService.Runtime",
         "Unity.InputSystem",
         "UniTask",
         "UsefulToolkit.Framework.Initialization.Runtime",
