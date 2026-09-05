@@ -5,7 +5,8 @@ namespace Kizami.BlackBoard
     /// <summary>
     /// ビルドモードを保持するゲームステート。
     /// </summary>
-    public class BuildModeState : GameStateBase
+    [RegisterBoard(typeof(AppBoard))]
+    public class BuildModeState : GameStateBase, IBuildModeState
     {
         public BuildMode BuildMode { get; private set; }
 

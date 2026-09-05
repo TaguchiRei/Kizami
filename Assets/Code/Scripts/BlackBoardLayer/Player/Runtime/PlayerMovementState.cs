@@ -40,6 +40,10 @@ namespace Kizami.BlackBoard
 
     public interface IPlayerMovementState : IStateGetter
     {
+        /// <summary>
+        /// 移動方向。カメラ相対の入力方向で、x が右、z が前を正とする。
+        /// ワールド方向への変換は EngineAdapterLayer 側が行う。
+        /// </summary>
         public Vector3 MovementDirection { get; }
         public float MovementSpeed { get; }
 

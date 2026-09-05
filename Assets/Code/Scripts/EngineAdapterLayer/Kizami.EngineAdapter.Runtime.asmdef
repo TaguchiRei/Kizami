@@ -1,11 +1,11 @@
 {
-    "name": "Kizami.EngineService.Runtime",
-    "rootNamespace": "Kizami.EngineService",
+    "name": "Kizami.EngineAdapter.Runtime",
+    "rootNamespace": "Kizami.EngineAdapter",
     "references": [
         "Kizami.BlackBoard.Runtime",
-        "UsefulToolkit.Framework.EngineService.Runtime",
+        "UsefulToolkit.Framework.EngineAdapter.Runtime",
         "UsefulToolkit.Framework.BlackBoard.Runtime",
-        "UsefulToolkit.Architecture.Runtime",
+        "UsefulToolkit.Input.BlackBoard.Runtime",
         "UsefulToolkit.MeshCut.Runtime",
         "UniTask"
     ],

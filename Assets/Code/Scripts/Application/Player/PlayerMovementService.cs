@@ -11,7 +11,7 @@ namespace Kizami.Application
     /// 入力から「移動方向」と「目標速度」を決めて PlayerMovementState に書き込むユースケース。
     /// PlayerMovementState の具象インスタンスはこのクラスだけが保持する（Single Writer）。
     /// 毎フレーム処理は持たず、入力イベントに反応して State を更新するだけ。
-    /// 実際の物理反映と加減速の補間は EngineServiceLayer 側（PlayerMovementAbstracter）が行う。
+    /// 実際の物理反映と加減速の補間は EngineAdapterLayer 側（PlayerMovementAbstractor）が行う。
     /// </summary>
     public sealed class PlayerMovementService : IDisposable
     {
@@ -42,6 +42,7 @@ namespace Kizami.Application
             }
 
             var raw = context.Value;
+            // x を右、z を前としたカメラ相対の方向。ワールド方向への変換は EngineAdapterLayer 側が行う
             var direction = new Vector3(raw.x, 0f, raw.y);
             var magnitude = Mathf.Clamp01(direction.magnitude);
 
