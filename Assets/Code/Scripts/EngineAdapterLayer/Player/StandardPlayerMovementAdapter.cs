@@ -1,13 +1,13 @@
-using Unity.Cinemachine;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// PC / スマホ用の移動・視点反映。
-    /// 視点は水平方向を体に、上下方向を Cinemachine カメラの Tilt 軸に入れる。体を上下に傾けないのは、
-    /// 移動方向が体の向きに従う為。上下方向の可動域は CinemachinePanTilt.TiltAxis.Range（Inspector）で管理する。
+    /// PC / スマホ用の移動・視点（左右方向）反映。
+    /// 視点は水平方向（Yaw）を体に反映する。体を上下に傾けないのは、移動方向が体の向きに従う為。
+    /// 上下方向（Pitch）は PlayerCameraAdapterBase 側（StandardPlayerCameraAdapter）が
+    /// Cinemachine カメラへ反映する。
     ///
     /// 視点入力はマウスや指の移動量として扱う為、届いたその場で回転へ加算する。
     /// 経過時間では割らない（移動量そのものが既にそのフレーム分の量である為）。
@@ -19,10 +19,6 @@ namespace Kizami.EngineAdapter
         [Tooltip("移動方向の基準に使う Transform。CinemachineCamera。体の子である必要がある。")]
         private Transform _cameraTransform;
 
-        [SerializeField]
-        [Tooltip("上下方向（Tilt）の回転を反映するコンポーネント。_cameraTransform と同じオブジェクトに付いている必要がある。")]
-        private CinemachinePanTilt _panTilt;
-
         [SerializeField, Min(0f)]
         [Tooltip("感度倍率 1.0 のときの、入力 1 単位あたりの回転角（度）")]
         private float _degreesPerInput = 0.1f;
@@ -33,9 +29,9 @@ namespace Kizami.EngineAdapter
         {
             base.Initialize();
 
-            if (_cameraTransform == null || _panTilt == null)
+            if (_cameraTransform == null)
             {
-                UsefulLogger.LogError("体またはカメラの Transform / CinemachinePanTilt が設定されていません。", this);
+                UsefulLogger.LogError("カメラの Transform が設定されていません。", this);
             }
         }
 
@@ -65,15 +61,11 @@ namespace Kizami.EngineAdapter
 
         protected override void OnLookInputChanged(Vector2 lookInput)
         {
-            if (transform == null || _panTilt == null) return;
-            if (lookInput == Vector2.zero) return;
+            if (transform == null) return;
+            if (lookInput.x == 0f) return;
 
             _yaw = Mathf.Repeat(_yaw + lookInput.x * _degreesPerInput, 360f);
             transform.localRotation = Quaternion.Euler(0f, _yaw, 0f);
-
-            // 入力の上方向へ視点を向ける = カメラの Tilt は負方向へ回る。
-            // TiltAxis.Value は MutateCameraState 内でクランプされない為、ここで TiltAxis.Range に収める
-            _panTilt.TiltAxis.Value = _panTilt.TiltAxis.ClampValue(_panTilt.TiltAxis.Value - lookInput.y * _degreesPerInput);
         }
     }
 }

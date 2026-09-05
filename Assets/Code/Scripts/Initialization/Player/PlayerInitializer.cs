@@ -19,6 +19,7 @@ namespace Kizami.Initialization
     public sealed class PlayerInitializer : InitializerBase
     {
         [SerializeField] private PlayerMovementAdapterBase movementAdapter;
+        [SerializeField] private PlayerCameraAdapterBase cameraAdapter;
 
         [SerializeField, Min(0f)]
         [Tooltip("MovementSpeed の上限値（m/s）")]
@@ -75,6 +76,12 @@ namespace Kizami.Initialization
             else
             {
                 UsefulLogger.LogError("PlayerMovementAbstractor が設定されていません。", this);
+            }
+
+            // カメラの上下方向反映は操作系によっては使わない（例: VR は HMD の姿勢が担う）為、未設定でもエラーにしない
+            if (cameraAdapter != null)
+            {
+                cameraAdapter.Initialize(playerBoard);
             }
 
             base.Initialize(blackBoard);
