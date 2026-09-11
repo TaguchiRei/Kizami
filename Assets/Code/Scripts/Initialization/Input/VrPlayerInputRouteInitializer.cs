@@ -10,7 +10,8 @@ namespace Kizami.Initialization
     /// <summary>
     /// VR の操作シーンの入力配線。VR 専用シーンにしか置かれない為、ビルドモードは参照しない。
     ///
-    /// 移動・視点ともに VRControllers のスティックをポーリングで読み、Player のチャンネルへ流す。
+    /// 移動・視点ともに VRControllers のスティックをポーリングで読み、外部入力スロット
+    /// (ExternalInputs.VrMove / VrLook) へ書き込む。
     /// InputAction の started / canceled を購読しないのは、XR デバイスのスティックでは
     /// 入力を継続していてもそれらが繰り返し発火する為。
     /// </summary>
@@ -26,31 +27,31 @@ namespace Kizami.Initialization
 
         protected override void ConnectInputSources(IBlackBoard blackBoard, IInputState inputState)
         {
-            SetUpSource(_moveSource, inputState, VRControllersActions.Move, PlayerActions.Move,
+            SetUpSource(_moveSource, inputState, VRControllersActions.Move, ExternalInputs.VrMove,
                 ignoreVertical: false);
 
             // 上下方向は HMD の姿勢が担う為、旋回の入力からは落とす
-            SetUpSource(_lookSource, inputState, VRControllersActions.Look, PlayerActions.Look,
+            SetUpSource(_lookSource, inputState, VRControllersActions.Look, ExternalInputs.VrLook,
                 ignoreVertical: true);
         }
 
         /// <param name="source">配線する入力ソース</param>
         /// <param name="inputState">入力の読み取り面</param>
         /// <param name="sourceAction">読み出し元の VRControllers の Action</param>
-        /// <param name="destinationAction">流し込み先の Player の Action</param>
+        /// <param name="destinationSlot">書き込み先の外部入力スロット</param>
         /// <param name="ignoreVertical">縦方向の入力を捨てるか</param>
         private void SetUpSource(PollingStickInputSource source, IInputState inputState,
-            VRControllersActions sourceAction, PlayerActions destinationAction, bool ignoreVertical)
+            VRControllersActions sourceAction, ExternalInputs destinationSlot, bool ignoreVertical)
         {
             if (source == null)
             {
                 UsefulLogger.LogError(
-                    $"PollingStickInputSource が設定されていない為、[{destinationAction}] を繋げません。", this);
+                    $"PollingStickInputSource が設定されていない為、[{destinationSlot}] を繋げません。", this);
                 return;
             }
 
             source.SetInput(inputState, InputController);
-            source.Bind(ActionMaps.VRControllers, sourceAction, ActionMaps.Player, destinationAction,
+            source.Bind(ActionMaps.VRControllers, sourceAction, ActionMaps.Player, destinationSlot,
                 ignoreVertical);
             source.Initialize();
         }

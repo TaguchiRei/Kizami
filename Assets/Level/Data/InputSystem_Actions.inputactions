@@ -654,10 +654,21 @@
                 {
                     "name": "",
                     "id": "4ef08b4d-a2a4-4ad7-9d63-a5fa6815f614",
-                    "path": "<Pointer>/delta",
+                    "path": "<Mouse>/delta",
                     "interactions": "",
                     "processors": "",
-                    "groups": ";Keyboard&Mouse;Touch",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "Look",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "c3a8e5f1-7b24-4d9e-8f16-5e2b9d0a4c73",
+                    "path": "<UsefulInput>/TouchLook",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Touch",
                     "action": "Look",
                     "isComposite": false,
                     "isPartOfComposite": false

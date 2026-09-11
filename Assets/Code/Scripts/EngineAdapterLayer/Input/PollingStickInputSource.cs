@@ -7,19 +7,18 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// スティック入力を毎フレーム読み出して、別の (map, action) チャンネルへ流す入力ソース。
+    /// スティック入力を毎フレーム読み出して、外部入力スロットへ書き込む入力ソース。
     /// VR コントローラのスティック用。
+    /// 書き込んだ値は仮想デバイスを経由して、スロットをバインドした InputAction として発火する。
     ///
     /// InputAction の started / canceled は一切購読しない。XR デバイスのスティックでは
     /// 入力を継続していても started と canceled が繰り返し発火する為、コールバック経由では
-    /// 入力の継続を正しく追えない。現在値の読み出し (ReadValue) だけを真とし、
-    /// phase はこのクラスが値の変化から組み立てる。
+    /// 入力の継続を正しく追えない。現在値の読み出し (ReadValue) だけを真とする。
     ///
-    /// 読み出し元の ActionMap と、流し込み先の ActionMap は別で構わない
-    /// (VRControllers を読んで Player へ流す)。発火の可否は流し込み先の ActionMap が
-    /// 有効かどうかで判定する為、アウトゲーム / インゲームの ActionMap 切り替えに追従する。
+    /// 書き込みの可否は流し込み先の ActionMap が有効かどうかで判定する為、
+    /// アウトゲーム / インゲームの ActionMap 切り替えに追従する。
     /// </summary>
-    public sealed class PollingStickInputSource : InitializableMonoBehaviour, IExternalInputSource<Vector2>
+    public sealed class PollingStickInputSource : InitializableMonoBehaviour
     {
         [SerializeField, Range(0f, 0.9f)]
         [Tooltip("この大きさ以下の入力は無入力として扱う。")]
@@ -30,17 +29,14 @@ namespace Kizami.EngineAdapter
         private Enum _sourceMap;
         private Enum _sourceAction;
         private Enum _destinationMap;
-        private Enum _destinationAction;
+        private Enum _destinationSlot;
         private bool _ignoreVertical;
 
-        private Action<InputContext<Vector2>> _onInput;
-        private IDisposable _registration;
-
-        /// <summary> 直前のフレームで入力を流していたか。Canceled を 1 度だけ流す為に持つ </summary>
+        /// <summary> 直前のフレームでゼロ以外の値を書き込んでいたか。ゼロを 1 度だけ書き込む為に持つ </summary>
         private bool _isInputActive;
 
         /// <summary>
-        /// 入力の読み出し元と、入力ソースの登録先を渡す。Initialize より前に呼ぶこと。
+        /// 入力の読み出し元と、外部入力の書き込み先を渡す。Initialize より前に呼ぶこと。
         /// </summary>
         /// <param name="inputState">入力の読み取り面</param>
         /// <param name="inputController">入力の操作面</param>
@@ -51,21 +47,21 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// どの (map, action) を読み出し、どの (map, action) として流すかを指定する。
+        /// どの (map, action) を読み出し、どの外部入力スロットへ書き込むかを指定する。
         /// Initialize より前に呼ぶこと。
         /// </summary>
         /// <param name="sourceMap">読み出し元の ActionMap</param>
         /// <param name="sourceAction">読み出し元の Action</param>
-        /// <param name="destinationMap">流し込み先の ActionMap</param>
-        /// <param name="destinationAction">流し込み先の Action</param>
+        /// <param name="destinationMap">書き込みの可否を判定する ActionMap。スロットをバインドした Action が属するもの</param>
+        /// <param name="destinationSlot">書き込み先の外部入力スロット</param>
         /// <param name="ignoreVertical">縦方向の入力を捨てるか。VR の視点操作 (左右のみ) では true</param>
-        public void Bind(Enum sourceMap, Enum sourceAction, Enum destinationMap, Enum destinationAction,
+        public void Bind(Enum sourceMap, Enum sourceAction, Enum destinationMap, Enum destinationSlot,
             bool ignoreVertical = false)
         {
             _sourceMap = sourceMap;
             _sourceAction = sourceAction;
             _destinationMap = destinationMap;
-            _destinationAction = destinationAction;
+            _destinationSlot = destinationSlot;
             _ignoreVertical = ignoreVertical;
         }
 
@@ -73,36 +69,26 @@ namespace Kizami.EngineAdapter
         {
             base.Initialize();
 
-            if (_inputState == null || _inputController == null ||
-                _sourceMap == null || _sourceAction == null ||
-                _destinationMap == null || _destinationAction == null)
+            if (!IsConfigured())
             {
                 UsefulLogger.LogError(
                     "InputState / InputController / Bind が設定されていません。" +
                     "Initialize() より前に SetInput / Bind を呼んでください。", this);
-                return;
             }
-
-            _registration = _inputController.RegisterExternalInputSource(
-                _destinationMap, _destinationAction, this);
         }
 
         private void OnDestroy()
         {
-            _registration?.Dispose();
+            ReleaseIfActive();
         }
-
-        public void RegisterAction(Action<InputContext<Vector2>> handler) => _onInput += handler;
-        public void UnRegisterAction(Action<InputContext<Vector2>> handler) => _onInput -= handler;
 
         private void Update()
         {
-            if (_inputState == null || _inputController == null ||
-                _sourceMap == null || _destinationMap == null) return;
+            if (!IsConfigured()) return;
 
             if (!_inputState.InputEnabled || !_inputState.IsActionMapActive(_destinationMap))
             {
-                RaiseCancelIfActive();
+                ReleaseIfActive();
                 return;
             }
 
@@ -119,25 +105,33 @@ namespace Kizami.EngineAdapter
 
             if (value.magnitude <= _deadZone)
             {
-                RaiseCancelIfActive();
+                ReleaseIfActive();
                 return;
             }
 
-            // 初回だけ Started、以降は Performed。値そのものはどちらでも同じものを載せる
-            var phase = _isInputActive ? InputPhase.Performed : InputPhase.Started;
             _isInputActive = true;
-            _onInput?.Invoke(new InputContext<Vector2>(phase, value));
+            _inputController.WriteExternalInput(_destinationSlot, value);
         }
 
         /// <summary>
-        /// 入力を流していた場合に限り、打ち切りを 1 度だけ通知する。
+        /// SetInput / Bind の内容が全て揃っているか。
         /// </summary>
-        private void RaiseCancelIfActive()
+        private bool IsConfigured()
+        {
+            return _inputState != null && _inputController != null &&
+                   _sourceMap != null && _sourceAction != null &&
+                   _destinationMap != null && _destinationSlot != null;
+        }
+
+        /// <summary>
+        /// ゼロ以外の値を書き込んでいた場合に限り、ゼロを 1 度だけ書き込む。
+        /// </summary>
+        private void ReleaseIfActive()
         {
             if (!_isInputActive) return;
 
             _isInputActive = false;
-            _onInput?.Invoke(new InputContext<Vector2>(InputPhase.Canceled, Vector2.zero));
+            _inputController?.WriteExternalInput(_destinationSlot, Vector2.zero);
         }
     }
 }

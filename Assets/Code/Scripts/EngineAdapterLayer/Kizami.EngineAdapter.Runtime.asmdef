@@ -8,7 +8,9 @@
         "UsefulToolkit.Input.BlackBoard.Runtime",
         "UsefulToolkit.MeshCut.Runtime",
         "UniTask",
-        "Unity.Cinemachine"
+        "Unity.Cinemachine",
+        "Unity.InputSystem",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

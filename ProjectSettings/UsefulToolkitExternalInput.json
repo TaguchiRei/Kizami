@@ -1,0 +1,16 @@
+{
+    "slots": [
+        {
+            "id": "d2e3b74971504518b259a98eaf16ee7b",
+            "name": "TouchLook"
+        },
+        {
+            "id": "b655ce602e1b4e368f1e957a48b2b3ed",
+            "name": "VrMove"
+        },
+        {
+            "id": "2d4981884e5b410896995e5e6c83b842",
+            "name": "VrLook"
+        }
+    ]
+}
