@@ -20,13 +20,8 @@ namespace Kizami.Voxel
         [Tooltip("1 フレームで再メッシュ化するチャンクの上限数")]
         private int _remeshChunksPerFrame = 8;
 
-        [SerializeField]
-        [Tooltip("チャンクごとに MeshCollider を生成するか")]
-        private bool _generateColliders = true;
-
         public float VoxelSize => _voxelSize;
         public int ChunkSize => _chunkSize;
         public int RemeshChunksPerFrame => _remeshChunksPerFrame;
-        public bool GenerateColliders => _generateColliders;
     }
 }

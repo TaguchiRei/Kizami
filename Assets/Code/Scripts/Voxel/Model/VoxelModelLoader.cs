@@ -23,6 +23,10 @@ namespace Kizami.Voxel
         private Material _materialOverride;
 
         [SerializeField]
+        [Tooltip("削られて分かれた塊を、破片として切り離すか（各パーツに VoxelFragmenter を付ける）")]
+        private bool _fragmentable = true;
+
+        [SerializeField]
         [Tooltip("Start で読み込むか")]
         private bool _loadOnStart = true;
 
@@ -71,6 +75,11 @@ namespace Kizami.Voxel
                 voxelObject.SetMaterial(ResolveMaterial(target));
                 voxelObject.LoadSdf(part);
                 _voxelObjects.Add(voxelObject);
+
+                if (_fragmentable && !target.TryGetComponent<VoxelFragmenter>(out _))
+                {
+                    target.gameObject.AddComponent<VoxelFragmenter>();
+                }
             }
 
             foreach (var sourceRenderer in _sourceRenderers)

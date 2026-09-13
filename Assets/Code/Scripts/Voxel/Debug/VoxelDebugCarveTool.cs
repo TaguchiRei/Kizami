@@ -1,3 +1,4 @@
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -6,7 +7,7 @@ namespace Kizami.Voxel.DebugTools
     /// <summary>
     /// マウスでボクセルを削る・盛る検証用ツール。カメラに付ける。
     ///
-    /// 左ボタン: 削る / 右ボタン: 盛る / ホイール: 道具の大きさ / 1・2: 球・箱
+    /// 左ボタン: 削る / 右ボタン: 盛る / ホイール: 道具の大きさ / 1・2・3: 球・箱・刃
     /// 中ボタンドラッグ または Alt + 左ドラッグ: 注視点の周りを回る
     /// </summary>
     [RequireComponent(typeof(Camera))]
@@ -15,7 +16,8 @@ namespace Kizami.Voxel.DebugTools
         private enum ToolShape
         {
             Sphere,
-            Box
+            Box,
+            Blade
         }
 
         [SerializeField, Min(0.001f)]
@@ -102,7 +104,7 @@ namespace Kizami.Voxel.DebugTools
         private void OnGUI()
         {
             GUILayout.BeginArea(new Rect(10f, 10f, 520f, 110f), GUI.skin.box);
-            GUILayout.Label("左: 削る  右: 盛る  ホイール: 大きさ  1/2: 球/箱  中ドラッグ or Alt+左ドラッグ: 回転");
+            GUILayout.Label("左: 削る  右: 盛る  ホイール: 大きさ  1/2/3: 球/箱/刃  中ドラッグ or Alt+左ドラッグ: 回転");
             GUILayout.Label($"道具: {_shape}  半径: {_radius:0.000} m  FPS: {1f / _smoothedDeltaTime:0}");
 
             if (_statsTarget != null)
@@ -117,13 +119,14 @@ namespace Kizami.Voxel.DebugTools
 
         /// <summary>
         /// ワールド空間の当たった位置を中心に、道具の形状をローカル空間へ変換して合成する。
-        /// 箱はカメラと同じ向きに置く。
+        /// 箱と刃はカメラと同じ向きに置く。刃はカメラの上方向と前方向に広がる、縦向きの薄い板。
         /// </summary>
         private void Edit(VoxelObject target, Vector3 worldPoint, VoxelCsgOperation operation)
         {
             var targetTransform = target.transform;
             var center = targetTransform.InverseTransformPoint(worldPoint);
             var radius = target.WorldToLocalLength(_radius);
+            var rotation = Quaternion.Inverse(targetTransform.rotation) * transform.rotation;
 
             switch (_shape)
             {
@@ -132,8 +135,14 @@ namespace Kizami.Voxel.DebugTools
                     break;
 
                 case ToolShape.Box:
-                    var rotation = Quaternion.Inverse(targetTransform.rotation) * transform.rotation;
                     target.ApplyEdit(new BoxShape(center, radius, rotation), operation);
+                    break;
+
+                case ToolShape.Blade:
+                    // 厚みがボクセル 1.5 個分より薄いと、刃の間に外側のサンプルが並ばず塊が分かれない
+                    var halfThickness = target.Volume.Layout.VoxelSize * 1.5f;
+                    target.ApplyEdit(new BoxShape(center, new float3(halfThickness, radius * 4f, radius * 4f), rotation),
+                        operation);
                     break;
             }
         }
@@ -144,6 +153,7 @@ namespace Kizami.Voxel.DebugTools
 
             if (keyboard.digit1Key.wasPressedThisFrame) _shape = ToolShape.Sphere;
             if (keyboard.digit2Key.wasPressedThisFrame) _shape = ToolShape.Box;
+            if (keyboard.digit3Key.wasPressedThisFrame) _shape = ToolShape.Blade;
         }
 
         private void UpdateRadius(Mouse mouse)

@@ -99,6 +99,72 @@ namespace Kizami.Voxel
             sourceSamples.Dispose();
         }
 
+        /// <summary>
+        /// 内側のサンプルを 6 近傍でつながった塊に分ける。
+        /// </summary>
+        /// <param name="labels">サンプルごとの塊の番号の出力先。長さは Layout.SampleTotal。外側は VoxelComponentLabelJob.OutsideLabel</param>
+        /// <param name="components">塊の一覧の出力先。添字が塊の番号と一致する</param>
+        public void LabelComponents(NativeArray<int> labels, NativeList<VoxelComponent> components)
+        {
+            new VoxelComponentLabelJob
+            {
+                Samples = _samples,
+                Layout = Layout,
+                Labels = labels,
+                Components = components
+            }.Schedule().Complete();
+        }
+
+        /// <summary>
+        /// 1 つの塊だけを取り出した新しいボリュームを作る。塊を囲むサンプル範囲に 1 サンプルの余白を付ける。
+        /// ボクセルの大きさ・チャンクの大きさ・ローカル空間は元と同じ。
+        /// </summary>
+        /// <param name="labels">LabelComponents が振った塊の番号</param>
+        /// <param name="component">取り出す塊</param>
+        public VoxelVolume ExtractComponent(NativeArray<int> labels, in VoxelComponent component)
+        {
+            // 内側のサンプルは最外周に無い為、1 サンプルの余白を付けても元の格子の範囲に収まる
+            var sampleMin = component.SampleMin - 1;
+            var sampleMax = component.SampleMax + 1;
+            var layout = new VoxelGridLayout(Layout.ToLocalPosition(sampleMin), sampleMax - sampleMin,
+                Layout.VoxelSize, Layout.ChunkSize);
+            var result = new VoxelVolume(layout);
+
+            new VoxelExtractComponentJob
+            {
+                SourceSamples = _samples,
+                SourceLabels = labels,
+                SourceLayout = Layout,
+                SourceSampleMin = sampleMin,
+                Label = component.Label,
+                Samples = result._samples,
+                Layout = layout
+            }.Schedule(layout.SampleTotal, 256).Complete();
+
+            return result;
+        }
+
+        /// <summary>
+        /// 1 つの塊のサンプルを外側にする。
+        /// </summary>
+        /// <param name="labels">LabelComponents が振った塊の番号</param>
+        /// <param name="component">消す塊</param>
+        public void EraseComponent(NativeArray<int> labels, in VoxelComponent component)
+        {
+            var rangeSize = component.SampleMax - component.SampleMin + 1;
+
+            new VoxelEraseComponentJob
+            {
+                Samples = _samples,
+                Labels = labels,
+                Layout = Layout,
+                RangeMin = component.SampleMin,
+                RangeSize = rangeSize,
+                Label = component.Label,
+                TruncationDistance = TruncationDistance
+            }.Schedule(rangeSize.x * rangeSize.y * rangeSize.z, 256).Complete();
+        }
+
         public void Dispose()
         {
             if (_samples.IsCreated) _samples.Dispose();

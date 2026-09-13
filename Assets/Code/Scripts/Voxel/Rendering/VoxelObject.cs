@@ -31,13 +31,24 @@ namespace Kizami.Voxel
         [Tooltip("チャンクの MeshRenderer に割り当てるマテリアル")]
         private Material _material;
 
+        [SerializeField]
+        [Tooltip("当たり判定の作り方。動く Rigidbody を付けるなら ConvexHull にする")]
+        private VoxelColliderMode _colliderMode = VoxelColliderMode.ChunkMesh;
+
         private readonly Queue<int> _dirtyQueue = new();
 
         private VoxelVolume _volume;
         private ChunkSlot[] _chunks;
         private bool[] _isDirty;
+        private MeshCollider _hullCollider;
+        private Mesh _hullMesh;
+
+        /// <summary> ApplyEdit でボリュームの値が変わったときに、合成方法を渡して呼ばれる </summary>
+        public event Action<VoxelCsgOperation> Edited;
 
         public VoxelQualitySettings Quality => _quality;
+        public Material Material => _material;
+        public VoxelColliderMode ColliderMode => _colliderMode;
         public VoxelVolume Volume => _volume;
 
         /// <summary> 再メッシュ化を待っているチャンク数 </summary>
@@ -46,11 +57,11 @@ namespace Kizami.Voxel
         /// <summary> 全チャンクの三角形数の合計 </summary>
         public int TriangleCount { get; private set; }
 
-        /// <summary> 直近の LateUpdate で再メッシュ化とコライダー更新にかかった時間 </summary>
+        /// <summary> 直近の再メッシュ化とコライダー更新にかかった時間 </summary>
         public double LastRemeshMilliseconds { get; private set; }
 
         /// <summary>
-        /// 品質設定を差し替える。CreateVolume より前に呼ぶこと。
+        /// 品質設定を差し替える。ボリュームを作る・読み込むより前に呼ぶこと。
         /// </summary>
         public void SetQuality(VoxelQualitySettings quality)
         {
@@ -63,6 +74,14 @@ namespace Kizami.Voxel
         public void SetMaterial(Material material)
         {
             _material = material;
+        }
+
+        /// <summary>
+        /// 当たり判定の作り方を差し替える。ボリュームを作る・読み込むより前に呼ぶこと。
+        /// </summary>
+        public void SetColliderMode(VoxelColliderMode colliderMode)
+        {
+            _colliderMode = colliderMode;
         }
 
         /// <summary>
@@ -95,9 +114,19 @@ namespace Kizami.Voxel
 
             var volume = new VoxelVolume(layout);
             volume.Resample(source);
+            LoadVolume(volume);
+        }
+
+        /// <summary>
+        /// 作成済みのボリュームを読み込む。ボリュームの所有権はこの VoxelObject に移り、破棄もこちらで行う。
+        /// 既存のボリュームとチャンクは破棄し、全チャンクを再メッシュ化の対象にする。
+        /// </summary>
+        /// <param name="volume">この Transform のローカル空間で表したボリューム</param>
+        public void LoadVolume(VoxelVolume volume)
+        {
             AssignVolume(volume);
 
-            for (var i = 0; i < layout.ChunkTotal; i++)
+            for (var i = 0; i < volume.Layout.ChunkTotal; i++)
             {
                 MarkDirty(i);
             }
@@ -120,15 +149,18 @@ namespace Kizami.Voxel
             var result = _volume.ApplyEdit(localShape, operation);
             if (!result.HasChange) return;
 
-            var layout = _volume.Layout;
-            layout.GetChunksAffectedBySamples(result.SampleMin, result.SampleMax, out var chunkMin, out var chunkMax);
+            MarkSamplesDirty(result.SampleMin, result.SampleMax);
+            Edited?.Invoke(operation);
+        }
 
-            for (var z = chunkMin.z; z <= chunkMax.z; z++)
-            for (var y = chunkMin.y; y <= chunkMax.y; y++)
-            for (var x = chunkMin.x; x <= chunkMax.x; x++)
-            {
-                MarkDirty(layout.ToChunkIndex(new int3(x, y, z)));
-            }
+        /// <summary>
+        /// 再メッシュ化を待っている全チャンクを、1 フレームあたりの上限を無視して今すぐ作り直す。
+        /// </summary>
+        public void FlushRemesh()
+        {
+            if (_volume == null || _dirtyQueue.Count == 0) return;
+
+            RemeshPending(_dirtyQueue.Count);
         }
 
         /// <summary>
@@ -139,17 +171,53 @@ namespace Kizami.Voxel
             return worldLength / transform.lossyScale.x;
         }
 
+        /// <summary>
+        /// 塊のサンプルを外側にし、影響するチャンクを再メッシュ化の対象にする。
+        /// </summary>
+        /// <param name="labels">VoxelVolume.LabelComponents が振った塊の番号</param>
+        /// <param name="component">消す塊</param>
+        internal void EraseComponent(NativeArray<int> labels, in VoxelComponent component)
+        {
+            _volume.EraseComponent(labels, component);
+            MarkSamplesDirty(component.SampleMin, component.SampleMax);
+        }
+
+        private void Awake()
+        {
+#if UNITY_EDITOR
+            UnityEditor.AssemblyReloadEvents.beforeAssemblyReload += DisposeVolumeBeforeAssemblyReload;
+#endif
+        }
+
         private void LateUpdate()
         {
             if (_volume == null || _dirtyQueue.Count == 0) return;
 
-            RemeshPending();
+            RemeshPending(_quality.RemeshChunksPerFrame);
         }
 
         private void OnDestroy()
         {
+#if UNITY_EDITOR
+            UnityEditor.AssemblyReloadEvents.beforeAssemblyReload -= DisposeVolumeBeforeAssemblyReload;
+#endif
             ReleaseVolume();
+
+            if (_hullMesh != null) Destroy(_hullMesh);
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// ボリュームの NativeArray を解放する。
+        /// 再生中にスクリプトが再コンパイルされると OnDestroy を経ずに C# 側の参照が失われ、解放漏れになる為、
+        /// ドメインリロードの直前に呼ぶ。
+        /// </summary>
+        private void DisposeVolumeBeforeAssemblyReload()
+        {
+            _volume?.Dispose();
+            _volume = null;
+        }
+#endif
 
         private bool TryCreateLayout(VoxelBounds localBounds, out VoxelGridLayout layout)
         {
@@ -176,6 +244,22 @@ namespace Kizami.Voxel
             _isDirty = new bool[volume.Layout.ChunkTotal];
         }
 
+        /// <summary>
+        /// サンプル範囲 [sampleMin, sampleMax] の変更で影響を受けるチャンクを、再メッシュ化の対象にする。
+        /// </summary>
+        private void MarkSamplesDirty(int3 sampleMin, int3 sampleMax)
+        {
+            var layout = _volume.Layout;
+            layout.GetChunksAffectedBySamples(sampleMin, sampleMax, out var chunkMin, out var chunkMax);
+
+            for (var z = chunkMin.z; z <= chunkMax.z; z++)
+            for (var y = chunkMin.y; y <= chunkMax.y; y++)
+            for (var x = chunkMin.x; x <= chunkMax.x; x++)
+            {
+                MarkDirty(layout.ToChunkIndex(new int3(x, y, z)));
+            }
+        }
+
         private void MarkDirty(int chunkIndex)
         {
             if (_isDirty[chunkIndex]) return;
@@ -185,13 +269,14 @@ namespace Kizami.Voxel
         }
 
         /// <summary>
-        /// 待ち行列の先頭から上限数までのチャンクを並列にメッシュ化し、メッシュとコライダーへ反映する。
+        /// 待ち行列の先頭から maxCount 個までのチャンクを並列にメッシュ化し、メッシュとコライダーへ反映する。
         /// </summary>
-        private void RemeshPending()
+        private void RemeshPending(int maxCount)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var layout = _volume.Layout;
-            var count = math.min(_quality.RemeshChunksPerFrame, _dirtyQueue.Count);
+            var useHull = _colliderMode == VoxelColliderMode.ConvexHull;
+            var count = math.min(maxCount, _dirtyQueue.Count);
             var chunkIndices = new int[count];
             var buffers = new MeshBuffers[count];
             var handles = new NativeArray<JobHandle>(count, Allocator.Temp);
@@ -203,7 +288,7 @@ namespace Kizami.Voxel
                 chunkIndices[i] = chunkIndex;
                 buffers[i] = new MeshBuffers(Allocator.TempJob);
 
-                handles[i] = new SurfaceNetsJob
+                var meshingHandle = new SurfaceNetsJob
                 {
                     Samples = _volume.Samples,
                     Layout = layout,
@@ -212,6 +297,14 @@ namespace Kizami.Voxel
                     Normals = buffers[i].Normals,
                     Indices = buffers[i].Indices
                 }.Schedule();
+
+                handles[i] = useHull
+                    ? new ExtremePointsJob
+                    {
+                        Points = buffers[i].Vertices.AsDeferredJobArray(),
+                        Extremes = buffers[i].Extremes
+                    }.Schedule(meshingHandle)
+                    : meshingHandle;
             }
 
             JobHandle.CombineDependencies(handles).Complete();
@@ -220,13 +313,22 @@ namespace Kizami.Voxel
             var colliderTargets = new List<ChunkSlot>(count);
             for (var i = 0; i < count; i++)
             {
-                var slot = ApplyMesh(chunkIndices[i], buffers[i]);
+                var slot = ApplyMesh(chunkIndices[i], buffers[i], useHull);
                 if (slot?.Collider != null) colliderTargets.Add(slot);
 
                 buffers[i].Dispose();
             }
 
-            BakeColliders(colliderTargets);
+            switch (_colliderMode)
+            {
+                case VoxelColliderMode.ChunkMesh:
+                    BakeColliders(colliderTargets);
+                    break;
+
+                case VoxelColliderMode.ConvexHull:
+                    RebuildHullCollider();
+                    break;
+            }
 
             LastRemeshMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
         }
@@ -235,7 +337,7 @@ namespace Kizami.Voxel
         /// メッシュ化の結果をチャンクへ反映する。
         /// </summary>
         /// <returns>面を持つチャンク。面が無ければ null</returns>
-        private ChunkSlot ApplyMesh(int chunkIndex, MeshBuffers buffers)
+        private ChunkSlot ApplyMesh(int chunkIndex, MeshBuffers buffers, bool useHull)
         {
             var slot = _chunks[chunkIndex];
             var triangleCount = buffers.Indices.Length / 3;
@@ -254,6 +356,7 @@ namespace Kizami.Voxel
 
             var layout = _volume.Layout;
             slot.SetMesh(buffers, layout.GetChunkMeshBounds(layout.ToChunkCoord(chunkIndex)), triangleCount);
+            slot.ExtremePoints = useHull ? buffers.Extremes.ToArray() : null;
             return slot;
         }
 
@@ -280,6 +383,79 @@ namespace Kizami.Voxel
             }
         }
 
+        /// <summary>
+        /// 全チャンクの極点から、方向ごとに最も外側の点を選び直し、その点群の凸包をこの GameObject の MeshCollider にする。
+        /// 点が 4 つ未満なら当たり判定を無効にする。
+        /// </summary>
+        private void RebuildHullCollider()
+        {
+            var directions = new float3[VoxelHullDirections.Count];
+            var bestPoints = new float3[VoxelHullDirections.Count];
+            var bestDots = new float[VoxelHullDirections.Count];
+            for (var d = 0; d < directions.Length; d++)
+            {
+                directions[d] = VoxelHullDirections.Get(d);
+                bestDots[d] = float.NegativeInfinity;
+            }
+
+            foreach (var slot in _chunks)
+            {
+                if (slot?.ExtremePoints == null) continue;
+
+                foreach (var point in slot.ExtremePoints)
+                {
+                    for (var d = 0; d < directions.Length; d++)
+                    {
+                        var dot = math.dot(point, directions[d]);
+                        if (dot <= bestDots[d]) continue;
+
+                        bestDots[d] = dot;
+                        bestPoints[d] = point;
+                    }
+                }
+            }
+
+            var vertices = new List<Vector3>(VoxelHullDirections.Count);
+            for (var d = 0; d < bestPoints.Length; d++)
+            {
+                if (float.IsNegativeInfinity(bestDots[d])) continue;
+
+                Vector3 point = bestPoints[d];
+                if (!vertices.Contains(point)) vertices.Add(point);
+            }
+
+            if (vertices.Count < 4)
+            {
+                if (_hullCollider != null) _hullCollider.enabled = false;
+                return;
+            }
+
+            if (_hullMesh == null) _hullMesh = new Mesh { name = $"{name}_Hull" };
+            _hullMesh.Clear();
+            _hullMesh.SetVertices(vertices);
+
+            // 凸包の計算は頂点だけを使う。三角形は Mesh として有効にする為の仮のもの
+            var triangles = new int[(vertices.Count - 2) * 3];
+            for (var i = 0; i < vertices.Count - 2; i++)
+            {
+                triangles[i * 3] = 0;
+                triangles[i * 3 + 1] = i + 1;
+                triangles[i * 3 + 2] = i + 2;
+            }
+
+            _hullMesh.SetTriangles(triangles, 0);
+
+            if (_hullCollider == null)
+            {
+                _hullCollider = gameObject.AddComponent<MeshCollider>();
+                _hullCollider.convex = true;
+            }
+
+            _hullCollider.sharedMesh = null;
+            _hullCollider.sharedMesh = _hullMesh;
+            _hullCollider.enabled = true;
+        }
+
         private ChunkSlot CreateChunkSlot(int chunkIndex)
         {
             var coord = _volume.Layout.ToChunkCoord(chunkIndex);
@@ -302,7 +478,7 @@ namespace Kizami.Voxel
 
             // MeshFilter に空の Mesh が入った状態で追加すると、空の Mesh をベイクしようとする為、先に追加する
             MeshCollider meshCollider = null;
-            if (_quality.GenerateColliders)
+            if (_colliderMode == VoxelColliderMode.ChunkMesh)
             {
                 meshCollider = chunkObject.AddComponent<MeshCollider>();
                 meshCollider.cookingOptions = ColliderCookingOptions;
@@ -326,6 +502,12 @@ namespace Kizami.Voxel
                 }
             }
 
+            if (_hullCollider != null)
+            {
+                _hullCollider.sharedMesh = null;
+                _hullCollider.enabled = false;
+            }
+
             _chunks = null;
             _isDirty = null;
             _dirtyQueue.Clear();
@@ -344,11 +526,15 @@ namespace Kizami.Voxel
             public NativeList<float3> Normals;
             public NativeList<int> Indices;
 
+            /// <summary> VoxelHullDirections の方向ごとの、頂点の中で最も外側の点 </summary>
+            public NativeArray<float3> Extremes;
+
             public MeshBuffers(Allocator allocator)
             {
                 Vertices = new NativeList<float3>(1024, allocator);
                 Normals = new NativeList<float3>(1024, allocator);
                 Indices = new NativeList<int>(4096, allocator);
+                Extremes = new NativeArray<float3>(VoxelHullDirections.Count, allocator);
             }
 
             public void Dispose()
@@ -356,6 +542,7 @@ namespace Kizami.Voxel
                 Vertices.Dispose();
                 Normals.Dispose();
                 Indices.Dispose();
+                Extremes.Dispose();
             }
         }
 
@@ -378,6 +565,9 @@ namespace Kizami.Voxel
             }
 
             public int TriangleCount { get; private set; }
+
+            /// <summary> 凸包コライダー用の、方向ごとに最も外側の頂点。ConvexHull 以外や面が無いときは null </summary>
+            public float3[] ExtremePoints { get; set; }
 
             public void SetMesh(MeshBuffers buffers, VoxelBounds bounds, int triangleCount)
             {
@@ -410,6 +600,7 @@ namespace Kizami.Voxel
                 Mesh.Clear();
                 Renderer.enabled = false;
                 TriangleCount = 0;
+                ExtremePoints = null;
 
                 if (Collider == null) return;
 
