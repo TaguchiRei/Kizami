@@ -130,7 +130,6 @@ GameObject:
   - component: {fileID: 27289464}
   - component: {fileID: 27289466}
   - component: {fileID: 27289465}
-  - component: {fileID: 27289467}
   m_Layer: 0
   m_Name: VoxelObject
   m_TagString: Untagged
@@ -182,19 +181,8 @@ MonoBehaviour:
   _quality: {fileID: 11400000, guid: fe6a8364fad72f0419203196fb540b17, type: 2}
   _material: {fileID: 2100000, guid: b86a7a2f1c684b2488b6746527bc9d31, type: 2}
   _colliderMode: 1
---- !u!114 &27289467
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 27289463}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 43663e277bf0f0e4ab5a9e5b72d6598e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.Voxel.Runtime::Kizami.Voxel.VoxelFragmenter
-  _minFragmentSamples: 8
+  _splittable: 1
+  _minPieceSamples: 8
   _density: 500
   _destroyBelowY: -20
 --- !u!1 &48190380

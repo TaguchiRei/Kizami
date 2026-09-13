@@ -8,8 +8,11 @@
         "UsefulToolkit.Input.BlackBoard.Runtime",
         "UsefulToolkit.MeshCut.Runtime",
         "UniTask",
+        "Unity.Burst",
         "Unity.Cinemachine",
+        "Unity.Collections",
         "Unity.InputSystem",
+        "Unity.Mathematics",
         "UnityEngine.UI"
     ],
     "includePlatforms": [],
