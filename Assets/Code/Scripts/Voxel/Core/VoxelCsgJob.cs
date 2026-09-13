@@ -26,9 +26,6 @@ namespace Kizami.Voxel
     [BurstCompile]
     public struct VoxelCsgJob<TShape> : IJobParallelFor where TShape : struct, IVoxelShape
     {
-        /// <summary> 最外周のサンプルに強制する最小の距離（ボクセル数換算） </summary>
-        private const float BoundaryMinVoxels = 0.01f;
-
         [NativeDisableParallelForRestriction] public NativeArray<float> Samples;
         public VoxelGridLayout Layout;
         public TShape Shape;
@@ -53,13 +50,7 @@ namespace Kizami.Voxel
                 : math.max(current, -shapeDistance);
             result = math.clamp(result, -TruncationDistance, TruncationDistance);
 
-            // 最外周を外側に保つ。メッシュが格子の端で開かない為の不変条件
-            if (Layout.IsBoundarySample(sample))
-            {
-                result = math.max(result, Layout.VoxelSize * BoundaryMinVoxels);
-            }
-
-            Samples[sampleIndex] = result;
+            Samples[sampleIndex] = Layout.EnforceBoundary(sample, result);
         }
     }
 }

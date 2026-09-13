@@ -75,6 +75,30 @@ namespace Kizami.Voxel
             return new VoxelEditResult(sampleMin, sampleMax);
         }
 
+        /// <summary>
+        /// 事前ベイクした SDF をトリリニア補間でこのボリュームの格子へ写す。既存の値は全て上書きする。
+        /// ベイクした範囲の外は外側として扱う。
+        /// </summary>
+        /// <param name="source">写す元の SDF。Layout と同じローカル空間でベイクしたもの</param>
+        public void Resample(VoxelSdfData source)
+        {
+            var sourceSamples = new NativeArray<short>(source.Samples, Allocator.TempJob);
+
+            new VoxelResampleJob
+            {
+                SourceSamples = sourceSamples,
+                SourceSampleCount = source.SampleCount,
+                SourceOrigin = source.Origin,
+                SourceVoxelSize = source.VoxelSize,
+                SourceMaxDistance = source.MaxDistance,
+                Samples = _samples,
+                Layout = Layout,
+                TruncationDistance = TruncationDistance
+            }.Schedule(_samples.Length, 256).Complete();
+
+            sourceSamples.Dispose();
+        }
+
         public void Dispose()
         {
             if (_samples.IsCreated) _samples.Dispose();

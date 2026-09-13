@@ -19,6 +19,9 @@ namespace Kizami.Voxel
         /// </summary>
         public const int MeshingReadMargin = 2;
 
+        /// <summary> 最外周のサンプルに強制する最小の距離（ボクセル数換算） </summary>
+        private const float BoundaryMinVoxels = 0.01f;
+
         public readonly float3 Origin;
         public readonly float VoxelSize;
         public readonly int3 CellCount;
@@ -54,6 +57,12 @@ namespace Kizami.Voxel
             return sample.x + SampleCount.x * (sample.y + SampleCount.y * sample.z);
         }
 
+        public int3 ToSampleCoord(int index)
+        {
+            var yz = index / SampleCount.x;
+            return new int3(index % SampleCount.x, yz % SampleCount.y, yz / SampleCount.y);
+        }
+
         public float3 ToLocalPosition(int3 sample)
         {
             return Origin + (float3)sample * VoxelSize;
@@ -73,6 +82,16 @@ namespace Kizami.Voxel
         public bool IsBoundarySample(int3 sample)
         {
             return math.any(sample == 0) || math.any(sample == SampleCount - 1);
+        }
+
+        /// <summary>
+        /// 最外周のサンプルなら、距離を小さな正の値以上に引き上げる。
+        /// 「最外周は常に外側」という不変条件を守る為、ボリュームへ距離を書き込む処理は全てこれを通すこと。
+        /// 通さないと、格子の端でメッシュが開く。
+        /// </summary>
+        public float EnforceBoundary(int3 sample, float distance)
+        {
+            return IsBoundarySample(sample) ? math.max(distance, VoxelSize * BoundaryMinVoxels) : distance;
         }
 
         public int ToChunkIndex(int3 chunk)

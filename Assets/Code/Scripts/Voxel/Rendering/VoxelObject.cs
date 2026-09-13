@@ -58,25 +58,49 @@ namespace Kizami.Voxel
         }
 
         /// <summary>
+        /// チャンクの MeshRenderer に割り当てるマテリアルを差し替える。これ以降に生成するチャンクから反映される。
+        /// </summary>
+        public void SetMaterial(Material material)
+        {
+            _material = material;
+        }
+
+        /// <summary>
         /// ローカル空間の境界を覆う空のボリュームを作る。既存のボリュームとチャンクは破棄する。
         /// ボクセルの大きさは、品質設定のワールド空間の長さをこの Transform のスケールで割ったもの。
         /// </summary>
         /// <param name="localBounds">ボリュームで覆うローカル空間の範囲</param>
         public void CreateVolume(VoxelBounds localBounds)
         {
-            if (_quality == null)
+            if (!TryCreateLayout(localBounds, out var layout)) return;
+
+            AssignVolume(new VoxelVolume(layout));
+        }
+
+        /// <summary>
+        /// 事前ベイクした SDF を、品質設定のボクセルの大きさへリサンプルして読み込む。
+        /// 既存のボリュームとチャンクは破棄し、全チャンクを再メッシュ化の対象にする。
+        /// </summary>
+        /// <param name="source">この Transform のローカル空間でベイクした SDF</param>
+        public void LoadSdf(VoxelSdfData source)
+        {
+            if (!TryCreateLayout(source.LocalBounds, out var layout)) return;
+
+            if (source.MaxDistance < layout.VoxelSize * 2f)
             {
-                Debug.LogError("VoxelQualitySettings が設定されていません。", this);
-                return;
+                Debug.LogWarning(
+                    $"ベイク時の最大距離 {source.MaxDistance} がボクセル 2 つ分 {layout.VoxelSize * 2f} より短い為、法線が荒れます。" +
+                    "最大距離を大きくしてベイクし直してください。", this);
             }
 
-            var layout = VoxelGridLayout.FromBounds(localBounds, WorldToLocalLength(_quality.VoxelSize),
-                _quality.ChunkSize);
+            var volume = new VoxelVolume(layout);
+            volume.Resample(source);
+            AssignVolume(volume);
 
-            ReleaseVolume();
-            _volume = new VoxelVolume(layout);
-            _chunks = new ChunkSlot[layout.ChunkTotal];
-            _isDirty = new bool[layout.ChunkTotal];
+            for (var i = 0; i < layout.ChunkTotal; i++)
+            {
+                MarkDirty(i);
+            }
         }
 
         /// <summary>
@@ -125,6 +149,31 @@ namespace Kizami.Voxel
         private void OnDestroy()
         {
             ReleaseVolume();
+        }
+
+        private bool TryCreateLayout(VoxelBounds localBounds, out VoxelGridLayout layout)
+        {
+            if (_quality == null)
+            {
+                Debug.LogError("VoxelQualitySettings が設定されていません。", this);
+                layout = default;
+                return false;
+            }
+
+            layout = VoxelGridLayout.FromBounds(localBounds, WorldToLocalLength(_quality.VoxelSize),
+                _quality.ChunkSize);
+            return true;
+        }
+
+        /// <summary>
+        /// 既存のボリュームとチャンクを破棄し、新しいボリュームに差し替える。
+        /// </summary>
+        private void AssignVolume(VoxelVolume volume)
+        {
+            ReleaseVolume();
+            _volume = volume;
+            _chunks = new ChunkSlot[volume.Layout.ChunkTotal];
+            _isDirty = new bool[volume.Layout.ChunkTotal];
         }
 
         private void MarkDirty(int chunkIndex)
