@@ -5,10 +5,11 @@ using UnityEngine.InputSystem;
 namespace Kizami.EngineAdapter.Voxel.DebugTools
 {
     /// <summary>
-    /// マウスでボクセルを削る・盛る検証用ツール。カメラに付ける。
+    /// マウスでボクセルを削る・盛る・加熱する検証用ツール。カメラに付ける。
     ///
-    /// 左ボタン: 削る / 右ボタン: 盛る / ホイール: 道具の大きさ / 1・2・3: 球・箱・刃
-    /// 中ボタンドラッグ または Alt + 左ドラッグ: 注視点の周りを回る
+    /// 左ボタン: 削る（熱: 加熱） / 右ボタン: 盛る（熱: 冷却） / ホイール: 道具の大きさ / 1・2・3・4: 球・箱・刃・熱
+    /// 中ボタンドラッグ または Alt + 左ドラッグ: 注視点の周りを回る / F1: 検証用の画面表示を切り替える
+    /// 熱の道具は、シーンに VoxelMeltSystem があればそれを通して範囲内の全ピースを、無ければ当たったピースだけを加熱する。
     /// </summary>
     [RequireComponent(typeof(Camera))]
     public sealed class VoxelDebugCarveTool : MonoBehaviour
@@ -17,7 +18,8 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
         {
             Sphere,
             Box,
-            Blade
+            Blade,
+            Heat
         }
 
         [SerializeField, Min(0.001f)]
@@ -29,12 +31,16 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
         private Vector2 _radiusRange = new(0.02f, 0.5f);
 
         [SerializeField]
-        [Tooltip("ボタンを押している間、編集し続けるか。false ならボタンを押した瞬間に 1 回だけ編集する。")]
+        [Tooltip("ボタンを押している間、編集し続けるか。false ならボタンを押した瞬間に 1 回だけ編集する。熱の道具には効かない")]
         private bool _continuous = true;
 
         [SerializeField, Min(1f)]
         [Tooltip("ボタンを押し続けたときの 1 秒あたりの編集回数")]
         private float _editsPerSecond = 30f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("熱の道具で、ボタンを押している間に 1 秒あたりに加える温度")]
+        private float _heatPerSecond = 1.5f;
 
         [SerializeField]
         [Tooltip("ドラッグで回るときの中心")]
@@ -45,6 +51,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
         private float _orbitDegreesPerPixel = 0.3f;
 
         private Camera _camera;
+        private VoxelMeltSystem _meltSystem;
         private ToolShape _shape;
         private VoxelPiece _statsTarget;
         private float _yaw;
@@ -52,10 +59,13 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
         private float _distance;
         private float _smoothedDeltaTime = 1f / 60f;
         private float _nextEditTime;
+        private bool _hasCursorTemperature;
+        private float _cursorTemperature;
 
         private void Start()
         {
             _camera = GetComponent<Camera>();
+            _meltSystem = FindAnyObjectByType<VoxelMeltSystem>();
             _statsTarget = FindAnyObjectByType<VoxelPiece>();
 
             if (_orbitTarget == null) return;
@@ -78,10 +88,27 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
             UpdateShape(keyboard);
             UpdateRadius(mouse);
 
+            if (keyboard != null && keyboard.f1Key.wasPressedThisFrame)
+            {
+                VoxelDebugHud.IsVisible = !VoxelDebugHud.IsVisible;
+            }
+
             var isAltPressed = keyboard != null && keyboard.altKey.isPressed;
             if (mouse.middleButton.isPressed || (isAltPressed && mouse.leftButton.isPressed))
             {
                 Orbit(mouse.delta.ReadValue());
+                return;
+            }
+
+            var target = RaycastPiece(mouse, out var hit);
+            _hasCursorTemperature = target != null;
+            if (target == null) return;
+
+            _cursorTemperature = target.SampleTemperature(hit.point);
+
+            if (_shape == ToolShape.Heat)
+            {
+                UpdateHeat(mouse, target, hit.point);
                 return;
             }
 
@@ -90,12 +117,6 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
             if (!left && !right) return;
             if (_continuous && Time.unscaledTime < _nextEditTime) return;
 
-            var ray = _camera.ScreenPointToRay(mouse.position.ReadValue());
-            if (!Physics.Raycast(ray, out var hit, 100f)) return;
-
-            var target = hit.collider.GetComponentInParent<VoxelPiece>();
-            if (target == null) return;
-
             _statsTarget = target;
             _nextEditTime = Time.unscaledTime + 1f / _editsPerSecond;
             Edit(target, hit.point, left ? VoxelCsgOperation.Subtract : VoxelCsgOperation.Union);
@@ -103,9 +124,12 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
 
         private void OnGUI()
         {
-            GUILayout.BeginArea(new Rect(10f, 10f, 560f, 130f), GUI.skin.box);
-            GUILayout.Label("左: 削る  右: 盛る  ホイール: 大きさ  1/2/3: 球/箱/刃  中ドラッグ or Alt+左ドラッグ: 回転");
-            GUILayout.Label($"道具: {_shape}  半径: {_radius:0.000} m  FPS: {1f / _smoothedDeltaTime:0}");
+            if (!VoxelDebugHud.IsVisible) return;
+
+            GUILayout.BeginArea(new Rect(10f, 10f, 560f, 150f), GUI.skin.box);
+            GUILayout.Label("左: 削る（熱: 加熱）  右: 盛る（熱: 冷却）  ホイール: 大きさ  " +
+                            "中ドラッグ or Alt+左ドラッグ: 回転  F1: 表示の切り替え");
+            GUILayout.Label($"1/2/3/4: 球/箱/刃/熱  道具: {_shape}  半径: {_radius:0.000} m  FPS: {1f / _smoothedDeltaTime:0}");
 
             if (_statsTarget != null)
             {
@@ -116,7 +140,44 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
                                 $"体積: {_statsTarget.Volume:0.0000} m³（初期比 {_statsTarget.RelativeVolume:P0}）");
             }
 
+            var temperature = _hasCursorTemperature ? $"{_cursorTemperature:0.00}" : "-";
+            var melt = _meltSystem != null
+                ? $"  粒: {_meltSystem.ParticleCount:N0} 個（{_meltSystem.FluidVolume * 1000f:0.00} L, " +
+                  $"固まり {_meltSystem.FrozenCount:N0} 個）  蒸発: {_meltSystem.EvaporatedVolume * 1000f:0.00} L"
+                : "";
+            GUILayout.Label($"カーソル位置の温度: {temperature}{melt}");
+
             GUILayout.EndArea();
+        }
+
+        private VoxelPiece RaycastPiece(Mouse mouse, out RaycastHit hit)
+        {
+            var ray = _camera.ScreenPointToRay(mouse.position.ReadValue());
+            return Physics.Raycast(ray, out hit, 100f) ? hit.collider.GetComponentInParent<VoxelPiece>() : null;
+        }
+
+        /// <summary>
+        /// ボタンを押している間、当たった位置を中心とする球の範囲を、左なら加熱、右なら冷却する。
+        /// 熱は球の境界で 0、境界から半径の半分だけ内側で最大になる。
+        /// </summary>
+        private void UpdateHeat(Mouse mouse, VoxelPiece target, Vector3 worldPoint)
+        {
+            var direction = (mouse.leftButton.isPressed ? 1f : 0f) - (mouse.rightButton.isPressed ? 1f : 0f);
+            if (direction == 0f) return;
+
+            _statsTarget = target;
+            var shape = new SphereShape(worldPoint, _radius);
+            var amount = direction * _heatPerSecond * Time.deltaTime;
+            var falloff = _radius * 0.5f;
+
+            if (_meltSystem != null)
+            {
+                _meltSystem.ApplyHeat(shape, amount, falloff);
+            }
+            else
+            {
+                target.ApplyHeat(shape, amount, falloff, Space.World);
+            }
         }
 
         /// <summary>
@@ -152,6 +213,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
             if (keyboard.digit1Key.wasPressedThisFrame) _shape = ToolShape.Sphere;
             if (keyboard.digit2Key.wasPressedThisFrame) _shape = ToolShape.Box;
             if (keyboard.digit3Key.wasPressedThisFrame) _shape = ToolShape.Blade;
+            if (keyboard.digit4Key.wasPressedThisFrame) _shape = ToolShape.Heat;
         }
 
         private void UpdateRadius(Mouse mouse)

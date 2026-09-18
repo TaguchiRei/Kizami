@@ -20,6 +20,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
 
         private readonly List<IDisposable> _registrations = new();
         private int _shapeChangedCount;
+        private int _meltChangedCount;
         private int _splitCount;
         private int _destroyedCount;
         private string _lastSplit = "-";
@@ -55,6 +56,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
         private void OnShapeChanged(VoxelShapeChange change)
         {
             _shapeChangedCount++;
+            if (change.Cause == VoxelShapeChangeCause.Melt) _meltChangedCount++;
         }
 
         private void OnSplit(VoxelPiece[] pieces)
@@ -80,7 +82,10 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
 
         private void OnGUI()
         {
-            var text = $"形状変化: {_shapeChangedCount} 回  分離: {_splitCount} 回（直近: {_lastSplit}）\n" +
+            if (!VoxelDebugHud.IsVisible) return;
+
+            var text = $"形状変化: {_shapeChangedCount} 回（うち融解 {_meltChangedCount} 回）  " +
+                       $"分離: {_splitCount} 回（直近: {_lastSplit}）\n" +
                        $"破棄: {_destroyedCount} 個（直近: {_lastDestroyed}）";
 
             if (_loader != null)
@@ -89,7 +94,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
                         $"モデルの体積: {_loader.Volume:0.000} m³（初期比 {_loader.RelativeVolume:P0}）";
             }
 
-            GUI.Box(new Rect(10f, 176f, 560f, 44f), text);
+            GUI.Box(new Rect(10f, 196f, 560f, 44f), text);
         }
     }
 }

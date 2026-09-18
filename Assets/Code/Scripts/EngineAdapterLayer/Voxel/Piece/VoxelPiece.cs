@@ -16,8 +16,10 @@ namespace Kizami.EngineAdapter.Voxel
     /// 削られて内側が複数の塊に分かれたら、最も大きい塊を残し、
     /// 他の塊を Rigidbody 付きの新しい VoxelPiece として切り離す。
     ///
+    /// 加熱されて融点以上になった部分は取り除き、VoxelMeltSystem へ融解した粒として渡す。
+    ///
     /// ボクセル空間はこの Transform のローカル空間。Transform のスケールは均一である前提。
-    /// 編集後の処理（体積の計測 → 分離 → コールバック → 再メッシュ化）は、編集したフレームの LateUpdate でまとめて行う。
+    /// 編集後の処理（冷却 → 体積の計測 → 分離 → コールバック → 再メッシュ化）は、編集したフレームの LateUpdate でまとめて行う。
     /// </summary>
     public sealed class VoxelPiece : MonoBehaviour
     {
@@ -57,6 +59,11 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("切り離したピースがこの高さ（ワールド空間の Y）より下に落ちたら破棄する")]
         private float _destroyBelowY = -20f;
 
+        [Header("融解")]
+        [SerializeField]
+        [Tooltip("融解・蒸発した分の送り先。未設定なら加熱しても何も起きない")]
+        private VoxelMeltSystem _meltSystem;
+
         private readonly Queue<int> _dirtyQueue = new();
         private readonly List<VoxelShapeChange> _pendingShapeChanges = new();
         private readonly ActionChannel<VoxelShapeChange> _shapeChanged = new();
@@ -71,11 +78,17 @@ namespace Kizami.EngineAdapter.Voxel
         private bool _needsMeasure;
         private bool _needsSplitCheck;
         private bool _hasInitialSampleCount;
+        private bool _meltedSinceMeasure;
+        private bool _hasWarnedMissingThermalSettings;
 
         public VoxelQualitySettings Quality => _quality;
         public Material Material => _material;
         public VoxelColliderMode ColliderMode => _colliderMode;
         public bool IsSplittable => _splittable;
+        public VoxelMeltSystem MeltSystem => _meltSystem;
+
+        /// <summary> 粒との当たり判定などで SDF を直接読む為のボリューム。まだ作られていなければ null </summary>
+        internal VoxelVolume VolumeData => _volume;
 
         /// <summary> ボクセル 1 つの一辺の長さ（ワールド空間, m）。ボリュームが無ければ 0 </summary>
         public float VoxelSize => _volume != null ? _volume.Layout.VoxelSize * transform.lossyScale.x : 0f;
@@ -189,6 +202,18 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// 融解・蒸発した分の送り先を差し替える。
+        /// </summary>
+        public void SetMeltSystem(VoxelMeltSystem meltSystem)
+        {
+            if (_meltSystem == meltSystem) return;
+
+            if (isActiveAndEnabled && _meltSystem != null) _meltSystem.Unregister(this);
+            _meltSystem = meltSystem;
+            if (isActiveAndEnabled && _meltSystem != null) _meltSystem.Register(this);
+        }
+
+        /// <summary>
         /// ローカル空間の境界を覆う空のボリュームを作る。既存のボリュームとチャンクは破棄する。
         /// ボクセルの大きさは、品質設定のワールド空間の長さをこの Transform のスケールで割ったもの。
         /// 初期の体積は、この後の編集を反映した最初の LateUpdate で測る。
@@ -245,10 +270,7 @@ namespace Kizami.EngineAdapter.Voxel
             _needsMeasure = true;
             if (operation == VoxelCsgOperation.Subtract) _needsSplitCheck = true;
 
-            var layout = _volume.Layout;
-            var localBounds = new Bounds();
-            localBounds.SetMinMax(layout.ToLocalPosition(result.SampleMin), layout.ToLocalPosition(result.SampleMax));
-            _pendingShapeChanges.Add(new VoxelShapeChange(this, operation, localBounds));
+            QueueShapeChange(operation, VoxelShapeChangeCause.Edit, result);
         }
 
         /// <summary>
@@ -263,6 +285,79 @@ namespace Kizami.EngineAdapter.Voxel
         {
             var localShape = space == Space.World ? shape.Transformed(transform.worldToLocalMatrix) : shape;
             ApplyEdit(localShape, operation);
+        }
+
+        /// <summary>
+        /// ローカル空間で表した形状の内側を加熱する。
+        /// 温度が融点（1）以上になった部分は固体から取り除き、同じ体積を融解した粒として VoxelMeltSystem へ渡す。
+        /// 取り除いた時点の温度が蒸発点以上なら、粒にせず蒸発させる。
+        /// 融解で分かれた塊は削ったときと同じく切り離し、切り離すには小さすぎる塊は粒にする。
+        /// VoxelMeltSystem か、その VoxelThermalSettings が未設定なら何もしない。
+        /// </summary>
+        /// <param name="localShape">このピースのローカル空間で表した、加熱する範囲</param>
+        /// <param name="amount">形状の中心側で加える温度。負なら冷やす。温度は 0 未満にならない</param>
+        /// <param name="falloff">形状の境界から内側へ、加える温度を 0 から amount まで強めていく幅（ローカル空間）。0 なら内側全体に amount を加える</param>
+        public void ApplyHeat<TShape>(in TShape localShape, float amount, float falloff)
+            where TShape : struct, IVoxelShape
+        {
+            if (_volume == null)
+            {
+                Debug.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
+                return;
+            }
+
+            if (!HasThermalSettings())
+            {
+                if (!_hasWarnedMissingThermalSettings)
+                {
+                    Debug.LogWarning("VoxelMeltSystem または VoxelThermalSettings が設定されていない為、加熱を無視します。", this);
+                    _hasWarnedMissingThermalSettings = true;
+                }
+
+                return;
+            }
+
+            var meltedSamples = new NativeList<int>(Allocator.TempJob);
+            try
+            {
+                var result = _volume.ApplyHeat(localShape, amount, falloff, meltedSamples);
+                if (meltedSamples.Length > 0)
+                {
+                    EmitMelted(meltedSamples.AsArray());
+                    _meltedSinceMeasure = true;
+                    _needsMeasure = true;
+                    _needsSplitCheck = true;
+                }
+
+                if (!result.HasChange) return;
+
+                MarkSamplesDirty(result.SampleMin, result.SampleMax);
+                QueueShapeChange(VoxelCsgOperation.Subtract, VoxelShapeChangeCause.Melt, result);
+            }
+            finally
+            {
+                meltedSamples.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// 指定した空間で表した形状の内側を加熱する。
+        /// Space.World なら、形状と falloff をこの Transform のローカル空間へ変換してから加熱する。
+        /// </summary>
+        /// <param name="shape">space で表した、加熱する範囲</param>
+        /// <param name="amount">形状の中心側で加える温度。負なら冷やす</param>
+        /// <param name="falloff">形状の境界から内側へ、加える温度を 0 から amount まで強めていく幅（space の長さ）</param>
+        /// <param name="space">shape と falloff を表している空間</param>
+        public void ApplyHeat<TShape>(in TShape shape, float amount, float falloff, Space space)
+            where TShape : struct, ITransformableVoxelShape<TShape>
+        {
+            if (space == Space.World)
+            {
+                ApplyHeat(shape.Transformed(transform.worldToLocalMatrix), amount, WorldToLocalLength(falloff));
+                return;
+            }
+
+            ApplyHeat(shape, amount, falloff);
         }
 
         /// <summary>
@@ -297,6 +392,14 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// ワールド空間の位置の温度をトリリニア補間で求める。格子の外と、加熱されたことが無いピースでは 0。
+        /// </summary>
+        public float SampleTemperature(Vector3 worldPosition)
+        {
+            return _volume != null ? _volume.SampleTemperature(transform.InverseTransformPoint(worldPosition)) : 0f;
+        }
+
+        /// <summary>
         /// 全チャンクのメッシュを 1 つにまとめて mesh へ書き込む。頂点はこのピースのローカル空間。
         /// 反映待ちの編集があれば、先に反映する。
         /// </summary>
@@ -324,8 +427,8 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 削る・盛る編集で形状が変わったときに呼ぶ処理を登録する。
-        /// 編集したフレームの LateUpdate で、編集 1 回につき 1 回呼ぶ。呼ばれた時点で体積は編集後の値になっている。
+        /// 削る・盛る編集や、加熱による融解で形状が変わったときに呼ぶ処理を登録する。
+        /// 編集したフレームの LateUpdate で、ApplyEdit・ApplyHeat 1 回につき 1 回呼ぶ。呼ばれた時点で体積は編集後の値になっている。
         /// 分離で塊が取り除かれた変化は含まない（RegisterOnSplit で通知する）。
         /// </summary>
         /// <returns>Dispose すると登録を解除する</returns>
@@ -379,6 +482,16 @@ namespace Kizami.EngineAdapter.Voxel
 #endif
         }
 
+        private void OnEnable()
+        {
+            if (_meltSystem != null) _meltSystem.Register(this);
+        }
+
+        private void OnDisable()
+        {
+            if (_meltSystem != null) _meltSystem.Unregister(this);
+        }
+
         private void LateUpdate()
         {
             if (_volume == null) return;
@@ -389,12 +502,18 @@ namespace Kizami.EngineAdapter.Voxel
                 return;
             }
 
+            if (_volume.HasHotChunks && HasThermalSettings())
+            {
+                _volume.Cool(_meltSystem.Settings.SolidCoolingPerSecond * Time.deltaTime);
+            }
+
             VoxelPiece[] splitPieces = null;
             if (_needsMeasure)
             {
                 splitPieces = Measure(_needsSplitCheck && _splittable);
                 _needsMeasure = false;
                 _needsSplitCheck = false;
+                _meltedSinceMeasure = false;
             }
 
             InvokePendingShapeChanges();
@@ -439,7 +558,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 内側のサンプルを塊に分けて体積を測る。allowSplit なら、最も大きい塊以外を切り離す。
-        /// 小さすぎる塊は、切り離さずに消す。
+        /// 小さすぎる塊は、切り離さずに消す。前回の計測から融解していれば、消す塊は粒として VoxelMeltSystem へ渡す。
         /// </summary>
         /// <returns>分離したピース（0 番目が自分）。新しいピースが無ければ null</returns>
         private VoxelPiece[] Measure(bool allowSplit)
@@ -480,6 +599,10 @@ namespace Kizami.EngineAdapter.Voxel
                     {
                         pieces.Add(SpawnPiece(_volume.ExtractComponent(labels, component), component.SampleCount));
                     }
+                    else if (_meltedSinceMeasure)
+                    {
+                        EmitComponentAsMelted(labels, component);
+                    }
 
                     _volume.EraseComponent(labels, component);
                     MarkSamplesDirty(component.SampleMin, component.SampleMax);
@@ -519,6 +642,7 @@ namespace Kizami.EngineAdapter.Voxel
             piece._minPieceSamples = _minPieceSamples;
             piece._density = _density;
             piece._destroyBelowY = _destroyBelowY;
+            piece.SetMeltSystem(_meltSystem);
             piece.Parent = this;
             piece.Root = Root;
             piece.Generation = Generation + 1;
@@ -553,6 +677,51 @@ namespace Kizami.EngineAdapter.Voxel
 
             InitialSampleCount = sampleCount;
             _hasInitialSampleCount = true;
+        }
+
+        private bool HasThermalSettings()
+        {
+            return _meltSystem != null && _meltSystem.Settings != null;
+        }
+
+        /// <summary>
+        /// サンプルを粒 1 個分ずつにまとめ、ワールド空間の位置・温度・体積を VoxelMeltSystem へ渡す。
+        /// </summary>
+        private void EmitMelted(NativeArray<int> sampleIndices)
+        {
+            if (!HasThermalSettings()) return;
+
+            var groups = new NativeList<VoxelMeltGroup>(Allocator.TempJob);
+            _volume.GroupSamples(sampleIndices, _meltSystem.Settings.ParticleCoarseness, groups);
+
+            var sampleVolume = VoxelCubicVolume;
+            foreach (var group in groups)
+            {
+                _meltSystem.AddMelted(transform.TransformPoint(group.LocalPosition), group.Temperature,
+                    group.SampleCount * sampleVolume);
+            }
+
+            groups.Dispose();
+        }
+
+        /// <summary>
+        /// 1 つの塊の全サンプルを、融解した粒として VoxelMeltSystem へ渡す。塊はボリュームに残る。
+        /// </summary>
+        private void EmitComponentAsMelted(NativeArray<int> labels, in VoxelComponent component)
+        {
+            var sampleIndices = new NativeList<int>(component.SampleCount, Allocator.TempJob);
+            _volume.CollectComponentSamples(labels, component, sampleIndices);
+            EmitMelted(sampleIndices.AsArray());
+            sampleIndices.Dispose();
+        }
+
+        private void QueueShapeChange(VoxelCsgOperation operation, VoxelShapeChangeCause cause,
+            in VoxelEditResult result)
+        {
+            var layout = _volume.Layout;
+            var localBounds = new Bounds();
+            localBounds.SetMinMax(layout.ToLocalPosition(result.SampleMin), layout.ToLocalPosition(result.SampleMax));
+            _pendingShapeChanges.Add(new VoxelShapeChange(this, operation, cause, localBounds));
         }
 
         private void InvokePendingShapeChanges()
@@ -598,6 +767,7 @@ namespace Kizami.EngineAdapter.Voxel
             _hasInitialSampleCount = false;
             _needsMeasure = false;
             _needsSplitCheck = false;
+            _meltedSinceMeasure = false;
             _pendingShapeChanges.Clear();
         }
 

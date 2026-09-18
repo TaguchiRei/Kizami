@@ -31,6 +31,10 @@ namespace Kizami.EngineAdapter.Voxel
         private bool _splittable = true;
 
         [SerializeField]
+        [Tooltip("融解・蒸発した分の送り先。未設定なら加熱しても何も起きない")]
+        private VoxelMeltSystem _meltSystem;
+
+        [SerializeField]
         [Tooltip("Start で読み込むか")]
         private bool _loadOnStart = true;
 
@@ -43,6 +47,7 @@ namespace Kizami.EngineAdapter.Voxel
         private MeshRenderer[] _sourceRenderers;
 
         public VoxelQualitySettings Quality => _quality;
+        public VoxelMeltSystem MeltSystem => _meltSystem;
         public bool IsLoaded { get; private set; }
 
         /// <summary> 読み込んだパーツ（モデルのメッシュ 1 つに対応する、分離前からあるピース） </summary>
@@ -100,6 +105,19 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// 融解・蒸発した分の送り先を差し替える。読み込み済みのパーツにも反映する。
+        /// </summary>
+        public void SetMeltSystem(VoxelMeltSystem meltSystem)
+        {
+            _meltSystem = meltSystem;
+
+            foreach (var part in _parts)
+            {
+                part.SetMeltSystem(meltSystem);
+            }
+        }
+
+        /// <summary>
         /// パーツを、VoxelModelLoader からの相対パスで探す。
         /// </summary>
         public bool TryGetPart(string path, out VoxelPiece part)
@@ -126,7 +144,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// このモデルのいずれかのピースの形状が、削る・盛る編集で変わったときに呼ぶ処理を登録する。
+        /// このモデルのいずれかのピースの形状が、削る・盛る編集や融解で変わったときに呼ぶ処理を登録する。
         /// </summary>
         /// <returns>Dispose すると登録を解除する</returns>
         public IDisposable RegisterOnPieceShapeChanged(Action<VoxelShapeChange> callback)
@@ -184,6 +202,7 @@ namespace Kizami.EngineAdapter.Voxel
                 piece.SetQuality(_quality);
                 piece.SetMaterial(ResolveMaterial(target));
                 piece.SetSplittable(_splittable);
+                piece.SetMeltSystem(_meltSystem);
                 piece.BindToModel(this, partData.Path);
                 piece.LoadSdf(partData);
                 _parts.Add(piece);

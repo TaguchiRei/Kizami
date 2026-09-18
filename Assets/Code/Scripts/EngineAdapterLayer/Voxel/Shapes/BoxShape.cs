@@ -3,6 +3,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 
 [assembly: RegisterGenericJobType(typeof(VoxelCsgJob<BoxShape>))]
+[assembly: RegisterGenericJobType(typeof(VoxelHeatJob<BoxShape>))]
+[assembly: RegisterGenericJobType(typeof(VoxelParticleHeatJob<BoxShape>))]
 
 namespace Kizami.EngineAdapter.Voxel
 {

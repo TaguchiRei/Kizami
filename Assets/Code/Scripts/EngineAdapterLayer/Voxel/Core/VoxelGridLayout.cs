@@ -115,6 +115,24 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// チャンクが受け持つサンプル範囲 [sampleMin, sampleMax) を返す。
+        /// 最大側の端のチャンクは最外周のサンプルまで含む為、全チャンクの範囲は重ならず全サンプルを覆う。
+        /// </summary>
+        public void GetChunkSampleRange(int3 chunk, out int3 sampleMin, out int3 sampleMax)
+        {
+            sampleMin = chunk * ChunkSize;
+            sampleMax = math.select(math.min(sampleMin + ChunkSize, SampleCount), SampleCount, chunk == ChunkCount - 1);
+        }
+
+        /// <summary>
+        /// サンプルを受け持つチャンク。GetChunkSampleRange の逆。
+        /// </summary>
+        public int3 ToChunkCoordOfSample(int3 sample)
+        {
+            return math.min(sample / ChunkSize, ChunkCount - 1);
+        }
+
+        /// <summary>
         /// チャンクが頂点を生成するセル範囲 [cellMin, cellMax) を返す。
         /// 面は隣接する 4 セルの頂点を結ぶ為、面を生成するセル範囲より最小側へ 1 セル広い。
         /// </summary>
