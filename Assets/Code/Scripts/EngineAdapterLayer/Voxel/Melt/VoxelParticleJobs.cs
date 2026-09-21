@@ -13,6 +13,7 @@ namespace Kizami.EngineAdapter.Voxel
     {
         /// <summary>
         /// 面へ向かう速度を消し、面に沿う速度を温度に応じて減らす。温度が高いほどよく滑る。
+        /// 面に触れたことを記録する。
         /// </summary>
         /// <param name="particle">更新する粒</param>
         /// <param name="normal">面の法線（ワールド空間, 正規化済み）</param>
@@ -31,11 +32,15 @@ namespace Kizami.EngineAdapter.Voxel
             var heat = math.saturate((particle.Temperature - freezeTemperature) / range);
             var damping = math.lerp(coldDamping, hotDamping, heat);
             particle.Velocity *= math.max(1f - damping * deltaTime, 0f);
+            particle.IsTouching = true;
         }
     }
 
     /// <summary>
-    /// 粒を冷やし、重力で動かす。凝固点より冷えた粒は止め、蒸発点以上の粒には印を付ける。
+    /// 粒を冷やし、重力で動かす。蒸発点以上の粒には印を付ける。
+    /// 凝固点より冷えた粒は、前回の当たり判定で面に触れていれば止める。
+    /// 空中で止めると宙に浮いたまま固まる為、空中の粒は冷えても落ち続け、面に触れたフレームの次に止まる。
+    /// 面に触れたかの記録は、ここで消してから当たり判定で付け直す。
     /// </summary>
     [BurstCompile]
     public struct VoxelParticleIntegrateJob : IJobParallelFor
@@ -68,13 +73,15 @@ namespace Kizami.EngineAdapter.Voxel
             if (particle.IsFrozen) return;
 
             particle.Temperature = math.max(particle.Temperature - CoolingPerSecond * DeltaTime, 0f);
-            if (particle.Temperature < FreezeTemperature)
+            if (particle.Temperature < FreezeTemperature && particle.IsTouching)
             {
                 particle.IsFrozen = true;
                 particle.Velocity = float3.zero;
                 Particles[index] = particle;
                 return;
             }
+
+            particle.IsTouching = false;
 
             var velocity = particle.Velocity + Gravity * DeltaTime;
             var speed = math.length(velocity);
@@ -87,25 +94,31 @@ namespace Kizami.EngineAdapter.Voxel
     }
 
     /// <summary>
-    /// 粒がこのフレームに進む線分のレイを作る。
-    /// 止まっている粒は、接している面を見つける為に真下へ向ける。
+    /// 粒の今の位置から、このフレームに進む先（重力を含む）の、さらに重力の向きへ半径分先までのレイを作る。
+    /// 進む向きだけにレイを飛ばすと、床の上を水平に滑る粒が足元の面を見失い、少しずつ沈んで面をすり抜ける為、
+    /// 常に重力の向きへ半径分を足す。
     /// </summary>
     [BurstCompile]
     public struct VoxelParticleRaycastBuildJob : IJobParallelFor
     {
         [ReadOnly] public NativeArray<VoxelMeltParticle> Particles;
         public float DeltaTime;
+        public float3 Gravity;
         public QueryParameters QueryParameters;
         [WriteOnly] public NativeArray<RaycastCommand> Commands;
 
         public void Execute(int index)
         {
             var particle = Particles[index];
-            var speed = math.length(particle.Velocity);
-            var direction = speed > 1e-5f ? particle.Velocity / speed : new float3(0f, -1f, 0f);
+            var down = math.lengthsq(Gravity) > 1e-12f ? math.normalize(Gravity) : new float3(0f, -1f, 0f);
+            var displacement = (particle.Velocity + Gravity * DeltaTime) * DeltaTime;
+            var probe = displacement + down * particle.Radius;
+
+            var length = math.length(probe);
+            var direction = length > 1e-6f ? probe / length : down;
 
             Commands[index] = new RaycastCommand(particle.Position, direction, QueryParameters,
-                speed * DeltaTime + particle.Radius);
+                math.max(length, particle.Radius));
         }
     }
 

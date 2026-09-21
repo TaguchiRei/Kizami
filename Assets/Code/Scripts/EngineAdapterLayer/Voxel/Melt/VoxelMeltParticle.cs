@@ -26,6 +26,9 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 凝固点より冷えて、動きが止まったか </summary>
         public bool IsFrozen;
 
+        /// <summary> 直近の当たり判定で、床やボクセルの面に触れていたか </summary>
+        public bool IsTouching;
+
         /// <summary> 体積が Volume の球の半径（ワールド空間, m） </summary>
         public float Radius => math.pow(Volume * (3f / (4f * math.PI)), 1f / 3f);
     }

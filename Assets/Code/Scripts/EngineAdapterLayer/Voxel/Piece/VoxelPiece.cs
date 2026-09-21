@@ -823,11 +823,13 @@ namespace Kizami.EngineAdapter.Voxel
                 chunkIndices[i] = chunkIndex;
                 buffers[i] = new MeshBuffers(Allocator.TempJob);
 
+                layout.GetChunkCellRange(layout.ToChunkCoord(chunkIndex), out var cellMin, out var cellMax);
                 var meshingHandle = new SurfaceNetsJob
                 {
                     Samples = _volume.Samples,
                     Layout = layout,
-                    Chunk = layout.ToChunkCoord(chunkIndex),
+                    CellMin = cellMin,
+                    CellMax = cellMax,
                     Vertices = buffers[i].Vertices,
                     Normals = buffers[i].Normals,
                     Indices = buffers[i].Indices

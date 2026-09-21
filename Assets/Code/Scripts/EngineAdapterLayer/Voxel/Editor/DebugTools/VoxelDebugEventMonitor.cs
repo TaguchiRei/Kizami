@@ -94,7 +94,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
                         $"モデルの体積: {_loader.Volume:0.000} m³（初期比 {_loader.RelativeVolume:P0}）";
             }
 
-            GUI.Box(new Rect(10f, 196f, 560f, 44f), text);
+            GUI.Box(new Rect(10f, 236f, 560f, 44f), text);
         }
     }
 }

@@ -46,7 +46,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
             if (!VoxelDebugHud.IsVisible || _loader == null || _loader.Quality == null) return;
 
             var quality = _loader.Quality;
-            GUI.Box(new Rect(10f, 165f, 560f, 26f),
+            GUI.Box(new Rect(10f, 205f, 560f, 26f),
                 $"Tab: 品質の切り替え  現在: {quality.name}（{quality.VoxelSize:0.000} m）  " +
                 $"読み込み: {_lastLoadMilliseconds:0.0} ms");
         }

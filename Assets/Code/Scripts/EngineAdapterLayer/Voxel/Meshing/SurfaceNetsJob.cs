@@ -6,7 +6,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// 1 チャンク分の等値面（距離 0 の面）を Surface Nets で抽出する。
+    /// セル範囲 [CellMin, CellMax) の等値面（距離 0 の面）を Surface Nets で抽出する。
     ///
     /// 表面をまたぐセルごとに頂点を 1 つ置き（セルの辺と表面の交点の平均）、
     /// 表面をまたぐ格子の辺ごとに、その辺を囲む 4 セルの頂点を四角形で結ぶ。
@@ -20,7 +20,12 @@ namespace Kizami.EngineAdapter.Voxel
     {
         [ReadOnly] public NativeArray<float> Samples;
         public VoxelGridLayout Layout;
-        public int3 Chunk;
+
+        /// <summary> 面を作るセル範囲の最小（含む） </summary>
+        public int3 CellMin;
+
+        /// <summary> 面を作るセル範囲の最大（含まない） </summary>
+        public int3 CellMax;
 
         public NativeList<float3> Vertices;
         public NativeList<float3> Normals;
@@ -28,8 +33,9 @@ namespace Kizami.EngineAdapter.Voxel
 
         public void Execute()
         {
-            Layout.GetChunkVertexCellRange(Chunk, out var vertexCellMin, out var vertexCellMax);
-            var vertexCellSize = vertexCellMax - vertexCellMin;
+            // 面は隣接する 4 セルの頂点を結ぶ為、頂点は面を作るセル範囲より最小側へ 1 セル広く作る
+            var vertexCellMin = math.max(CellMin - 1, 0);
+            var vertexCellSize = CellMax - vertexCellMin;
             var cellToVertex = new NativeArray<int>(vertexCellSize.x * vertexCellSize.y * vertexCellSize.z,
                 Allocator.Temp, NativeArrayOptions.UninitializedMemory);
 
@@ -73,11 +79,9 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         private void GenerateQuads(int3 vertexCellMin, int3 vertexCellSize, NativeArray<int> cellToVertex)
         {
-            Layout.GetChunkCellRange(Chunk, out var cellMin, out var cellMax);
-
-            for (var z = cellMin.z; z < cellMax.z; z++)
-            for (var y = cellMin.y; y < cellMax.y; y++)
-            for (var x = cellMin.x; x < cellMax.x; x++)
+            for (var z = CellMin.z; z < CellMax.z; z++)
+            for (var y = CellMin.y; y < CellMax.y; y++)
+            for (var x = CellMin.x; x < CellMax.x; x++)
             {
                 var point = new int3(x, y, z);
                 var isInside = SampleAt(point) < 0f;

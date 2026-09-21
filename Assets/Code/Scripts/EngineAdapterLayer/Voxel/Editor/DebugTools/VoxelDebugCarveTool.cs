@@ -126,7 +126,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
         {
             if (!VoxelDebugHud.IsVisible) return;
 
-            GUILayout.BeginArea(new Rect(10f, 10f, 560f, 150f), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(10f, 10f, 560f, 190f), GUI.skin.box);
             GUILayout.Label("左: 削る（熱: 加熱）  右: 盛る（熱: 冷却）  ホイール: 大きさ  " +
                             "中ドラッグ or Alt+左ドラッグ: 回転  F1: 表示の切り替え");
             GUILayout.Label($"1/2/3/4: 球/箱/刃/熱  道具: {_shape}  半径: {_radius:0.000} m  FPS: {1f / _smoothedDeltaTime:0}");
@@ -146,6 +146,14 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
                   $"固まり {_meltSystem.FrozenCount:N0} 個）  蒸発: {_meltSystem.EvaporatedVolume * 1000f:0.00} L"
                 : "";
             GUILayout.Label($"カーソル位置の温度: {temperature}{melt}");
+
+            if (_meltSystem != null)
+            {
+                GUILayout.Label($"液面: 三角形 {_meltSystem.SurfaceTriangleCount:N0}  " +
+                                $"チャンク {_meltSystem.SurfaceChunkCount}（直近の作り直し " +
+                                $"{_meltSystem.LastRebuiltSurfaceChunkCount} 個, " +
+                                $"{_meltSystem.LastSurfaceBuildMilliseconds:0.00} ms）");
+            }
 
             GUILayout.EndArea();
         }

@@ -47,6 +47,15 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("凝固点のときの、面に沿う速度の 1 秒あたりの減り方。大きいほど面に貼り付く")]
         private float _coldTangentDamping = 12f;
 
+        [Header("押し広げ")]
+        [SerializeField, Min(0f)]
+        [Tooltip("粒が密集している所から押し広げる速さ（m/s）。充填率が基準を 1 上回ったときの値。0 なら押し広げない")]
+        private float _spreadSpeed = 0.5f;
+
+        [SerializeField, Range(0.1f, 2f)]
+        [Tooltip("押し広げを始める充填率。粒の直径ほどのセルに、粒が 1 個入っていると約 0.52")]
+        private float _spreadRestFill = 0.6f;
+
         public float EvaporationTemperature => _evaporationTemperature;
         public float FreezeTemperature => _freezeTemperature;
         public float SolidCoolingPerSecond => _solidCoolingPerSecond;
@@ -56,5 +65,7 @@ namespace Kizami.EngineAdapter.Voxel
         public float MaxSpeed => _maxSpeed;
         public float HotTangentDamping => _hotTangentDamping;
         public float ColdTangentDamping => _coldTangentDamping;
+        public float SpreadSpeed => _spreadSpeed;
+        public float SpreadRestFill => _spreadRestFill;
     }
 }
