@@ -6,6 +6,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// 加熱・融解・蒸発・冷却と、融解した粒の動きに関わる設定。
     /// 温度は、常温を 0、融点を 1 とした値。
     /// </summary>
+    /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     [CreateAssetMenu(menuName = "Kizami/Voxel/Thermal Settings", fileName = "VoxelThermalSettings")]
     public sealed class VoxelThermalSettings : ScriptableObject
     {

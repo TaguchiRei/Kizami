@@ -6,6 +6,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// ボリュームへ合成できる形状。ボクセル空間（VoxelPiece のローカル空間）で表す。
     /// 実装する struct ごとに VoxelCsgJob と VoxelHeatJob を RegisterGenericJobType で登録すること。
     /// </summary>
+    /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public interface IVoxelShape
     {
         /// <summary> 形状を包む境界ボックス </summary>

@@ -12,6 +12,7 @@ namespace Kizami.EngineAdapter.Voxel
     ///
     /// パーツと、パーツから切り離された全てのピースを、モデル単位でまとめて扱える。
     /// </summary>
+    /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelModelLoader : MonoBehaviour
     {
         [SerializeField]

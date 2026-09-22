@@ -5,6 +5,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// <summary>
     /// ボクセルの精度と、再メッシュ化の負荷に関わる設定。
     /// </summary>
+    /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     [CreateAssetMenu(menuName = "Kizami/Voxel/Quality Settings", fileName = "VoxelQualitySettings")]
     public sealed class VoxelQualitySettings : ScriptableObject
     {

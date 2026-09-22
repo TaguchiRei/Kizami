@@ -21,6 +21,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// ボクセル空間はこの Transform のローカル空間。Transform のスケールは均一である前提。
     /// 編集後の処理（冷却 → 体積の計測 → 分離 → コールバック → 再メッシュ化）は、編集したフレームの LateUpdate でまとめて行う。
     /// </summary>
+    /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelPiece : MonoBehaviour
     {
         private const MeshColliderCookingOptions ColliderCookingOptions =

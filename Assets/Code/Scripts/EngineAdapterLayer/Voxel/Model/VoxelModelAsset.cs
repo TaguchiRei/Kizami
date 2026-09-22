@@ -8,6 +8,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// モデル 1 つ分の、事前ベイクした SDF パーツの集まり。
     /// 距離データが大きい為、テキストではなくバイナリで保存する。
     /// </summary>
+    /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     [Icon("Assets/Art/Textures/BoxelIcon.png")]
     [PreferBinarySerialization]
     public sealed class VoxelModelAsset : ScriptableObject

@@ -20,6 +20,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// 温度が高いほど面をよく滑り、凝固点より冷えると止まり、蒸発点以上になると消える。
     /// 表示は、粒を滑らかにつないだ液面のメッシュか、粒ごとの球のどちらか。
     /// </summary>
+    /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelMeltSystem : MonoBehaviour
     {
         private const int MaxInstancesPerDraw = 1023;

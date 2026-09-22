@@ -13,6 +13,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// 格子の最外周のサンプルは常に正（外側）に保たれる為、生成されるメッシュは必ず閉じる。
     /// 温度は常温を 0、融点を 1 とした値で、初めて加熱されたときに配列を確保する。
     /// </summary>
+    /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelVolume : IDisposable
     {
         /// <summary>

@@ -9,6 +9,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// セル c はサンプル c と c + 1 に挟まれた立方体。
     /// チャンクはセルを各軸 ChunkSize 個ずつ区切ったもので、メッシュとコライダーの生成単位。
     /// </summary>
+    /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public readonly struct VoxelGridLayout
     {
         /// <summary>

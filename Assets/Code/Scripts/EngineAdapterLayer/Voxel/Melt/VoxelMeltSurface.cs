@@ -17,6 +17,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// 作り直すのは、動いている粒が届くチャンク・前回動いていた粒が届いていたチャンク・粒が消えたチャンクだけで、
     /// 止まった粒しか無いチャンクはメッシュを使い回す。頂点はワールド空間。
     /// </summary>
+    /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelMeltSurface : IDisposable
     {
         /// <summary> 液面チャンク 1 つの、各軸のセル数 </summary>
