@@ -84,6 +84,29 @@ namespace Kizami.EngineAdapter.Voxel
     }
 
     /// <summary>
+    /// 内側（距離が負）のサンプルの数を数える。
+    /// </summary>
+    [BurstCompile]
+    public struct VoxelCountInsideJob : IJob
+    {
+        [ReadOnly] public NativeArray<float> Samples;
+
+        /// <summary> 数えた結果の出力先。長さ 1 </summary>
+        [WriteOnly] public NativeArray<int> Count;
+
+        public void Execute()
+        {
+            var count = 0;
+            for (var i = 0; i < Samples.Length; i++)
+            {
+                if (Samples[i] < 0f) count++;
+            }
+
+            Count[0] = count;
+        }
+    }
+
+    /// <summary>
     /// サンプル範囲内の、指定した塊のサンプルを外側（+TruncationDistance）にする。
     /// </summary>
     [BurstCompile]
