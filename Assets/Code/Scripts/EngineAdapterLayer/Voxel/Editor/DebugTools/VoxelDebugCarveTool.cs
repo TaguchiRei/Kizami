@@ -7,7 +7,8 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
     /// <summary>
     /// マウスでボクセルを削る・盛る・加熱する検証用ツール。カメラに付ける。
     ///
-    /// 左ボタン: 削る（熱: 加熱） / 右ボタン: 盛る（熱: 冷却） / ホイール: 道具の大きさ / 1・2・3・4: 球・箱・刃・熱
+    /// 左ボタン: 削る（熱: 加熱、スライス: 切り分け） / 右ボタン: 盛る（熱: 冷却） / ホイール: 道具の大きさ
+    /// 1・2・3・4・5: 球・箱・刃・熱・スライス
     /// 中ボタンドラッグ または Alt + 左ドラッグ: 注視点の周りを回る / F1: 検証用の画面表示を切り替える
     /// 熱の道具は、シーンに VoxelMeltSystem があればそれを通して範囲内の全ピースを、無ければ当たったピースだけを加熱する。
     /// </summary>
@@ -19,7 +20,8 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
             Sphere,
             Box,
             Blade,
-            Heat
+            Heat,
+            Slice
         }
 
         [SerializeField, Min(0.001f)]
@@ -112,6 +114,16 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
                 return;
             }
 
+            if (_shape == ToolShape.Slice)
+            {
+                if (!mouse.leftButton.wasPressedThisFrame) return;
+
+                _statsTarget = target;
+                // 刃と同じ、カメラの上方向と前方向に広がる縦向きの面で切る
+                target.Slice(hit.point, transform.right);
+                return;
+            }
+
             var left = _continuous ? mouse.leftButton.isPressed : mouse.leftButton.wasPressedThisFrame;
             var right = _continuous ? mouse.rightButton.isPressed : mouse.rightButton.wasPressedThisFrame;
             if (!left && !right) return;
@@ -129,7 +141,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
             GUILayout.BeginArea(new Rect(10f, 10f, 560f, 190f), GUI.skin.box);
             GUILayout.Label("左: 削る（熱: 加熱）  右: 盛る（熱: 冷却）  ホイール: 大きさ  " +
                             "中ドラッグ or Alt+左ドラッグ: 回転  F1: 表示の切り替え");
-            GUILayout.Label($"1/2/3/4: 球/箱/刃/熱  道具: {_shape}  半径: {_radius:0.000} m  FPS: {1f / _smoothedDeltaTime:0}");
+            GUILayout.Label($"1/2/3/4/5: 球/箱/刃/熱/スライス  道具: {_shape}  半径: {_radius:0.000} m  FPS: {1f / _smoothedDeltaTime:0}");
 
             if (_statsTarget != null)
             {
@@ -222,6 +234,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
             if (keyboard.digit2Key.wasPressedThisFrame) _shape = ToolShape.Box;
             if (keyboard.digit3Key.wasPressedThisFrame) _shape = ToolShape.Blade;
             if (keyboard.digit4Key.wasPressedThisFrame) _shape = ToolShape.Heat;
+            if (keyboard.digit5Key.wasPressedThisFrame) _shape = ToolShape.Slice;
         }
 
         private void UpdateRadius(Mouse mouse)

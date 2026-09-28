@@ -57,6 +57,54 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// 距離の配列をそのまま受け取ったボリュームを作る。samples の所有権はこのボリュームへ移る。
+        /// </summary>
+        private VoxelVolume(VoxelGridLayout layout, NativeArray<float> samples)
+        {
+            Layout = layout;
+            _isHotChunk = new bool[layout.ChunkTotal];
+            _samples = samples;
+        }
+
+        /// <summary> 格子のローカル空間での範囲（最外周のサンプルを含む） </summary>
+        public VoxelBounds LocalBounds => new(Layout.ToLocalPosition(int3.zero), Layout.ToLocalPosition(Layout.SampleCount - 1));
+
+        /// <summary>
+        /// 同じ格子・同じ距離・同じ温度を持つ複製を作る。冷却の対象のチャンクも引き継ぐ。
+        /// </summary>
+        public VoxelVolume Clone()
+        {
+            var result = new VoxelVolume(Layout, new NativeArray<float>(_samples, Allocator.Persistent));
+
+            if (_temperatures.IsCreated)
+            {
+                result._temperatures = new NativeArray<float>(_temperatures, Allocator.Persistent);
+            }
+
+            Array.Copy(_isHotChunk, result._isHotChunk, _isHotChunk.Length);
+            result._hotChunks.AddRange(_hotChunks);
+
+            return result;
+        }
+
+        /// <summary>
+        /// 内側（距離が負）のサンプルの数を数える。
+        /// </summary>
+        public int CountInside()
+        {
+            var count = new NativeArray<int>(1, Allocator.TempJob);
+            new VoxelCountInsideJob
+            {
+                Samples = _samples,
+                Count = count
+            }.Schedule().Complete();
+
+            var result = count[0];
+            count.Dispose();
+            return result;
+        }
+
+        /// <summary>
         /// 形状を CSG 演算で合成する。形状は Layout と同じローカル空間で表す。
         /// </summary>
         /// <param name="shape">合成する形状</param>

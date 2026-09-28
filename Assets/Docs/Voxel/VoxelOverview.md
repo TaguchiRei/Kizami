@@ -2,7 +2,7 @@
 
 ## 何ができる仕組みか
 
-普通のメッシュで作られたモデルを「削れる・割れる・溶ける」物体として扱う仕組み。
+普通のメッシュで作られたモデルを「削れる・割れる・切れる・溶ける」物体として扱う仕組み。
 見た目はカクカクした箱の集まりではなく、滑らかな表面のまま削れる。
 
 大まかには次の仕事に分かれる。
@@ -14,6 +14,7 @@
 | データの保持と編集 | 実行中ずっと | 距離の格子を持ち、形状を足したり引いたりする | [Core.md](Detailed/Core.md) |
 | 表示と当たり判定 | 編集されるたび | 距離の格子から表面メッシュとコライダーを作り直す | [Meshing.md](Detailed/Meshing.md) |
 | 分離 | 削られた後 | 離れ離れになった塊を別の物体として切り離し、落とす | [Piece.md](Detailed/Piece.md) |
+| 切り分け | 平面を指定されたとき | 物体を平面で 2 つに分ける。切り口の分だけ体積が減ることは無い | [Piece.md](Detailed/Piece.md) |
 | 加熱・融解 | 加熱されたとき | 融点に達した部分を固体から取り除き、溶けた粒にする | [Thermal.md](Detailed/Thermal.md) |
 | 溶けた粒 | 実行中ずっと | 粒を落として流し、冷えたら止め、液面として表示する | [Melt.md](Detailed/Melt.md) |
 
@@ -61,6 +62,8 @@ flowchart TD
         Vol -->|削った後| Split{塊が<br/>分かれた?}
         Split -->|Yes| New[小さい塊を<br/>別の物体として切り離し<br/>Rigidbodyで落下]
         New --> Vol2[新しい物体の<br/>ボリューム]
+        Cut[切り分けの指示<br/>平面] -->|複製して<br/>片側ずつ削る| Vol
+        Cut -->|反対側の塊| New
         Heat[加熱の指示] -->|温度を上げ<br/>融点で外側に| Vol
         Vol -->|溶けた分| Drop[溶けた粒]
         Drop -->|落下・滑り・凝固| Liquid[液面の表示]
@@ -122,7 +125,7 @@ classDiagram
 |---|---|
 | ボクセルモデルアセット | [`VoxelModelAsset`](../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelAsset.cs)<sup>[L14](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelAsset.cs#L14)</sup>（中身は [`VoxelSdfData`](../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelSdfData.cs)<sup>[L12](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelSdfData.cs#L12)</sup> の配列） |
 | モデル読み込み役 | [`VoxelModelLoader`](../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L16](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L16)</sup> |
-| ピース | [`VoxelPiece`](../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L25](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L25)</sup> |
+| ピース | [`VoxelPiece`](../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L26](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L26)</sup> |
 | ボリューム | [`VoxelVolume`](../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L17](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L17)</sup> |
 | 格子の寸法 | [`VoxelGridLayout`](../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs)<sup>[L13](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs#L13)</sup> |
 | 形状 | [`IVoxelShape`](../../Code/Scripts/EngineAdapterLayer/Voxel/Shapes/IVoxelShape.cs)<sup>[L10](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Shapes/IVoxelShape.cs#L10)</sup> を実装した [`SphereShape`](../../Code/Scripts/EngineAdapterLayer/Voxel/Shapes/SphereShape.cs)<sup>[L14](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Shapes/SphereShape.cs#L14)</sup> / [`BoxShape`](../../Code/Scripts/EngineAdapterLayer/Voxel/Shapes/BoxShape.cs)<sup>[L14](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Shapes/BoxShape.cs#L14)</sup> / [`CapsuleShape`](../../Code/Scripts/EngineAdapterLayer/Voxel/Shapes/CapsuleShape.cs)<sup>[L14](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Shapes/CapsuleShape.cs#L14)</sup> |

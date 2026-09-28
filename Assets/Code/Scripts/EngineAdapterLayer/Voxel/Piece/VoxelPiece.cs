@@ -15,6 +15,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// ボリュームを保持し、編集されたチャンクのメッシュとコライダーを作り直す。
     /// 削られて内側が複数の塊に分かれたら、最も大きい塊を残し、
     /// 他の塊を Rigidbody 付きの新しい VoxelPiece として切り離す。
+    /// Slice で平面を指定すると、切り口で身を減らさずに 2 つに切り分ける。
     ///
     /// 加熱されて融点以上になった部分は取り除き、VoxelMeltSystem へ融解した粒として渡す。
     ///
@@ -67,6 +68,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         private readonly Queue<int> _dirtyQueue = new();
         private readonly List<VoxelShapeChange> _pendingShapeChanges = new();
+        private readonly List<VoxelPiece> _pendingSlicePieces = new();
         private readonly ActionChannel<VoxelShapeChange> _shapeChanged = new();
         private readonly ActionChannel<VoxelPiece[]> _split = new();
         private readonly ActionChannel<VoxelPiece> _destroyed = new();
@@ -289,6 +291,69 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// ワールド空間の平面でピースを 2 つに切り分ける。平面は無限に広いものとして扱い、切り口の分だけ体積が減ることは無い。
+        /// 平面の両側のうち内側のサンプルが多い側をこのピースに残し、もう一方の側は、つながった塊ごとに新しいピースとして切り離す。
+        /// 残した側の中で塊が分かれていれば、LateUpdate の分離の判定で切り離す。
+        /// 切り離した直後に両方のメッシュを作り直す。形状変化と分離の通知は、ApplyEdit と同じく LateUpdate で行う。
+        /// 分離しない設定のピースでは何もしない。
+        /// </summary>
+        /// <param name="worldPoint">平面上の点（ワールド空間）</param>
+        /// <param name="worldNormal">平面の法線（ワールド空間）。長さは問わない</param>
+        /// <returns>切り離した新しいピース。平面がピースと交わらなければ空</returns>
+        public VoxelPiece[] Slice(Vector3 worldPoint, Vector3 worldNormal)
+        {
+            if (_volume == null)
+            {
+                Debug.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
+                return Array.Empty<VoxelPiece>();
+            }
+
+            if (!_splittable) return Array.Empty<VoxelPiece>();
+
+            var localNormal = math.normalizesafe((float3)transform.InverseTransformDirection(worldNormal));
+            if (math.all(localNormal == 0f)) return Array.Empty<VoxelPiece>();
+
+            float3 localPoint = transform.InverseTransformPoint(worldPoint);
+            var bounds = _volume.LocalBounds;
+
+            // 自分からは法線側を、複製からは反対側を削る
+            var other = _volume.Clone();
+            var keepResult = _volume.ApplyEdit(BoxShape.FromHalfSpace(localPoint, localNormal, bounds),
+                VoxelCsgOperation.Subtract);
+            var otherResult = other.ApplyEdit(BoxShape.FromHalfSpace(localPoint, -localNormal, bounds),
+                VoxelCsgOperation.Subtract);
+
+            if (other.CountInside() > _volume.CountInside())
+            {
+                // 格子は同じなので、チャンクはそのまま使い回せる
+                (_volume, other) = (other, _volume);
+                keepResult = otherResult;
+            }
+
+            VoxelPiece[] pieces;
+            try
+            {
+                pieces = SpawnComponents(other);
+            }
+            finally
+            {
+                other.Dispose();
+            }
+
+            if (keepResult.HasChange)
+            {
+                MarkSamplesDirty(keepResult.SampleMin, keepResult.SampleMax);
+                _needsMeasure = true;
+                _needsSplitCheck = true;
+                QueueShapeChange(VoxelCsgOperation.Subtract, VoxelShapeChangeCause.Slice, keepResult);
+            }
+
+            FlushRemesh();
+            _pendingSlicePieces.AddRange(pieces);
+            return pieces;
+        }
+
+        /// <summary>
         /// ローカル空間で表した形状の内側を加熱する。
         /// 温度が融点（1）以上になった部分は固体から取り除き、同じ体積を融解した粒として VoxelMeltSystem へ渡す。
         /// 取り除いた時点の温度が蒸発点以上なら、粒にせず蒸発させる。
@@ -439,7 +504,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 削られた結果、塊が分離したときに呼ぶ処理を登録する。
+        /// 削られた結果、塊が分離したとき、または Slice で切り分けたときに呼ぶ処理を登録する。
         /// 引数の 0 番目はこのピース、1 番目以降は切り離された新しいピース。
         /// 呼ばれた時点で、新しいピースのメッシュとコライダーはできている。
         /// </summary>
@@ -516,6 +581,8 @@ namespace Kizami.EngineAdapter.Voxel
                 _needsSplitCheck = false;
                 _meltedSinceMeasure = false;
             }
+
+            if (_pendingSlicePieces.Count > 0) splitPieces = MergeSlicePieces(splitPieces);
 
             InvokePendingShapeChanges();
 
@@ -619,6 +686,63 @@ namespace Kizami.EngineAdapter.Voxel
                 labels.Dispose();
                 components.Dispose();
             }
+        }
+
+        /// <summary>
+        /// ボリュームの内側を塊に分け、切り離す最小のサンプル数以上の塊ごとに新しいピースを生成する。
+        /// 小さすぎる塊は捨てる。volume は変更しない。
+        /// </summary>
+        private VoxelPiece[] SpawnComponents(VoxelVolume volume)
+        {
+            var labels = new NativeArray<int>(volume.Layout.SampleTotal, Allocator.TempJob,
+                NativeArrayOptions.UninitializedMemory);
+            var components = new NativeList<VoxelComponent>(Allocator.TempJob);
+
+            try
+            {
+                volume.LabelComponents(labels, components);
+
+                var pieces = new List<VoxelPiece>();
+                for (var i = 0; i < components.Length; i++)
+                {
+                    var component = components[i];
+                    if (component.SampleCount < _minPieceSamples) continue;
+
+                    pieces.Add(SpawnPiece(volume.ExtractComponent(labels, component), component.SampleCount));
+                }
+
+                return pieces.ToArray();
+            }
+            finally
+            {
+                labels.Dispose();
+                components.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Slice で切り離したピースを、Measure で分離したピースの一覧へ加える。破棄済みのピースは除く。
+        /// </summary>
+        /// <param name="splitPieces">Measure が返した一覧（0 番目が自分）。分離が無ければ null</param>
+        /// <returns>0 番目が自分の一覧。新しいピースが無ければ null</returns>
+        private VoxelPiece[] MergeSlicePieces(VoxelPiece[] splitPieces)
+        {
+            var merged = new List<VoxelPiece> { this };
+            if (splitPieces != null)
+            {
+                for (var i = 1; i < splitPieces.Length; i++)
+                {
+                    merged.Add(splitPieces[i]);
+                }
+            }
+
+            foreach (var piece in _pendingSlicePieces)
+            {
+                if (piece != null) merged.Add(piece);
+            }
+
+            _pendingSlicePieces.Clear();
+            return merged.Count > 1 ? merged.ToArray() : null;
         }
 
         /// <summary>
@@ -770,6 +894,7 @@ namespace Kizami.EngineAdapter.Voxel
             _needsSplitCheck = false;
             _meltedSinceMeasure = false;
             _pendingShapeChanges.Clear();
+            _pendingSlicePieces.Clear();
         }
 
         private void MarkAllDirty()

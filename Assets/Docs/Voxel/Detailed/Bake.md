@@ -109,7 +109,7 @@ sequenceDiagram
 - [元の見た目は非表示にするだけで、削除はしない](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L217](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L217)</sup>
 - 全チャンクをダーティにするので、表示は数フレームかけて出そろう（1フレームの作り直し上限に従う）
 
-> 読み込みは [`VoxelModelLoader.Load`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L179](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L179)</sup>、パーツ側の受け取りは [`VoxelPiece.LoadSdf`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L235](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L235)</sup> メソッドで行っている。
+> 読み込みは [`VoxelModelLoader.Load`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L179](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L179)</sup>、パーツ側の受け取りは [`VoxelPiece.LoadSdf`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L237](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L237)</sup> メソッドで行っている。
 
 ## 4. モデル単位でのまとめ役
 

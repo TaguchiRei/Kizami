@@ -11,11 +11,14 @@ namespace Kizami.EngineAdapter.Voxel
         Edit,
 
         /// <summary> ApplyHeat で加熱されて融解した </summary>
-        Melt
+        Melt,
+
+        /// <summary> Slice で平面で切り分けた </summary>
+        Slice
     }
 
     /// <summary>
-    /// VoxelPiece の形状が、削る・盛る編集や融解で変わったことを表す。
+    /// VoxelPiece の形状が、削る・盛る編集・融解・切り分けで変わったことを表す。
     /// </summary>
     public readonly struct VoxelShapeChange
     {
