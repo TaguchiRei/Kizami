@@ -35,19 +35,21 @@ flowchart LR
 
 > この補正は [`VoxelGridLayout.EnforceBoundary`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs)<sup>[L93](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs#L93)</sup> メソッドで行っている。
 
-## 2. 生成のされ方（2通り）
+## 2. 生成のされ方（3通り）
 
 ```mermaid
 flowchart TD
     A[範囲を指定して空で作る] --> E[全サンプル = 外側<br/>空っぽの箱]
     E -->|形状を足して肉付け| V[ボリューム]
     B[ベイク済みの距離データ] -->|実行時の細かさで<br/>補間しながら写す| V
+    C[既存のボリューム] -->|同じ格子のまま<br/>そのまま写す| V
 ```
 
 - **空で作る**：全サンプルを「外側」で埋めた状態から始め、形状を足して形を作る（デバッグ用の箱や球など）
 - **ベイク済みデータから作る**：事前ベイクした距離の格子（ベイク時とは細かさが違ってよい）を、[各サンプル位置で周囲 8 点から補間（トリリニア補間）して写す](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelResampleJob.cs)<sup>[L13](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelResampleJob.cs#L13)</sup>。ベイク範囲の外は外側として扱う
+- **複製する**：既存のボリュームと同じ格子・距離・温度（冷却の対象のチャンクも）をそのまま写す。平面での切り分け（[Piece.md](Piece.md)）で使う。格子が元と同じなので、複製を元の物体へ差し替えても、チャンクのオブジェクトをそのまま使える
 
-> 補間しながら写す処理は [`VoxelResampleJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelResampleJob.cs)<sup>[L13](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelResampleJob.cs#L13)</sup> で行っている。
+> 補間しながら写す処理は [`VoxelResampleJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelResampleJob.cs)<sup>[L13](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelResampleJob.cs#L13)</sup> で行っている。複製は [`VoxelVolume.Clone`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L75](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L75)</sup> メソッド。
 
 ## 3. 編集：形状を足す／引く（CSG）
 
@@ -78,13 +80,13 @@ sequenceDiagram
 
 ポイント：
 
-- [形状から「切り詰め距離」より遠いサンプルは、合成しても値が変わらないので最初から処理しない](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L65](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L65)</sup>。これで編集コストは **形状の大きさにだけ比例** し、物体全体の大きさには依存しない
+- [形状から「切り詰め距離」より遠いサンプルは、合成しても値が変わらないので最初から処理しない](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L113](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L113)</sup>。これで編集コストは **形状の大きさにだけ比例** し、物体全体の大きさには依存しない
 - 戻り値の「書き換わりうる範囲」は、後段で「どのチャンクを作り直すか」を決めるのに使われる
 
 - 削ると、削り口の近くにある **残る側（内側）のサンプルの距離も** 新しい削り口までの距離に書き換わる。これにより断面も滑らかに表示される
 - ここは近似で、符号（内か外か）と表面の位置は正確だが、削り口と元の表面が交わる角の近くでは距離の大きさが本来の最短距離から少しずれる。見た目への影響はほぼ無い
 
-> 合成の本体は [`VoxelCsgJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelCsgJob.cs)<sup>[L27](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelCsgJob.cs#L27)</sup>、範囲の絞り込みと呼び出しは [`VoxelVolume.ApplyEdit`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L65](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L65)</sup> メソッドで行っている。
+> 合成の本体は [`VoxelCsgJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelCsgJob.cs)<sup>[L27](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelCsgJob.cs#L27)</sup>、範囲の絞り込みと呼び出しは [`VoxelVolume.ApplyEdit`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L113](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L113)</sup> メソッドで行っている。
 
 ### 形状について
 
@@ -96,6 +98,10 @@ sequenceDiagram
 | 球 | 中心からの距離 − 半径 |
 | 箱（回転可） | 点を箱の向きに戻してから、各軸のはみ出し量で計算 |
 | カプセル | 線分上の最も近い点からの距離 − 半径 |
+| 平面の片側（切り分け用） | 箱で代用する。[1 面を平面に重ね、覆いたい範囲より十分大きくした箱](../../../Code/Scripts/EngineAdapterLayer/Voxel/Shapes/BoxShape.cs)<sup>[L38](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Shapes/BoxShape.cs#L38)</sup>を作ると、その範囲の中では箱までの距離が平面までの距離と一致する |
+
+平面の片側を無限に広い形状にしないのは、編集の範囲を「形状を包む箱」から整数のサンプル範囲へ直して求めている為（無限大の箱では変換があふれる）。
+代わりの箱は覆う範囲（ボリューム全体）から大きさを決めているので、**その範囲の外では平面までの距離と一致しない**。別のボリュームに使い回さないこと。
 
 新しい形状を追加するときは、ジョブの型登録（`RegisterGenericJobType`）をしないと Burst でコンパイルされない点に注意。
 
@@ -133,14 +139,14 @@ flowchart TD
 
 切り出した新しいボリュームは、ボクセルの大きさ・チャンクの大きさ・ローカル空間が元と同じなので、元の物体と同じ位置・向きにそのまま置けば見た目がずれない。
 
-> これらは [`VoxelVolume.ExtractComponent`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L251](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L251)</sup> / [`EraseComponent`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L296](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L296)</sup> / [`CollectComponentSamples`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L318](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L318)</sup> メソッド（中身は [`VoxelComponentJobs.cs`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelComponentJobs.cs)<sup>[L1](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelComponentJobs.cs#L1)</sup> の各ジョブ）で行っている。
+> これらは [`VoxelVolume.ExtractComponent`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L299](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L299)</sup> / [`EraseComponent`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L344](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L344)</sup> / [`CollectComponentSamples`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L366](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L366)</sup> メソッド（中身は [`VoxelComponentJobs.cs`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelComponentJobs.cs)<sup>[L1](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelComponentJobs.cs#L1)</sup> の各ジョブ）で行っている。
 
 ## 5. 値の読み取り
 
 任意の位置の距離や温度は、周囲 8 サンプルからの補間で求める。格子の外は「外側（距離）」「0（温度）」として返す。
 粒との当たり判定や「この点は物体の内側か」の判定に使われる。
 
-> この処理は [`VoxelSampling`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelSampling.cs)<sup>[L9](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelSampling.cs#L9)</sup> クラス（[`VoxelVolume.SampleDistance`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L186](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L186)</sup> / [`SampleTemperature`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L196](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L196)</sup> 経由）で行っている。
+> この処理は [`VoxelSampling`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelSampling.cs)<sup>[L9](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelSampling.cs#L9)</sup> クラス（[`VoxelVolume.SampleDistance`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L234](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L234)</sup> / [`SampleTemperature`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L244](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L244)</sup> 経由）で行っている。
 
 ## よくある疑問
 
