@@ -11,8 +11,11 @@ namespace Kizami.Application
     {
         private readonly TimeScaleState _state = new();
 
+        /// <summary>
+        /// TimeScaleState を AppBoard へ登録する。
+        /// </summary>
         /// <param name="appBoard">TimeScaleState の登録先</param>
-        public TimeScaleService(AppBoard appBoard)
+        public void Initialize(AppBoard appBoard)
         {
             appBoard.RegisterGameState<ITimeScaleState>(_state);
         }
