@@ -22,8 +22,10 @@
 
 | クラス | 内容 |
 |---|---|
-| [GameSceneController](../../../Code/Scripts/Application/Scene/GameSceneController.cs) | アウトゲームとインゲームの単位でシーン遷移を要求する |
-| [GameSceneInitializer](../../../Code/Scripts/Initialization/Scene/GameSceneInitializer.cs) | ビルドモードごとのシーングループを組み立てる |
+| [GameSceneController](../../../Code/Scripts/Application/Scene/GameSceneController.cs) | アウトゲームとインゲームの単位でシーン遷移を要求する。操作面 `IGameSceneController` は DI で受け取る |
+| [GameSceneInitializer](../../../Code/Scripts/Initialization/Scene/GameSceneInitializer.cs) | ビルドモードごとのシーングループを組み立てる。区間0で常駐シーンに配線済みの想定 |
+| 区間0の仮のアウトゲーム | キー入力でインゲームへ進むだけの仮の仕組み。この区間で本物のアウトゲームの流れに置き換える |
+| `PauseBoard` / `IPausable` | UsefulToolkit.ProgramTools のポーズ用の Board とインターフェース（`IsPaused` / `Pause` / `Resume`）。Board は常駐シーンに登録済みだが、中身はまだない |
 
 ## 作業一覧
 
@@ -47,7 +49,8 @@
 
 - ステージ数
 - ステージごとの失敗条件の違い
-- ポーズを `timeScale = 0` で作るか。その場合、UnscaledTime の Animator を `Animator.speed = 0` で止める
+- ポーズを `timeScale = 0` で作るか。その場合、倍率の変更は区間0の `ITimeScaleController` を通し、UnscaledTime の Animator を `Animator.speed = 0` で止める
+- ポーズに `PauseBoard` / `IPausable` を使うか（止める対象を `IPausable` で揃えるか）
 - アウトゲームとの受け渡しの形と、セーブデータ（アウトゲーム側の作業と調整する）
 
 ## 他プラットフォームへの対応
