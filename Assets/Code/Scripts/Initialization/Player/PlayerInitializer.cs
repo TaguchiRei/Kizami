@@ -12,7 +12,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// プレイヤーの移動・視点・HP まわり（Service / State / Abstractor）を生成して繋ぐだけの配線役。
+    /// プレイヤーの移動・視点・HP・近接切断まわり（Service / State / Abstractor）を生成して繋ぐだけの配線役。
     /// ロジックは持たない。操作シーンへ置く。
     /// PlayerHealthService は具象型のまま DI コンテナへ登録する。
     ///
@@ -23,6 +23,7 @@ namespace Kizami.Initialization
     {
         [SerializeField] private PlayerMovementAdapterBase movementAdapter;
         [SerializeField] private PlayerCameraAdapterBase cameraAdapter;
+        [SerializeField] private MeleeCutPreviewAdapter meleeCutPreviewAdapter;
 
         [SerializeField]
         [Tooltip("プレイヤーの移動と HP のパラメータ")]
@@ -32,6 +33,7 @@ namespace Kizami.Initialization
 
         private PlayerMovementService _movementService;
         private PlayerLookService _lookService;
+        private MeleeCutService _meleeCutService;
 
         private void Awake()
         {
@@ -96,6 +98,8 @@ namespace Kizami.Initialization
 
             _lookService = new PlayerLookService(playerBoard, inputState, configState, sceneId);
 
+            _meleeCutService = new MeleeCutService(playerBoard, inputState, accessibilitySettingState, sceneId);
+
             // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
             _healthService.Initialize(playerBoard, _parameters, sceneId);
 
@@ -114,6 +118,15 @@ namespace Kizami.Initialization
                 cameraAdapter.Initialize(playerBoard);
             }
 
+            if (meleeCutPreviewAdapter != null)
+            {
+                meleeCutPreviewAdapter.Initialize(playerBoard);
+            }
+            else
+            {
+                UsefulLogger.LogError("MeleeCutPreviewAdapter が設定されていません。", this);
+            }
+
             base.Initialize(blackBoard);
         }
 
@@ -121,6 +134,7 @@ namespace Kizami.Initialization
         {
             _movementService?.Dispose();
             _lookService?.Dispose();
+            _meleeCutService?.Dispose();
         }
     }
 }
