@@ -39,9 +39,6 @@ namespace Kizami.Application
         /// <summary> 壁走りの残りの持ち時間（秒）。着地で最大値に戻る </summary>
         private float _wallRunTimeRemaining;
 
-        /// <summary> 壁から離れようとする入力が続いている時間（秒） </summary>
-        private float _wallDetachInputTime;
-
         /// <summary>
         /// 壁ジャンプのあと、壁との接触が一度切れるまで再び壁走りに入らないようにする為の印。
         /// 壁ジャンプの直後の数ステップはまだ壁に触れている為、これがないと前向きの入力で入り直してしまう。
@@ -165,7 +162,7 @@ namespace Kizami.Application
                     return CalculateWallJumpVelocity(worldInput);
                 }
 
-                if (ShouldExitWallRun(worldInput, deltaTime))
+                if (ShouldExitWallRun(deltaTime))
                 {
                     _state.SetMode(PlayerMoveMode.Normal);
                 }
@@ -173,7 +170,6 @@ namespace Kizami.Application
             else if (CanEnterWallRun(worldInput))
             {
                 _state.SetMode(PlayerMoveMode.WallRunning);
-                _wallDetachInputTime = 0f;
             }
 
             if (_state.Mode == PlayerMoveMode.WallRunning)
@@ -210,23 +206,18 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 壁走りの持ち時間と、壁から離れようとする入力の継続時間を進め、壁走りを抜けるかどうかを返す。
-        /// 壁との接触が切れたとき、持ち時間が尽きたとき、壁から離れる向きの入力が一定時間続いたときに抜ける。
-        /// 入力がないときは、壁から離れようとしているとはみなさない。
+        /// 壁走りの持ち時間を進め、壁走りを抜けるかどうかを返す。
+        /// 壁との接触が切れたときと、持ち時間が尽きたときに抜ける。移動入力の向きでは抜けない。
         /// </summary>
-        private bool ShouldExitWallRun(Vector3 worldInput, float deltaTime)
+        private bool ShouldExitWallRun(float deltaTime)
         {
             if (!IsTouchingWallInAir) return true;
 
             _wallRunTimeRemaining -= deltaTime;
-            if (_wallRunTimeRemaining <= 0f)
-            {
-                _wallRunTimeRemaining = 0f;
-                return true;
-            }
+            if (_wallRunTimeRemaining > 0f) return false;
 
-            _wallDetachInputTime = IsPullingAwayFromWall(worldInput) ? _wallDetachInputTime + deltaTime : 0f;
-            return _wallDetachInputTime >= _parameters.WallDetachTime;
+            _wallRunTimeRemaining = 0f;
+            return true;
         }
 
         /// <summary>
