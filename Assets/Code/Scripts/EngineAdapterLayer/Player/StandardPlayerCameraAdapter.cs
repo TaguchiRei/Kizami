@@ -1,6 +1,9 @@
 using Unity.Cinemachine;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
+#if UNITY_EDITOR
+using UnityEngine.InputSystem;
+#endif
 
 namespace Kizami.EngineAdapter
 {
@@ -14,6 +17,8 @@ namespace Kizami.EngineAdapter
     /// Look 入力は Pointer/delta（OS カーソルの移動量）を使う為、カーソルが画面外へ出ると
     /// それ以上デルタが得られない。これを避ける為、有効化中はカーソルを中央にロックし非表示にする。
     /// タッチ操作のスマホではカーソル自体が存在しない為、この設定は実質何もしない。
+    ///
+    /// エディタでは、Alt キーを押している間だけカーソルのロックを外して表示する（デバッグ用）。
     /// </summary>
     public sealed class StandardPlayerCameraAdapter : PlayerCameraAdapterBase
     {
@@ -25,6 +30,11 @@ namespace Kizami.EngineAdapter
         [Tooltip("感度倍率 1.0 のときの、入力 1 単位あたりの回転角（度）")]
         private float _degreesPerInput = 0.1f;
 
+#if UNITY_EDITOR
+        /// <summary> Alt キーでカーソルのロックを外している最中か </summary>
+        private bool _isCursorReleased;
+#endif
+
         public override void Initialize()
         {
             base.Initialize();
@@ -34,16 +44,42 @@ namespace Kizami.EngineAdapter
                 UsefulLogger.LogError("CinemachinePanTilt が設定されていません。", this);
             }
 
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            SetCursorLocked(true);
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Alt キーを押している間はカーソルのロックを外して表示し、離したらロックして隠す。
+        /// エディタで Esc キーによりロックを外す操作を妨げないよう、Alt キーの状態が変わったときだけカーソルを書き換える。
+        /// </summary>
+        private void Update()
+        {
+            if (!Initialized) return;
+
+            var keyboard = Keyboard.current;
+            var isReleased = keyboard != null && keyboard.altKey.isPressed;
+            if (isReleased == _isCursorReleased) return;
+
+            _isCursorReleased = isReleased;
+            SetCursorLocked(!isReleased);
+        }
+#endif
 
         protected override void OnDestroy()
         {
             base.OnDestroy();
 
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            SetCursorLocked(false);
+        }
+
+        /// <summary>
+        /// カーソルを画面中央にロックして隠すか、ロックを外して表示する。
+        /// </summary>
+        /// <param name="locked">ロックして隠すなら true</param>
+        private static void SetCursorLocked(bool locked)
+        {
+            Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !locked;
         }
 
         protected override void OnLookInputChanged(Vector2 lookInput)
