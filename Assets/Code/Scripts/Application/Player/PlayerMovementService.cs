@@ -9,9 +9,9 @@ using UsefulToolkit.BlackBoard.Input;
 namespace Kizami.Application
 {
     /// <summary>
-    /// 入力と視線の向きから、プレイヤーのワールド空間の目標速度を決めて PlayerMovementState に書き込むユースケース。
+    /// 入力と視線の向き、触れている物から、プレイヤーのワールド空間の目標速度とジャンプを決めるユースケース。
     /// PlayerMovementState の具象インスタンスはこのクラスだけが保持する（Single Writer）。
-    /// 入力イベントでは入力値を記録するだけで、State の更新は Step（EngineAdapterLayer の FixedUpdate から直接配線で呼ばれる）で行う。
+    /// 入力イベントでは入力値を記録するだけで、判定と State の更新は Step（EngineAdapterLayer の FixedUpdate から直接配線で呼ばれる）で行う。
     /// 物理への反映と加減速の補間は EngineAdapterLayer 側（PlayerMovementAdapterBase）が行う。
     /// </summary>
     public sealed class PlayerMovementService : IDisposable
@@ -20,6 +20,9 @@ namespace Kizami.Application
         private readonly IAccessibilitySettingState _accessibilitySettingState;
         private readonly PlayerParameterData _parameters;
         private readonly List<IDisposable> _subscriptions = new();
+        private readonly IDisposable _contactStateWaiter;
+
+        private IPlayerContactState _contactState;
 
         /// <summary> 移動入力。x が右、y が前を正とし、長さは 1 以下 </summary>
         private Vector2 _moveInput;
@@ -27,11 +30,14 @@ namespace Kizami.Application
         private bool _isSprintHeld;
         private bool _isSprintToggled;
 
+        /// <summary> 次の Step で処理するジャンプ入力があるか </summary>
+        private bool _isJumpRequested;
+
         /// <summary> 視線の向きを水平面へ投影した向き。視線が真上・真下を向いている間は直前の値を保つ </summary>
         private Vector3 _viewForward = Vector3.forward;
 
         /// <param name="playerBoard">PlayerMovementState の登録先</param>
-        /// <param name="inputState">移動・ダッシュ入力の取得元</param>
+        /// <param name="inputState">移動・ダッシュ・ジャンプ入力の取得元</param>
         /// <param name="accessibilitySettingState">ダッシュ入力の受け付け方の取得元</param>
         /// <param name="parameters">移動のパラメータ</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
@@ -43,8 +49,20 @@ namespace Kizami.Application
 
             playerBoard.RegisterSceneState<IPlayerMovementState>(_state, sceneId);
 
+            // PlayerContactState は EngineAdapterLayer が登録する為、登録順に依存しないよう待受で拾う
+            _contactStateWaiter = playerBoard.SubscribeStateRegister<IPlayerContactState>(
+                () =>
+                {
+                    if (playerBoard.TryGetSceneState<IPlayerContactState>(out var state, out _))
+                    {
+                        _contactState = state;
+                    }
+                },
+                invokeIfRegistered: true);
+
             _subscriptions.Add(inputState.RegisterInput<Vector2>(ActionMaps.Player, PlayerActions.Move, OnMove));
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Sprint, OnSprint));
+            _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Jump, OnJump));
         }
 
         /// <summary>ダッシュ中かどうか。ダッシュ入力の受け付け方に応じて、押下中またはトグルの状態を返す。</summary>
@@ -52,16 +70,30 @@ namespace Kizami.Application
             ? _isSprintHeld
             : _isSprintToggled;
 
+        /// <summary>地面に触れているかどうか。</summary>
+        private bool IsGrounded => _contactState != null && (_contactState.Contacts & PlayerContact.Ground) != 0;
+
         /// <summary>
         /// 物理の 1 ステップごとに呼ばれ、記録済みの入力と視線の向きから目標速度を State に書き込む。
+        /// ジャンプ入力は、このステップで地面に触れていれば打ち出し速度として返し、触れていなければ捨てる。
         /// </summary>
         /// <param name="viewDirection">ワールド空間の視線の向き</param>
-        public void Step(Vector3 viewDirection)
+        /// <returns>このステップで Rigidbody に与える打ち出し速度。ジャンプしないステップでは null</returns>
+        public Vector3? Step(Vector3 viewDirection)
         {
             UpdateViewForward(viewDirection);
 
             var speed = IsSprinting ? _parameters.SprintSpeed : _parameters.WalkSpeed;
             _state.SetTargetVelocity(ToWorldDirection(_moveInput) * speed);
+
+            var isJumpRequested = _isJumpRequested;
+            _isJumpRequested = false;
+
+            if (!isJumpRequested || !IsGrounded) return null;
+
+            // 高さ h まで上がる初速は v = √(2gh)
+            var jumpSpeed = Mathf.Sqrt(2f * Mathf.Abs(Physics.gravity.y) * _parameters.JumpHeight);
+            return Vector3.up * jumpSpeed;
         }
 
         private void OnMove(InputContext<Vector2> context)
@@ -87,6 +119,14 @@ namespace Kizami.Application
                 case InputPhase.Canceled:
                     _isSprintHeld = false;
                     break;
+            }
+        }
+
+        private void OnJump(InputContext<float> context)
+        {
+            if (context.Phase == InputPhase.Performed)
+            {
+                _isJumpRequested = true;
             }
         }
 
@@ -118,6 +158,7 @@ namespace Kizami.Application
             }
 
             _subscriptions.Clear();
+            _contactStateWaiter.Dispose();
         }
     }
 }

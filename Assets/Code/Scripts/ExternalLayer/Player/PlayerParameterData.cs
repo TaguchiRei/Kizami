@@ -17,10 +17,18 @@ namespace Kizami.External
         [Tooltip("ダッシュの速度（m/s）")]
         private float _sprintSpeed = 9f;
 
+        [Header("ジャンプ")]
+        [SerializeField, Min(0f)]
+        [Tooltip("ジャンプの高さ（m）。初速は重力の大きさから求める")]
+        private float _jumpHeight = 1.5f;
+
         /// <summary> 歩行の速度（m/s） </summary>
         public float WalkSpeed => _walkSpeed;
 
         /// <summary> ダッシュの速度（m/s） </summary>
         public float SprintSpeed => _sprintSpeed;
+
+        /// <summary> ジャンプの高さ（m） </summary>
+        public float JumpHeight => _jumpHeight;
     }
 }
