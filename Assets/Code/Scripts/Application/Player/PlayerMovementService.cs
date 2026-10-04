@@ -9,7 +9,7 @@ using UsefulToolkit.BlackBoard.Input;
 namespace Kizami.Application
 {
     /// <summary>
-    /// 入力と視線の向き、触れている物から、プレイヤーのワールド空間の目標速度とジャンプを決めるユースケース。
+    /// 入力と視線の向き、触れている物から、プレイヤーの移動モード・ワールド空間の目標速度・ジャンプを決めるユースケース。
     /// PlayerMovementState の具象インスタンスはこのクラスだけが保持する（Single Writer）。
     /// 入力イベントでは入力値を記録するだけで、判定と State の更新は Step（EngineAdapterLayer の FixedUpdate から直接配線で呼ばれる）で行う。
     /// 物理への反映と加減速の補間は EngineAdapterLayer 側（PlayerMovementAdapterBase）が行う。
@@ -36,6 +36,18 @@ namespace Kizami.Application
         /// <summary> 視線の向きを水平面へ投影した向き。視線が真上・真下を向いている間は直前の値を保つ </summary>
         private Vector3 _viewForward = Vector3.forward;
 
+        /// <summary> 壁走りの残りの持ち時間（秒）。着地で最大値に戻る </summary>
+        private float _wallRunTimeRemaining;
+
+        /// <summary> 壁から離れようとする入力が続いている時間（秒） </summary>
+        private float _wallDetachInputTime;
+
+        /// <summary>
+        /// 壁ジャンプのあと、壁との接触が一度切れるまで再び壁走りに入らないようにする為の印。
+        /// 壁ジャンプの直後の数ステップはまだ壁に触れている為、これがないと前向きの入力で入り直してしまう。
+        /// </summary>
+        private bool _isWaitingWallRelease;
+
         /// <param name="playerBoard">PlayerMovementState の登録先</param>
         /// <param name="inputState">移動・ダッシュ・ジャンプ入力の取得元</param>
         /// <param name="accessibilitySettingState">ダッシュ入力の受け付け方の取得元</param>
@@ -46,6 +58,7 @@ namespace Kizami.Application
         {
             _accessibilitySettingState = accessibilitySettingState;
             _parameters = parameters;
+            _wallRunTimeRemaining = parameters.WallRunDuration;
 
             playerBoard.RegisterSceneState<IPlayerMovementState>(_state, sceneId);
 
@@ -73,27 +86,143 @@ namespace Kizami.Application
         /// <summary>地面に触れているかどうか。</summary>
         private bool IsGrounded => _contactState != null && (_contactState.Contacts & PlayerContact.Ground) != 0;
 
+        /// <summary>地面に触れておらず、壁に触れているかどうか。地面と壁の両方に触れているときは地面を優先する。</summary>
+        private bool IsTouchingWallInAir => _contactState != null && !IsGrounded &&
+                                            (_contactState.Contacts & PlayerContact.Wall) != 0;
+
         /// <summary>
-        /// 物理の 1 ステップごとに呼ばれ、記録済みの入力と視線の向きから目標速度を State に書き込む。
-        /// ジャンプ入力は、このステップで地面に触れていれば打ち出し速度として返し、触れていなければ捨てる。
+        /// 物理の 1 ステップごとに呼ばれ、記録済みの入力と視線の向き、触れている物から
+        /// 移動モードと目標速度を決めて State に書き込む。
+        /// ジャンプ入力はこのステップで処理し、跳べなければ捨てる。
         /// </summary>
         /// <param name="viewDirection">ワールド空間の視線の向き</param>
+        /// <param name="deltaTime">このステップの経過時間（秒）</param>
         /// <returns>このステップで Rigidbody に与える打ち出し速度。ジャンプしないステップでは null</returns>
-        public Vector3? Step(Vector3 viewDirection)
+        public Vector3? Step(Vector3 viewDirection, float deltaTime)
         {
             UpdateViewForward(viewDirection);
 
-            var speed = IsSprinting ? _parameters.SprintSpeed : _parameters.WalkSpeed;
-            _state.SetTargetVelocity(ToWorldDirection(_moveInput) * speed);
-
+            var worldInput = ToWorldDirection(_moveInput);
             var isJumpRequested = _isJumpRequested;
             _isJumpRequested = false;
 
+            if (IsGrounded)
+            {
+                _wallRunTimeRemaining = _parameters.WallRunDuration;
+            }
+
+            if (!IsTouchingWallInAir)
+            {
+                _isWaitingWallRelease = false;
+            }
+
+            if (_state.Mode == PlayerMoveMode.WallRunning)
+            {
+                if (isJumpRequested)
+                {
+                    _state.SetMode(PlayerMoveMode.Normal);
+                    _isWaitingWallRelease = true;
+                    _state.SetTargetVelocity(Vector3.zero);
+                    return CalculateWallJumpVelocity(worldInput);
+                }
+
+                if (ShouldExitWallRun(worldInput, deltaTime))
+                {
+                    _state.SetMode(PlayerMoveMode.Normal);
+                }
+            }
+            else if (CanEnterWallRun(worldInput))
+            {
+                _state.SetMode(PlayerMoveMode.WallRunning);
+                _wallDetachInputTime = 0f;
+            }
+
+            if (_state.Mode == PlayerMoveMode.WallRunning)
+            {
+                _state.SetTargetVelocity(ProjectOnWall(worldInput) * _parameters.WallRunSpeed);
+                return null;
+            }
+
+            var speed = IsSprinting ? _parameters.SprintSpeed : _parameters.WalkSpeed;
+            _state.SetTargetVelocity(worldInput * speed);
+
             if (!isJumpRequested || !IsGrounded) return null;
 
-            // 高さ h まで上がる初速は v = √(2gh)
-            var jumpSpeed = Mathf.Sqrt(2f * Mathf.Abs(Physics.gravity.y) * _parameters.JumpHeight);
-            return Vector3.up * jumpSpeed;
+            return Vector3.up * CalculateJumpSpeed();
+        }
+
+        /// <summary>
+        /// 壁走りに入れるかどうか。空中で壁に触れていて、前向きの移動入力があり、その入力が壁から離れる向きでなく、
+        /// 持ち時間が残っていて、壁ジャンプのあと壁との接触が一度切れているときに入れる。
+        /// </summary>
+        private bool CanEnterWallRun(Vector3 worldInput)
+        {
+            return IsTouchingWallInAir && _moveInput.y > 0f && !IsPullingAwayFromWall(worldInput) &&
+                   _wallRunTimeRemaining > 0f && !_isWaitingWallRelease;
+        }
+
+        /// <summary>
+        /// 入力が壁から離れる向き（壁の法線とのなす角が WallDetachAngle 以下）かどうか。入力がないときは false。
+        /// </summary>
+        private bool IsPullingAwayFromWall(Vector3 worldInput)
+        {
+            return worldInput.sqrMagnitude > Mathf.Epsilon &&
+                   Vector3.Angle(worldInput, _contactState.WallNormal) <= _parameters.WallDetachAngle;
+        }
+
+        /// <summary>
+        /// 壁走りの持ち時間と、壁から離れようとする入力の継続時間を進め、壁走りを抜けるかどうかを返す。
+        /// 壁との接触が切れたとき、持ち時間が尽きたとき、壁から離れる向きの入力が一定時間続いたときに抜ける。
+        /// 入力がないときは、壁から離れようとしているとはみなさない。
+        /// </summary>
+        private bool ShouldExitWallRun(Vector3 worldInput, float deltaTime)
+        {
+            if (!IsTouchingWallInAir) return true;
+
+            _wallRunTimeRemaining -= deltaTime;
+            if (_wallRunTimeRemaining <= 0f)
+            {
+                _wallRunTimeRemaining = 0f;
+                return true;
+            }
+
+            _wallDetachInputTime = IsPullingAwayFromWall(worldInput) ? _wallDetachInputTime + deltaTime : 0f;
+            return _wallDetachInputTime >= _parameters.WallDetachTime;
+        }
+
+        /// <summary>
+        /// 入力から壁の法線方向の成分を取り除き、壁の面に沿った水平な向きにする。長さは残った成分の長さになる。
+        /// </summary>
+        private Vector3 ProjectOnWall(Vector3 worldInput)
+        {
+            return Vector3.ProjectOnPlane(worldInput, _contactState.WallNormal);
+        }
+
+        /// <summary>
+        /// 壁ジャンプの打ち出し速度を求める。
+        /// 水平方向は、入力から壁へ押し込む成分を取り除いた向きと、壁の法線とを WallJumpInputInfluence の割合で混ぜた向き。
+        /// 入力がなければ法線の向き。上向きの速度はジャンプと同じ。
+        /// </summary>
+        private Vector3 CalculateWallJumpVelocity(Vector3 worldInput)
+        {
+            var wallNormal = _contactState.WallNormal;
+
+            var pushIntoWall = Vector3.Dot(worldInput, wallNormal);
+            var input = pushIntoWall < 0f ? worldInput - wallNormal * pushIntoWall : worldInput;
+
+            var horizontalDirection = input.sqrMagnitude > Mathf.Epsilon
+                ? Vector3.Lerp(wallNormal, input.normalized, _parameters.WallJumpInputInfluence).normalized
+                : wallNormal;
+
+            return horizontalDirection * _parameters.WallJumpHorizontalSpeed + Vector3.up * CalculateJumpSpeed();
+        }
+
+        /// <summary>
+        /// ジャンプの高さから、ジャンプの初速を求める。高さ h まで上がる初速は v = √(2gh)。
+        /// </summary>
+        private float CalculateJumpSpeed()
+        {
+            return Mathf.Sqrt(2f * Mathf.Abs(Physics.gravity.y) * _parameters.JumpHeight);
         }
 
         private void OnMove(InputContext<Vector2> context)

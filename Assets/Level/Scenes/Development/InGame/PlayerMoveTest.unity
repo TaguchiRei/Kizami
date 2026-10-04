@@ -425,8 +425,14 @@ MonoBehaviour:
   _groundLayers:
     serializedVersion: 2
     m_Bits: 4294967287
+  _wallCheckDistance: 0.1
+  _wallLayers:
+    serializedVersion: 2
+    m_Bits: 512
   _acceleration: 40
   _deceleration: 60
+  _airAcceleration: 10
+  _airDeceleration: 10
   _cameraTransform: {fileID: 1307013810}
   _degreesPerInput: 0.1
 --- !u!114 &903436368

@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
 
 namespace Kizami.BlackBoard
@@ -11,15 +12,19 @@ namespace Kizami.BlackBoard
     public sealed class PlayerContactState : SceneStateBase, IPlayerContactState
     {
         public PlayerContact Contacts { get; private set; }
+        public Vector3 WallNormal { get; private set; }
 
         private Action<PlayerContact, PlayerContact> _contactsChangedCallback;
 
         /// <summary>
-        /// 触れている物を設定する。値が変わったときだけ変化の通知を流す。
+        /// 触れている物と壁の法線を設定する。触れている物が変わったときだけ変化の通知を流す。
         /// </summary>
         /// <param name="contacts">触れている物</param>
-        public void SetContacts(PlayerContact contacts)
+        /// <param name="wallNormal">触れている壁の、壁から離れる向きの水平な単位ベクトル。壁に触れていないときは Vector3.zero</param>
+        public void SetContacts(PlayerContact contacts, Vector3 wallNormal)
         {
+            WallNormal = wallNormal;
+
             if (Contacts == contacts) return;
 
             var previous = Contacts;
@@ -37,7 +42,7 @@ namespace Kizami.BlackBoard
 
         public override string GetLog()
         {
-            return $"Contacts: {Contacts}";
+            return $"Contacts: {Contacts}  \nWallNormal: {WallNormal}";
         }
     }
 
@@ -48,6 +53,9 @@ namespace Kizami.BlackBoard
     {
         /// <summary> 触れている物。何にも触れていない（空中にいる）ときは None </summary>
         PlayerContact Contacts { get; }
+
+        /// <summary> 触れている壁の、壁から離れる向きの水平な単位ベクトル。壁に触れていないときは Vector3.zero </summary>
+        Vector3 WallNormal { get; }
 
         /// <summary>
         /// 触れている物が変化した際に発火するイベントを登録する。
@@ -66,6 +74,9 @@ namespace Kizami.BlackBoard
         None = 0,
 
         /// <summary> 地面 </summary>
-        Ground = 1 << 0
+        Ground = 1 << 0,
+
+        /// <summary> 壁走りのできる壁 </summary>
+        Wall = 1 << 1
     }
 }
