@@ -23,6 +23,7 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0f)] private float _deceleration = 60f;
 
         private IPlayerMovementState _movementState;
+        private Action<Vector3> _step;
         private IDisposable _movementStateWaiter;
         private IDisposable _lookStateWaiter;
         private IDisposable _lookSubscription;
@@ -32,8 +33,11 @@ namespace Kizami.EngineAdapter
         /// PlayerInitializer から呼ばれる。State の登録順に依存しないよう待受で拾う。
         /// </summary>
         /// <param name="playerBoard">移動・視点ステートの取得元</param>
-        public void Initialize(PlayerBoard playerBoard)
+        /// <param name="step">FixedUpdate ごとに視線の向きを渡して呼ぶ処理（PlayerMovementService.Step）</param>
+        public void Initialize(PlayerBoard playerBoard, Action<Vector3> step)
         {
+            _step = step;
+
             _movementStateWaiter = playerBoard.SubscribeStateRegister<IPlayerMovementState>(
                 () =>
                 {
@@ -70,22 +74,23 @@ namespace Kizami.EngineAdapter
         protected abstract void OnLookInputChanged(Vector2 lookInput);
 
         /// <summary>
-        /// PlayerMovementState の MovementDirection（カメラ相対。x が右、z が前）を
-        /// 実際に速度へ乗せるワールド方向へ変換する。既定では変換せずそのまま返す。
+        /// ワールド空間の視線の向きを返す。既定ではこの Transform の前方を返す。
         /// </summary>
-        /// <param name="stateDirection">MovementState が保持する入力方向</param>
-        protected virtual Vector3 ResolveWorldDirection(Vector3 stateDirection) => stateDirection;
+        protected virtual Vector3 GetViewDirection() => transform.forward;
 
         /// <summary>
-        /// 目標速度（MovementDirection * MovementSpeed）へ向けて水平速度を緩やかに補間する。
-        /// 移動開始直後は即座に目標速度へ到達させず、加速レートで徐々に近づけていく。到達上限は MovementSpeed。
+        /// 視線の向きを渡して PlayerMovementService.Step を呼んだあと、
+        /// 目標速度（PlayerMovementState.TargetVelocity の水平成分）へ向けて水平速度を緩やかに補間する。
+        /// 移動開始直後は即座に目標速度へ到達させず、加速レートで徐々に近づけていく。
         /// Y 軸方向の速度（重力・ジャンプ等）は上書きせず、Rigidbody の現在値をそのまま通す。
         /// </summary>
         private void FixedUpdate()
         {
+            _step?.Invoke(GetViewDirection());
+
             if (_movementState == null || _rigidbody == null) return;
 
-            var target = ResolveWorldDirection(_movementState.MovementDirection) * _movementState.MovementSpeed;
+            var target = _movementState.TargetVelocity;
             target.y = 0f;
 
             // 目標へ近づく（加速）ときは加速レート、緩める・止める（減速）ときは減速レートを使う
