@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
 
@@ -12,13 +13,19 @@ namespace Kizami.BlackBoard
         public Vector3 TargetVelocity { get; private set; }
         public PlayerMoveMode Mode { get; private set; }
 
+        private Action<PlayerMoveMode, PlayerMoveMode> _modeChangedCallback;
+
         /// <summary>
-        /// 移動モードを設定する。
+        /// 移動モードを設定する。移動モードが変わったときだけ変化の通知を流す。
         /// </summary>
         /// <param name="mode">移動モード</param>
         public void SetMode(PlayerMoveMode mode)
         {
+            if (Mode == mode) return;
+
+            var previous = Mode;
             Mode = mode;
+            _modeChangedCallback?.Invoke(previous, mode);
         }
 
         /// <summary>
@@ -28,6 +35,14 @@ namespace Kizami.BlackBoard
         public void SetTargetVelocity(Vector3 targetVelocity)
         {
             TargetVelocity = targetVelocity;
+        }
+
+        public IDisposable RegisterOnModeChanged(Action<PlayerMoveMode, PlayerMoveMode> callback)
+        {
+            if (callback == null) throw new ArgumentNullException(nameof(callback));
+
+            _modeChangedCallback += callback;
+            return new BoardDispose(() => _modeChangedCallback -= callback);
         }
 
         public override string GetLog()
@@ -43,11 +58,18 @@ namespace Kizami.BlackBoard
     {
         /// <summary>
         /// ワールド空間の目標速度（m/s）。通常の移動と壁走りでは水平成分だけを使い、Y 成分は 0 になる。
+        /// ワープ中はワープの速度そのもので、Y 成分も使う。
         /// </summary>
         Vector3 TargetVelocity { get; }
 
         /// <summary> 移動モード </summary>
         PlayerMoveMode Mode { get; }
+
+        /// <summary>
+        /// 移動モードが変化した際に発火するイベントを登録する。ワープのエフェクトなどの差し込み口。
+        /// </summary>
+        /// <param name="callback">変化時に実行する処理。引数に変化前と変化後の値が入る</param>
+        IDisposable RegisterOnModeChanged(Action<PlayerMoveMode, PlayerMoveMode> callback);
     }
 
     /// <summary>
@@ -59,6 +81,9 @@ namespace Kizami.BlackBoard
         Normal,
 
         /// <summary> 壁走り。重力を受けず、壁に沿って進む。移動入力がなければその場にとどまる（ラッチ） </summary>
-        WallRunning
+        WallRunning,
+
+        /// <summary> 短距離ワープ。重力を受けず、決まった時間だけ決まった速度で進む </summary>
+        Warping
     }
 }

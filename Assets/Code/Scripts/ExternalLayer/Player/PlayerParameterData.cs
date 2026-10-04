@@ -47,6 +47,23 @@ namespace Kizami.External
         [Tooltip("壁ジャンプの水平方向に、移動入力の向きを混ぜる割合。0 なら壁から離れる向きのみ、1 なら入力の向きのみ")]
         private float _wallJumpInputInfluence = 0.5f;
 
+        [Header("短距離ワープ")]
+        [SerializeField, Min(0f)]
+        [Tooltip("ワープで進む距離（m）")]
+        private float _warpDistance = 8f;
+
+        [SerializeField, Min(0.001f)]
+        [Tooltip("ワープの所要時間（秒）。速度は距離 ÷ 所要時間になる")]
+        private float _warpDuration = 0.15f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ワープが終わってから次のワープができるまでの時間（秒）")]
+        private float _warpCooldown = 0.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ワープの向きに、ワールド空間の移動入力の向きを混ぜる割合。視線の向き ＋ 入力の向き × この値 を正規化した向きへ進む")]
+        private float _warpInputInfluence = 0.2f;
+
         /// <summary> 歩行の速度（m/s） </summary>
         public float WalkSpeed => _walkSpeed;
 
@@ -73,5 +90,17 @@ namespace Kizami.External
 
         /// <summary> 壁ジャンプの水平方向に移動入力の向きを混ぜる割合（0〜1） </summary>
         public float WallJumpInputInfluence => _wallJumpInputInfluence;
+
+        /// <summary> ワープで進む距離（m） </summary>
+        public float WarpDistance => _warpDistance;
+
+        /// <summary> ワープの所要時間（秒） </summary>
+        public float WarpDuration => _warpDuration;
+
+        /// <summary> ワープが終わってから次のワープができるまでの時間（秒） </summary>
+        public float WarpCooldown => _warpCooldown;
+
+        /// <summary> ワープの向きに移動入力の向きを混ぜる割合 </summary>
+        public float WarpInputInfluence => _warpInputInfluence;
     }
 }

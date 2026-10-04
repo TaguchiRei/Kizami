@@ -56,6 +56,12 @@ namespace Kizami.EngineAdapter
         private IDisposable _lookSubscription;
         private Vector3 _horizontalVelocity;
 
+        /// <summary> ワープを始める直前の水平速度。ワープが終わったときにこの値へ戻す </summary>
+        private Vector3 _preWarpHorizontalVelocity;
+
+        /// <summary> 直前の FixedUpdate で反映した移動モード </summary>
+        private PlayerMoveMode _lastAppliedMode;
+
         /// <summary>
         /// PlayerInitializer から呼ばれる。State の登録順に依存しないよう待受で拾う。
         /// </summary>
@@ -120,7 +126,10 @@ namespace Kizami.EngineAdapter
         ///    水平速度を緩やかに補間し、Rigidbody に反映する
         /// Step が触れている物を読む為、1 は 2 より先に行う必要がある。
         /// 打ち出し速度があれば、Y 軸方向の速度をその Y 成分で置き換え、水平成分が 0 でなければ水平速度もそれで置き換える。
-        /// 打ち出し速度がなければ、壁走り中は Y 軸方向の速度を 0 にし、それ以外は Rigidbody の現在値（重力等）をそのまま通す。
+        /// 打ち出し速度がなければ、壁走り中とワープが終わったステップでは Y 軸方向の速度を 0 にし、
+        /// それ以外は Rigidbody の現在値（重力等）をそのまま通す。
+        /// ワープ中は補間せず、目標速度（Y 成分を含む）をそのまま Rigidbody に設定する。
+        /// ワープが終わったステップでは、水平速度をワープを始める直前の値に戻してから補間する。
         /// </summary>
         private void FixedUpdate()
         {
@@ -132,7 +141,29 @@ namespace Kizami.EngineAdapter
 
             if (_movementState == null) return;
 
-            var isWallRunning = _movementState.Mode == PlayerMoveMode.WallRunning;
+            var mode = _movementState.Mode;
+            var previousMode = _lastAppliedMode;
+            _lastAppliedMode = mode;
+
+            if (mode == PlayerMoveMode.Warping)
+            {
+                if (previousMode != PlayerMoveMode.Warping)
+                {
+                    _preWarpHorizontalVelocity = _horizontalVelocity;
+                }
+
+                _rigidbody.useGravity = false;
+                _rigidbody.linearVelocity = _movementState.TargetVelocity;
+                return;
+            }
+
+            var hasWarpEnded = previousMode == PlayerMoveMode.Warping;
+            if (hasWarpEnded)
+            {
+                _horizontalVelocity = _preWarpHorizontalVelocity;
+            }
+
+            var isWallRunning = mode == PlayerMoveMode.WallRunning;
             _rigidbody.useGravity = !isWallRunning;
 
             if (launchVelocity.HasValue)
@@ -156,7 +187,8 @@ namespace Kizami.EngineAdapter
             var rate = target.sqrMagnitude >= _horizontalVelocity.sqrMagnitude ? acceleration : deceleration;
             _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, target, rate * Time.fixedDeltaTime);
 
-            var verticalSpeed = launchVelocity?.y ?? (isWallRunning ? 0f : _rigidbody.linearVelocity.y);
+            var verticalSpeed = launchVelocity?.y ??
+                                (isWallRunning || hasWarpEnded ? 0f : _rigidbody.linearVelocity.y);
             _rigidbody.linearVelocity = new Vector3(_horizontalVelocity.x, verticalSpeed, _horizontalVelocity.z);
         }
 

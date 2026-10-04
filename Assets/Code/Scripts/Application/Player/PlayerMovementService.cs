@@ -48,8 +48,20 @@ namespace Kizami.Application
         /// </summary>
         private bool _isWaitingWallRelease;
 
+        /// <summary> 次の Step で処理するワープ入力があるか </summary>
+        private bool _isWarpRequested;
+
+        /// <summary> 実行中のワープの速度（m/s） </summary>
+        private Vector3 _warpVelocity;
+
+        /// <summary> 実行中のワープの残りの所要時間（秒） </summary>
+        private float _warpTimeRemaining;
+
+        /// <summary> 次のワープができるまでの残り時間（秒） </summary>
+        private float _warpCooldownRemaining;
+
         /// <param name="playerBoard">PlayerMovementState の登録先</param>
-        /// <param name="inputState">移動・ダッシュ・ジャンプ入力の取得元</param>
+        /// <param name="inputState">移動・ダッシュ・ジャンプ・ワープ入力の取得元</param>
         /// <param name="accessibilitySettingState">ダッシュ入力の受け付け方の取得元</param>
         /// <param name="parameters">移動のパラメータ</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
@@ -76,6 +88,7 @@ namespace Kizami.Application
             _subscriptions.Add(inputState.RegisterInput<Vector2>(ActionMaps.Player, PlayerActions.Move, OnMove));
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Sprint, OnSprint));
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Jump, OnJump));
+            _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Warp, OnWarp));
         }
 
         /// <summary>ダッシュ中かどうか。ダッシュ入力の受け付け方に応じて、押下中またはトグルの状態を返す。</summary>
@@ -93,7 +106,8 @@ namespace Kizami.Application
         /// <summary>
         /// 物理の 1 ステップごとに呼ばれ、記録済みの入力と視線の向き、触れている物から
         /// 移動モードと目標速度を決めて State に書き込む。
-        /// ジャンプ入力はこのステップで処理し、跳べなければ捨てる。
+        /// ジャンプ入力とワープ入力はこのステップで処理し、行えなければ捨てる。
+        /// ワープ中はジャンプ入力も壁走りに入る判定も無視する。
         /// </summary>
         /// <param name="viewDirection">ワールド空間の視線の向き</param>
         /// <param name="deltaTime">このステップの経過時間（秒）</param>
@@ -105,6 +119,31 @@ namespace Kizami.Application
             var worldInput = ToWorldDirection(_moveInput);
             var isJumpRequested = _isJumpRequested;
             _isJumpRequested = false;
+            var isWarpRequested = _isWarpRequested;
+            _isWarpRequested = false;
+
+            if (_state.Mode == PlayerMoveMode.Warping)
+            {
+                if (_warpTimeRemaining > 0f)
+                {
+                    AdvanceWarp(deltaTime);
+                    return null;
+                }
+
+                _state.SetMode(PlayerMoveMode.Normal);
+                _warpCooldownRemaining = _parameters.WarpCooldown;
+            }
+            else
+            {
+                _warpCooldownRemaining = Mathf.Max(0f, _warpCooldownRemaining - deltaTime);
+
+                if (isWarpRequested && _warpCooldownRemaining <= 0f)
+                {
+                    StartWarp(viewDirection, worldInput);
+                    AdvanceWarp(deltaTime);
+                    return null;
+                }
+            }
 
             if (IsGrounded)
             {
@@ -218,6 +257,36 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// ワープを始める。移動モードを Warping にし、向きと速度、所要時間を決める。
+        /// 向きは、視線の向き ＋ ワールド空間の入力 × WarpInputInfluence を正規化したもの。
+        /// 視線の向きがほぼ 0 のときは、水平な視線の向きを使う。
+        /// </summary>
+        private void StartWarp(Vector3 viewDirection, Vector3 worldInput)
+        {
+            var view = viewDirection.sqrMagnitude > 1e-6f ? viewDirection.normalized : _viewForward;
+            var direction = (view + worldInput * _parameters.WarpInputInfluence).normalized;
+            if (direction.sqrMagnitude <= Mathf.Epsilon)
+            {
+                direction = view;
+            }
+
+            _warpVelocity = direction * (_parameters.WarpDistance / _parameters.WarpDuration);
+            _warpTimeRemaining = _parameters.WarpDuration;
+            _state.SetMode(PlayerMoveMode.Warping);
+        }
+
+        /// <summary>
+        /// ワープを 1 ステップ分進める。目標速度にワープの速度を書き込み、残りの所要時間を減らす。
+        /// 残りの所要時間がステップの経過時間より短いときは、進む距離が WarpDistance に揃うよう速度をその割合だけ落とす。
+        /// </summary>
+        private void AdvanceWarp(float deltaTime)
+        {
+            var ratio = deltaTime > 0f ? Mathf.Clamp01(_warpTimeRemaining / deltaTime) : 0f;
+            _state.SetTargetVelocity(_warpVelocity * ratio);
+            _warpTimeRemaining -= deltaTime;
+        }
+
+        /// <summary>
         /// ジャンプの高さから、ジャンプの初速を求める。高さ h まで上がる初速は v = √(2gh)。
         /// </summary>
         private float CalculateJumpSpeed()
@@ -256,6 +325,14 @@ namespace Kizami.Application
             if (context.Phase == InputPhase.Performed)
             {
                 _isJumpRequested = true;
+            }
+        }
+
+        private void OnWarp(InputContext<float> context)
+        {
+            if (context.Phase == InputPhase.Performed)
+            {
+                _isWarpRequested = true;
             }
         }
 
