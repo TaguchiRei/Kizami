@@ -12,8 +12,9 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// プレイヤーの移動・視点まわり（Service / State / Abstractor）を生成して繋ぐだけの配線役。
+    /// プレイヤーの移動・視点・HP まわり（Service / State / Abstractor）を生成して繋ぐだけの配線役。
     /// ロジックは持たない。操作シーンへ置く。
+    /// PlayerHealthService は具象型のまま DI コンテナへ登録する。
     ///
     /// 視点入力を実際の回転へどう変換するかは操作系ごとに違うが、その差は
     /// 各シーンへ置く PlayerMovementAbstractorBase の派生が吸収する為、ここは選び分けをしない。
@@ -27,9 +28,16 @@ namespace Kizami.Initialization
         [Tooltip("プレイヤーの移動と HP のパラメータ")]
         private PlayerParameterData _parameters;
 
+        private readonly PlayerHealthService _healthService = new();
+
         private PlayerMovementService _movementService;
         private PlayerLookService _lookService;
-        
+
+        private void Awake()
+        {
+            StandardPlayerControlCompositor.TryRegisterContent(_healthService);
+        }
+
         public override void Initialize(IBlackBoard blackBoard)
         {
             if (!blackBoard.TryGetStateBoard<PlayerBoard>(out var playerBoard))
@@ -87,6 +95,9 @@ namespace Kizami.Initialization
                 playerBoard, inputState, accessibilitySettingState, _parameters, sceneId);
 
             _lookService = new PlayerLookService(playerBoard, inputState, configState, sceneId);
+
+            // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
+            _healthService.Initialize(playerBoard, _parameters, sceneId);
 
             if (movementAdapter != null)
             {

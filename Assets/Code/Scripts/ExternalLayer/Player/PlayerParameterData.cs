@@ -64,6 +64,15 @@ namespace Kizami.External
         [Tooltip("ワープの向きに、ワールド空間の移動入力の向きを混ぜる割合。視線の向き ＋ 入力の向き × この値 を正規化した向きへ進む")]
         private float _warpInputInfluence = 0.2f;
 
+        [Header("HP")]
+        [SerializeField, Min(1)]
+        [Tooltip("最大 HP")]
+        private int _maxHealth = 100;
+
+        [SerializeField, Range(0f, 100f)]
+        [Tooltip("ワープ中に受けるダメージの軽減率（%）。100 で無効、0 で軽減なし")]
+        private float _warpDamageReduction = 100f;
+
         /// <summary> 歩行の速度（m/s） </summary>
         public float WalkSpeed => _walkSpeed;
 
@@ -102,5 +111,11 @@ namespace Kizami.External
 
         /// <summary> ワープの向きに移動入力の向きを混ぜる割合 </summary>
         public float WarpInputInfluence => _warpInputInfluence;
+
+        /// <summary> 最大 HP </summary>
+        public int MaxHealth => _maxHealth;
+
+        /// <summary> ワープ中に受けるダメージの軽減率（%、0〜100） </summary>
+        public float WarpDamageReduction => _warpDamageReduction;
     }
 }
