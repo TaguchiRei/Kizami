@@ -20,6 +20,7 @@
         "UniTask",
         "UsefulToolkit.Framework.Initialization.Runtime",
         "UsefulToolkit.ProgramTools.BlackBoard.Runtime",
+        "UsefulToolkit.Debugging.Runtime",
         "UsefulToolkit.Input.Initialization.Runtime"
     ],
     "includePlatforms": [],

@@ -48,7 +48,7 @@ namespace Kizami.EngineAdapter
             if (_xrOriginTransform == null) return;
             if (Mathf.Approximately(_turnInput, 0f)) return;
 
-            _yaw = Mathf.Repeat(_yaw + _turnInput * _degreesPerSecond * Time.deltaTime, 360f);
+            _yaw = Mathf.Repeat(_yaw + _turnInput * _degreesPerSecond * Time.unscaledDeltaTime, 360f);
             _xrOriginTransform.localRotation = Quaternion.Euler(0f, _yaw, 0f);
         }
     }
