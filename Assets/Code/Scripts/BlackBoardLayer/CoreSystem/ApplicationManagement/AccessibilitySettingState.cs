@@ -10,6 +10,8 @@ namespace Kizami.BlackBoard
     {
         public SprintInputMode SprintInputMode { get; private set; } = SprintInputMode.Hold;
 
+        public float CutRotateStepAngle { get; private set; } = 15f;
+
         /// <summary>
         /// ダッシュ入力の受け付け方を設定する。
         /// </summary>
@@ -19,9 +21,18 @@ namespace Kizami.BlackBoard
             SprintInputMode = mode;
         }
 
+        /// <summary>
+        /// 切断面の回転入力 1 回あたりの回転角度を設定する。
+        /// </summary>
+        /// <param name="angle">回転角度（度）</param>
+        public void SetCutRotateStepAngle(float angle)
+        {
+            CutRotateStepAngle = angle;
+        }
+
         public override string GetLog()
         {
-            return $"SprintInputMode: {SprintInputMode}";
+            return $"SprintInputMode: {SprintInputMode}  \nCutRotateStepAngle: {CutRotateStepAngle}";
         }
     }
 
@@ -32,6 +43,9 @@ namespace Kizami.BlackBoard
     {
         /// <summary> ダッシュ入力の受け付け方 </summary>
         SprintInputMode SprintInputMode { get; }
+
+        /// <summary> 切断面の回転入力（ホイール 1 段）1 回あたりの回転角度（度） </summary>
+        float CutRotateStepAngle { get; }
     }
 
     /// <summary>

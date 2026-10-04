@@ -10,7 +10,7 @@
 | スケジュール | Notion「仕様書 / スケジュール」のマイルストーン（https://app.notion.com/p/3131ea2aa7fa8339acaa01d55399b74a） |
 | 時間制御の設計 | Notion「システムリスト / 時間制御（スローモード）」（https://app.notion.com/p/3ea1ea2aa7fa8183bbfac10bfafd4d70） |
 
-作成日：2026-09-29 ／ 更新日：2026-10-04
+作成日：2026-09-29 ／ 更新日：2026-10-05
 
 ## 0. 作業者向けの前提
 
@@ -66,6 +66,7 @@
 | スローモード | `Time.timeScale` を下げて世界全体を遅くする。プレイヤーのアニメーション、視点操作、UI は等速。倍率の正本は TimeScale State で、`Time.timeScale` と `Time.fixedDeltaTime` に反映するのは EngineAdapterLayer の 1 か所だけ。詳細は Notion「時間制御（スローモード）」 |
 | アーキテクチャ | State-Centrism Architecture（Initialization / Application / BlackBoardLayer / ExternalLayer / EngineAdapterLayer）と UsefulToolkit |
 | シーン構成 | 常駐シーン（`UsefulToolkitPersistent`）＋ 場面シーン（アウトゲーム / インゲーム。3 ビルド共通）＋ 操作シーン（プレイヤー一式と入力の配線。ビルドモードごと）。場面と操作シーンの組を SceneGroup で持ち、`GameSceneController` が場面の単位で切り替える。操作シーンは場面をまたいで残る |
+| インゲームのシーン（2026-10-04 決定） | インゲームの場面シーン（`InGame`）には、ステージによらず使うシステム（MeshCut System、敵の生成の仕組み など）を置く。ライティング、敵の生成位置、置くオブジェクトは、ステージごとのステージシーンに置く。敵などの切断対象は `MeshDataCache` の子に置く必要があるので、`InGame` に置く。ステージシーンを分ける作業は区間4の最初に行う。複数のシーンを読み込んだときは、アクティブなシーンのライティングの設定（環境光、スカイボックス）だけが効くので、ステージシーンをアクティブにする |
 
 ## 2. プラットフォームの方針
 
@@ -75,7 +76,7 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-04 時点。区間1の完了後）
+## 3. 現状（2026-10-05 時点。区間2の完了後）
 
 | 分野 | 状態 |
 |---|---|
@@ -87,7 +88,7 @@
 | 入力（PC の Player マップ） | 区間0で、切断面の回転、ワープ、スローモード、投擲、ランチャー、スキル 1〜3 のアクションを追加済み。Smartphone と VRControllers のマップは未対応 |
 | VR の操作系 | `VrPlayerMovementAdapter` / `VrPlayerInputRouteInitializer` はあるが、どのシーンにも置かれていない |
 | ボクセル（ベイク、削る・盛る、塊の分離、平面での切り分け、融解） | あり。ゲームのルールとはまだつながっていない |
-| メッシュ切断 | パッケージは導入済み。ゲーム側からはまだ使っていない |
+| 近接切断（メッシュ切断） | あり（区間2）。左クリックで、ホイールで回した角度の刃（カメラの位置を通る）で範囲内を切る。InGame に `MeshCut System` と、切断を実行する `MeleeCutAdapter`（`MeleeCutInitializer` と `InGameCompositor` で初期化）、切れるダミーの敵がある。攻撃は `PlayerEventBoard` の `IMeleeCutEvents.OnSwing` で操作シーンから InGame へ渡す。切断の結果（元の対象とかけら）はログに出すだけで、通知の仕組みはまだない（区間3） |
 | 敵、チャージ、スキル、スローモード、装甲、クリア判定、HUD | なし |
 | 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブは旧構成のもの。`Test/InGame.unity` は Build Settings から外してあり、`BuildScenes.InGame` は新しい `Master/InGame` を指す |
 
@@ -104,9 +105,9 @@
 |---|---|---|---|---|---|---|
 | 0 | 基盤整備 | TimeScale State と Adapter、シーン遷移の配線とインゲームのシーン、PC 用入力マップ、デバッグ手段 | ― | 2026/09/29〜10/05 | 完了（10/04） | [Section00](Sections/Section00_Foundation.md) |
 | 1 | プレイヤー移動の完成 | ダッシュ、ジャンプ、壁走り、短距離ワープ、HP と被ダメージの窓口 | 0 | 10/06〜10/12 | 完了（10/04） | [Section01](Sections/Section01_PlayerMovement.md) |
-| 2 | 近接切断 | MeshCut による剣の切断、ホイールで切断面を回転、切断面のプレビュー、かけらの通知 | 0 | 10/13〜10/19 | 未着手 | [Section02](Sections/Section02_MeleeCut.md) |
-| 3 | かけら・オーブ・チャージ | かけらのオーブ化と自動吸収、チャージの State、ステージ外周コライダー、オーブのプール | 2 | 10/20〜10/26 | 未着手 | [Section03](Sections/Section03_Charge.md) |
-| 4 | 雑魚敵と出現 | パーツ分割メッシュと FK / IK の敵、湧き場所、同時存在数の上限、簡単な AI、HP 0 で失敗 | 1, 3 | 10/27〜11/08 | 未着手 | [Section04](Sections/Section04_Enemy.md) |
+| 2 | 近接切断 | MeshCut による剣の切断、ホイールで切断面を回転、切断面のプレビュー、切断の結果（かけらと元の対象）の取得 | 0 | 10/13〜10/19 | 完了（10/05） | [Section02](Sections/Section02_MeleeCut.md) |
+| 3 | かけら・オーブ・チャージ | かけらの通知、かけらのオーブ化と自動吸収、チャージの State、ステージ外周コライダー、オーブのプール | 2 | 10/20〜10/26 | 未着手 | [Section03](Sections/Section03_Charge.md) |
+| 4 | 雑魚敵と出現 | ステージシーンの分離、パーツ分割メッシュと FK / IK の敵、湧き場所、同時存在数の上限、簡単な AI、HP 0 で失敗 | 1, 3 | 10/27〜11/08 | 未着手 | [Section04](Sections/Section04_Enemy.md) |
 | A | マイルストーンA | 「切って溜める」までがつながる | | 11/08 | | |
 | 5 | ダメージ基盤・破壊対象・クリア判定 | ダメージタイプと対象ごとの判定、ボクセルの破壊対象、重要パーツの体積割合、マップオブジェクト、クリア判定 | 4 | 11/09〜11/22 | 未着手 | [Section05](Sections/Section05_DestructionTarget.md) |
 | 6 | スキル基盤・攻撃型スキル | スキルの定義データ、装備枠 3、チャージ消費、攻撃型スキル 2 種 | 3, 5 | 11/23〜11/29 | 未着手 | [Section06](Sections/Section06_Skill.md) |
@@ -146,7 +147,7 @@ flowchart LR
 
 | 用途 | 使うもの |
 |---|---|
-| 敵の切断 | UsefulToolkit.MeshCut（`MultiCutBlade` / `MultiMeshCut` / `CuttableObject` / `MeshDataCache` / `MeshCutObjectPool`）。シーン上では `MeshCut System` の下に `MeshDataCache` / `FragmentPool` / `CutBlade` という名前で置かれる |
+| 敵の切断 | UsefulToolkit.MeshCut（`MultiCutBlade` / `MultiMeshCut` / `CuttableObject` / `MeshDataCache` / `MeshCutObjectPool`）。シーン上では `MeshCut System` の下に `MeshDataCache` / `FragmentPool` / `CutBlade` という名前で置かれる。`MultiCutBlade.ExecuteCut` は切断した対象ごとに `MultiCutResult`（`Original` / `Front` / `Back`）を返す（区間2で拡張）。拡大率は `localScale` で扱うので、切断対象の親に拡大率を持たせない |
 | かけらの上限 | `MeshCutObjectPool` は固定長のリングバッファで、空きがなくなると最も古いかけらを回収して使い回す |
 | 敵の移動 | `com.unity.ai.navigation`（NavMesh。導入済みだが asmdef の参照はまだない） |
 | 敵・オーブの再利用 | `UnityEngine.Pool.ObjectPool<T>` |
@@ -167,7 +168,7 @@ flowchart LR
 | 0 | TimeScale State の置き場所、シーンの作り方と置き場所、アウトゲームからインゲームへの仮の入り方、入力の割り当て |
 | 1 | ワープ中のダメージ軽減率、各移動パラメータ、壁走りに入る条件 |
 | 2 | 切断判定の方式、攻撃の範囲と間隔、生まれたかけらを受け取る方法 |
-| 3 | かけらを再度切ったときのチャージの数え方、ゲージの上限、かけらが強制回収されたときの扱い |
+| 3 | かけらの通知の経路、かけらを再度切ったときのチャージの数え方、ゲージの上限、かけらが強制回収されたときの扱い |
 | 4 | 雑魚敵がプレイヤーを攻撃する方法、敵を倒す条件、プレイヤーの HP と回復の有無、敵を MeshCut に登録して使い回す方法 |
 | 5 | 重要パーツの指定方法、本体から分離した塊を破壊済みに数えるか、クリアに必要な割合をどの単位で持つか |
 | 6 | 最初に作る攻撃型スキル、消費量 |
