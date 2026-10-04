@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Kizami.External
 {
     /// <summary>
-    /// プレイヤーの移動と HP に関わる、遊びのルールのパラメータ。
+    /// プレイヤーの移動・HP・近接切断に関わる、遊びのルールのパラメータ。
     /// </summary>
     [CreateAssetMenu(fileName = "PlayerParameterData", menuName = "Kizami/Player/PlayerParameterData")]
     public sealed class PlayerParameterData : ScriptableObject
@@ -73,6 +73,11 @@ namespace Kizami.External
         [Tooltip("ワープ中に受けるダメージの軽減率（%）。100 で無効、0 で軽減なし")]
         private float _warpDamageReduction = 100f;
 
+        [Header("近接切断")]
+        [SerializeField, Min(0f)]
+        [Tooltip("近接切断の攻撃間隔（秒）。スローモード中も等速で数える")]
+        private float _meleeAttackInterval = 0.3f;
+
         /// <summary> 歩行の速度（m/s） </summary>
         public float WalkSpeed => _walkSpeed;
 
@@ -117,5 +122,8 @@ namespace Kizami.External
 
         /// <summary> ワープ中に受けるダメージの軽減率（%、0〜100） </summary>
         public float WarpDamageReduction => _warpDamageReduction;
+
+        /// <summary> 近接切断の攻撃間隔（秒）。スローモード中も等速で数える </summary>
+        public float MeleeAttackInterval => _meleeAttackInterval;
     }
 }
