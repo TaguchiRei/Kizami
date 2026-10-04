@@ -14,3 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.PlayerParameterData
   _walkSpeed: 5
   _sprintSpeed: 9
+  _jumpHeight: 1.5
+  _wallRunSpeed: 9
+  _wallRunDuration: 1.5
+  _wallDetachAngle: 45
+  _wallDetachTime: 0.2
+  _wallJumpHorizontalSpeed: 6
+  _wallJumpInputInfluence: 0.5
+  _warpDistance: 8
+  _warpDuration: 0.15
+  _warpCooldown: 0.5
+  _warpInputInfluence: 0.2
+  _maxHealth: 100
+  _warpDamageReduction: 100
