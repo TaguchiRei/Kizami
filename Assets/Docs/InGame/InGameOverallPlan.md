@@ -10,7 +10,7 @@
 | スケジュール | Notion「仕様書 / スケジュール」のマイルストーン（https://app.notion.com/p/3131ea2aa7fa8339acaa01d55399b74a） |
 | 時間制御の設計 | Notion「システムリスト / 時間制御（スローモード）」（https://app.notion.com/p/3ea1ea2aa7fa8183bbfac10bfafd4d70） |
 
-作成日：2026-09-29 ／ 更新日：2026-10-02
+作成日：2026-09-29 ／ 更新日：2026-10-04
 
 ## 0. 作業者向けの前提
 
@@ -72,18 +72,20 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-02 時点）
+## 3. 現状（2026-10-04 時点。区間0の完了後）
 
 | 分野 | 状態 |
 |---|---|
 | 基盤（5 層の asmdef、UsefulToolkit、常駐シーン、入力の経路、ビルドモード） | あり |
-| シーン遷移（`GameSceneController` / `GameSceneInitializer`） | コードはある。`GameSceneInitializer` はどのシーンにも置かれておらず、SceneGroup アセットもない（区間0で配線する） |
-| プレイヤーの歩行と視点操作（Cinemachine） | あり（`Development/InGame/PlayerMoveTest` シーン。PC とスマホが共用する操作系） |
+| TimeScale（State、Service、Adapter、デバッグの操作と表示） | あり（区間0）。インゲームから出るときの倍率のリセットは未実装 |
+| シーン遷移（`GameSceneController` / `GameSceneInitializer`） | 配線済み（区間0）。常駐シーンから再生すると、アウトゲーム → インゲームの順に入れる。場面シーン（`OutGame` / `InGame`）と操作シーン（`StandardPlayerControl`）は `Assets/Level/Scenes/Master/`、SceneGroup アセットは `Assets/Level/Data/SceneGroup/`。アウトゲームからインゲームへは、仮のボタン（`OutGameStartInitializer`）で入る |
+| プレイヤーの歩行と視点操作（Cinemachine） | あり。PC とスマホが共用する操作系は `StandardPlayerControl` シーンにある（`Development/InGame/PlayerMoveTest` は開発用に残している） |
+| 入力（PC の Player マップ） | 区間0で、切断面の回転、ワープ、スローモード、投擲、ランチャー、スキル 1〜3 のアクションを追加済み。Smartphone と VRControllers のマップは未対応 |
 | VR の操作系 | `VrPlayerMovementAdapter` / `VrPlayerInputRouteInitializer` はあるが、どのシーンにも置かれていない |
 | ボクセル（ベイク、削る・盛る、塊の分離、平面での切り分け、融解） | あり。ゲームのルールとはまだつながっていない |
 | メッシュ切断 | パッケージは導入済み。ゲーム側からはまだ使っていない |
 | 敵、チャージ、スキル、スローモード、装甲、クリア判定、HUD | なし |
-| 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブは旧構成のもの。`Test/InGame.unity` は Build Settings と `BuildScenes.InGame` に登録されたまま |
+| 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブは旧構成のもの。`Test/InGame.unity` は Build Settings から外してあり、`BuildScenes.InGame` は新しい `Master/InGame` を指す |
 
 ## 4. 進め方
 
@@ -96,7 +98,7 @@
 
 | # | 区間 | 主な内容 | 前提 | 目安の時期 | 状態 | 計画書 |
 |---|---|---|---|---|---|---|
-| 0 | 基盤整備 | TimeScale State と Adapter、シーン遷移の配線とインゲームのシーン、PC 用入力マップ、デバッグ手段 | ― | 2026/09/29〜10/05 | 計画済み | [Section00](Sections/Section00_Foundation.md) |
+| 0 | 基盤整備 | TimeScale State と Adapter、シーン遷移の配線とインゲームのシーン、PC 用入力マップ、デバッグ手段 | ― | 2026/09/29〜10/05 | 完了（10/04） | [Section00](Sections/Section00_Foundation.md) |
 | 1 | プレイヤー移動の完成 | ダッシュ、ジャンプ、壁走り、短距離ワープ、HP と被ダメージの窓口 | 0 | 10/06〜10/12 | 未着手 | [Section01](Sections/Section01_PlayerMovement.md) |
 | 2 | 近接切断 | MeshCut による剣の切断、ホイールで切断面を回転、切断面のプレビュー、かけらの通知 | 0 | 10/13〜10/19 | 未着手 | [Section02](Sections/Section02_MeleeCut.md) |
 | 3 | かけら・オーブ・チャージ | かけらのオーブ化と自動吸収、チャージの State、ステージ外周コライダー、オーブのプール | 2 | 10/20〜10/26 | 未着手 | [Section03](Sections/Section03_Charge.md) |

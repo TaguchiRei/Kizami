@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 計画済み（詳細仕様の確定待ち） |
+| 状態 | 完了（2026-10-04。完了条件 3 の体感確認のみレビュー時に実施） |
 | 目安の時期 | 2026/09/29〜10/05 |
 | 前提となる区間 | なし |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -110,6 +110,54 @@
 
 - 壁走りは専用のキーを作らず、区間1で入る条件として決める
 - アクションを消すと、`PlayerActions` の enum から消える。2026-10-02 時点で、`Assets/Code/Scripts/` から Previous / Next / Interact / Crouch を参照している箇所はない
+
+## 実装結果（2026-10-04）
+
+### 決めたこと
+
+| # | 項目 | 結果 |
+|---|---|---|
+| 1 | TimeScale State | 案どおり `AppBoard` の GameState。倍率は 0〜1 にクランプ。インゲームから出るときに 1 へ戻す処理は未実装（区間7または11で入れる） |
+| 2 | シーン構成 | 案どおり。`Assets/Level/Scenes/Master/` に `OutGame/OutGame`、`InGame/InGame`、`Player/StandardPlayerControl`。インゲームとアウトゲームの両方に地面を置いた（操作シーンが場面をまたいで残る為、地面がないとアウトゲームでプレイヤーが落ちる）。PlayerMoveTest は開発用に残す。旧 `Test/InGame` は Build Settings から外した（`Test/` の旧シーンは未使用のまま残っている） |
+| 3 | 仮の遷移 | `OutGameStartInitializer` が OnGUI のボタン「インゲームへ」を出し、`GoToInGameAsync` を呼ぶ |
+| 4 | VR アダプタ | `Time.unscaledDeltaTime` に変更（コンパイルのみ確認。VR 実機は未確認） |
+| 5 | 入力 | 下記。Interact は改名せず残し、「つかむ」に使う |
+
+入力の変更（Player マップ）
+
+- 削除：Previous、Next、Crouch、Attack の Enter 割り当て
+- 追加：CutRotate（ホイール）、Warp（左 Ctrl）、SlowMode（F）、Throw（右クリック）、LoadLauncher（R）、FireLauncher（中クリック）、Skill1〜3（1 / 2 / 3）
+
+### 作った主なもの
+
+| 層 | ファイル |
+|---|---|
+| BlackBoardLayer | `TimeScaleState`（`ITimeScaleState`） |
+| Application | `TimeScaleService`（`ITimeScaleController`） |
+| EngineAdapterLayer | `TimeScaleAdapter`（`Time.timeScale` と `Time.fixedDeltaTime` に書き込むのはこのクラスだけ） |
+| Initialization | `TimeScaleInitializer`、`TimeScaleDebugInitializer`（OnGUI のスライダーとプリセットボタン、`DebugGUI` への値表示）、`OutGameStartInitializer`、`OutGameCompositor`、`StandardPlayerControlCompositor` |
+| Level | 3 シーン、SceneGroup アセット（`Assets/Level/Data/SceneGroup/` の `OutGameGroup`、`InGameGroup`。スマホと VR の枠にも同じものを設定） |
+
+常駐シーンには `TimeScaleInitializer`、`TimeScaleAdapter`、`TimeScaleDebugInitializer`、`GameSceneInitializer`、`DebugGUI` を置いた。常駐シーンの Root Compositor の `_startScene` は空にし、起動時の遷移は `GameSceneInitializer` が行う。
+
+### PlayerMoveTest を使うとき
+
+常駐シーンの Root Compositor の `_startScene` に PlayerMoveTest を指定し、`GameSceneInitializer` の `_transitionOnStart` を外す。
+
+### 完了条件の確認結果
+
+| # | 条件 | 結果 |
+|---|---|---|
+| 1 | 常駐シーンから再生すると、アウトゲームを経てインゲームに入り、プレイヤーが動かせる | 確認済み（遷移はボタンの処理を直接呼んで確認。W キーで前進） |
+| 2 | 倍率を下げると `Time.timeScale` と `Time.fixedDeltaTime` の両方が変わる | 確認済み（0.5 で 0.5 / 0.01、0 で 0 / 変更なし、1 で 1 / 0.02） |
+| 3 | 倍率を下げると、プレイヤーの物理はカクつかずに遅くなり、視点操作は等速のまま | Rigidbody の補間の有効化までは確認済み。体感はレビュー時に確認する（擬似キー入力では測れなかった） |
+| 4 | 追加した入力アクションがすべて Application まで届く | 確認済み（9 アクションと既存の Attack、Interact、Jump、Sprint が Started、Performed、Canceled とも届いた） |
+
+### 次の区間へ持ち越すこと
+
+- 区間7：インゲームから出るときの倍率のリセット
+- 区間11：仮のアウトゲーム（`OutGameStartInitializer`）を本来の流れに置き換える
+- スマホと VR の入力マップへの追加（対応時に Smartphone マップと VRControllers マップへ同じ意味のアクションを足す）
 
 ## 他プラットフォームへの対応
 

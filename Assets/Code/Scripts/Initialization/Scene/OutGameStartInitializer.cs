@@ -27,7 +27,9 @@ namespace Kizami.Initialization
             if (!GUI.Button(area, "インゲームへ")) return;
 
             _transitioning = true;
-            await _sceneController.GoToInGameAsync(destroyCancellationToken);
+            // このオブジェクトは遷移中のアンロードで破棄される。destroyCancellationToken を渡すと
+            // アンロードの途中で中断され、SceneState に OutGame がロード済みのまま残る為、トークンは渡さない。
+            await _sceneController.GoToInGameAsync();
             _transitioning = false;
         }
     }
