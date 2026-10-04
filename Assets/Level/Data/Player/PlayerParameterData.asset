@@ -18,6 +18,7 @@ MonoBehaviour:
   _wallRunSpeed: 9
   _wallRunDuration: 1.5
   _wallDetachAngle: 45
+  _wallDetachTime: 0.2
   _wallJumpHorizontalSpeed: 6
   _wallJumpInputInfluence: 0.5
   _warpDistance: 8

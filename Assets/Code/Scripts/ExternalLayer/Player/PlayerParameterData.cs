@@ -32,8 +32,12 @@ namespace Kizami.External
         private float _wallRunDuration = 1.5f;
 
         [SerializeField, Range(0f, 90f)]
-        [Tooltip("移動入力の向きと壁から離れる向きのなす角がこの角度（度）以下のときは、壁走りに入らない")]
+        [Tooltip("移動入力の向きと壁から離れる向きのなす角がこの角度（度）以下だと、壁から離れようとしているとみなす")]
         private float _wallDetachAngle = 45f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("壁から離れようとする入力がこの時間（秒）続くと壁走りを抜ける")]
+        private float _wallDetachTime = 0.2f;
 
         [SerializeField, Min(0f)]
         [Tooltip("壁ジャンプの水平方向の速さ（m/s）。上向きの速度はジャンプと同じ")]
@@ -89,8 +93,11 @@ namespace Kizami.External
         /// <summary> 壁走りの持ち時間（秒） </summary>
         public float WallRunDuration => _wallRunDuration;
 
-        /// <summary> 壁走りに入らない、移動入力の向きと壁の法線のなす角の上限（度） </summary>
+        /// <summary> 壁から離れようとしているとみなす、入力と壁の法線のなす角の上限（度） </summary>
         public float WallDetachAngle => _wallDetachAngle;
+
+        /// <summary> 壁から離れようとする入力が続くと壁走りを抜ける時間（秒） </summary>
+        public float WallDetachTime => _wallDetachTime;
 
         /// <summary> 壁ジャンプの水平方向の速さ（m/s） </summary>
         public float WallJumpHorizontalSpeed => _wallJumpHorizontalSpeed;
