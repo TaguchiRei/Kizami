@@ -1,7 +1,6 @@
 using System;
 using Kizami.BlackBoard;
 using UnityEngine;
-using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 
 namespace Kizami.EngineAdapter

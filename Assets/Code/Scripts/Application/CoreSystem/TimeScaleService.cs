@@ -4,7 +4,7 @@ namespace Kizami.Application
 {
     /// <summary>
     /// 時間の倍率を保持する TimeScaleState を生成し、値を書き込むユースケース。
-    /// TimeScaleState の具象インスタンスはこのクラスだけが保持する (Single Writer)。
+    /// TimeScaleState の具象インスタンスはこのクラスだけが保持する。
     /// 倍率を変える操作は ITimeScaleController として DI コンテナ経由で配る。
     /// </summary>
     public sealed class TimeScaleService : ITimeScaleController

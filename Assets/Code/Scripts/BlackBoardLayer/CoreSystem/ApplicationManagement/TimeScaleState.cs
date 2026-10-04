@@ -6,7 +6,6 @@ namespace Kizami.BlackBoard
 {
     /// <summary>
     /// 世界全体の時間の倍率を保持するゲームステート。
-    /// 1 が等速、0 が停止。Time.timeScale への反映は EngineAdapterLayer が行う。
     /// </summary>
     [RegisterBoard(typeof(AppBoard))]
     public sealed class TimeScaleState : GameStateBase, ITimeScaleState
@@ -39,15 +38,13 @@ namespace Kizami.BlackBoard
 
         public IDisposable RegisterOnScaleChanged(Action<float> callback)
         {
-            if (callback == null) throw new ArgumentNullException(nameof(callback));
-
-            _scaleChangedCallback += callback;
+            _scaleChangedCallback += callback ?? throw new ArgumentNullException(nameof(callback));
             return new BoardDispose(() => _scaleChangedCallback -= callback);
         }
 
         public override string GetLog()
         {
-            return $"Scale: {Scale}";
+            return $"TimeScale: {Scale}";
         }
     }
 
