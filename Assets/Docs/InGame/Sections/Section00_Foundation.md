@@ -142,6 +142,8 @@
 
 ### PlayerMoveTest を使うとき
 
+（区間1で PlayerMoveTest を削除した為、この手順は使えない）
+
 常駐シーンの Root Compositor の `_startScene` に PlayerMoveTest を指定し、`GameSceneInitializer` の `_transitionOnStart` を外す。
 
 ### 完了条件の確認結果

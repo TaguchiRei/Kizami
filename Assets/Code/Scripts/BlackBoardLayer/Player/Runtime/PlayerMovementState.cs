@@ -4,53 +4,86 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 
 namespace Kizami.BlackBoard
 {
+    /// <summary>
+    /// プレイヤーの移動の目標を保持するステート。
+    /// </summary>
     [RegisterBoard(typeof(PlayerBoard))]
-    public class PlayerMovementState : SceneStateBase, IPlayerMovementState
+    public sealed class PlayerMovementState : SceneStateBase, IPlayerMovementState
     {
-        public Vector3 MovementDirection => _movementDirection;
-        public float MovementSpeed => _movementSpeed;
+        public Vector3 TargetVelocity { get; private set; }
+        public PlayerMoveMode Mode { get; private set; }
 
-        private Vector3 _movementDirection;
-        private float _movementSpeed;
+        private Action<PlayerMoveMode, PlayerMoveMode> _modeChangedCallback;
 
-        private Action<float> _changeMovementSpeedCallback;
-
-        public void ChangeMovementSpeed(float speed)
+        /// <summary>
+        /// 移動モードを設定する。移動モードが変わったときだけ変化の通知を流す。
+        /// </summary>
+        /// <param name="mode">移動モード</param>
+        public void SetMode(PlayerMoveMode mode)
         {
-            _movementSpeed = speed;
-            _changeMovementSpeedCallback?.Invoke(speed);
+            if (Mode == mode) return;
+
+            var previous = Mode;
+            Mode = mode;
+            _modeChangedCallback?.Invoke(previous, mode);
         }
 
-        public void ChangeMovementDirection(Vector3 movementDirection)
+        /// <summary>
+        /// 目標速度を設定する。
+        /// </summary>
+        /// <param name="targetVelocity">ワールド空間の目標速度（m/s）</param>
+        public void SetTargetVelocity(Vector3 targetVelocity)
         {
-            _movementDirection = movementDirection;
+            TargetVelocity = targetVelocity;
         }
 
-        public IDisposable RegisterChangeMovementSpeed(Action<float> callback)
+        public IDisposable RegisterOnModeChanged(Action<PlayerMoveMode, PlayerMoveMode> callback)
         {
-            _changeMovementSpeedCallback += callback;
-            return new BoardDispose(() => _changeMovementSpeedCallback -= callback);
+            if (callback == null) throw new ArgumentNullException(nameof(callback));
+
+            _modeChangedCallback += callback;
+            return new BoardDispose(() => _modeChangedCallback -= callback);
         }
 
         public override string GetLog()
         {
-            return $"MovementDirection: {MovementDirection}  \nMovementSpeed: {MovementSpeed}";
+            return $"Mode: {Mode}  \nTargetVelocity: {TargetVelocity}";
         }
     }
 
+    /// <summary>
+    /// プレイヤーの移動の目標の読み取り面。
+    /// </summary>
     public interface IPlayerMovementState : IStateGetter
     {
         /// <summary>
-        /// 移動方向。カメラ相対の入力方向で、x が右、z が前を正とする。
-        /// ワールド方向への変換は EngineAdapterLayer 側が行う。
+        /// ワールド空間の目標速度（m/s）。通常の移動と壁走りでは水平成分だけを使い、Y 成分は 0 になる。
+        /// ワープ中はワープの速度そのもので、Y 成分も使う。
         /// </summary>
-        public Vector3 MovementDirection { get; }
-        public float MovementSpeed { get; }
+        Vector3 TargetVelocity { get; }
+
+        /// <summary> 移動モード </summary>
+        PlayerMoveMode Mode { get; }
 
         /// <summary>
-        /// 移動速度が変化した際に発火するイベントを登録する
+        /// 移動モードが変化した際に発火するイベントを登録する。ワープのエフェクトなどの差し込み口。
         /// </summary>
-        /// <param name="callback"></param>
-        public IDisposable RegisterChangeMovementSpeed(Action<float> callback);
+        /// <param name="callback">変化時に実行する処理。引数に変化前と変化後の値が入る</param>
+        IDisposable RegisterOnModeChanged(Action<PlayerMoveMode, PlayerMoveMode> callback);
+    }
+
+    /// <summary>
+    /// プレイヤーの移動モード。地面にいるか空中にいるかは PlayerContactState で表し、ここでは区別しない。
+    /// </summary>
+    public enum PlayerMoveMode
+    {
+        /// <summary> 地上・空中での通常の移動。重力を受ける </summary>
+        Normal,
+
+        /// <summary> 壁走り。重力を受けず、壁に沿って進む。移動入力がなければその場にとどまる（ラッチ） </summary>
+        WallRunning,
+
+        /// <summary> 短距離ワープ。重力を受けず、決まった時間だけ決まった速度で進む </summary>
+        Warping
     }
 }

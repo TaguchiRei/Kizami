@@ -16,7 +16,7 @@ namespace Kizami.EngineAdapter
     {
         [Header("視点")]
         [SerializeField]
-        [Tooltip("移動方向の基準に使う Transform。CinemachineCamera。体の子である必要がある。")]
+        [Tooltip("視線の向きの取得元。CinemachineCamera。体の子である必要がある。")]
         private Transform _cameraTransform;
 
         [SerializeField, Min(0f)]
@@ -36,27 +36,11 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// カメラの向く水平方向を前方として、入力方向（x が右、z が前）をワールド方向へ回す。
-        /// カメラが真下・真上を向いて forward の水平成分が消えるときは、
-        /// up を平面化した向きを前方の代わりに使う。
+        /// カメラの前方を視線の向きとして返す。カメラが未設定ならこの Transform の前方を返す。
         /// </summary>
-        protected override Vector3 ResolveWorldDirection(Vector3 stateDirection)
+        protected override Vector3 GetViewDirection()
         {
-            if (_cameraTransform == null || stateDirection == Vector3.zero) return stateDirection;
-
-            var forward = _cameraTransform.forward;
-            forward.y = 0f;
-
-            if (forward.sqrMagnitude < 1e-6f)
-            {
-                forward = _cameraTransform.up;
-                forward.y = 0f;
-            }
-
-            forward.Normalize();
-            var right = Vector3.Cross(Vector3.up, forward);
-
-            return right * stateDirection.x + forward * stateDirection.z;
+            return _cameraTransform != null ? _cameraTransform.forward : transform.forward;
         }
 
         protected override void OnLookInputChanged(Vector2 lookInput)

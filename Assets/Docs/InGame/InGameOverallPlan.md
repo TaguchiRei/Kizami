@@ -34,6 +34,8 @@
 | Adapter（EngineAdapter） | [PlayerMovementAdapterBase](../../Code/Scripts/EngineAdapterLayer/Player/PlayerMovementAdapterBase.cs) | `InitializableMonoBehaviour` を継承し、`SubscribeStateRegister` で State の登録を待ち受けて読む |
 | Initializer | [PlayerInitializer](../../Code/Scripts/Initialization/Player/PlayerInitializer.cs)、[ApplicationManagementInitializer](../../Code/Scripts/Initialization/ApplicationManagement/ApplicationManagementInitializer.cs) | Service と Adapter を生成して配線するだけで、ロジックは持たない |
 | DI で操作面を渡す | [GameSceneInitializer](../../Code/Scripts/Initialization/Scene/GameSceneInitializer.cs)、[PlayerInputRouteInitializerBase](../../Code/Scripts/Initialization/Input/PlayerInputRouteInitializerBase.cs) | 渡す側は `TryRegisterContent`、受け取る側は `IInjectable<T>` |
+| Application と EngineAdapter の直接配線 | [PlayerInitializer](../../Code/Scripts/Initialization/Player/PlayerInitializer.cs) が `PlayerMovementService.Step` を `PlayerMovementAdapterBase.Initialize` に渡す | 毎ステップ変わる値（視線の向き、経過時間）は引数で渡し、結果（打ち出し速度）は戻り値で返す。続く状態は State で渡す |
+| EngineAdapter が持つ State | [PlayerContactState](../../Code/Scripts/BlackBoardLayer/Player/Runtime/PlayerContactState.cs) | 物理の判定の結果を、物理ステップの後に Adapter が書く。チラつきは Adapter 側で抑える |
 
 ### 守ること
 
@@ -49,8 +51,9 @@
 
 1. 区間計画書を読み、今のコードと食い違う箇所があれば先に報告する
 2. 「詳細仕様で決めること」の各項目について、案を出してユーザーに確認する。決まったことは区間計画書に書き込む
-3. 実装する。確認には uloop のスキル（`uloop-compile`、`uloop-control-play-mode`、`uloop-get-logs` など）を使い、プレイモードで動かして完了条件を確かめる
-4. 区間計画書の「状態」を更新し、変更したファイルの一覧と確認の結果を報告して止まる。コミットとプッシュはユーザーが行う
+3. 作業計画（詳細仕様、新しく作る型、コミットの分け方）を立てる。提示する前に `~/.claude/skills/planning-criteria/SKILL.md` を読み、その基準を当てはめる
+4. 実装する。確認には uloop のスキル（`uloop-compile`、`uloop-control-play-mode`、`uloop-get-logs` など）を使い、プレイモードで動かして完了条件を確かめる
+5. 区間計画書の「状態」を更新し、変更したファイルの一覧と確認の結果を報告して止まる。コミットとプッシュはユーザーが行う
 
 ## 1. 技術前提
 
@@ -72,14 +75,15 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-04 時点。区間0の完了後）
+## 3. 現状（2026-10-04 時点。区間1の完了後）
 
 | 分野 | 状態 |
 |---|---|
 | 基盤（5 層の asmdef、UsefulToolkit、常駐シーン、入力の経路、ビルドモード） | あり |
 | TimeScale（State、Service、Adapter、デバッグの操作と表示） | あり（区間0）。インゲームから出るときの倍率のリセットは未実装 |
 | シーン遷移（`GameSceneController` / `GameSceneInitializer`） | 配線済み（区間0）。常駐シーンから再生すると、アウトゲーム → インゲームの順に入れる。場面シーン（`OutGame` / `InGame`）と操作シーン（`StandardPlayerControl`）は `Assets/Level/Scenes/Master/`、SceneGroup アセットは `Assets/Level/Data/SceneGroup/`。アウトゲームからインゲームへは、仮のボタン（`OutGameStartInitializer`）で入る |
-| プレイヤーの歩行と視点操作（Cinemachine） | あり。PC とスマホが共用する操作系は `StandardPlayerControl` シーンにある（`Development/InGame/PlayerMoveTest` は開発用に残している） |
+| プレイヤーの移動（歩行、ダッシュ、ジャンプ、壁走り、短距離ワープ）と視点操作（Cinemachine） | あり（区間1）。PC とスマホが共用する操作系は `StandardPlayerControl` シーンにある。遊びのルールに関わる値は `PlayerParameterData`、ダッシュの操作方式は `AccessibilitySettingState`。開発用の `PlayerMoveTest` は区間1で削除した |
+| プレイヤーの HP と被ダメージ | あり（区間1）。`PlayerHealthService.ApplyDamage`（ワープ中は軽減率を適用）と `IPlayerHealthState`。今呼んでいるのはデバッグ操作（`PlayerDebugInitializer`）だけ |
 | 入力（PC の Player マップ） | 区間0で、切断面の回転、ワープ、スローモード、投擲、ランチャー、スキル 1〜3 のアクションを追加済み。Smartphone と VRControllers のマップは未対応 |
 | VR の操作系 | `VrPlayerMovementAdapter` / `VrPlayerInputRouteInitializer` はあるが、どのシーンにも置かれていない |
 | ボクセル（ベイク、削る・盛る、塊の分離、平面での切り分け、融解） | あり。ゲームのルールとはまだつながっていない |
@@ -99,7 +103,7 @@
 | # | 区間 | 主な内容 | 前提 | 目安の時期 | 状態 | 計画書 |
 |---|---|---|---|---|---|---|
 | 0 | 基盤整備 | TimeScale State と Adapter、シーン遷移の配線とインゲームのシーン、PC 用入力マップ、デバッグ手段 | ― | 2026/09/29〜10/05 | 完了（10/04） | [Section00](Sections/Section00_Foundation.md) |
-| 1 | プレイヤー移動の完成 | ダッシュ、ジャンプ、壁走り、短距離ワープ、HP と被ダメージの窓口 | 0 | 10/06〜10/12 | 未着手 | [Section01](Sections/Section01_PlayerMovement.md) |
+| 1 | プレイヤー移動の完成 | ダッシュ、ジャンプ、壁走り、短距離ワープ、HP と被ダメージの窓口 | 0 | 10/06〜10/12 | 完了（10/04） | [Section01](Sections/Section01_PlayerMovement.md) |
 | 2 | 近接切断 | MeshCut による剣の切断、ホイールで切断面を回転、切断面のプレビュー、かけらの通知 | 0 | 10/13〜10/19 | 未着手 | [Section02](Sections/Section02_MeleeCut.md) |
 | 3 | かけら・オーブ・チャージ | かけらのオーブ化と自動吸収、チャージの State、ステージ外周コライダー、オーブのプール | 2 | 10/20〜10/26 | 未着手 | [Section03](Sections/Section03_Charge.md) |
 | 4 | 雑魚敵と出現 | パーツ分割メッシュと FK / IK の敵、湧き場所、同時存在数の上限、簡単な AI、HP 0 で失敗 | 1, 3 | 10/27〜11/08 | 未着手 | [Section04](Sections/Section04_Enemy.md) |
@@ -149,6 +153,7 @@ flowchart LR
 | シーン遷移 | `GameSceneController` / `GameSceneInitializer`、SceneGroup アセット（`GameSceneGroupData`） |
 | デバッグ表示 | UsefulToolkit.Debugging の `DebugGUI`（`ObserveVariable` で値を画面に出す。シーンへの配置は `UsefulToolkit/ProgramTools/DebugGUI Setup`）、State の `GetLog()` |
 | ポーズ | 常駐の `PauseBoard` と `IPausable`（UsefulToolkit.ProgramTools。中身はまだほぼない） |
+| プレイヤーの物理 | Rigidbody（補間、ContinuousDynamic）、摩擦ゼロの PhysicsMaterial、`Physics.SphereCast`（接地）、`Physics.OverlapCapsuleNonAlloc` と `Collider.ClosestPoint`（壁） |
 | カメラ | Cinemachine |
 | エフェクト | VFX Graph |
 | 破壊対象・マップ | 既存のボクセル（`VoxelModelLoader` / `VoxelPiece` / `IVoxelShape`） |
