@@ -229,7 +229,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.PlayerInitializer
   movementAdapter: {fileID: 903436367}
   cameraAdapter: {fileID: 1307013807}
-  _moveSpeed: 5
+  _parameters: {fileID: 11400000, guid: 5eaa04ccd161b0e4ead04945cd3a481b, type: 2}
 --- !u!136 &903436363
 CapsuleCollider:
   m_ObjectHideFlags: 0
