@@ -19,7 +19,7 @@
 
 | 資産 | 内容 |
 |---|---|
-| 区間2の成果 | `MultiCutBlade.ExecuteCut` が、切断した対象ごとに元の対象と表と裏のかけらの組を返す（UsefulToolkit を拡張）。切断を実行してその結果をログに出しているのは、InGame の `MeleeCutAdapter`。かけらの通知の仕組みは、区間2では作っていない |
+| 区間2の成果 | `MultiCutBlade.ExecuteCut` が、切断した対象ごとに元の対象と表と裏のかけらの組を返す（UsefulToolkit を拡張）。切断を実行してその結果をログに出しているのは、InGame の `MeleeCutAdapter`（`CutAsync` で結果を受け取る）。かけらの通知の仕組みは、区間2では作っていない。プレイヤーの出来事の置き場所として `PlayerEventBoard`（`IMeleeCutEvents.OnSwing` が登録済み）がある。切ったかけらは、かけら同士が重なって 2〜3m 散らばる |
 | `MeshCutObjectPool` | かけらのプール。固定長のリングバッファで、生成数を超えると最も古いかけらを回収して使い回す。そのため、かけらの数は生成数を超えない。回収されたかけらでは `CuttableObject.ReuseAction` が呼ばれる |
 | `CuttableObject` | かけらの本体。`Rigidbody`（`Rig`）と、実行時に作られる球コライダーを持つ |
 

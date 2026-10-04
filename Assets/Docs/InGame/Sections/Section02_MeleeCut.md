@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 着手（2026-10-04） |
+| 状態 | 完了（2026-10-05） |
 | ブランチ | `feature/alpha/cut-attack`（UsefulToolkit 側は `feature/meshcut/execute-cut`） |
 | 目安の時期 | 2026/10/13〜10/19 |
 | 前提となる区間 | 0 |
@@ -167,10 +167,72 @@ sequenceDiagram
 
 ## 見つけた問題（今回は扱わない）
 
-- 【UsefulToolkit】拡大率が軸ごとに違う対象を、斜めの刃で切ると、切断面の向きがずれる。`BladeToLocalJob` が刃の法線をローカル空間へ移すとき、拡大率で割っている（`normal *= reciprocal`）。法線は拡大率を掛ける必要がある。ダミーの脚（拡大率 0.22, 0.75, 0.22）を 30° の刃で切ると、刃の反対側に 0.3m ほどはみ出したかけらができた。拡大率が軸ごとに同じ頭と、水平の刃で切った腕は正しく切れた。また、拡大率は `localScale` を使っているので、親に拡大率があると同じようにずれる
-- 【UsefulToolkit】切断で生まれたメッシュの `bounds` が大きさ 0（原点）になっている。`MultiMeshCut` の `Mesh.ApplyAndDisposeWritableMeshData` のあとに、bounds を設定していない為。かけらの `Renderer.bounds` が切断元の位置の 1 点になるので、その点が画面の外に出ると、かけらが見えていてもカリングで消える。`MultiCutBlade` の右クリックメニュー「切断」のログの「side」も、この bounds を使っているので正しくない
+- 【UsefulToolkit・修正済み（`8aecde7`）】拡大率が軸ごとに違う対象を、斜めの刃で切ると、切断面の向きがずれる。`BladeToLocalJob` が刃の法線をローカル空間へ移すとき、拡大率で割っている（`normal *= reciprocal`）。法線は拡大率を掛ける必要がある。ダミーの脚（拡大率 0.22, 0.75, 0.22）を 30° の刃で切ると、刃の反対側に 0.3m ほどはみ出したかけらができた。拡大率が軸ごとに同じ頭と、水平の刃で切った腕は正しく切れた。また、拡大率は `localScale` を使っているので、親に拡大率があると同じようにずれる（こちらは修正後も残る。区間4へ持ち越す）
+- 【UsefulToolkit・修正済み（`8aecde7`）】切断で生まれたメッシュの `bounds` が大きさ 0（原点）になっている。`MultiMeshCut` の `Mesh.ApplyAndDisposeWritableMeshData` のあとに、bounds を設定していない為。かけらの `Renderer.bounds` が切断元の位置の 1 点になるので、その点が画面の外に出ると、かけらが見えていてもカリングで消える。`MultiCutBlade` の右クリックメニュー「切断」のログの「side」も、この bounds を使っているので正しくない
 - 切ったかけらが 2〜3m 散らばる（腕のかけらが胴体のかけらと重なり、押し出される）。かけらは区間3で、何かに触れたらオーブにする為、そのときに扱う
 - スマホでは、Player マップの Attack にタップが割り当てられているが、CutRotate の割り当てがない（他プラットフォームへの対応で扱う）
+
+## 実装結果（2026-10-05）
+
+### 決めたこと
+
+上の「詳細仕様で決めること」のとおりに作った。実装中に決めたこと、変えたことは次のとおり。
+
+| # | 項目 | 結果 |
+|---|---|---|
+| 1 | UsefulToolkit の拡張（コミット0） | `MultiCutBlade.ExecuteCut` が `UniTask<MultiCutResult[]>`（`Original` / `Front` / `Back`）を返すようになった。別の作業者が、要件定義（[Section02_ExecuteCutResultRequirements.md](Section02_ExecuteCutResultRequirements.md)）のとおりに作った。あわせて、プールが 1 回の切断の中で一周したときに切断元のかけらが壊れる、既存の不具合も直された |
+| 2 | UsefulToolkit の既存の不具合 | コミット1の確認で 2 つ見つかり、UsefulToolkit 側で直された（`8aecde7`）。拡大率が軸ごとに違う物を斜めに切ると切断面の向きがずれる不具合（`BladeToLocalJob` が法線を拡大率で割っていた）と、かけらのメッシュの bounds が大きさ 0 になる不具合 |
+| 3 | 刃と交わらない対象 | 渡すと、元の対象が消えて、全体が入ったかけらと空のかけらができる。`MeleeCutAdapter` は、Renderer のバウンディングボックスが刃の平面をまたぐ対象だけを切る |
+| 4 | 続けて振ったとき | 前の切断が終わる前に次の `OnSwing` が来たら、その振りでは切らない（`MultiCutBlade` は刃と計算用のインスタンスを 1 つずつしか持たない為） |
+| 5 | InGame の Compositor | メニュー `UsefulToolkit/Generate/Scene Compositor` は確認のダイアログを出し、uloop から呼ぶと閉じるまで止まる。その中身の `GameCompositorGenerator.GenerateTo(scene, 保存先)` を直接呼んで生成した（生成されるファイルは同じ） |
+| 6 | 断面のマテリアル | 既存の `Assets/Art/Materials/CutFace.mat`（赤）を使った |
+| 7 | ダミーの位置 | InGame の地面の上面は y = -1 なので、ダミーもそこに立たせた。プレイヤーの開始位置から 3m 前 |
+
+パラメータの仮の値
+
+| 置き場所 | 値 |
+|---|---|
+| `AccessibilitySettingState`（常駐シーンの `ApplicationManagementInitializer` の Inspector） | ホイール 1 段あたりの回転角度 15° |
+| `PlayerParameterData`（`Assets/Level/Data/Player/PlayerParameterData.asset`） | 攻撃間隔 0.3 秒（アセットにはまだ保存されておらず、既定値が使われる） |
+| `MeleeCutAdapter`（InGame の `MeleeCut`） | 範囲の距離 3m、幅 2m、厚み 0.2m、対象のレイヤーはすべて |
+| `FragmentPool`（InGame の `MeshCut System`） | かけらの生成数 128 |
+
+### 作った主なもの
+
+| 層 | ファイル |
+|---|---|
+| BlackBoardLayer | `MeleeCutState`（`IMeleeCutState`）、`PlayerEventBoard`、`MeleeCutEvents`（`IMeleeCutEvents`、`OnSwing`）。`AccessibilitySettingState` に `CutRotateStepAngle` を足した |
+| Application | `MeleeCutService`（ホイールで角度を回す、攻撃間隔を unscaled の時刻で数えて `OnSwing` を流す） |
+| ExternalLayer | `PlayerParameterData` に `MeleeAttackInterval` を足した |
+| EngineAdapterLayer | `MeleeCutAdapter`（刃の配置、対象の収集、切断、結果のログ）、`MeleeCutPreviewAdapter`（画面中央の線） |
+| Initialization | `MeleeCutInitializer`、`InGameCompositor`（自動生成）。`PlayerInitializer`（`MeleeCutService` の生成、プレビューの配線）、`ApplicationManagementInitializer`（1 段の角度の初期値）、`UsefulToolkitPersistentCompositor`（`PlayerEventBoard` の登録。作り直し） |
+| Level | InGame に `MeshCut System`（`MeshDataCache` / `FragmentPool` / `CutBlade`）、`DummyEnemy`（頭・胴体・両腕・両脚。`Can Multi Cut` は true）、`MeleeCut`、`Compositor`。StandardPlayerControl に Canvas `MeleeCutPreview`。かけらのプレハブ `Assets/Level/Prefabs/MeshCut/CutFragment.prefab`（Rigidbody の補間あり） |
+
+### 完了条件の確認結果
+
+確認は、常駐シーンから再生してインゲームに入り、左クリックとホイールの入力を uloop で擬似的に入れて行った。
+
+| # | 条件 | 結果 |
+|---|---|---|
+| 1 | ホイールで回した角度がプレビューに表示され、ダミーの敵をその角度で切断できる | 確認済み。ホイール 1 段で 15° ずつ変わり、0° をまたいで 165° に巡回し、線も同じ角度に傾いた（スクリーンショットで確認）。0° で頭、90° で胴体、135° で右腕が切れた。斜め 30° の刃で脚を切ると、表のかけらは刃の表側、裏のかけらは裏側に収まった（刃からの距離が表 0.00〜0.43、裏 -0.33〜0.00）。攻撃間隔より短い連打では 1 回しか振らず、`Time.timeScale` が 0.1 のときも実時間で数えた |
+| 2 | 切断で生まれたかけらと元の対象が、ログに出る | 確認済み。例：「角度 90° で 2 個を切断しました。元: Body / 表: CutFragment (Clone)#2 / 裏: CutFragment (Clone)#3 …」。かけらの切り直しも出た。エラーと警告は 0 件。最後にログの書式（元の対象にも番号を付ける）を直したあとは、プレイモードで動かしていない |
+
+### 次の区間へ持ち越すこと
+
+- 区間3：かけらの通知（作業 3-0）。切断の結果は `MeleeCutAdapter.CutAsync` で `ExecuteCut` の戻り値として受け取っている。プレイヤーの出来事の置き場所として `PlayerEventBoard` がある
+- 区間3：切ったかけらが 2〜3m 散らばる（かけら同士が重なって押し出される）。何かに触れたらオーブにする処理と合わせて扱う
+- 区間3：プールが 1 回の切断の中で一周すると、`Original` が同じ切断の別の組の `Front` / `Back` として使い回されることがある（MeshCut の README「結果の参照の扱い」）
+- 区間4：MeshCut は拡大率を `localScale` で扱うので、切断対象の親に拡大率を持たせない（親に拡大率があると切断面がずれる）
+- 区間4：刃はカメラの高さを通る為、水平（0°）に振るとカメラより低い部分は切れない。敵の大きさを決めるときに考える。実際の操作での感触はレビューで確かめる
+- 区間11：操作シーンはアウトゲームでも残るので、プレビューの線がアウトゲームでも出る
+- 区間13：剣のアニメーション（Animator の Update Mode は UnscaledTime）、切断のエフェクト
+
+### 使い方
+
+- 左クリックで振り、ホイールで切断面を回す。画面中央の線が切断面の角度
+- ホイール 1 段の角度は常駐シーンの `ApplicationManagementInitializer`、攻撃間隔は `PlayerParameterData`、切断の範囲は InGame の `MeleeCut` にある `MeleeCutAdapter` の Inspector で変える
+- 切れる物を足すときは、InGame の `MeshCut System/MeshDataCache` の子に置き、`CuttableObject` を付ける（メニュー `UsefulToolkit/Mesh Cut/Setup` の「選択オブジェクトを切断可能化」）。対象には切断用のコライダー（`CuttableObject` が作る球コライダーとは別）が要る
+- `CutBlade` の右クリックメニュー「切断」は、`CutBlade` の `BoxCollider` の範囲を切るテスト用。`MeleeCutAdapter` は振るたびに `CutBlade` の位置と向きを変える
 
 ## 他プラットフォームへの対応
 
