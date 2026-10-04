@@ -22,6 +22,7 @@
 
 - 敵は、パーツごとに分かれた軽量なメッシュ（全パーツを合わせて 2000 ポリゴン未満）を、パーツ単位で FK / IK で動かす。SkinnedMeshRenderer は使わない
 - 敵の移動と FK / IK は `Time.deltaTime` を使う（スロー中は一緒に遅くなる）。Animator を使う場合、Update Mode は Normal にする
+- 区間1で、被ダメージの窓口 `PlayerHealthService.ApplyDamage(int)`（ワープ中は軽減率を適用）と、HP の読み取り面 `IPlayerHealthState`（`RegisterOnHealthChanged` で HP が 0 になったことを受け取れる）を作った。`PlayerHealthService` は `PlayerInitializer` が具象型のまま `StandardPlayerControlCompositor` に DI 登録している
 
 ## MeshCut の制約（敵に関わるもの）
 
@@ -63,6 +64,7 @@
 | 4 | 出現の仮の値 | 同時に存在する数の上限と、出現間隔 |
 | 5 | 地形の変化 | ボクセルが削れて地形が変わったときの NavMesh の扱い |
 | 6 | 失敗したあとの流れ | 仮にリトライのみ など |
+| 7 | 敵から被ダメージの窓口へ届く経路 | DI のスコープは Compositor ごとに分かれ、InGame シーンからは StandardPlayerControl のスコープに登録した `PlayerHealthService` を受け取れない。常駐シーンの Root スコープへ移す、ダメージを Board 経由で渡す、などから選ぶ |
 
 ## 他プラットフォームへの対応
 

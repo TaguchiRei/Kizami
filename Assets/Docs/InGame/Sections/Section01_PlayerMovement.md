@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 着手（2026-10-04） |
+| 状態 | 完了（2026-10-04） |
 | 目安の時期 | 2026/10/06〜10/12 |
 | 前提となる区間 | 0 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -75,7 +75,7 @@
 | 13 | 時間の数え方 | ワープの所要時間、クールタイム、壁走りの持ち時間は FixedUpdate の経過時間で数える。スローモード中は一緒に遅くなる |
 | 14 | エンジン側の情報を渡す経路 | 接触（地面・壁・壁の法線）は、Adapter が所有して書き込む `PlayerContactState` で渡す（設計「EngineAdapterLayer による State の所有」）。視線の向きと経過時間は毎ステップ変わる値なので、直接配線で Adapter の FixedUpdate から `PlayerMovementService.Step` に渡す |
 | 15 | ジャンプを Adapter に伝える経路 | `Step` の戻り値で、そのステップで与える打ち出し速度（なければ null）を返す。続く動き（移動モード、目標速度）は State で渡す |
-| 16 | PlayerMoveTest | 新しい参照を設定し、引き続き動くようにする |
+| 16 | PlayerMoveTest | 新しい参照を設定し、引き続き動くようにする（実装時に変更：削除した。下の「実装結果」） |
 
 ## 設計
 
@@ -136,13 +136,73 @@ sequenceDiagram
 | 2 | 接触の State、接触の判定、ジャンプ、物理マテリアル、Player レイヤー | Space で跳び、接触が Ground → None → Ground と変わる。壁に押し付けても張り付かない |
 | 3 | 壁走り、ラッチ、抜ける条件、壁ジャンプ、空中の加減速、テスト用の壁 | 上の 4〜8 の挙動 |
 | 4 | ワープ、クールタイム、移動モードの変化の通知、ContinuousDynamic | 方向、距離、クールタイム、壁をすり抜けない |
-| 5 | HP と被ダメージ、ワープ中の軽減、`PlayerDebugInitializer`、Compositor の作り直し、PlayerMoveTest への追従 | 完了条件3 |
+| 5 | HP と被ダメージ、ワープ中の軽減、`PlayerDebugInitializer`、Compositor の作り直し、PlayerMoveTest への追従（実装時に変更：PlayerMoveTest の削除） | 完了条件3 |
 | 6 | 区間計画書の「実装結果」と全体計画書の更新 | ― |
 
 ## 見つけた問題（今回は扱わない）
 
 - 壁の判定は `Collider.ClosestPoint` で壁の面上の点を求める為、凸でない MeshCollider の壁は判定できない（ボクセルの壁を壁走りの対象にするとき、区間5以降で見直す）
 - 古い名前「PlayerMovementAbstractor」が `PlayerInitializer.cs` の XML コメントとエラーメッセージに残っている（`PlayerMovementService.cs` の分は、コミット1で XML コメントを書き直した際に消えた）
+
+## 実装結果（2026-10-04）
+
+### 決めたこと
+
+上の「詳細仕様で決めること」のとおりに作った。実装中に決めたこと、変えたことは次のとおり。
+
+| # | 項目 | 結果 |
+|---|---|---|
+| 1 | 壁走りに入る条件 | 決定 4 の補足 2 つ（離れる向きの入力中は入らない、壁ジャンプのあと接触が切れるまで入らない）を追加した。Notion の仕様にも反映済み |
+| 2 | 接地の判定 | `Physics.SphereCast` で判定する。落下中に 1 ステップで地面へめり込んでも取りこぼさないよう、球の起点をカプセルの下側の球の中心から半径分だけ上げた（SphereCast は開始時点で重なっているコライダーを検出しない為） |
+| 3 | 壁の判定 | `Physics.OverlapCapsuleNonAlloc` でカプセルを少し太らせた範囲の Wall レイヤーを探し、`Collider.ClosestPoint` で最も近い壁の水平な法線を求める |
+| 4 | ワープの距離 | 最後のステップは速度を残り時間の割合だけ落とし、進む距離をちょうど 8m に揃える（0.15 秒は 0.02 秒のステップ 7.5 回分の為）。ワープ中は壁走りの持ち時間を減らさず、着地での回復も行わない。ワープが終わったステップで壁に触れていて前向きの入力があれば、そのまま壁走りに入る |
+| 5 | HP の Service の生成 | `PlayerInitializer` が Awake で `PlayerHealthService` を生成し、具象型のまま `StandardPlayerControlCompositor` に登録する。ワープ中の軽減後のダメージは `Mathf.RoundToInt` で丸める（ちょうど 0.5 のときは偶数の側） |
+| 6 | PlayerMoveTest | 削除した（決定 16 を変更）。`PlayerInitializer` が登録先の Compositor の型を指定する為、2 つのシーンに同じ Initializer を置けなくなった。役割は `StandardPlayerControl` と重なっていた |
+| 7 | 設計 | Notion の設計に「直接配線は、呼び出しの結果を戻り値で返してよい」を追加した（`Step` の戻り値の打ち出し速度） |
+
+パラメータの仮の値
+
+| 置き場所 | 値 |
+|---|---|
+| `PlayerParameterData`（`Assets/Level/Data/Player/PlayerParameterData.asset`） | 歩行 5 m/s、ダッシュ 9 m/s、ジャンプの高さ 1.5m、壁走り 9 m/s・持ち時間 1.5 秒・離れる角度 45°・離れる時間 0.2 秒、壁ジャンプの横の速さ 6 m/s・入力の割合 0.5、ワープ 8m・0.15 秒・クールタイム 0.5 秒・入力の割合 0.2、最大 HP 100、ワープ中の軽減率 100% |
+| `PlayerMovementAdapterBase`（StandardPlayerControl の PlayerRoot） | 加速・減速 40 / 60 m/s²（地上と壁走り中）、10 / 10 m/s²（空中）、接地と壁の判定の距離 0.1m |
+
+### 作った主なもの
+
+| 層 | ファイル |
+|---|---|
+| BlackBoardLayer | `AccessibilitySettingState`（`IAccessibilitySettingState`、`SprintInputMode`）、`PlayerContactState`（`IPlayerContactState`、`PlayerContact`）、`PlayerHealthState`（`IPlayerHealthState`）。`PlayerMovementState` は、ワールド空間の目標速度、移動モード（`PlayerMoveMode`）、移動モードの変化の通知に変えた |
+| Application | `PlayerMovementService`（`Step(視線の向き, 経過時間)` で移動モードと目標速度を決め、打ち出し速度を返す）、`PlayerHealthService`（`ApplyDamage`） |
+| ExternalLayer | `PlayerParameterData`（ScriptableObject） |
+| EngineAdapterLayer | `PlayerMovementAdapterBase`（接地と壁の判定、`PlayerContactState` の所有、移動モードに応じた Rigidbody への反映）。`StandardPlayerMovementAdapter` はカメラの前方を視線の向きとして返す |
+| Initialization | `PlayerInitializer`（`Step` の直接配線、`PlayerHealthService` の DI 登録）、`PlayerDebugInitializer`、`ApplicationManagementInitializer`（`SprintInputMode` の初期値）、`StandardPlayerControlCompositor`（作り直し） |
+| Level | `PlayerPhysicsMaterial`（摩擦ゼロ）、PlayerRoot を Player レイヤーにし、衝突判定を ContinuousDynamic にした。InGame にテスト用の壁 `TestWalls`（Wall レイヤー。左右の壁が x = ±4、z = 5〜25、正面の壁が z = 30） |
+
+### 使い方
+
+- ダッシュの操作方式（Hold / Toggle）は、常駐シーンの `ApplicationManagementInitializer` の Inspector で選ぶ
+- 遊びのルールに関わる値は `PlayerParameterData` アセット、物理の反映の調整値は StandardPlayerControl の PlayerRoot にある Adapter の Inspector で変える
+- デバッグ操作：画面左下（時間の倍率のパネルの上）のボタンでダメージを与える。トグルを有効にすると、ワープを始めた瞬間にダメージを与える。HP は DebugGUI に「Player HP」として出る。`PlayerDebugInitializer` は StandardPlayerControl の PlayerRoot に置いてある
+- ワープなどのエフェクトは、`IPlayerMovementState.RegisterOnModeChanged` に登録して差し込む
+
+### 完了条件の確認結果
+
+確認は、プレイモードで Service の入力の値をリフレクションで書き込み、位置・速度・接触・移動モードを記録して行った。
+
+| # | 条件 | 結果 |
+|---|---|---|
+| 1 | 歩行、ダッシュ、ジャンプ、壁走り、短距離ワープがすべて操作できる | 確認済み。歩行 5 m/s、ダッシュ 9 m/s（Hold と Toggle）。ジャンプは上向き 5.2 m/s で頂点 1.44m、接触は Ground → None → Ground。壁に押し付けても張り付かない。壁走りは 9 m/s、持ち時間 1.5 秒で抜け、入力なしでラッチ、離れる入力 0.2 秒で抜け、60° の入力では 7.8 m/s で走り続け、壁ジャンプ直後には入り直さない。ワープは 8.000m（入力を混ぜると 11.3° 曲がる）、クールタイムのあと再び使え、厚さ 0.5m の壁と地面をすり抜けない。実際のキー操作での感触はレビューで確認する |
+| 2 | 各パラメータを Inspector から調整できる | 値はすべて `PlayerParameterData` と Adapter のシリアライズされるフィールドにある（Inspector での見た目はレビューで確認する）。移動の値は毎ステップ読む。最大 HP とワープ中の軽減率は初期化のときに読むので、実行中に変えても効かない |
+| 3 | デバッグ操作でダメージを与えると HP が減り、ワープ中は軽減率が適用され、HP が 0 になると通知が出る | 確認済み（処理を直接呼んで確認）。10 を 3 回で 100 → 70、軽減率 100% のワープ中は減らず、50% では 10 が 5 になり、0 になるとログが出て、その後のダメージは無視された。OnGUI のボタンと表示の見た目はレビューで確認する |
+
+### 次の区間へ持ち越すこと
+
+- 区間4：敵から `PlayerHealthService.ApplyDamage` を呼ぶ経路を決める。DI のスコープは Compositor ごとに分かれており、InGame シーンからは StandardPlayerControl のスコープに登録した Service を受け取れない。HP が 0 になったことは `IPlayerHealthState.RegisterOnHealthChanged` で受け取れる
+- 区間11：ステージ開始時の HP のリセット、HUD での HP の表示
+- 区間13：ワープのエフェクト（`RegisterOnModeChanged` に差し込む）、移動パラメータの調整
+- 区間5以降：凸でない MeshCollider の壁（ボクセルの壁）を壁走りの対象にするときの、壁の判定の見直し（issue 化済み）
+- 一度だけ、壁へ押し込む入力のまま壁ジャンプをしたら後ろ向きに飛んだ。その後は再現せず、原因は分かっていない。レビューで実際の操作を試す
+- 古い名前「PlayerMovementAbstractor」が `PlayerInitializer.cs` に残っている
 
 ## 他プラットフォームへの対応
 
