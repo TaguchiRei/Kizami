@@ -16,9 +16,9 @@ MonoBehaviour:
   _sprintSpeed: 9
   _jumpHeight: 1.5
   _wallRunSpeed: 9
-  _wallRunDuration: 1.5
+  _wallRunDuration: 10
   _wallDetachAngle: 45
-  _wallDetachTime: 0.2
+  _wallDetachTime: 0.5
   _wallJumpHorizontalSpeed: 6
   _wallJumpInputInfluence: 0.5
   _warpDistance: 8
@@ -27,3 +27,4 @@ MonoBehaviour:
   _warpInputInfluence: 0.2
   _maxHealth: 100
   _warpDamageReduction: 100
+  _meleeAttackInterval: 0.3
