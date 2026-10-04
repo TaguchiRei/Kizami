@@ -230,6 +230,7 @@ sequenceDiagram
 ### 使い方
 
 - 左クリックで振り、ホイールで切断面を回す。画面中央の線が切断面の角度
+- Alt キーを押している間は、カーソルのロックが外れて自由に動かせる（エディタのみ）。仮のアウトゲームのボタンや、デバッグ用の画面上の操作を押すときに使う。押している間も視点の操作と攻撃は効く
 - ホイール 1 段の角度は常駐シーンの `ApplicationManagementInitializer`、攻撃間隔は `PlayerParameterData`、切断の範囲は InGame の `MeleeCut` にある `MeleeCutAdapter` の Inspector で変える
 - 切れる物を足すときは、InGame の `MeshCut System/MeshDataCache` の子に置き、`CuttableObject` を付ける（メニュー `UsefulToolkit/Mesh Cut/Setup` の「選択オブジェクトを切断可能化」）。対象には切断用のコライダー（`CuttableObject` が作る球コライダーとは別）が要る
 - `CutBlade` の右クリックメニュー「切断」は、`CutBlade` の `BoxCollider` の範囲を切るテスト用。`MeleeCutAdapter` は振るたびに `CutBlade` の位置と向きを変える
