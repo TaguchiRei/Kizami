@@ -262,7 +262,7 @@ GameObject:
   - component: {fileID: 903436360}
   - component: {fileID: 903436368}
   - component: {fileID: 903436367}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: PlayerRoot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -318,7 +318,7 @@ CapsuleCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 903436359}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 0636e9407736ed5488817f241d55d454, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -420,6 +420,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineService.Runtime::Kizami.EngineService.StandardPlayerMovementAbstractor
   _rigidbody: {fileID: 903436360}
+  _collider: {fileID: 903436363}
+  _groundCheckDistance: 0.1
+  _groundLayers:
+    serializedVersion: 2
+    m_Bits: 4294967287
   _acceleration: 40
   _deceleration: 60
   _cameraTransform: {fileID: 1307013810}
