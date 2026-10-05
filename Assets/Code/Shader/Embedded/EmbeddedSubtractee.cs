@@ -4,8 +4,10 @@ using UnityEngine.Rendering;
 
 namespace ScreenSpaceBoolean
 {
-// 削られる側（Subtractee）にアタッチする。
-// depthMaterial には SSBoolean_FrontBack.shader を割り当てたマテリアルをセットする。
+    /// <summary>
+    /// 削られる側にアタッチし、ScreenSpaceEmbeddedFeature の求めに応じて前面・背面デプスの DrawRenderer を積むコンポーネント。
+    /// depthMaterial には SSEmbedded_FrontBack.shader を割り当てたマテリアルをセットする。
+    /// </summary>
     [ExecuteAlways]
     [RequireComponent(typeof(Renderer))]
     public class EmbeddedSubtractee : MonoBehaviour

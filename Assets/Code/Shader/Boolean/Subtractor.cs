@@ -4,16 +4,11 @@ using UnityEngine.Rendering;
 
 namespace ScreenSpaceBoolean
 {
-    // ========================================================================
-    // 削る側（Subtractor）にアタッチする。
-    //
-    // Subtracteeと違い、こちらは背面デプスを取るパスを持たない。
-    // 「削り区間の出口」はCarveパスが背面をラスタライズしながらその場で求めるので、
-    // 事前に保存する必要がないため。取るのは入口＝前面デプスだけ。
-    //
-    // 見た目用のマテリアル（SSBoolean_Lit, _Cull = Front）はRendererに普通に付ける。
-    // ここに挿す2つはどちらもデプス計算専用で、色としては出ない。
-    // ========================================================================
+    /// <summary>
+    /// 削る側にアタッチし、ScreenSpaceBooleanFeature の求めに応じて入口デプスの取得と削り込みの DrawRenderer を積むコンポーネント。
+    /// 削り区間の出口は Carve パスが背面をラスタライズしながら求めるので、背面デプスを取るパスは持たない。
+    /// 見た目用のマテリアル（SSBoolean_Lit, _Cull = Front）は Renderer に普通に付ける。
+    /// </summary>
     [ExecuteAlways]
     [RequireComponent(typeof(Renderer))]
     public class Subtractor : MonoBehaviour
@@ -25,8 +20,8 @@ namespace ScreenSpaceBoolean
 
         const int FrontPass = 0; // FrontBack.shader Pass0 (Cull Back) … 削り区間の入口
 
-        // Subtracteeと同じ自己登録方式。ただしこちらはFeature側で1体ずつ
-        // 個別に処理される（前面デプスをSubtractor単位で持つ必要があるため）。
+        // 有効なSubtractorの一覧。OnEnable/OnDisableで自己登録・解除する。
+        // Feature側では前面デプスをSubtractor単位で持つ必要があるため、1体ずつ個別に処理される。
         static readonly HashSet<Subtractor> instances = new HashSet<Subtractor>();
         public static IReadOnlyCollection<Subtractor> GetAll() => instances;
 

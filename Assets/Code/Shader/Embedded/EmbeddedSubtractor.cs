@@ -4,8 +4,10 @@ using UnityEngine.Rendering;
 
 namespace ScreenSpaceBoolean
 {
-    // 削る側（Subtractor）にアタッチする。
-    // maskMaterial には SSBoolean_Mask.shader を割り当てたマテリアルをセットする。
+    /// <summary>
+    /// 削る側にアタッチし、ScreenSpaceEmbeddedFeature の求めに応じてステンシルで削り込む DrawRenderer を積むコンポーネント。
+    /// maskMaterial には SSEmbedded_Mask.shader を割り当てたマテリアルをセットする。
+    /// </summary>
     [ExecuteAlways]
     [RequireComponent(typeof(Renderer))]
     public class EmbeddedSubtractor : MonoBehaviour

@@ -6,10 +6,8 @@ Shader "Hidden/ScreenSpaceEmbedded/Mask"
     //         Subtractee の裏側より奥まで削れていたら完全に貫通させる
     // Pass 3: ステンシルのマークをクリア（Ref 0）
     //
-    // 注意（reversed-Z）: プラットフォームによって depth の 0/1 の向きが逆になります
-    // (D3D/Metal/Vulkan は reversed-Z、OpenGL は non-reversed が一般的)。
-    // 実機・実環境でエフェクトが反転しているように見えたら、
-    // 各 Pass の ZTest (LEqual<->GEqual) と Pass2 の比較演算子 (<=) を反転させてください。
+    // TODO: Pass2 の比較 (<=) と完全貫通の 1.0、SSEmbedded_Composite の d >= 1.0 は生のデプスを non-reversed-Z 前提で扱っており、
+    //       reversed-Z のプラットフォーム（D3D/Metal/Vulkan）では反転する
     SubShader
     {
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" }

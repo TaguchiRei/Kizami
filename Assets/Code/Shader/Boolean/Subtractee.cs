@@ -4,16 +4,10 @@ using UnityEngine.Rendering;
 
 namespace ScreenSpaceBoolean
 {
-    // ========================================================================
-    // 削られる側（Subtractee）にアタッチする。
-    //
-    // このコンポーネント自体は何も描かない。ScreenSpaceBooleanFeature から
-    // 「今このコマンドバッファに前面を積んで」と頼まれたときに DrawRenderer を
-    // 発行するだけの窓口。実際の描画順序と描き先はFeature側が決める。
-    //
-    // 見た目用のマテリアルはRendererに普通に付ける（SSBoolean_Lit）。
-    // ここに挿すdepthMaterialはデプス取得専用で、見た目には一切出ない。
-    // ========================================================================
+    /// <summary>
+    /// 削られる側にアタッチし、ScreenSpaceBooleanFeature の求めに応じてデプス取得用の DrawRenderer を積むコンポーネント。
+    /// 描画順序と描き先は Feature 側が決める。見た目用のマテリアル（SSBoolean_Lit）は Renderer に普通に付ける。
+    /// </summary>
     [ExecuteAlways]
     [RequireComponent(typeof(Renderer))]
     public class Subtractee : MonoBehaviour
@@ -24,9 +18,7 @@ namespace ScreenSpaceBoolean
         const int FrontPass = 0; // Cull Back  … 削る前の可視面を取る
         const int BackPass = 1;  // Cull Front … 貫通判定に使う出口を取る
 
-        // Featureは「シーン内の全Subtractee」をまとめて描く必要があるが、
-        // FindObjectsOfTypeを毎フレーム呼ぶわけにいかないので自己登録方式にしている。
-        // OnEnable/OnDisableで出入りするため、無効化したオブジェクトは自動的に外れる。
+        // 有効なSubtracteeの一覧。OnEnable/OnDisableで自己登録・解除する。
         static readonly HashSet<Subtractee> instances = new HashSet<Subtractee>();
         public static IReadOnlyCollection<Subtractee> GetAll() => instances;
 
