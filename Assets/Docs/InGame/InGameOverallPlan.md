@@ -10,7 +10,7 @@
 | スケジュール | Notion「仕様書 / スケジュール」のマイルストーン（https://app.notion.com/p/3131ea2aa7fa8339acaa01d55399b74a） |
 | 時間制御の設計 | Notion「システムリスト / 時間制御（スローモード）」（https://app.notion.com/p/3ea1ea2aa7fa8183bbfac10bfafd4d70） |
 
-作成日：2026-09-29 ／ 更新日：2026-10-05
+作成日：2026-09-29 ／ 更新日：2026-10-06
 
 ## 0. 作業者向けの前提
 
@@ -45,7 +45,7 @@
   - Build Settings のシーンを変えた：`UsefulToolkit/Generate/Scene Enum`
   - 入力アクションを変えた：`UsefulToolkit/Input/Generate Action Enums`
 - 新しい asmdef の参照（NavMesh、UsefulToolkit.Debugging など）が必要なら、その層の asmdef に足す。層の参照ルール（スキル `state-centrism-architecture`）を破らない
-- コメントには処理の内容を書き、設計意図は書かない（ユーザーの CLAUDE.md のルール）
+- コメントとサマリーは、スキル `comment-refactoring` の基準で書く（ユーザーの CLAUDE.md のルール）。変更の経緯は書かず、今の設計判断・仕様判断を書く。装飾を付けない。変数のサマリーは一行。コードから読み取れる否定形を避ける。今後の課題は `// TODO:` にとどめる
 - `Assets/Code/Editor/Legacy/` は旧コード。参考にしてよいが、使わない・直さない
 
 ### 区間の進め方
@@ -61,7 +61,7 @@
 | 項目 | 内容 |
 |---|---|
 | 敵のメッシュ切断 | UsefulToolkit.MeshCut を使う。マルチスレッド、Burst、Job で並列化と非同期化が済んでいる |
-| 敵の構成 | SkinnedMeshRenderer は使わない。パーツごとに分かれた軽量なメッシュを、パーツ単位で FK / IK で動かす。仮モデルは四足歩行の AttakkerEnemy（`Assets/Art/Models/AttakkerEnemy.fbx`。三角形は合計 4308、実測）。1000 体をまとめて描画したときの負荷は区間4B で計測する |
+| 敵の構成 | SkinnedMeshRenderer は使わない。パーツごとに分かれた軽量なメッシュを、パーツ単位で FK / IK で動かす。仮モデルは四足歩行の AttackerEnemy（`Assets/Art/Models/AttackerEnemy.fbx`。区間4A のコミット 1 で、`AttakkerEnemy.fbx` を Blender で直して書き出し直す。三角形は合計 4308、実測）。1000 体をまとめて描画したときの負荷は区間4B で計測する |
 | 敵の群衆（2026-10-05 決定） | 同時に約 1000 体。敵の状態は構造体の NativeArray に持って Burst の Job で更新し、まとめて描画する。切断できる GameObject の体は、近くの敵にだけプールから貸す。経路は距離マップ、移動は簡易物理で、NavMesh は使わない見込み。方式は区間4B の計測用の試作で確定する。詳細は Notion「敵の群衆 AI」「敵の大量描画と体の貸し出し」 |
 | 敵の体のプール（2026-10-05 決定） | 敵の体は最初にすべてプールに用意し、実行中は Instantiate しない |
 | ボスの構成 | 敵と同じく、パーツ単位で FK / IK で動かす。ボクセルのスキニングは使わない |
@@ -115,7 +115,7 @@
 | 1 | プレイヤー移動の完成 | ダッシュ、ジャンプ、壁走り、短距離ワープ、HP と被ダメージの窓口 | 0 | 10/06〜10/12 | ― | 完了（10/04） | [Section01](Sections/Section01_PlayerMovement.md) |
 | 2 | 近接切断 | MeshCut による剣の切断、ホイールで切断面を回転、切断面のプレビュー、切断の結果（かけらと元の対象）の取得 | 0 | 10/13〜10/19 | ― | 完了（10/05） | [Section02](Sections/Section02_MeleeCut.md) |
 | 3 | かけら・オーブ・チャージ | かけらの通知、かけらのオーブ化と自動吸収、チャージの State、ステージ外周コライダー、オーブのプール | 2 | 10/20〜10/26 | ― | 完了（10/05） | [Section03](Sections/Section03_Charge.md) |
-| 4A | 敵の体と切断 | ステージシーンの分離、生成システム、敵の体のプール、部位の役割（核・攻撃・移動）、接続部側が残る切断、部位ごとの切断回数の上限、核でだけ倒れる、ディゾルブ、仮の移動 | 1, 3 | 2026/10/06〜10/19 | 10/06〜10/09 | 計画済み | [Section04](Sections/Section04_Enemy.md) |
+| 4A | 敵の体と切断 | ステージシーンの分離、生成システム、敵の体のプール、部位の役割（核・攻撃・移動）、接続部側が残る切断、部位ごとの切断回数の上限、核でだけ倒れる、ディゾルブ、仮の移動 | 1, 3 | 2026/10/06〜10/19 | 10/06〜10/09 | 着手（10/06） | [Section04](Sections/Section04_Enemy.md) |
 | 4B | 群衆 AI の試作と計測 | 敵の状態（NativeArray）、まとめて描画、距離マップの試作、体の貸し出しと返却、貸した体の切断、計測と方式の決定 | 4A | 10/20〜11/02 | 10/10〜10/13 | 未着手 | [Section04B](Sections/Section04B_CrowdPrototype.md) |
 | 4C | 群衆 AI の本実装 | 距離マップ（2 段）、グループとアンカー、隊列、交戦と合流、簡易物理、戻れない敵、脚の IK | 4B | 11/03〜11/16 | 10/14〜10/17 | 未着手 | [Section04C](Sections/Section04C_CrowdAI.md) |
 | A | マイルストーンA | 群れで迫る敵を切って溜める | | 11/16 | 10/17 | | |
