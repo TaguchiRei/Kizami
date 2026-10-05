@@ -53,7 +53,7 @@ namespace Kizami.Initialization
             const float Width = 360f;
             GUILayout.BeginArea(new Rect(10f, Screen.height - 90f, Width, 80f), GUI.skin.box);
 
-            float scale = GUILayout.HorizontalSlider(_state.Scale, TimeScaleState.MinScale, TimeScaleState.MaxScale);
+            float scale = GUILayout.HorizontalSlider(_state.Scale, TimeScaleState.MIN_SCALE, TimeScaleState.MAX_SCALE);
             if (!Mathf.Approximately(scale, _state.Scale)) _controller.SetScale(scale);
 
             GUILayout.BeginHorizontal();

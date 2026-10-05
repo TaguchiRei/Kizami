@@ -28,34 +28,5 @@ namespace Kizami.BlackBoard
                 _ => _vr
             };
         }
-
-        /// <summary>
-        /// 全ての実体を BuildMode の並び順で取り出す。
-        /// 並びは <see cref="BuildModeSelector.IndexOf"/> と対応する。
-        /// </summary>
-        public T[] ToArray()
-        {
-            return new[] { _pc, _mobile, _vr };
-        }
-    }
-
-    /// <summary>
-    /// <see cref="BuildModeSelector{T}"/> の並びに関する規約。
-    /// 複数の Selector を 1 本の配列へ連結する側が使う。
-    /// </summary>
-    public static class BuildModeSelector
-    {
-        /// <summary> 1 つの Selector が持つ実体の数 </summary>
-        public const int Count = 3;
-
-        /// <summary>
-        /// Selector の並びの中での位置。
-        /// BuildMode の宣言順がそのまま並び順である前提に依存している。
-        /// </summary>
-        /// <param name="buildMode">位置を求めるビルドモード</param>
-        public static int IndexOf(BuildMode buildMode)
-        {
-            return (int)buildMode;
-        }
     }
 }

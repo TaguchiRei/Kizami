@@ -16,7 +16,7 @@ namespace Kizami.Application
     public sealed class PlayerMovementService : IDisposable
     {
         private readonly PlayerMovementState _state = new();
-        private readonly IAccessibilitySettingState _accessibilitySettingState;
+        private readonly IOperationSettingState _settingState;
         private readonly PlayerParameterData _parameters;
         private readonly List<IDisposable> _subscriptions = new();
         private readonly IDisposable _contactStateWaiter;
@@ -58,13 +58,13 @@ namespace Kizami.Application
 
         /// <param name="playerBoard">PlayerMovementState の登録先</param>
         /// <param name="inputState">移動・ダッシュ・ジャンプ・ワープ入力の取得元</param>
-        /// <param name="accessibilitySettingState">ダッシュ入力の受け付け方の取得元</param>
+        /// <param name="settingState">ダッシュ入力の受け付け方の取得元</param>
         /// <param name="parameters">移動のパラメータ</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public PlayerMovementService(PlayerBoard playerBoard, IInputState inputState,
-            IAccessibilitySettingState accessibilitySettingState, PlayerParameterData parameters, int sceneId)
+            IOperationSettingState settingState, PlayerParameterData parameters, int sceneId)
         {
-            _accessibilitySettingState = accessibilitySettingState;
+            _settingState = settingState;
             _parameters = parameters;
             _wallRunTimeRemaining = parameters.WallRunDuration;
 
@@ -88,7 +88,7 @@ namespace Kizami.Application
         }
 
         /// <summary> ダッシュ入力の受け付け方に応じて、押下中またはトグルの状態を返す </summary>
-        private bool IsSprinting => _accessibilitySettingState.SprintInputMode == SprintInputMode.Hold
+        private bool IsSprinting => _settingState.SprintInputMode == SprintInputMode.Hold
             ? _isSprintHeld
             : _isSprintToggled;
 

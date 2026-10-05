@@ -10,7 +10,7 @@ using UsefulToolkit.Utility;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// アプリケーション全体に関わるステート（BuildModeState / AccessibilitySettingState）を生成する Initializer。常駐シーンへ置く。
+    /// アプリケーション全体に関わるステート（BuildModeState）を生成する Initializer。常駐シーンへ置く。
     /// BuildModeState は入力経路とプレイヤーリグの選択が参照するので、入力システム（InputInitializerBase）より先に初期化する。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.InitializerEarly - 10)]
@@ -31,16 +31,7 @@ namespace Kizami.Initialization
         [Tooltip("エディタ上でのみ有効。Auto 以外にすると実行環境の判定を無視して固定する。")]
         private BuildModeOverride _editorBuildModeOverride = BuildModeOverride.Auto;
 
-        [SerializeField]
-        [Tooltip("ダッシュ入力の受け付け方の初期値")]
-        private SprintInputMode _sprintInputMode = SprintInputMode.Hold;
-
-        [SerializeField, Range(1f, 90f)]
-        [Tooltip("切断面の回転入力（ホイール 1 段）1 回あたりの回転角度（度）の初期値")]
-        private float _cutRotateStepAngle = 15f;
-
         private BuildModeState _buildModeState;
-        private AccessibilitySettingState _accessibilitySettingState;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -54,11 +45,6 @@ namespace Kizami.Initialization
             _buildModeState = new BuildModeState();
             _buildModeState.SetBuildMode(ResolveBuildMode());
             appBoard.RegisterGameState<IBuildModeState>(_buildModeState);
-
-            _accessibilitySettingState = new AccessibilitySettingState();
-            _accessibilitySettingState.SetSprintInputMode(_sprintInputMode);
-            _accessibilitySettingState.SetCutRotateStepAngle(_cutRotateStepAngle);
-            appBoard.RegisterGameState<IAccessibilitySettingState>(_accessibilitySettingState);
 
             base.Initialize(blackBoard);
         }

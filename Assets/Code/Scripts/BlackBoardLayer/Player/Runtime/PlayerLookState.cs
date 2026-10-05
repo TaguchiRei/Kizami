@@ -11,11 +11,14 @@ namespace Kizami.BlackBoard
     [RegisterBoard(typeof(PlayerBoard))]
     public sealed class PlayerLookState : SceneStateBase, IPlayerLookState
     {
-        public Vector2 LookInput => _lookInput;
+        private readonly ActionEntryList<Vector2> _lookInputChangedActions = new();
 
-        private Vector2 _lookInput;
+        public Vector2 LookInput { get; private set; }
 
-        private Action<Vector2> _lookInputChangedCallback;
+        public override string GetLog()
+        {
+            return $"LookInput: {LookInput}";
+        }
 
         /// <summary>
         /// 視点操作の入力値を設定する。
@@ -23,21 +26,13 @@ namespace Kizami.BlackBoard
         /// <param name="lookInput">x が右向き、y が上向きを正とする回転量</param>
         public void ChangeLookInput(Vector2 lookInput)
         {
-            _lookInput = lookInput;
-            _lookInputChangedCallback?.Invoke(lookInput);
+            LookInput = lookInput;
+            _lookInputChangedActions.Invoke(lookInput);
         }
 
         public IDisposable RegisterOnLookInputChanged(Action<Vector2> callback)
         {
-            if (callback == null) throw new ArgumentNullException(nameof(callback));
-
-            _lookInputChangedCallback += callback;
-            return new BoardDispose(() => _lookInputChangedCallback -= callback);
-        }
-
-        public override string GetLog()
-        {
-            return $"LookInput: {LookInput}";
+            return _lookInputChangedActions.Register(new ActionEntry<Vector2>(false, callback), nameof(callback));
         }
     }
 

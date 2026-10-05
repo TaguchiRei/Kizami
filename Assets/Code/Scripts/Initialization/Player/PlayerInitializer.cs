@@ -68,10 +68,10 @@ namespace Kizami.Initialization
             }
 
             if (!blackBoard.TryGetStateBoard<AppBoard>(out var appBoard) ||
-                !appBoard.TryGetGameState<IAccessibilitySettingState>(out var accessibilitySettingState))
+                !appBoard.TryGetGameState<IOperationSettingState>(out var settingState))
             {
                 UsefulLogger.LogError(
-                    "IAccessibilitySettingState が未登録です。常駐シーンの初期化順を確認してください。", this);
+                    "IOperationSettingState が未登録です。常駐シーンの初期化順を確認してください。", this);
                 base.Initialize(blackBoard);
                 return;
             }
@@ -83,19 +83,11 @@ namespace Kizami.Initialization
                 return;
             }
 
-            if (!playerBoard.TryGetGameState<IPlayerOperationConfigState>(out var configState))
-            {
-                UsefulLogger.LogError(
-                    "IPlayerOperationConfigState が未登録です。常駐シーンの初期化順を確認してください。", this);
-                base.Initialize(blackBoard);
-                return;
-            }
-
             var sceneId = gameObject.scene.buildIndex;
             _movementService = new PlayerMovementService(
-                playerBoard, inputState, accessibilitySettingState, _parameters, sceneId);
+                playerBoard, inputState, settingState, _parameters, sceneId);
 
-            _lookService = new PlayerLookService(playerBoard, inputState, configState, sceneId);
+            _lookService = new PlayerLookService(playerBoard, inputState, settingState, sceneId);
 
             _chargeService = new ChargeService(playerBoard, _parameters, sceneId);
 
@@ -117,8 +109,8 @@ namespace Kizami.Initialization
                 UsefulLogger.LogError("MeleeCutAdapter が設定されていません。", this);
             }
 
-            _meleeCutService = new MeleeCutService(playerBoard, inputState, accessibilitySettingState, _parameters,
-                () => Time.unscaledTimeAsDouble, meleeCutAdapter != null ? meleeCutAdapter.Swing : null, sceneId);
+            _meleeCutService = new MeleeCutService(playerBoard, inputState, settingState, _parameters,
+                meleeCutAdapter != null ? meleeCutAdapter.Swing : null, sceneId);
 
             // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
             _healthService.Initialize(playerBoard, _parameters, sceneId);

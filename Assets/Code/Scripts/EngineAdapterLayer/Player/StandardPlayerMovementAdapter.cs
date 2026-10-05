@@ -41,7 +41,6 @@ namespace Kizami.EngineAdapter
 
         protected override void OnLookInputChanged(Vector2 lookInput)
         {
-            if (transform == null) return;
             if (lookInput.x == 0f) return;
 
             _yaw = Mathf.Repeat(_yaw + lookInput.x * _degreesPerInput, 360f);

@@ -11,40 +11,37 @@ namespace Kizami.BlackBoard
     public sealed class TimeScaleState : GameStateBase, ITimeScaleState
     {
         /// <summary> 倍率として受け付ける下限 </summary>
-        public const float MinScale = 0f;
+        public const float MIN_SCALE = 0f;
 
         /// <summary> 倍率として受け付ける上限 </summary>
-        public const float MaxScale = 1f;
+        public const float MAX_SCALE = 1f;
 
-        public float Scale => _scale;
+        private readonly ActionEntryList<float> _scaleChangedActions = new();
 
-        private float _scale = 1f;
-
-        private Action<float> _scaleChangedCallback;
-
-        /// <summary>
-        /// 倍率を設定する。値は MinScale 〜 MaxScale にクランプされる。
-        /// </summary>
-        /// <param name="scale">倍率</param>
-        public void SetScale(float scale)
-        {
-            float clamped = Mathf.Clamp(scale, MinScale, MaxScale);
-
-            if (Mathf.Approximately(_scale, clamped)) return;
-
-            _scale = clamped;
-            _scaleChangedCallback?.Invoke(_scale);
-        }
-
-        public IDisposable RegisterOnScaleChanged(Action<float> callback)
-        {
-            _scaleChangedCallback += callback ?? throw new ArgumentNullException(nameof(callback));
-            return new BoardDispose(() => _scaleChangedCallback -= callback);
-        }
+        public float Scale { get; private set; } = 1f;
 
         public override string GetLog()
         {
             return $"TimeScale: {Scale}";
+        }
+
+        /// <summary>
+        /// 倍率を設定する。値は MIN_SCALE 〜 MAX_SCALE にクランプされる。
+        /// </summary>
+        /// <param name="scale">倍率</param>
+        public void SetScale(float scale)
+        {
+            float clamped = Mathf.Clamp(scale, MIN_SCALE, MAX_SCALE);
+
+            if (Mathf.Approximately(Scale, clamped)) return;
+
+            Scale = clamped;
+            _scaleChangedActions.Invoke(Scale);
+        }
+
+        public IDisposable RegisterOnScaleChanged(Action<float> callback)
+        {
+            return _scaleChangedActions.Register(new ActionEntry<float>(false, callback), nameof(callback));
         }
     }
 

@@ -13,17 +13,17 @@ namespace Kizami.Application
     public sealed class PlayerLookService : IDisposable
     {
         private readonly PlayerLookState _state = new();
-        private readonly IPlayerOperationConfigState _configState;
+        private readonly IOperationSettingState _settingState;
         private readonly List<IDisposable> _subscriptions = new();
 
         /// <param name="playerBoard">PlayerLookState の登録先</param>
         /// <param name="inputState">視点入力の取得元</param>
-        /// <param name="configState">感度倍率の取得元</param>
+        /// <param name="settingState">感度倍率の取得元</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public PlayerLookService(PlayerBoard playerBoard, IInputState inputState,
-            IPlayerOperationConfigState configState, int sceneId)
+            IOperationSettingState settingState, int sceneId)
         {
-            _configState = configState;
+            _settingState = settingState;
 
             playerBoard.RegisterSceneState<IPlayerLookState>(_state, sceneId);
 
@@ -42,8 +42,8 @@ namespace Kizami.Application
 
             // 入力の右方向・上方向を、そのまま視点の右回り・上向きとして扱う
             _state.ChangeLookInput(new Vector2(
-                raw.x * _configState.HorizontalSensitivity,
-                raw.y * _configState.VerticalSensitivity));
+                raw.x * _settingState.HorizontalSensitivity,
+                raw.y * _settingState.VerticalSensitivity));
         }
 
         public void Dispose()

@@ -17,9 +17,8 @@ namespace Kizami.Application
         private const float AngleRange = 180f;
 
         private readonly MeleeCutState _state = new();
-        private readonly IAccessibilitySettingState _accessibilitySettingState;
+        private readonly IOperationSettingState _settingState;
         private readonly PlayerParameterData _parameters;
-        private readonly Func<double> _getUnscaledTime;
         private readonly Action<float> _onSwing;
         private readonly List<IDisposable> _subscriptions = new();
 
@@ -28,18 +27,15 @@ namespace Kizami.Application
 
         /// <param name="playerBoard">MeleeCutState の登録先</param>
         /// <param name="inputState">切断面の回転入力と攻撃入力の取得元</param>
-        /// <param name="accessibilitySettingState">回転入力 1 回あたりの回転角度の取得元</param>
+        /// <param name="settingState">回転入力 1 回あたりの回転角度の取得元</param>
         /// <param name="parameters">攻撃間隔の取得元</param>
-        /// <param name="getUnscaledTime">スローモード中も等速で進む現在の時刻（秒）を返す関数</param>
         /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public MeleeCutService(PlayerBoard playerBoard, IInputState inputState,
-            IAccessibilitySettingState accessibilitySettingState, PlayerParameterData parameters,
-            Func<double> getUnscaledTime, Action<float> onSwing, int sceneId)
+            IOperationSettingState settingState, PlayerParameterData parameters, Action<float> onSwing, int sceneId)
         {
-            _accessibilitySettingState = accessibilitySettingState;
+            _settingState = settingState;
             _parameters = parameters;
-            _getUnscaledTime = getUnscaledTime;
             _onSwing = onSwing;
 
             playerBoard.RegisterSceneState<IMeleeCutState>(_state, sceneId);
@@ -55,7 +51,7 @@ namespace Kizami.Application
         {
             if (context.Phase != InputPhase.Performed || context.Value == 0f) return;
 
-            var step = Mathf.Sign(context.Value) * _accessibilitySettingState.CutRotateStepAngle;
+            var step = Mathf.Sign(context.Value) * _settingState.CutRotateStepAngle;
             _state.SetAngle(Mathf.Repeat(_state.Angle + step, AngleRange));
         }
 
@@ -66,7 +62,8 @@ namespace Kizami.Application
         {
             if (context.Phase != InputPhase.Performed) return;
 
-            var now = _getUnscaledTime();
+            // スローモード中も攻撃間隔は実時間で数える
+            var now = Time.unscaledTimeAsDouble;
             if (now - _lastSwingTime < _parameters.MeleeAttackInterval) return;
 
             _lastSwingTime = now;

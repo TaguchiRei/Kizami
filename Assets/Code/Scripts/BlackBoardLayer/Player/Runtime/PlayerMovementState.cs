@@ -10,10 +10,15 @@ namespace Kizami.BlackBoard
     [RegisterBoard(typeof(PlayerBoard))]
     public sealed class PlayerMovementState : SceneStateBase, IPlayerMovementState
     {
+        private readonly ActionEntryList<PlayerMoveMode, PlayerMoveMode> _modeChangedActions = new();
+
         public Vector3 TargetVelocity { get; private set; }
         public PlayerMoveMode Mode { get; private set; }
 
-        private Action<PlayerMoveMode, PlayerMoveMode> _modeChangedCallback;
+        public override string GetLog()
+        {
+            return $"Mode: {Mode}  \nTargetVelocity: {TargetVelocity}";
+        }
 
         /// <summary>
         /// 移動モードを設定する。移動モードが変わったときだけ変化の通知を流す。
@@ -25,7 +30,7 @@ namespace Kizami.BlackBoard
 
             var previous = Mode;
             Mode = mode;
-            _modeChangedCallback?.Invoke(previous, mode);
+            _modeChangedActions.Invoke(previous, mode);
         }
 
         /// <summary>
@@ -39,15 +44,8 @@ namespace Kizami.BlackBoard
 
         public IDisposable RegisterOnModeChanged(Action<PlayerMoveMode, PlayerMoveMode> callback)
         {
-            if (callback == null) throw new ArgumentNullException(nameof(callback));
-
-            _modeChangedCallback += callback;
-            return new BoardDispose(() => _modeChangedCallback -= callback);
-        }
-
-        public override string GetLog()
-        {
-            return $"Mode: {Mode}  \nTargetVelocity: {TargetVelocity}";
+            return _modeChangedActions.Register(
+                new ActionEntry<PlayerMoveMode, PlayerMoveMode>(false, callback), nameof(callback));
         }
     }
 
