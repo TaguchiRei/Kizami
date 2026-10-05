@@ -129,7 +129,7 @@ namespace Kizami.Initialization
             }
             else
             {
-                UsefulLogger.LogError("PlayerMovementAbstractor が設定されていません。", this);
+                UsefulLogger.LogError("PlayerMovementAdapterBase が設定されていません。", this);
             }
 
             // カメラの上下方向反映は操作系によっては使わない（例: VR は HMD の姿勢が担う）為、未設定でもエラーにしない
