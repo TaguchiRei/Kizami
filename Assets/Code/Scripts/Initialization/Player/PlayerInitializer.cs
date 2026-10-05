@@ -12,14 +12,8 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// プレイヤーの移動・視点・HP・近接切断・チャージまわり（Service / State / Abstractor）を生成して繋ぐだけの配線役。
-    /// ロジックは持たない。インゲームのシーンへ置く。
-    /// PlayerHealthService は具象型のまま DI コンテナへ登録する。
-    /// MeleeCutService が振ったときに、MeleeCutAdapter の切断を直接呼ぶように繋ぐ。
-    /// MeleeCutAdapter の切断の結果は FragmentOrbAdapter へ、FragmentOrbAdapter が吸収したかけらの数は ChargeService へ直接渡すように繋ぐ。
-    ///
-    /// 視点入力を実際の回転へどう変換するかは操作系ごとに違うが、その差は
-    /// 各シーンへ置く PlayerMovementAbstractorBase の派生が吸収する為、ここは選び分けをしない。
+    /// プレイヤーの移動・視点・HP・近接切断・チャージまわり（Service / State / Adapter）を生成して繋ぐ配線役。インゲームのシーンへ置く。
+    /// 操作系ごとの視点の回転のさせ方の違いは、シーンへ置く PlayerMovementAdapterBase の派生が吸収する。
     /// </summary>
     public sealed class PlayerInitializer : InitializerBase
     {

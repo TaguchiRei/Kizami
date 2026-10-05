@@ -11,16 +11,13 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// アプリケーション全体に関わるステート（BuildModeState / AccessibilitySettingState）を生成する Initializer。常駐シーンへ置く。
-    ///
-    /// BuildModeState は入力経路とプレイヤーリグの選択が参照する為、
-    /// 入力システム (InputInitializerBase) より先に初期化する必要がある。
+    /// BuildModeState は入力経路とプレイヤーリグの選択が参照するので、入力システム（InputInitializerBase）より先に初期化する。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.InitializerEarly - 10)]
     public sealed class ApplicationManagementInitializer : InitializerBase
     {
         /// <summary>
-        /// エディタ上でビルドモードを固定する為の指定。Auto なら実行環境から判定する。
-        /// ビルドには影響しない。
+        /// エディタ上でビルドモードを固定するための指定。Auto なら実行環境から判定する。ビルドには影響しない。
         /// </summary>
         private enum BuildModeOverride
         {

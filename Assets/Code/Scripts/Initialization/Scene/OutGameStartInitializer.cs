@@ -6,8 +6,8 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// 仮のアウトゲームから、インゲームへ遷移するボタンを画面に出す Initializer。仮のアウトゲームの場面シーンへ置く。
-    /// 区間11で、アウトゲーム本来の流れに置き換える。
     /// </summary>
+    // TODO: アウトゲーム本来の流れに置き換える
     public sealed class OutGameStartInitializer : InitializerBase, IInjectable<IGameSceneController>
     {
         private IGameSceneController _sceneController;

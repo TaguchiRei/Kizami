@@ -9,12 +9,8 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// PC とスマホが共用する操作系の入力配線。
-    ///
-    /// 移動・視点はどちらも InputAction がそのまま Application へ届く。スマホの移動スティックは
-    /// On-Screen Controls が InputAction を焚く為、PC と同じ経路で通る。
-    /// スマホの画面ドラッグによる視点操作だけは TouchLookInputSource が外部入力スロット
-    /// (ExternalInputs.TouchLook) へ書き込み、Player/Look にバインドされたスロット経由で届く。
-    /// その入力ソースをビルドモードで差し替える。
+    /// 移動・視点は InputAction のまま Application へ届く（スマホの移動スティックは On-Screen Controls が InputAction を焚く）。
+    /// スマホの画面ドラッグによる視点操作は、TouchLookInputSource が外部入力スロット ExternalInputs.TouchLook 経由で届ける。
     /// </summary>
     public sealed class StandardPlayerInputRouteInitializer : PlayerInputRouteInitializerBase
     {
@@ -35,9 +31,9 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 画面ドラッグの入力ソースを、視点操作の外部入力スロットへ繋ぐ。指定が無ければ何もしない。
+        /// 画面ドラッグの入力ソースを、視点操作の外部入力スロットへ繋ぐ。
         /// </summary>
-        /// <param name="touchLookSource">画面ドラッグの入力ソース。無ければ null</param>
+        /// <param name="touchLookSource">画面ドラッグの入力ソース。使わないビルドモードでは null</param>
         /// <param name="inputState">入力の読み取り面</param>
         private void SetUpTouchLook(TouchLookInputSource touchLookSource, IInputState inputState)
         {
@@ -49,9 +45,9 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 操作用 UI を有効にする。指定が無ければ何もしない。
+        /// 操作用 UI を有効にする。
         /// </summary>
-        /// <param name="controlUiRoot">有効にする UI のルート。無ければ null</param>
+        /// <param name="controlUiRoot">有効にする UI のルート。使わないビルドモードでは null</param>
         private void ActivateControlUi(GameObject controlUiRoot)
         {
             if (controlUiRoot == null) return;

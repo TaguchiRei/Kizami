@@ -13,14 +13,9 @@ using UsefulToolkit.Utility;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// プレイヤーへダメージを与える操作と、HP の画面表示を行うデバッグ用の Initializer。インゲームのシーンへ置く。
-    ///
-    /// 操作は OnGUI のボタンとトグルで行う。トグルが有効な間は、移動モードが Warping に変わった瞬間にダメージを与える。
-    /// HP の表示は DebugGUI.ObserveVariable に値を登録し、HP が 0 になったらログを出す。
-    /// チャージ量と、管理中のかけらの数と、出ているオーブの数も DebugGUI.ObserveVariable で表示する。
-    /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。
-    /// エディタと Development Build でのみ動く。
-    /// PlayerInitializer が登録する State を読む為、それより後に初期化する。
+    /// プレイヤーへダメージを与える操作と、HP・チャージ量・かけらとオーブの数の画面表示を行うデバッグ用の Initializer。インゲームのシーンへ置く。
+    /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動く。
+    /// PlayerInitializer が登録する State を読むので、それより後に初期化する。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.DefaultLate)]
     public sealed class PlayerDebugInitializer : InitializerBase, IInjectable<PlayerHealthService>

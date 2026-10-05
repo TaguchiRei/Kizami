@@ -12,10 +12,7 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// 時間の倍率を実行中に変える操作と、倍率の画面表示を行うデバッグ用の Initializer。常駐シーンへ置く。
-    ///
-    /// 操作は OnGUI のスライダーとボタンで行い、表示は DebugGUI.ObserveVariable に値を登録する。
-    /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。
-    /// エディタと Development Build でのみ動く。
+    /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動く。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.Initializer)]
     public sealed class TimeScaleDebugInitializer : InitializerBase, IInjectable<ITimeScaleController>

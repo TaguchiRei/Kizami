@@ -8,12 +8,9 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// VR の操作系の入力配線。ビルドモードは参照しない。
-    ///
-    /// 移動・視点ともに VRControllers のスティックをポーリングで読み、外部入力スロット
-    /// (ExternalInputs.VrMove / VrLook) へ書き込む。
-    /// InputAction の started / canceled を購読しないのは、XR デバイスのスティックでは
-    /// 入力を継続していてもそれらが繰り返し発火する為。
+    /// VR の操作系の入力配線。
+    /// XR デバイスのスティックは入力を継続していても started / canceled が繰り返し発火するので、
+    /// 移動・視点ともに VRControllers のスティックをポーリングで読み、外部入力スロット（ExternalInputs.VrMove / VrLook）へ書き込む。
     /// </summary>
     public sealed class VrPlayerInputRouteInitializer : PlayerInputRouteInitializerBase
     {

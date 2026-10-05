@@ -9,9 +9,8 @@ using UsefulToolkit.Utility;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// 視点操作の感度設定 (PlayerOperationConfigState) を生成する Initializer。常駐シーンへ置く。
-    ///
-    /// 設定はシーンを跨いで保たれる為、シーンごとの Initializer ではなくここで一度だけ生成する。
+    /// 視点操作の感度設定（PlayerOperationConfigState）を生成する Initializer。
+    /// 設定はシーンを跨いで保たれるので、常駐シーンへ置いて一度だけ生成する。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.InitializerEarly - 10)]
     public sealed class PlayerOperationConfigInitializer : InitializerBase

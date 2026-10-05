@@ -11,12 +11,8 @@ using UsefulToolkit.Utility;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// 時間の倍率（TimeScaleService / TimeScaleState / TimeScaleAdapter）を生成して繋ぐだけの配線役。
-    /// ロジックは持たない。常駐シーンへ置く。
-    ///
-    /// 倍率はシーンを跨いで保たれる為、シーンごとの Initializer ではなくここで一度だけ生成する。
-    /// 倍率を変える操作面は ITimeScaleController として DI コンテナへ登録し、
-    /// 受け取る側は IInjectable&lt;ITimeScaleController&gt; を実装する。
+    /// 時間の倍率（TimeScaleService / TimeScaleState / TimeScaleAdapter）を生成して繋ぐ配線役。
+    /// 倍率はシーンを跨いで保たれるので、常駐シーンへ置いて一度だけ生成する。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.InitializerEarly - 10)]
     public sealed class TimeScaleInitializer : InitializerBase

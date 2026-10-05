@@ -12,9 +12,6 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// シーン遷移の操作面を組み立て、起動時にアウトゲームへ遷移する Initializer。常駐シーンへ置く。
-    ///
-    /// 遷移の操作面は DI コンテナへ登録し、受け取る側は
-    /// IInjectable&lt;IGameSceneController&gt; を実装する。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.Initializer)]
     public sealed class GameSceneInitializer : InitializerBase
