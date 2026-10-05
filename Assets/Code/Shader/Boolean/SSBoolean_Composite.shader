@@ -7,8 +7,7 @@ Shader "Hidden/ScreenSpaceBoolean/CompositeSubtraction"
     //     色が乗る（＝ブーリアン後に見えるべき面だけが描かれる）
     //   ・それ以外のシーンオブジェクトは通常のZTestで前後関係が決まる
     //
-    // 番兵値のピクセルは「ブーリアン結果としての可視面が無い」という意味なので書き込まない。
-    // カメラデプスはクリア値のまま残り、そこは通常のシーン描画がそのまま見える。
+    // 番兵値のピクセルは discard してカメラデプスをクリア値のまま残し、そこは通常のシーン描画が見える。
     SubShader
     {
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" }
@@ -18,7 +17,7 @@ Shader "Hidden/ScreenSpaceBoolean/CompositeSubtraction"
             Cull Off
             ZTest LEqual // カメラデプスのクリア値より手前なら書ける
             ZWrite On    // このパスの目的はカメラデプスの書き換えそのもの
-            ColorMask 0  // 色は書かない
+            ColorMask 0  // デプスだけを書く
 
             HLSLPROGRAM
             #pragma vertex Vert
@@ -53,12 +52,11 @@ Shader "Hidden/ScreenSpaceBoolean/CompositeSubtraction"
             {
                 float d = SAMPLE_TEXTURE2D(_SubtractionDepth, sampler_SubtractionDepth, i.uv).r;
 
-                // 貫通した / そもそもSubtracteeが無い
+                // farZ番兵: 貫通した / Subtracteeの外
                 if (SSB_IsFarMarker(d)) discard;
 
-                // カメラがSubtractee内部にいて、どのSubtractorにも削られなかったピクセル。
-                // ここにnearZを書くと「何も描かれないのに全部を遮る壁」になってしまうため、
-                // 書き込まずに背面カリングされた通常のメッシュと同じ扱いにする。
+                // nearZ番兵: カメラがSubtractee内部にいて、削り込みの後も番兵のまま残ったピクセル。
+                // nearZを書くと画面全体を遮る見えない壁になるので、背面カリングされた通常のメッシュと同じく捨てる。
                 if (SSB_IsNearMarker(d)) discard;
 
                 FragOut o;

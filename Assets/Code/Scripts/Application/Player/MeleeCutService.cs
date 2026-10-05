@@ -10,9 +10,6 @@ namespace Kizami.Application
 {
     /// <summary>
     /// 近接切断の入力を解釈して MeleeCutState へ書き込み、振ったことを切断の実行役へ伝えるユースケース。
-    /// MeleeCutState の具象インスタンスはこのクラスだけが保持する（Single Writer）。
-    /// 切断面の回転入力 1 回ごとに、アクセシビリティの設定にある角度だけ切断面を回す。
-    /// 攻撃入力は、前回振ってから攻撃間隔が経っていれば、そのときの角度で振ったときの関数を呼ぶ。
     /// </summary>
     public sealed class MeleeCutService : IDisposable
     {
@@ -33,7 +30,7 @@ namespace Kizami.Application
         /// <param name="inputState">切断面の回転入力と攻撃入力の取得元</param>
         /// <param name="accessibilitySettingState">回転入力 1 回あたりの回転角度の取得元</param>
         /// <param name="parameters">攻撃間隔の取得元</param>
-        /// <param name="getUnscaledTime">スローモードの影響を受けない現在の時刻（秒）を返す関数</param>
+        /// <param name="getUnscaledTime">スローモード中も等速で進む現在の時刻（秒）を返す関数</param>
         /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public MeleeCutService(PlayerBoard playerBoard, IInputState inputState,

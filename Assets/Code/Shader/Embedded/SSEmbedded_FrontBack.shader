@@ -2,7 +2,7 @@ Shader "Hidden/ScreenSpaceEmbedded/FrontBack"
 {
     // Pass 0: 前面（通常向き）のデプスを書く
     // Pass 1: 背面（裏返し）のデプスを書く（_SubtracteeBackDepth の保存用）
-    // どちらも色は使わないので ColorMask 0。ハードウェアの ZWrite だけでデプスが書き込まれる。
+    // どちらも ColorMask 0 で、デプスはハードウェアの ZWrite で書き込む。
     SubShader
     {
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" }

@@ -5,7 +5,6 @@ namespace Kizami.Application
 {
     /// <summary>
     /// チャージ量を管理するユースケース。
-    /// ChargeState の具象インスタンスはこのクラスだけが保持する（Single Writer）。
     /// 吸収したかけらの数に、かけら 1 個あたりのチャージ量を掛けて加える。
     /// </summary>
     public sealed class ChargeService

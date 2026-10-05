@@ -10,9 +10,8 @@ namespace Kizami.Application
 {
     /// <summary>
     /// 入力と視線の向き、触れている物から、プレイヤーの移動モード・ワールド空間の目標速度・ジャンプを決めるユースケース。
-    /// PlayerMovementState の具象インスタンスはこのクラスだけが保持する（Single Writer）。
-    /// 入力イベントでは入力値を記録するだけで、判定と State の更新は Step（EngineAdapterLayer の FixedUpdate から直接配線で呼ばれる）で行う。
-    /// 物理への反映と加減速の補間は EngineAdapterLayer 側（PlayerMovementAdapterBase）が行う。
+    /// 入力イベントでは入力値を記録し、判定と State の更新は Step で行う。
+    /// 物理への反映と加減速の補間は PlayerMovementAdapterBase が行う。
     /// </summary>
     public sealed class PlayerMovementService : IDisposable
     {
@@ -42,10 +41,7 @@ namespace Kizami.Application
         /// <summary> 壁から離れようとする入力が続いている時間（秒） </summary>
         private float _wallDetachInputTime;
 
-        /// <summary>
-        /// 壁ジャンプのあと、壁との接触が一度切れるまで再び壁走りに入らないようにする為の印。
-        /// 壁ジャンプの直後の数ステップはまだ壁に触れている為、これがないと前向きの入力で入り直してしまう。
-        /// </summary>
+        /// <summary> 壁ジャンプ後、壁との接触が一度切れるまで true になり、その間は壁走りへの再突入を止める </summary>
         private bool _isWaitingWallRelease;
 
         /// <summary> 次の Step で処理するワープ入力があるか </summary>
@@ -74,7 +70,7 @@ namespace Kizami.Application
 
             playerBoard.RegisterSceneState<IPlayerMovementState>(_state, sceneId);
 
-            // PlayerContactState は EngineAdapterLayer が登録する為、登録順に依存しないよう待受で拾う
+            // PlayerContactState は EngineAdapterLayer が登録するので、登録を待ち受けて拾う
             _contactStateWaiter = playerBoard.SubscribeStateRegister<IPlayerContactState>(
                 () =>
                 {
@@ -91,27 +87,27 @@ namespace Kizami.Application
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Warp, OnWarp));
         }
 
-        /// <summary>ダッシュ中かどうか。ダッシュ入力の受け付け方に応じて、押下中またはトグルの状態を返す。</summary>
+        /// <summary> ダッシュ入力の受け付け方に応じて、押下中またはトグルの状態を返す </summary>
         private bool IsSprinting => _accessibilitySettingState.SprintInputMode == SprintInputMode.Hold
             ? _isSprintHeld
             : _isSprintToggled;
 
-        /// <summary>地面に触れているかどうか。</summary>
+        /// <summary> 地面に触れているか </summary>
         private bool IsGrounded => _contactState != null && (_contactState.Contacts & PlayerContact.Ground) != 0;
 
-        /// <summary>地面に触れておらず、壁に触れているかどうか。地面と壁の両方に触れているときは地面を優先する。</summary>
+        /// <summary> 空中で壁に触れているか。地面と壁の両方に触れているときは地面を優先して false </summary>
         private bool IsTouchingWallInAir => _contactState != null && !IsGrounded &&
                                             (_contactState.Contacts & PlayerContact.Wall) != 0;
 
         /// <summary>
-        /// 物理の 1 ステップごとに呼ばれ、記録済みの入力と視線の向き、触れている物から
-        /// 移動モードと目標速度を決めて State に書き込む。
+        /// EngineAdapterLayer の FixedUpdate から物理の 1 ステップごとに呼ばれ、記録済みの入力と視線の向き、
+        /// 触れている物から移動モードと目標速度を決めて State に書き込む。
         /// ジャンプ入力とワープ入力はこのステップで処理し、行えなければ捨てる。
         /// ワープ中はジャンプ入力も壁走りに入る判定も無視する。
         /// </summary>
         /// <param name="viewDirection">ワールド空間の視線の向き</param>
         /// <param name="deltaTime">このステップの経過時間（秒）</param>
-        /// <returns>このステップで Rigidbody に与える打ち出し速度。ジャンプしないステップでは null</returns>
+        /// <returns>このステップで Rigidbody に与える打ち出し速度。ジャンプしたステップだけ値を持つ</returns>
         public Vector3? Step(Vector3 viewDirection, float deltaTime)
         {
             UpdateViewForward(viewDirection);
@@ -191,8 +187,8 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 壁走りに入れるかどうか。空中で壁に触れていて、前向きの移動入力があり、その入力が壁から離れる向きでなく、
-        /// 持ち時間が残っていて、壁ジャンプのあと壁との接触が一度切れているときに入れる。
+        /// 壁走りに入れるかどうか。空中で壁に触れ、前向きの移動入力と壁の法線のなす角が WallDetachAngle より大きく、
+        /// 持ち時間が残り、壁ジャンプ後の待ちが解けているときに入れる。
         /// </summary>
         private bool CanEnterWallRun(Vector3 worldInput)
         {
@@ -201,7 +197,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 入力が壁から離れる向き（壁の法線とのなす角が WallDetachAngle 以下）かどうか。入力がないときは false。
+        /// 入力が壁から離れる向き（壁の法線とのなす角が WallDetachAngle 以下）かどうか。入力が 0 のときは false。
         /// </summary>
         private bool IsPullingAwayFromWall(Vector3 worldInput)
         {
@@ -212,7 +208,6 @@ namespace Kizami.Application
         /// <summary>
         /// 壁走りの持ち時間と、壁から離れようとする入力の継続時間を進め、壁走りを抜けるかどうかを返す。
         /// 壁との接触が切れたとき、持ち時間が尽きたとき、壁から離れる向きの入力が一定時間続いたときに抜ける。
-        /// 入力がないときは、壁から離れようとしているとはみなさない。
         /// </summary>
         private bool ShouldExitWallRun(Vector3 worldInput, float deltaTime)
         {
@@ -240,7 +235,7 @@ namespace Kizami.Application
         /// <summary>
         /// 壁ジャンプの打ち出し速度を求める。
         /// 水平方向は、入力から壁へ押し込む成分を取り除いた向きと、壁の法線とを WallJumpInputInfluence の割合で混ぜた向き。
-        /// 入力がなければ法線の向き。上向きの速度はジャンプと同じ。
+        /// 入力が 0 のときは法線の向き。上向きの速度はジャンプと同じ。
         /// </summary>
         private Vector3 CalculateWallJumpVelocity(Vector3 worldInput)
         {
@@ -337,7 +332,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 視線の向きを水平面へ投影して保持する。水平成分がほぼ無いときは更新しない。
+        /// 視線の向きを水平面へ投影して保持する。水平成分があるときだけ更新する。
         /// </summary>
         private void UpdateViewForward(Vector3 viewDirection)
         {

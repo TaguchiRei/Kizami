@@ -4,13 +4,13 @@
 // デプスの2つの表現
 // 1) ShaderLabの ZTest / ClearRenderTarget の depth 引数は「意味」で書く。
 //    LEqual = 手前が通る / GEqual = 奥が通る、clear depth は 1=遠クリップ。
-//    reversed-Z への変換はUnityが内部で行うので、プラットフォーム分岐は不要。
+//    reversed-Z への変換はUnityが内部で行う。
 //
 // 2) SV_Depth に書く値・デプステクスチャからサンプルした値は
 //    「生のクリップ空間Z」。reversed-Z では 1 が近く 0 が遠くなる。
 //    HLSL側で大小比較するときは必ず下のヘルパーを使う。
 //
-// 2つの表現を混ぜないよう、生の値が要るところは SSB_NEAR_Z / SSB_FAR_Z だけを使う。
+// 生の値が要るところは SSB_NEAR_Z / SSB_FAR_Z だけを使う。
 
 #if UNITY_REVERSED_Z
     #define SSB_NEAR_Z 1.0
@@ -30,7 +30,7 @@ bool SSB_IsFartherOrEqual(float a, float b)
 #endif
 }
 
-// 「何も無い」を表す番兵値かどうか
+// 「貫通した、またはSubtracteeの外」を表す番兵値かどうか
 bool SSB_IsFarMarker(float d)
 {
     return abs(d - SSB_FAR_Z) < 1e-6;
@@ -38,7 +38,7 @@ bool SSB_IsFarMarker(float d)
 
 // 「カメラがSubtractee内部にいる」を表す番兵値かどうか。
 // 可視サーフェスがカメラ位置そのものにあるという意味で、
-// CSGの区間判定には使うが、最終的なカメラデプスには書き込まない。
+// CSGの区間判定だけに使い、カメラデプスへの書き戻しでは捨てる。
 bool SSB_IsNearMarker(float d)
 {
     return abs(d - SSB_NEAR_Z) < 1e-6;

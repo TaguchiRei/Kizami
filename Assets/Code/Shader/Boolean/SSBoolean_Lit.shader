@@ -3,8 +3,7 @@ Shader "ScreenSpaceBoolean/Lit"
     // Subtractee / Subtractor 本体の見た目を描くシェーダー。
     // Renderer Feature がカメラデプスへ焼いた合成デプスに対して、ZWrite Off / ZTest Equal で色だけを乗せる。
     // 一致した面＝残すべき面だけが描かれ、削られた面は自動的に落ちる。
-    // 頂点のクリップ座標がデプスを書いた側（FrontBack / Carve）とビット単位で一致していないと面ごと消えるので、
-    // Vertの式を揃えている。
+    // ZTest Equal を通すため、頂点のクリップ座標はデプスを書いた側（FrontBack / Carve）と同じ式で求める。
     //
     // マテリアルごとの設定
     //   Subtractee用マテリアル : Cull = Back（通常通り）
@@ -32,7 +31,7 @@ Shader "ScreenSpaceBoolean/Lit"
             Tags { "LightMode"="UniversalForward" }
 
             Cull [_Cull]
-            ZWrite Off  // デプスはFeatureが確定済み。ここでは触らない
+            ZWrite Off  // デプスはFeatureが確定済み
             ZTest Equal // 合成デプスと一致した面＝残すべき面だけ色を乗せる
 
             HLSLPROGRAM

@@ -1,9 +1,9 @@
 Shader "Hidden/ScreenSpaceBoolean/Fullscreen"
 {
-    // 合成デプスを扱うフルスクリーンパス2種。どちらも色は書かずデプスだけを作る。
+    // 合成デプスを扱うフルスクリーンパス2種。どちらもデプスだけを作る。
     //   Pass 0 (ComposeInit)   … 工程3。削る前の可視面で合成デプスを初期化する
     //   Pass 1 (CompositeCopy) … 工程4b。合成デプスを複製してread/writeを分ける
-    // 頂点はDrawProceduralの3頂点フルスクリーン三角形（メッシュ不要）。
+    // 頂点はDrawProceduralの3頂点フルスクリーン三角形。
     SubShader
     {
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" }
@@ -60,15 +60,15 @@ Shader "Hidden/ScreenSpaceBoolean/Fullscreen"
                 }
                 else if (hasBack > 0.5)
                 {
-                    // 前面が無いのに背面はある = カメラがSubtractee内部にいる。
+                    // 背面だけがある = カメラがSubtractee内部にいる。
                     // カメラ位置に可視サーフェスがあるものとして扱うことで、
                     // Carveパスが「削れた空間の内側にいる」状態を正しく判定できる。
-                    // この値は番兵で、最終的なカメラデプスには書き込まれない。
+                    // この値は番兵で、カメラデプスへの書き戻しでは捨てる。
                     d = SSB_NEAR_Z;
                 }
                 else
                 {
-                    // Subtracteeが存在しない場所
+                    // Subtracteeの外
                     d = SSB_FAR_Z;
                 }
 
@@ -81,7 +81,7 @@ Shader "Hidden/ScreenSpaceBoolean/Fullscreen"
 
         // Pass 1: 合成デプスの単純コピー（ping-pong用）
         // GPUは同じデプスバッファをZTest対象にしながらテクスチャとして同時にサンプルできないので、
-        // Carveの直前に中身を別RTへ複製し、「読む側」と「ZTestして書く側」を分ける。
+        // Carveの直前に別RTへ複製して「読む側」と「ZTestして書く側」を分ける。
         Pass
         {
             Name "CompositeCopy"

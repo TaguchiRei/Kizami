@@ -94,7 +94,7 @@ Shader "Hidden/ScreenSpaceEmbedded/Mask"
                 float subtracteeBack  = SAMPLE_TEXTURE2D(_SubtracteeBackDepth, sampler_SubtracteeBackDepth, uv).r;
                 float subtractorDepth = i.positionHCS.z / i.positionHCS.w;
 
-                // Subtractee の裏側より手前にしか削れていない場合は何もしない
+                // Subtractee の裏側より奥まで削れたピクセルだけを貫通させる
                 if (subtractorDepth <= subtracteeBack) discard;
 
                 FragOut o;

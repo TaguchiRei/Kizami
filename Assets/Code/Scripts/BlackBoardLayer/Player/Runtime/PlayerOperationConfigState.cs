@@ -10,7 +10,7 @@ namespace Kizami.BlackBoard
     /// <remarks>
     /// 感度は基準を 1.0 とする倍率。
     /// 生の視点入力は経路ごとに単位が違う（PC / スマホはスクリーン座標の delta、VR はスティックの -1〜1）ため、
-    /// 基準スケールは各入力経路・適用側が定数として持つ。
+    /// 基準スケールはこの State に持たせず、各入力経路・適用側が定数として持つ。
     /// </remarks>
     [RegisterBoard(typeof(PlayerBoard))]
     public sealed class PlayerOperationConfigState : GameStateBase, IPlayerOperationConfigState

@@ -2,7 +2,7 @@ Shader "Hidden/ScreenSpaceEmbedded/CompositeSubtraction"
 {
     // フルスクリーン三角形を1枚描いて、ScreenSpaceEmbeddedFeature の工程2)で作った
     // _SubtractionDepth をカメラの本物のデプスバッファへ書き写す。
-    // 何も削られていない（=1.0のまま）ピクセルは discard して既存のデプスを残す。
+    // 1.0 のままのピクセルは discard して既存のデプスを残す。
     SubShader
     {
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" }

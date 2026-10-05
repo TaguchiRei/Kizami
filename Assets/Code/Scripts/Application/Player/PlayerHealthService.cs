@@ -6,7 +6,6 @@ namespace Kizami.Application
 {
     /// <summary>
     /// プレイヤーの HP を管理し、ダメージを適用するユースケース。
-    /// PlayerHealthState の具象インスタンスはこのクラスだけが保持する（Single Writer）。
     /// ワープ中（PlayerMovementState.Mode が Warping）に受けたダメージには軽減率を適用する。
     /// </summary>
     public sealed class PlayerHealthService
@@ -32,7 +31,7 @@ namespace Kizami.Application
 
         /// <summary>
         /// ダメージを適用する。ワープ中は軽減率を掛け、四捨五入した値を減らす。
-        /// HP が 0 のときと、ダメージが 0 以下のときは何もしない。
+        /// HP が残っていて、ダメージが正のときだけ適用する。
         /// </summary>
         /// <param name="amount">ダメージ量</param>
         public void ApplyDamage(int amount)

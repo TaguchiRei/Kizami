@@ -6,7 +6,7 @@ namespace ScreenSpaceBoolean
 {
     /// <summary>
     /// 削る側にアタッチし、ScreenSpaceBooleanFeature の求めに応じて入口デプスの取得と削り込みの DrawRenderer を積むコンポーネント。
-    /// 削り区間の出口は Carve パスが背面をラスタライズしながら求めるので、背面デプスを取るパスは持たない。
+    /// 削り区間の出口は Carve パスが背面をラスタライズしながら求めるので、取るデプスは入口の前面だけ。
     /// 見た目用のマテリアル（SSBoolean_Lit, _Cull = Front）は Renderer に普通に付ける。
     /// </summary>
     [ExecuteAlways]

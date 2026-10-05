@@ -8,12 +8,7 @@ using UsefulToolkit.BlackBoard.Input;
 namespace Kizami.Application
 {
     /// <summary>
-    /// 視点入力を解釈して PlayerLookState へ書き込むユースケース。
-    /// PlayerLookState の具象インスタンスはこのクラスだけが保持する（Single Writer）。
-    /// 毎フレーム処理は持たず、入力イベントに反応して State を更新するだけ。
-    ///
-    /// ここで行うのは「入力をどちら向きの回転として扱うか」と感度倍率の適用まで。
-    /// 実際に何度回すか、上下方向を使うかどうかは EngineAdapterLayer 側が決める。
+    /// 視点入力に感度倍率を掛けて PlayerLookState へ書き込むユースケース。入力イベントごとに State を更新する。
     /// </summary>
     public sealed class PlayerLookService : IDisposable
     {

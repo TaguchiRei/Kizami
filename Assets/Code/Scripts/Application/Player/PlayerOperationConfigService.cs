@@ -4,10 +4,6 @@ namespace Kizami.Application
 {
     /// <summary>
     /// 視点操作の感度設定を保持する PlayerOperationConfigState を生成し、値を書き込むユースケース。
-    /// PlayerOperationConfigState の具象インスタンスはこのクラスだけが保持する (Single Writer)。
-    ///
-    /// 現状は既定値を入れるだけだが、保存済みの設定を ExternalLayer から読み出して
-    /// 流し込む差込口はここになる。
     /// </summary>
     public sealed class PlayerOperationConfigService
     {
@@ -16,6 +12,7 @@ namespace Kizami.Application
         /// <param name="playerBoard">PlayerOperationConfigState の登録先</param>
         public PlayerOperationConfigService(PlayerBoard playerBoard)
         {
+            // TODO: 保存済みの設定を ExternalLayer から読み出して流し込む
             playerBoard.RegisterGameState<IPlayerOperationConfigState>(_state);
         }
 
