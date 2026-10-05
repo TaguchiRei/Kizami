@@ -12,7 +12,7 @@ namespace Kizami.EngineAdapter.Voxel
     {
         /// <summary>
         /// 方向の数。凸包の頂点数はこの数以下になる。
-        /// 凸包の面数が PhysX の上限 255 を超えると警告が出て部分的な凸包になる為、頂点数を抑えている。
+        /// 凸包の面数が PhysX の上限 255 を超えると警告が出て部分的な凸包になるので、頂点数を抑えている。
         /// </summary>
         public const int Count = 64;
 

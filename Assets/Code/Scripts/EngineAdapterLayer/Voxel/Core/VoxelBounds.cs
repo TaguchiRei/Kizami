@@ -3,7 +3,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// ボクセル空間（VoxelObject のローカル空間）上の軸平行境界ボックス。
+    /// ボクセル空間（VoxelPiece のローカル空間）上の軸平行境界ボックス。
     /// </summary>
     public readonly struct VoxelBounds
     {

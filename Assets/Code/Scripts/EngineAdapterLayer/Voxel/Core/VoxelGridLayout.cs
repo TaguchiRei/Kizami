@@ -4,7 +4,6 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// SDF 格子の寸法・位置・チャンク分割。
-    ///
     /// 格子点（サンプル）は各軸 CellCount + 1 個並び、サンプル s のローカル座標は Origin + s * VoxelSize。
     /// セル c はサンプル c と c + 1 に挟まれた立方体。
     /// チャンクはセルを各軸 ChunkSize 個ずつ区切ったもので、メッシュとコライダーの生成単位。
@@ -15,8 +14,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary>
         /// チャンクのメッシュ生成が読むサンプル範囲の、チャンクのセル範囲 [min, max) からのはみ出し量。
         /// SurfaceNetsJob はサンプル [min - 2, max + 2) を読む（隣接セルの頂点に 1、中心差分の法線に 1）。
-        /// SurfaceNetsJob の読み取り範囲を変えたらこの値も合わせること。
-        /// ずれると、編集後に再メッシュ化されず継ぎ目が開くチャンクが出る。
+        /// SurfaceNetsJob の読み取り範囲を変えたらこの値も合わせること。ずれると、編集後に再メッシュ化されず継ぎ目が開くチャンクが出る。
         /// </summary>
         public const int MeshingReadMargin = 2;
 

@@ -199,7 +199,6 @@ namespace Kizami.EngineAdapter.Voxel
 
     /// <summary>
     /// 形状の内側にある粒を加熱する。凝固点以上に戻った粒は、また動くようにする。
-    ///
     /// 具象の形状ごとに [assembly: RegisterGenericJobType(typeof(VoxelParticleHeatJob&lt;形状&gt;))] で登録すること。
     /// </summary>
     [BurstCompile]

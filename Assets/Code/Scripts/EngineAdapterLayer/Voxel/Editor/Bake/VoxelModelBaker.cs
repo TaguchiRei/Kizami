@@ -13,9 +13,7 @@ namespace Kizami.Editor.Voxel
     /// </summary>
     public static class VoxelModelBaker
     {
-        /// <summary>
-        /// 最大辺の解像度の上限。MeshToSDFBaker は総ボクセル数が 2^27 を超えると例外を投げる。
-        /// </summary>
+        /// <summary> 最大辺の解像度の上限。MeshToSDFBaker は総ボクセル数が 2^27 を超えると例外を投げる </summary>
         private const int MaxResolution = 384;
 
         /// <summary>

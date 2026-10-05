@@ -9,7 +9,6 @@ namespace Kizami.EngineAdapter.Voxel
     /// VoxelModelAsset の各パーツを、同じ相対パスにある Transform の VoxelPiece へ読み込む。
     /// VoxelPiece が無ければ追加する。
     /// 読み込むと、読み込み前からこの階層にあった MeshRenderer（元のモデルの見た目）を全て非表示にする。
-    ///
     /// パーツと、パーツから切り離された全てのピースを、モデル単位でまとめて扱える。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>

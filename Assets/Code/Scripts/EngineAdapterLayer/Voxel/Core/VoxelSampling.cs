@@ -4,7 +4,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// 格子に並んだ値を補間して読む計算。ジョブからも呼べるように static にしている。
+    /// 格子に並んだ値を補間して読む計算。
     /// </summary>
     public static class VoxelSampling
     {

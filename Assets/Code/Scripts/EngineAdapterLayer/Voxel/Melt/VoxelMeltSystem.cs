@@ -11,14 +11,7 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// VoxelPiece が融解・蒸発した分を受け取り、融解した粒として保持・更新・表示するコンポーネント。シーンに 1 つ置く。
-    ///
     /// このコンポーネントを設定した VoxelPiece を登録し、ワールド空間の範囲でまとめて加熱できる。
-    /// 温度は、常温を 0、融点を 1 とした値。
-    ///
-    /// 粒は重力で落ち、登録済みの VoxelPiece とは SDF で、それ以外の物とはレイキャストで当たりを取る。
-    /// 粒同士はぶつからないが、密集している所では密度の格子を使って押し広げる。
-    /// 温度が高いほど面をよく滑り、凝固点より冷えると止まり、蒸発点以上になると消える。
-    /// 表示は、粒を滑らかにつないだ液面のメッシュか、粒ごとの球のどちらか。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelMeltSystem : MonoBehaviour
@@ -303,7 +296,6 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 粒を 1 フレーム分進めるジョブを順に予約する。handle は予約するたびに最後のジョブへ更新する。
-        /// density が作られていなければ、押し広げは行わない。
         /// </summary>
         private void ScheduleSimulation(NativeArray<VoxelMeltParticle> particles,
             NativeArray<RaycastCommand> commands, NativeArray<RaycastHit> hits, NativeArray<byte> evaporated,

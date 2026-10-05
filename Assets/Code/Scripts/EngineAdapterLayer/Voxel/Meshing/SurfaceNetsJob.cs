@@ -7,12 +7,10 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// セル範囲 [CellMin, CellMax) の等値面（距離 0 の面）を Surface Nets で抽出する。
-    ///
     /// 表面をまたぐセルごとに頂点を 1 つ置き（セルの辺と表面の交点の平均）、
     /// 表面をまたぐ格子の辺ごとに、その辺を囲む 4 セルの頂点を四角形で結ぶ。
     /// 法線は各格子点の中心差分の勾配を、頂点位置でトリリニア補間して求める。
     /// 頂点と法線はボクセル空間（ローカル空間）で出力する。
-    ///
     /// 読むサンプル範囲は VoxelGridLayout.MeshingReadMargin と対応している。
     /// </summary>
     [BurstCompile]

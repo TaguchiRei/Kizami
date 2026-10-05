@@ -19,7 +19,6 @@ namespace Kizami.EngineAdapter.Voxel
 
     /// <summary>
     /// サンプル範囲内の各サンプルへ、形状の距離を CSG 合成する。
-    ///
     /// 具象の形状ごとに [assembly: RegisterGenericJobType(typeof(VoxelCsgJob&lt;形状&gt;))] で登録すること。
     /// 登録が無いと Burst でコンパイルされない。
     /// </summary>

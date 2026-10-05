@@ -11,7 +11,6 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// 融解した粒の見た目となる液面のメッシュ。
-    ///
     /// ワールド空間を一辺 ChunkCells セルの液面チャンクに区切り、チャンクごとに
     /// 粒ごとの球を滑らかにつないだ距離場を書き込んで、Surface Nets でメッシュにする。
     /// 作り直すのは、動いている粒が届くチャンク・前回動いていた粒が届いていたチャンク・粒が消えたチャンクだけで、
@@ -100,7 +99,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 作り直しが必要なチャンクだけを作り直す。作り直すものが無ければ何もしない。
+        /// 作り直しが必要なチャンクだけを作り直す。
         /// </summary>
         /// <param name="particles">全ての粒</param>
         /// <param name="hasMovingParticles">止まっていない粒があるか</param>

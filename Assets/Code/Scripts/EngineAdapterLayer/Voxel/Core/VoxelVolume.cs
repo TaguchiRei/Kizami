@@ -8,7 +8,6 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// 格子点ごとに SDF（表面までの符号付き距離。負が内側）と温度を持つボクセルデータ。
-    ///
     /// 距離は ±TruncationDistance に切り詰めて保持する。
     /// 格子の最外周のサンプルは常に正（外側）に保たれる為、生成されるメッシュは必ず閉じる。
     /// 温度は常温を 0、融点を 1 とした値で、初めて加熱されたときに配列を確保する。
@@ -18,7 +17,7 @@ namespace Kizami.EngineAdapter.Voxel
     {
         /// <summary>
         /// 切り詰め距離のボクセル数換算。
-        /// 法線の計算が表面の前後 2 サンプルの距離の差を使う為、2 より大きく保つこと。
+        /// 法線の計算が表面の前後 2 サンプルの距離の差を使うので、2 より大きく保つこと。
         /// </summary>
         public const float TruncationVoxels = 4f;
 
@@ -379,7 +378,6 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// サンプルを、格子を各軸 coarseness 個ずつに区切った区画ごとにまとめ、位置と温度の平均を求める。
-        /// 温度の配列が無ければ何もしない。
         /// </summary>
         /// <param name="sampleIndices">まとめるサンプルの添字</param>
         /// <param name="coarseness">1 つの区画の、各軸のサンプル数</param>

@@ -11,17 +11,13 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// 滑らかなボクセル（SDF）で表した、かけら 1 つ分のコンポーネント。
-    ///
-    /// ボリュームを保持し、編集されたチャンクのメッシュとコライダーを作り直す。
-    /// 削られて内側が複数の塊に分かれたら、最も大きい塊を残し、
-    /// 他の塊を Rigidbody 付きの新しい VoxelPiece として切り離す。
-    /// Slice で平面を指定すると、切り口で身を減らさずに 2 つに切り分ける。
-    ///
-    /// 加熱されて融点以上になった部分は取り除き、VoxelMeltSystem へ融解した粒として渡す。
-    ///
-    /// ボクセル空間はこの Transform のローカル空間。Transform のスケールは均一である前提。
-    /// 編集後の処理（冷却 → 体積の計測 → 分離 → コールバック → 再メッシュ化）は、編集したフレームの LateUpdate でまとめて行う。
+    /// ボリュームを保持して編集・加熱・切り分けで変わったチャンクのメッシュとコライダーを作り直し、
+    /// 内側が複数の塊に分かれたら最も大きい塊を残して、他の塊を Rigidbody 付きの新しい VoxelPiece として切り離す。
     /// </summary>
+    /// <remarks>
+    /// ボクセル空間はこの Transform のローカル空間で、Transform のスケールは均一である前提。
+    /// 編集後の処理（冷却 → 体積の計測 → 分離 → コールバック → 再メッシュ化）は、編集したフレームの LateUpdate でまとめて行う。
+    /// </remarks>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelPiece : MonoBehaviour
     {
@@ -291,7 +287,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// ワールド空間の平面でピースを 2 つに切り分ける。平面は無限に広いものとして扱い、切り口の分だけ体積が減ることは無い。
+        /// ワールド空間の平面でピースを、体積を保ったまま 2 つに切り分ける。平面は無限に広いものとして扱う。
         /// 平面の両側のうち内側のサンプルが多い側をこのピースに残し、もう一方の側は、つながった塊ごとに新しいピースとして切り離す。
         /// 残した側の中で塊が分かれていれば、LateUpdate の分離の判定で切り離す。
         /// 切り離した直後に両方のメッシュを作り直す。形状変化と分離の通知は、ApplyEdit と同じく LateUpdate で行う。
