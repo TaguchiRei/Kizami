@@ -5,14 +5,8 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// 視点操作の入力値を保持するステート。
-    ///
-    /// 持つのは「どちらへどれだけ視点を動かす指示が出ているか」であって、視点の向きそのものではない。
-    /// 感度倍率と回転方向の解釈は Application 側で済ませてある為、この値は
-    /// 基準感度 1.0 のときの「x = 右向きが正、y = 上向きが正」の量になる。
-    ///
-    /// 値の単位は入力経路によって「そのフレームの移動量」だったり「倒し量」だったりする。
-    /// どちらとして扱い、実際に何度回すかは EngineAdapterLayer 側が決める。
+    /// 視点をどちらへどれだけ動かすかの入力値を保持するステート。
+    /// 値の単位は入力経路ごとに異なり、回転量への変換は EngineAdapterLayer 側が行う。
     /// </summary>
     [RegisterBoard(typeof(PlayerBoard))]
     public sealed class PlayerLookState : SceneStateBase, IPlayerLookState
@@ -52,7 +46,7 @@ namespace Kizami.BlackBoard
     /// </summary>
     public interface IPlayerLookState : IStateGetter
     {
-        /// <summary> 視点操作の入力値。x が右向き、y が上向きを正とする </summary>
+        /// <summary> 感度倍率と回転方向を適用済みの入力値。x が右向き、y が上向きを正とする </summary>
         Vector2 LookInput { get; }
 
         /// <summary>

@@ -30,10 +30,7 @@ namespace Kizami.BlackBoard
     /// </summary>
     public interface IMeleeCutState : IStateGetter
     {
-        /// <summary>
-        /// 切断面の角度（度）。0 以上 180 未満。
-        /// 0 で水平に切り、値が増えると画面上で反時計回りに傾く。
-        /// </summary>
+        /// <summary> 切断面の角度（度、0 以上 180 未満）。0 で水平、値が増えると画面上で反時計回りに傾く </summary>
         float Angle { get; }
     }
 }

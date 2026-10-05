@@ -6,12 +6,12 @@ namespace Kizami.BlackBoard
 {
     /// <summary>
     /// 視点操作の感度設定を保持するステート。シーンを跨いで保たれる。
-    ///
-    /// 感度は「基準 1.0 の倍率」であり、角速度のような物理量ではない。
-    /// 視点入力の生の値は経路ごとに単位が違う (PC / スマホはスクリーン座標の delta、
-    /// VR はスティックの -1〜1) 為、倍率と基準スケールを分けないと設定値の意味が経路ごとに変わる。
-    /// 基準スケールは各入力経路・適用側が定数として持ち、ここには持たせない。
     /// </summary>
+    /// <remarks>
+    /// 感度は基準を 1.0 とする倍率。
+    /// 生の視点入力は経路ごとに単位が違う（PC / スマホはスクリーン座標の delta、VR はスティックの -1〜1）ため、
+    /// 基準スケールは各入力経路・適用側が定数として持つ。
+    /// </remarks>
     [RegisterBoard(typeof(PlayerBoard))]
     public sealed class PlayerOperationConfigState : GameStateBase, IPlayerOperationConfigState
     {
@@ -79,10 +79,7 @@ namespace Kizami.BlackBoard
         /// <summary> 左右の視点操作の感度倍率 </summary>
         float HorizontalSensitivity { get; }
 
-        /// <summary>
-        /// 上下の視点操作の感度倍率。
-        /// VR では上下方向の入力を適用側が捨てる為、この値は結果に影響しない。
-        /// </summary>
+        /// <summary> 上下の視点操作の感度倍率。VR では適用側が上下方向の入力を捨てる </summary>
         float VerticalSensitivity { get; }
 
         /// <summary>

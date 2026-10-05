@@ -51,7 +51,7 @@ namespace Kizami.BlackBoard
     /// </summary>
     public interface IPlayerContactState : IStateGetter
     {
-        /// <summary> 触れている物。何にも触れていない（空中にいる）ときは None </summary>
+        /// <summary> 触れている物。空中にいるときは None </summary>
         PlayerContact Contacts { get; }
 
         /// <summary> 触れている壁の、壁から離れる向きの水平な単位ベクトル。壁に触れていないときは Vector3.zero </summary>
@@ -70,7 +70,7 @@ namespace Kizami.BlackBoard
     [Flags]
     public enum PlayerContact
     {
-        /// <summary> 何にも触れていない </summary>
+        /// <summary> 接触なし </summary>
         None = 0,
 
         /// <summary> 地面 </summary>

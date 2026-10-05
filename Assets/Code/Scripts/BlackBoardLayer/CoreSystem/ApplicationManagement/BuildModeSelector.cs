@@ -5,9 +5,7 @@ namespace Kizami.BlackBoard
 {
     /// <summary>
     /// ビルドモードごとの実体を並べて持ち、実行時のビルドモードで 1 つ引く入れ物。
-    ///
-    /// ビルドモードによる分岐はこの型の中の 1 箇所だけに置き、利用側は
-    /// 「何を並べたか」を Inspector で示すだけにする。呼ぶ側に switch を書かせない為の型。
+    /// ビルドモードによる分岐はこの型に集め、利用側は Inspector で実体を並べるだけにする。
     /// </summary>
     /// <typeparam name="T">ビルドモードごとに差し替える実体の型</typeparam>
     [Serializable]

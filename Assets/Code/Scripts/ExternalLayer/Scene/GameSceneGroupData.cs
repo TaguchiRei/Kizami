@@ -6,7 +6,7 @@ namespace Kizami.External
 {
     /// <summary>
     /// 一まとまりでロードするシーンの組を、BuildScenes の enum で編集できるアセット。
-    /// ジェネリックな ScriptableObject はアセット化できない為の非ジェネリック派生。
+    /// SceneGroupDataBase をアセット化するための非ジェネリック派生。
     /// </summary>
     [CreateAssetMenu(fileName = "SceneGroupData", menuName = "Kizami/Scene/Scene Group Data")]
     public sealed class GameSceneGroupData : SceneGroupDataBase<BuildScenes>
