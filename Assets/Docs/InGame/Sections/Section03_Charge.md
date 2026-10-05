@@ -158,10 +158,18 @@ sequenceDiagram
 | 3 | ステージの外周（3-5） | 完了条件 4 |
 | 4 | 区間計画書の「実装結果」と全体計画書の更新 | ― |
 
+## 実装中に確かめたこと
+
+| 内容 | 結果 |
+|---|---|
+| 切り直しの途中のかけら（コミット2） | `ExecuteCut` は切り直す元のかけらを先に非アクティブにし、結果は数フレーム後に返ることがある。その間に寿命が来た元のかけらをオーブにすると、二重に数え、使用中のプールの枠を空けてしまうおそれがある。非アクティブなかけらはオーブにしないようにした（結果が届いたときに管理から外れる）。直したあと、かけらを切り続けるテストを 2 回行い、「管理中なのに非アクティブなかけら」と「アクティブなのに空きになっているプールの枠」がどちらも 0 だった |
+| かけら同士の衝突を切った効果（コミット2） | 90° で 2 つのパーツを切ったとき、かけらが散らばった範囲は最大 0.38m（区間2では 2〜3m） |
+
 ## 見つけた問題（今回は扱わない）
 
 - 【UsefulToolkit.Debugging】`DebugGUI.ObserveVariable` には登録を外す API がない。コミット0でプレイヤーをインゲームに移したので、インゲームに入り直すたびに「Player HP」「Charge」「Fragments」の表示が重複し、前回の値が残る（破棄された State を読み続ける）。1 回のインゲームの中での確認には影響しない。直すなら、UsefulToolkit に登録を外す API（`IDisposable` を返すなど）を足す
 - 【UsefulToolkit.Debugging】`DebugGUI.OnLogReceived`（`DebugGUI.cs:97`）が `EditorPrefs.GetBool` を呼んでいる。ログがメインスレッド以外から出たとき（エディタの ADB の警告「Multiple ADB server instances found」など）に、`UnityException: GetBool can only be called from the main thread` のエラーになる。区間3の変更とは関係なく、プレイモードに入る前から出ている
+- `Assets/Art/` は `.gitignore` の対象で、断面のマテリアル（`CutFace.mat`）もオーブのマテリアル（`ChargeOrb.mat`）もリポジトリに入らない。別の環境で開くと、ダミーの断面とオーブのマテリアルが外れる
 - 衝突の設定で Player と Enemy の衝突が切ってあり、ダミーの敵は Default レイヤーにある（区間4で敵のレイヤーを決めるときに扱う）
 
 ## 他プラットフォームへの対応

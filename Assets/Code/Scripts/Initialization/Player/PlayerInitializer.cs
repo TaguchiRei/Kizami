@@ -16,7 +16,7 @@ namespace Kizami.Initialization
     /// ロジックは持たない。インゲームのシーンへ置く。
     /// PlayerHealthService は具象型のまま DI コンテナへ登録する。
     /// MeleeCutService が振ったときに、MeleeCutAdapter の切断を直接呼ぶように繋ぐ。
-    /// MeleeCutAdapter の切断の結果は、FragmentOrbAdapter へ直接渡すように繋ぐ。
+    /// MeleeCutAdapter の切断の結果は FragmentOrbAdapter へ、FragmentOrbAdapter が吸収したかけらの数は ChargeService へ直接渡すように繋ぐ。
     ///
     /// 視点入力を実際の回転へどう変換するかは操作系ごとに違うが、その差は
     /// 各シーンへ置く PlayerMovementAbstractorBase の派生が吸収する為、ここは選び分けをしない。
@@ -107,7 +107,7 @@ namespace Kizami.Initialization
 
             if (fragmentOrbAdapter != null)
             {
-                fragmentOrbAdapter.Initialize();
+                fragmentOrbAdapter.Initialize(_chargeService.AddFragments);
             }
             else
             {

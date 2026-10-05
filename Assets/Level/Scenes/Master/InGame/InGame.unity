@@ -2466,6 +2466,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6537adea25170854bbe24e0c2f40235c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.FragmentOrbAdapter
+  _fragmentPool: {fileID: 608286024}
+  _orbPrefab: {fileID: 8129910674769226313, guid: 2840b9575a7e6654ebae8249f5162d0f, type: 3}
+  _contactGraceTime: 0.2
+  _fragmentLifetime: 3
+  _orbSpeed: 15
+  _absorbDistance: 0.5
+  _maxOrbCount: 64
 --- !u!4 &1946405261
 Transform:
   m_ObjectHideFlags: 0
