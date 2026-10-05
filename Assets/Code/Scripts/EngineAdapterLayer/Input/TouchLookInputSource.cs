@@ -1,48 +1,39 @@
 using System;
-using System.Collections.Generic;
 using Kizami.BlackBoard;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.InputSystem.EnhancedTouch;
-using UnityEngine.UI;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Input;
-using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
-using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// タッチ領域の UI 上で始まったドラッグの移動量を外部入力スロットへ書き込む、スマホの視点操作用の入力ソース。
+    /// Raycast Target を有効にした Graphic（透明な Image など）と同じ GameObject に付ける。
+    /// どの UI の上でドラッグが始まったかの判定と、指ごとの追跡は EventSystem のドラッグ通知に任せる。
+    /// </summary>
+    /// <remarks>
     /// 書き込んだ値は仮想デバイスを経由して、スロットをバインドした InputAction として発火する。
     /// 仮想デバイスは次に書き込むまで値を保持するので、指が止まっているフレームと指を離したときはゼロを書き込む。
-    /// </summary>
-    public sealed class TouchLookInputSource : InitializableMonoBehaviour
+    /// EventSystem は Update でドラッグを通知するので、そのフレームの移動量の合計は LateUpdate で書き込む。
+    /// </remarks>
+    public sealed class TouchLookInputSource : InitializableMonoBehaviour,
+        IInitializePotentialDragHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
-        [SerializeField] private GraphicRaycaster _rayCaster;
-
-        [SerializeField]
-        [Tooltip("タッチを受け付ける UI に付いているタグ。ここに当たった時だけ入力として扱う。")]
-        private string _touchAreaTag = "TouchArea";
-
         private IInputState _inputState;
         private IInputController _inputController;
         private Enum _map;
         private Enum _slot;
 
-        private PointerEventData _eventData;
-        private readonly List<RaycastResult> _raycastResults = new();
+        /// <summary> 追跡中の指のポインター ID。追跡していないときは null </summary>
+        private int? _trackedPointerId;
 
-        /// <summary> EnhancedTouch を有効にしたか。OnDestroy で無効化を対にする為に持つ </summary>
-        private bool _isTouchEnabled;
-
-        private bool _isTracking;
-        private int _trackedTouchId = -1;
-        private Vector2 _lastPosition;
+        /// <summary> このフレームに届いたドラッグの移動量の合計（スクリーン座標） </summary>
+        private Vector2 _frameDelta;
 
         /// <summary> 直前に書き込んだ値がゼロ以外か。ゼロの書き込みを 1 回に抑えるために持つ </summary>
-        private bool _hasWrittenNonZero;
+        private bool _hasWrittenInput;
 
         /// <summary>
         /// 入力を流してよいかの判定に使う読み取り面と外部入力の書き込み先、書き込みの可否を判定する ActionMap と書き込み先のスロットを渡す。
@@ -60,118 +51,25 @@ namespace Kizami.EngineAdapter
             _slot = slot;
 
             Initialize();
+        }
 
-            if (_rayCaster == null)
+        private void LateUpdate()
+        {
+            if (!_inputState.InputEnabled || !_inputState.IsActionMapActive(_map))
             {
-                UsefulLogger.LogError("GraphicRaycaster が設定されていない為、タッチ範囲を判定できません。", this);
+                _trackedPointerId = null;
+                _frameDelta = Vector2.zero;
+                Write(Vector2.zero);
                 return;
             }
 
-            _eventData = new PointerEventData(EventSystem.current);
-
-            EnhancedTouchSupport.Enable();
-#if UNITY_EDITOR
-            // エディタ上でマウスクリックをタッチとして扱うシミュレーションを有効化する
-            TouchSimulation.Enable();
-#endif
-            _isTouchEnabled = true;
+            Write(_frameDelta);
+            _frameDelta = Vector2.zero;
         }
 
         private void OnDestroy()
         {
-            if (!_isTouchEnabled) return;
-
-            StopTracking();
-
-            EnhancedTouchSupport.Disable();
-#if UNITY_EDITOR
-            TouchSimulation.Disable();
-#endif
-            _isTouchEnabled = false;
-        }
-
-        private void Update()
-        {
-            if (!_isTouchEnabled) return;
-
-            if (!_inputState.InputEnabled || !_inputState.IsActionMapActive(_map))
-            {
-                StopTracking();
-                return;
-            }
-
-            if (_isTracking)
-            {
-                UpdateTracking();
-                return;
-            }
-
-            TryBeginTracking();
-        }
-
-        /// <summary>
-        /// 追跡中の指の移動量を書き込む。指が離れていれば追跡を終える。
-        /// </summary>
-        private void UpdateTracking()
-        {
-            if (!TryFindTrackedTouch(out var touch) || touch.ended)
-            {
-                StopTracking();
-                return;
-            }
-
-            var position = touch.screenPosition;
-            var delta = position - _lastPosition;
-            _lastPosition = position;
-            Write(delta);
-        }
-
-        /// <summary>
-        /// タッチ領域内で始まった指があれば、その指の追跡を始める。
-        /// </summary>
-        private void TryBeginTracking()
-        {
-            foreach (var touch in Touch.activeTouches)
-            {
-                if (!touch.began) continue;
-
-                var position = touch.screenPosition;
-                if (!IsInsideTouchArea(position)) continue;
-
-                _trackedTouchId = touch.touchId;
-                _isTracking = true;
-                _lastPosition = position;
-                return;
-            }
-        }
-
-        /// <summary>
-        /// 追跡を終え、ゼロを書き込む。
-        /// </summary>
-        private void StopTracking()
-        {
-            _isTracking = false;
-            _trackedTouchId = -1;
             Write(Vector2.zero);
-        }
-
-        /// <summary>
-        /// 追跡中の指を探す。
-        /// </summary>
-        /// <param name="trackedTouch">見つかった指</param>
-        /// <returns>見つかったか</returns>
-        private bool TryFindTrackedTouch(out Touch trackedTouch)
-        {
-            foreach (var touch in Touch.activeTouches)
-            {
-                if (touch.touchId != _trackedTouchId) continue;
-
-                trackedTouch = touch;
-                return true;
-            }
-
-            trackedTouch = default;
-            return false;
         }
 
         /// <summary>
@@ -180,27 +78,49 @@ namespace Kizami.EngineAdapter
         /// <param name="value">書き込む値</param>
         private void Write(Vector2 value)
         {
-            bool isNonZero = value != Vector2.zero;
+            var hasInput = value != Vector2.zero;
+            if (!hasInput && !_hasWrittenInput) return;
 
-            if (!isNonZero && !_hasWrittenNonZero) return;
-
-            _hasWrittenNonZero = isNonZero;
+            _hasWrittenInput = hasInput;
             _inputController.WriteExternalInput(_slot, value);
         }
 
         /// <summary>
-        /// スクリーン座標の最前面にある UI が、タッチ領域のタグを持つかを調べる。
+        /// ドラッグとみなすまでの移動量の閾値を使わない。閾値を超えるまでの移動量も視点操作に含める為。
         /// </summary>
-        /// <param name="screenPosition">調べるスクリーン座標</param>
-        private bool IsInsideTouchArea(Vector2 screenPosition)
+        public void OnInitializePotentialDrag(PointerEventData eventData)
         {
-            _eventData.position = screenPosition;
-            _raycastResults.Clear();
-            _rayCaster.Raycast(_eventData, _raycastResults);
+            eventData.useDragThreshold = false;
+        }
 
-            if (_raycastResults.Count == 0) return false;
+        /// <summary>
+        /// 追跡中の指がなければ、この指の追跡を始める。
+        /// </summary>
+        public void OnBeginDrag(PointerEventData eventData)
+        {
+            if (!Initialized || _trackedPointerId.HasValue) return;
 
-            return _raycastResults[0].gameObject != null && _raycastResults[0].gameObject.CompareTag(_touchAreaTag);
+            _trackedPointerId = eventData.pointerId;
+        }
+
+        /// <summary>
+        /// 追跡中の指の移動量を、このフレームの合計に加える。
+        /// </summary>
+        public void OnDrag(PointerEventData eventData)
+        {
+            if (eventData.pointerId != _trackedPointerId) return;
+
+            _frameDelta += eventData.delta;
+        }
+
+        /// <summary>
+        /// 追跡中の指が離れたら追跡を終える。
+        /// </summary>
+        public void OnEndDrag(PointerEventData eventData)
+        {
+            if (eventData.pointerId != _trackedPointerId) return;
+
+            _trackedPointerId = null;
         }
     }
 }

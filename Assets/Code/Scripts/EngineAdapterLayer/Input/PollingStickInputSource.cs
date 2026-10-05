@@ -12,20 +12,16 @@ namespace Kizami.EngineAdapter
     /// 書き込んだ値は仮想デバイスを経由して、スロットをバインドした InputAction として発火する。
     /// XR デバイスのスティックは入力を継続していても started / canceled が繰り返し発火するので、
     /// InputAction のコールバックは購読せず、ReadValue の現在値だけを使う。
+    /// デッドゾーンは InputActionAsset 側の StickDeadzone プロセッサーが適用し、範囲内の入力はゼロとして読める。
     /// </summary>
     public sealed class PollingStickInputSource : InitializableMonoBehaviour
     {
-        [SerializeField, Range(0f, 0.9f)]
-        [Tooltip("この大きさ以下の入力は無入力として扱う。")]
-        private float _deadZone = 0.15f;
-
         private IInputState _inputState;
         private IInputController _inputController;
         private Enum _sourceMap;
         private Enum _sourceAction;
         private Enum _destinationMap;
         private Enum _destinationSlot;
-        private bool _ignoreVertical;
 
         /// <summary> 直前のフレームでゼロ以外の値を書き込んでいたか。ゼロを 1 度だけ書き込む為に持つ </summary>
         private bool _isInputActive;
@@ -39,9 +35,8 @@ namespace Kizami.EngineAdapter
         /// <param name="sourceAction">読み出し元の Action</param>
         /// <param name="destinationMap">書き込みの可否を判定する ActionMap。スロットをバインドした Action が属するもの</param>
         /// <param name="destinationSlot">書き込み先の外部入力スロット</param>
-        /// <param name="ignoreVertical">縦方向の入力を捨てるか。VR の視点操作 (左右のみ) では true</param>
         public void Initialize(IBlackBoard blackBoard, IInputController inputController, Enum sourceMap,
-            Enum sourceAction, Enum destinationMap, Enum destinationSlot, bool ignoreVertical)
+            Enum sourceAction, Enum destinationMap, Enum destinationSlot)
         {
             if (!blackBoard.TryGetGameState<InputBoard, IInputState>(out _inputState, this)) return;
 
@@ -50,7 +45,6 @@ namespace Kizami.EngineAdapter
             _sourceAction = sourceAction;
             _destinationMap = destinationMap;
             _destinationSlot = destinationSlot;
-            _ignoreVertical = ignoreVertical;
 
             Initialize();
         }
@@ -77,9 +71,7 @@ namespace Kizami.EngineAdapter
 
             var value = _inputState.ReadValue<Vector2>(_sourceMap, _sourceAction).Value;
 
-            if (_ignoreVertical) value.y = 0f;
-
-            if (value.magnitude <= _deadZone)
+            if (value == Vector2.zero)
             {
                 ReleaseIfActive();
                 return;

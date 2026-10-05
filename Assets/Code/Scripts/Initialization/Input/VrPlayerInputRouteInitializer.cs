@@ -23,21 +23,16 @@ namespace Kizami.Initialization
 
         protected override void ConnectInputSources(IBlackBoard blackBoard)
         {
-            SetUpSource(_moveSource, blackBoard, VRControllersActions.Move, ExternalInputs.VrMove,
-                ignoreVertical: false);
-
-            // 上下方向は HMD の姿勢が担う為、旋回の入力からは落とす
-            SetUpSource(_lookSource, blackBoard, VRControllersActions.Look, ExternalInputs.VrLook,
-                ignoreVertical: true);
+            SetUpSource(_moveSource, blackBoard, VRControllersActions.Move, ExternalInputs.VrMove);
+            SetUpSource(_lookSource, blackBoard, VRControllersActions.Look, ExternalInputs.VrLook);
         }
 
         /// <param name="source">配線する入力ソース</param>
         /// <param name="blackBoard">入力ソースが State を取得する取得元</param>
         /// <param name="sourceAction">読み出し元の VRControllers の Action</param>
         /// <param name="destinationSlot">書き込み先の外部入力スロット</param>
-        /// <param name="ignoreVertical">縦方向の入力を捨てるか</param>
         private void SetUpSource(PollingStickInputSource source, IBlackBoard blackBoard,
-            VRControllersActions sourceAction, ExternalInputs destinationSlot, bool ignoreVertical)
+            VRControllersActions sourceAction, ExternalInputs destinationSlot)
         {
             if (source == null)
             {
@@ -47,7 +42,7 @@ namespace Kizami.Initialization
             }
 
             source.Initialize(blackBoard, InputController, ActionMaps.VRControllers, sourceAction, ActionMaps.Player,
-                destinationSlot, ignoreVertical);
+                destinationSlot);
         }
     }
 }
