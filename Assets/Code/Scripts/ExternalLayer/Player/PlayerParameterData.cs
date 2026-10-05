@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Kizami.External
 {
     /// <summary>
-    /// プレイヤーの移動・HP・近接切断に関わる、遊びのルールのパラメータ。
+    /// プレイヤーの移動・HP・近接切断・チャージに関わる、遊びのルールのパラメータ。
     /// </summary>
     [CreateAssetMenu(fileName = "PlayerParameterData", menuName = "Kizami/Player/PlayerParameterData")]
     public sealed class PlayerParameterData : ScriptableObject
@@ -78,6 +78,15 @@ namespace Kizami.External
         [Tooltip("近接切断の攻撃間隔（秒）。スローモード中も等速で数える")]
         private float _meleeAttackInterval = 0.3f;
 
+        [Header("チャージ")]
+        [SerializeField, Min(0)]
+        [Tooltip("かけら 1 個を吸収したときに増えるチャージ量")]
+        private int _chargePerFragment = 1;
+
+        [SerializeField, Min(1)]
+        [Tooltip("チャージ量の上限")]
+        private int _maxCharge = 100;
+
         /// <summary> 歩行の速度（m/s） </summary>
         public float WalkSpeed => _walkSpeed;
 
@@ -125,5 +134,11 @@ namespace Kizami.External
 
         /// <summary> 近接切断の攻撃間隔（秒）。スローモード中も等速で数える </summary>
         public float MeleeAttackInterval => _meleeAttackInterval;
+
+        /// <summary> かけら 1 個を吸収したときに増えるチャージ量 </summary>
+        public int ChargePerFragment => _chargePerFragment;
+
+        /// <summary> チャージ量の上限 </summary>
+        public int MaxCharge => _maxCharge;
     }
 }

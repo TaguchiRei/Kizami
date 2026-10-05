@@ -82,9 +82,9 @@
 | C | アウトゲーム | プレイヤーを置かない。画面を描くカメラだけを置く |
 | D | 統合を行う場所 | 区間3のコミット0。区間3の設計（チャージの置き場所、かけらの通知）に直接影響する為 |
 
-### かけら・オーブ・チャージ（案。確認待ち）
+### かけら・オーブ・チャージ（2026-10-05 決定）
 
-| # | 項目 | 案 |
+| # | 項目 | 決定 |
 |---|---|---|
 | 1 | チャージの置き場所 | `ChargeState` を `PlayerBoard` の SceneState として InGame の sceneId で登録し、`ChargeService` だけが書く。インゲームに入るたびにリセットされる。区間6・7の消費する側も InGame の Initializer から DI で受け取れる |
 | 2 | かけらの通知の経路 | 直接配線。`PlayerInitializer` が、`MeleeCutAdapter` に「切断の結果を渡す関数」（`FragmentOrbAdapter` のメソッド）を渡す。受け取り手が 1 つで、同じシーンにある為 |
@@ -142,7 +142,7 @@ sequenceDiagram
 | `FragmentOrbAdapter` | EngineAdapter | `PlayerInitializer` |
 | `FragmentContactReporter` | EngineAdapter | `FragmentOrbAdapter`。接触のコールバックは Rigidbody と同じ GameObject のコンポーネントにしか届かないので、かけらのプレハブに付ける |
 
-拡張する型：`PlayerInitializer`（`ChargeService` の生成、かけらの管理とチャージの配線）、`PlayerDebugInitializer`（チャージ量、かけら数、オーブ数の表示）、`MeleeCutAdapter`（結果をログの代わりに渡す）、`PlayerParameterData`（1 個あたりのチャージ、上限）
+拡張する型：`PlayerInitializer`（`ChargeService` の生成、かけらの管理とチャージの配線）、`PlayerDebugInitializer`（チャージ量、かけら数、オーブ数の表示）、`MeleeCutAdapter`（結果をログの代わりに渡す。区間2の結果のログは削除）、`PlayerParameterData`（1 個あたりのチャージ、上限）。`PlayerInitializer` が切断の結果の型（`MultiCutResult`）を扱うので、Initialization の asmdef に `UsefulToolkit.MeshCut.Runtime` の参照を足す
 
 削除する型：`PlayerEventBoard`、`MeleeCutEvents`、`MeleeCutInitializer`、`StandardPlayerControlCompositor`
 
@@ -160,6 +160,7 @@ sequenceDiagram
 
 ## 見つけた問題（今回は扱わない）
 
+- 【UsefulToolkit.Debugging】`DebugGUI.ObserveVariable` には登録を外す API がない。コミット0でプレイヤーをインゲームに移したので、インゲームに入り直すたびに「Player HP」「Charge」「Fragments」の表示が重複し、前回の値が残る（破棄された State を読み続ける）。1 回のインゲームの中での確認には影響しない。直すなら、UsefulToolkit に登録を外す API（`IDisposable` を返すなど）を足す
 - 【UsefulToolkit.Debugging】`DebugGUI.OnLogReceived`（`DebugGUI.cs:97`）が `EditorPrefs.GetBool` を呼んでいる。ログがメインスレッド以外から出たとき（エディタの ADB の警告「Multiple ADB server instances found」など）に、`UnityException: GetBool can only be called from the main thread` のエラーになる。区間3の変更とは関係なく、プレイモードに入る前から出ている
 - 衝突の設定で Player と Enemy の衝突が切ってあり、ダミーの敵は Default レイヤーにある（区間4で敵のレイヤーを決めるときに扱う）
 

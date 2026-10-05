@@ -1,5 +1,5 @@
+using System;
 using System.Collections.Generic;
-using System.Text;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
@@ -10,7 +10,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 近接切断の振り（Swing）を受けて、カメラの位置と向き、切断面の角度から刃を配置し、
-    /// 範囲内の切れる CuttableObject をまとめて切断する。切断の結果はログに出す。
+    /// 範囲内の切れる CuttableObject をまとめて切断する。切断の結果は、初期化で受け取った関数へ渡す。
     /// 刃の位置はカメラの位置、法線はカメラの上方向をカメラの前方向を軸に角度だけ回したもの。
     /// 範囲は、カメラの前方へ伸びる、刃に沿った薄い直方体。
     /// </summary>
@@ -42,14 +42,20 @@ namespace Kizami.EngineAdapter
         private readonly Collider[] _hitBuffer = new Collider[MaxHitCount];
         private readonly List<CuttableObject> _targets = new();
 
+        /// <summary> 切断の結果を渡す先 </summary>
+        private Action<MultiCutResult[]> _onCut;
+
         /// <summary> 切断を実行中か。実行中の振りは無視する </summary>
         private bool _isCutting;
 
         /// <summary>
         /// PlayerInitializer から呼ばれる。
         /// </summary>
-        public override void Initialize()
+        /// <param name="onCut">切断が終わったときに、切断の結果を渡す関数</param>
+        public void Initialize(Action<MultiCutResult[]> onCut)
         {
+            _onCut = onCut;
+
             if (_blade == null)
             {
                 UsefulLogger.LogError("MultiCutBlade が設定されていません。", this);
@@ -90,7 +96,7 @@ namespace Kizami.EngineAdapter
             if (_targets.Count == 0) return;
 
             _blade.transform.SetPositionAndRotation(origin, bladeRotation);
-            CutAsync(_targets.ToArray(), angle).Forget();
+            CutAsync(_targets.ToArray()).Forget();
         }
 
         /// <summary>
@@ -138,42 +144,21 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 対象を切断し、終わったら結果をログに出す。
+        /// 対象を切断し、終わったら結果を渡す。
         /// </summary>
-        private async UniTaskVoid CutAsync(CuttableObject[] targets, float angle)
+        private async UniTaskVoid CutAsync(CuttableObject[] targets)
         {
             _isCutting = true;
 
             try
             {
                 var results = await _blade.ExecuteCut(targets);
-                LogResults(results, angle);
+                _onCut?.Invoke(results);
             }
             finally
             {
                 _isCutting = false;
             }
-        }
-
-        /// <summary>
-        /// 切断した元の対象と、表と裏のかけらの組をログに出す。親の中での並び順を添えて、同じ名前のかけらを区別する。
-        /// </summary>
-        private void LogResults(MultiCutResult[] results, float angle)
-        {
-            var builder = new StringBuilder();
-            builder.Append($"角度 {angle}° で {results.Length} 個を切断しました。");
-
-            foreach (var result in results)
-            {
-                builder.Append($"\n  元: {Describe(result.Original)} / 表: {Describe(result.Front)} / 裏: {Describe(result.Back)}");
-            }
-
-            UsefulLogger.Log(builder.ToString(), this);
-        }
-
-        private static string Describe(CuttableObject cuttable)
-        {
-            return $"{cuttable.name}#{cuttable.transform.GetSiblingIndex()}";
         }
     }
 }

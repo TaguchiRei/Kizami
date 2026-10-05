@@ -12,10 +12,11 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// プレイヤーの移動・視点・HP・近接切断まわり（Service / State / Abstractor）を生成して繋ぐだけの配線役。
+    /// プレイヤーの移動・視点・HP・近接切断・チャージまわり（Service / State / Abstractor）を生成して繋ぐだけの配線役。
     /// ロジックは持たない。インゲームのシーンへ置く。
     /// PlayerHealthService は具象型のまま DI コンテナへ登録する。
     /// MeleeCutService が振ったときに、MeleeCutAdapter の切断を直接呼ぶように繋ぐ。
+    /// MeleeCutAdapter の切断の結果は、FragmentOrbAdapter へ直接渡すように繋ぐ。
     ///
     /// 視点入力を実際の回転へどう変換するかは操作系ごとに違うが、その差は
     /// 各シーンへ置く PlayerMovementAbstractorBase の派生が吸収する為、ここは選び分けをしない。
@@ -26,9 +27,10 @@ namespace Kizami.Initialization
         [SerializeField] private PlayerCameraAdapterBase cameraAdapter;
         [SerializeField] private MeleeCutPreviewAdapter meleeCutPreviewAdapter;
         [SerializeField] private MeleeCutAdapter meleeCutAdapter;
+        [SerializeField] private FragmentOrbAdapter fragmentOrbAdapter;
 
         [SerializeField]
-        [Tooltip("プレイヤーの移動・HP・近接切断のパラメータ")]
+        [Tooltip("プレイヤーの移動・HP・近接切断・チャージのパラメータ")]
         private PlayerParameterData _parameters;
 
         private readonly PlayerHealthService _healthService = new();
@@ -36,6 +38,7 @@ namespace Kizami.Initialization
         private PlayerMovementService _movementService;
         private PlayerLookService _lookService;
         private MeleeCutService _meleeCutService;
+        private ChargeService _chargeService;
 
         private void Awake()
         {
@@ -100,9 +103,20 @@ namespace Kizami.Initialization
 
             _lookService = new PlayerLookService(playerBoard, inputState, configState, sceneId);
 
+            _chargeService = new ChargeService(playerBoard, _parameters, sceneId);
+
+            if (fragmentOrbAdapter != null)
+            {
+                fragmentOrbAdapter.Initialize();
+            }
+            else
+            {
+                UsefulLogger.LogError("FragmentOrbAdapter が設定されていません。", this);
+            }
+
             if (meleeCutAdapter != null)
             {
-                meleeCutAdapter.Initialize();
+                meleeCutAdapter.Initialize(fragmentOrbAdapter != null ? fragmentOrbAdapter.ReceiveCutResults : null);
             }
             else
             {

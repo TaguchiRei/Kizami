@@ -21,7 +21,8 @@
         "UsefulToolkit.Framework.Initialization.Runtime",
         "UsefulToolkit.ProgramTools.BlackBoard.Runtime",
         "UsefulToolkit.Debugging.Runtime",
-        "UsefulToolkit.Input.Initialization.Runtime"
+        "UsefulToolkit.Input.Initialization.Runtime",
+        "UsefulToolkit.MeshCut.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -940,6 +940,7 @@ MonoBehaviour:
   cameraAdapter: {fileID: 1307013807}
   meleeCutPreviewAdapter: {fileID: 1379823854}
   meleeCutAdapter: {fileID: 1212232924}
+  fragmentOrbAdapter: {fileID: 1946405260}
   _parameters: {fileID: 11400000, guid: 5eaa04ccd161b0e4ead04945cd3a481b, type: 2}
 --- !u!136 &903436363
 CapsuleCollider:
@@ -1098,6 +1099,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.PlayerDebugInitializer
   _damageAmount: 10
+  _fragmentOrbAdapter: {fileID: 1946405260}
 --- !u!1 &909869846
 GameObject:
   m_ObjectHideFlags: 0
@@ -2435,6 +2437,50 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UsefulToolkit.MeshCut.Runtime::UsefulToolkit.MeshCut.MeshDataCache
   _rebuildVertexThreshold: 200000
+--- !u!1 &1946405259
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1946405261}
+  - component: {fileID: 1946405260}
+  m_Layer: 0
+  m_Name: FragmentOrb
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1946405260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1946405259}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6537adea25170854bbe24e0c2f40235c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.FragmentOrbAdapter
+--- !u!4 &1946405261
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1946405259}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1983067292
 GameObject:
   m_ObjectHideFlags: 0
@@ -2584,3 +2630,4 @@ SceneRoots:
   - {fileID: 1674614494}
   - {fileID: 903436366}
   - {fileID: 1379823857}
+  - {fileID: 1946405261}
