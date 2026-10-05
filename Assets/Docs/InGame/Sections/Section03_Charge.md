@@ -2,7 +2,8 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 実装中（2026-10-05 着手） |
+| 状態 | 完了（2026-10-05） |
+| ブランチ | `feature/alpha/skill-charge` |
 | 目安の時期 | 2026/10/20〜10/26 |
 | 前提となる区間 | 2 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -172,6 +173,70 @@ sequenceDiagram
 - 【UsefulToolkit.Debugging】`DebugGUI.OnLogReceived`（`DebugGUI.cs:97`）が `EditorPrefs.GetBool` を呼んでいる。ログがメインスレッド以外から出たとき（エディタの ADB の警告「Multiple ADB server instances found」など）に、`UnityException: GetBool can only be called from the main thread` のエラーになる。区間3の変更とは関係なく、プレイモードに入る前から出ている
 - `Assets/Art/` は `.gitignore` の対象で、断面のマテリアル（`CutFace.mat`）もオーブのマテリアル（`ChargeOrb.mat`）もリポジトリに入らない。別の環境で開くと、ダミーの断面とオーブのマテリアルが外れる
 - 衝突の設定で Player と Enemy の衝突が切ってあり、ダミーの敵は Default レイヤーにある（区間4で敵のレイヤーを決めるときに扱う）
+
+## 実装結果（2026-10-05）
+
+### 決めたこと
+
+上の「詳細仕様で決めること」のとおりに作った。実装中に決めたこと、変えたことは次のとおり。
+
+| # | 項目 | 結果 |
+|---|---|---|
+| 1 | `MeleeCutAdapter.Initialize` の引数 | コミット0では引数なしにしたが、コミット1で切断の結果を渡す関数（`Action<MultiCutResult[]>`）を受け取る形にした |
+| 2 | 切り直しの途中のかけら | 非アクティブなかけらはオーブにしない（上の「実装中に確かめたこと」） |
+| 3 | アウトゲームのカメラ | AudioListener を付けない（遷移の間、2 つの場面シーンのカメラが同時にある為） |
+| 4 | Initialization の asmdef | `UsefulToolkit.MeshCut.Runtime` の参照を足した（`PlayerInitializer` が `MultiCutResult` を扱う為） |
+| 5 | ステージの外周 | 下側の範囲外の Trigger は使わず、地面とその下の床の二重にした。各面の厚さは 5m |
+
+パラメータの仮の値
+
+| 置き場所 | 値 |
+|---|---|
+| `PlayerParameterData`（`Assets/Level/Data/Player/PlayerParameterData.asset`） | かけら 1 個あたりのチャージ 1、チャージの上限 100（アセットにはまだ保存されておらず、既定値が使われる） |
+| `FragmentOrbAdapter`（InGame の `FragmentOrb`） | 接触を無視する時間 0.2 秒、かけらの寿命 3 秒、オーブの速さ 15 m/s、吸収する距離 0.5m、オーブの上限 64 |
+| `FragmentPool`（InGame の `MeshCut System`） | かけらの生成数 128（区間2のまま） |
+| `StageBounds`（InGame の `TestWalls`） | 内側が x・z ±50、y -3〜25。各面の厚さ 5m |
+
+### 作った主なもの
+
+| 層 | ファイル |
+|---|---|
+| BlackBoardLayer | `ChargeState`（`IChargeState`）。`PlayerEventBoard`、`MeleeCutEvents` は削除 |
+| Application | `ChargeService`（`AddFragments`）。`MeleeCutService` は振ったときに呼ぶ関数を受け取る形に変えた。`GameSceneController` は場面ごとに 1 グループにした |
+| ExternalLayer | `PlayerParameterData` に `ChargePerFragment`、`MaxCharge` を足した |
+| EngineAdapterLayer | `FragmentOrbAdapter`（かけらの管理、オーブ化、オーブのプールと吸収）、`FragmentContactReporter`（かけらがぶつかったことを知らせる）。`MeleeCutAdapter` は結果を関数へ渡す形に変え、区間2の結果のログを削除した |
+| Initialization | `PlayerInitializer`（`InGameCompositor` への登録、`ChargeService` の生成、切断・かけら・チャージの直接配線）、`PlayerDebugInitializer`（Charge / Fragments / Orbs の表示）、`GameSceneInitializer`（場面ごとに 1 グループ）、`InGameCompositor` と `UsefulToolkitPersistentCompositor`（作り直し）。`MeleeCutInitializer`、`StandardPlayerControlCompositor` は削除 |
+| Level | StandardPlayerControl シーンを削除し、プレイヤー一式を InGame に移した。SceneGroup は場面ごとに 1 シーン。OutGame の地面を削除してカメラを置いた。InGame に `FragmentOrb` と `TestWalls/StageBounds`。`ChargeOrb.prefab`（`Assets/Level/Prefabs/Charge/`）。`CutFragment.prefab` を Shard レイヤーにし、`FragmentContactReporter` を付けた。Shard 同士の衝突を切った（`DynamicsManager.asset`） |
+
+### 完了条件の確認結果
+
+確認は、常駐シーンから再生してインゲームに入り、uloop で入力を擬似的に入れたり、テスト用のコードから切断を繰り返したりして行った。
+
+| # | 条件 | 結果 |
+|---|---|---|
+| 1 | アウトゲーム → インゲームに入れ、区間1・2の操作がそのまま動く | 確認済み。インゲームに入ると State がすべて登録され、W で前進し、左クリックで頭が切れ、ホイール 1 段でプレビューの線が 15° 回った。インゲーム → アウトゲーム → インゲームと行き来でき、入り直すとプレイヤーとダミーが初期状態に戻った。アウトゲームではカーソルのロックが外れた。ただし、アウトゲームの OnGUI のボタンは擬似入力で押せないので、ボタンと同じ `GoToInGameAsync` を呼んで遷移させた。**ボタンを実際に押す操作はレビューで確かめる** |
+| 2 | ダミーを切ると、かけらがオーブになって吸収され、チャージが増える | 確認済み。90° で 2 つのパーツを切ると 4 つのかけらができ、0.42〜1.06 秒にオーブになり、1.21 秒までに吸収されてチャージが 0 → 4 になった |
+| 3 | 大量に切っても、かけらとオーブの数が上限を超えず、強制回収されたかけらが管理に残らない | 確認済み。かけらを切り直し続けるテスト（約 95 回の切断を 2 回）で、かけらは最大 128 で止まり、「管理中なのに非アクティブなかけら」と「アクティブなのに空きのプールの枠」はどちらも 0。オーブの上限は、テストのために上限を 8 にして、8 で止まることを確かめた（64 そのものでは試していない） |
+| 4 | かけらがステージの外へ落ちない | 確認済み（上の「実装中に確かめたこと」）。8 個を外周へ向けて 80〜150 m/s で撃ち、すべて外へ出ずにオーブになった |
+
+エラーと警告は 0 件（DebugGUI の `GetBool` のエラーは除く。「見つけた問題」を参照）。
+
+### 次の区間へ持ち越すこと
+
+- 区間4：討伐（4-7）で切断の結果を受け取る。今は `PlayerInitializer` が `MeleeCutAdapter` の結果を `FragmentOrbAdapter.ReceiveCutResults` だけに渡している。受け取り手が 2 つになるので、配線を足すか Event にするかを決める。切断の結果の `Original` が敵のパーツ（プールのかけらでない物）のとき、`FragmentOrbAdapter` は何もしない
+- 区間4：4-0 で、`TestWalls`（`StageBounds` を含む）をステージシーンへ移す。ステージシーンは別の Compositor のスコープになる
+- 区間6：チャージの消費の操作（`ChargeService` に足す。足りないときの扱いは区間6で決める）。スキルの Service は InGame の Initializer が `ChargeService` を受け取って使う（DI するなら `PlayerInitializer` が登録する）。スキルが切断するなら、その結果も `FragmentOrbAdapter.ReceiveCutResults` に渡す
+- 区間7：投擲・ランチャーで撃ったかけらはチャージにしない（`FragmentOrbAdapter` の管理から外す、などで実現する）。スロー中につかむかけらとオーブ化の関係（つかめる間はオーブにしない など）を決める。かけらとオーブは `Time.time` / `Time.deltaTime` で動くので、スロー中は一緒に遅くなる
+- 区間11：HUD にチャージ量を出す（今は `DebugGUI` の表示だけ）
+- 区間13：オーブの見た目と吸収の演出、各パラメータの調整
+- 他プラットフォーム：VR のリグを置くときに、InGame の中でビルドモードによってリグを選ぶ仕組みを作る
+
+### 使い方
+
+- 画面左上の DebugGUI に、チャージ量（Charge）、管理中のかけらの数（Fragments）、出ているオーブの数（Orbs）が出る
+- チャージの量と上限は `PlayerParameterData`、オーブ化と吸収の値は InGame の `FragmentOrb` にある `FragmentOrbAdapter` の Inspector で変える
+- 切断を行う新しい仕組み（スキルなど）を作ったら、`ExecuteCut` の結果を `FragmentOrbAdapter.ReceiveCutResults` に渡す。渡さないと、生まれたかけらがオーブにならない
+- かけらのプレハブを差し替えるときは、Shard レイヤーにし、`FragmentContactReporter` を付ける
 
 ## 他プラットフォームへの対応
 

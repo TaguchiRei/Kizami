@@ -76,7 +76,7 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-05 時点。区間3のコミット0の後）
+## 3. 現状（2026-10-05 時点。区間3の完了後）
 
 | 分野 | 状態 |
 |---|---|
@@ -88,8 +88,9 @@
 | 入力（PC の Player マップ） | 区間0で、切断面の回転、ワープ、スローモード、投擲、ランチャー、スキル 1〜3 のアクションを追加済み。Smartphone と VRControllers のマップは未対応 |
 | VR の操作系 | `VrPlayerMovementAdapter` / `VrPlayerInputRouteInitializer` はあるが、どのシーンにも置かれていない |
 | ボクセル（ベイク、削る・盛る、塊の分離、平面での切り分け、融解） | あり。ゲームのルールとはまだつながっていない |
-| 近接切断（メッシュ切断） | あり（区間2）。左クリックで、ホイールで回した角度の刃（カメラの位置を通る）で範囲内を切る。InGame に `MeshCut System` と、切断を実行する `MeleeCutAdapter`、切れるダミーの敵がある。攻撃は `PlayerInitializer` が `MeleeCutService` から `MeleeCutAdapter.Swing` へ直接配線している（区間2の `PlayerEventBoard` / `MeleeCutEvents` は区間3で廃止）。切断の結果（元の対象とかけら）はログに出すだけで、通知の仕組みはまだない（区間3） |
-| 敵、チャージ、スキル、スローモード、装甲、クリア判定、HUD | なし |
+| 近接切断（メッシュ切断） | あり（区間2）。左クリックで、ホイールで回した角度の刃（カメラの位置を通る）で範囲内を切る。InGame に `MeshCut System` と、切断を実行する `MeleeCutAdapter`、切れるダミーの敵がある。攻撃は `PlayerInitializer` が `MeleeCutService` から `MeleeCutAdapter.Swing` へ直接配線している（区間2の `PlayerEventBoard` / `MeleeCutEvents` は区間3で廃止）。切断の結果（元の対象とかけら）は、`PlayerInitializer` が `FragmentOrbAdapter.ReceiveCutResults` へ直接渡している |
+| かけら・オーブ・チャージ | あり（区間3）。InGame の `FragmentOrbAdapter` が、かけらを管理し、ぶつかるか寿命が来たらオーブにして、`Camera.main` へ引き寄せて吸収する。吸収した数は `ChargeService.AddFragments` で `IChargeState`（`PlayerBoard`、InGame の SceneState）に加える。消費の操作はまだない（区間6）。かけらは Shard レイヤーで、Shard 同士は衝突しない。テスト用のステージは `TestWalls/StageBounds` で囲ってある |
+| 敵、スキル、スローモード、装甲、クリア判定、HUD | なし |
 | 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブは旧構成のもの。`Test/InGame.unity` は Build Settings から外してあり、`BuildScenes.InGame` は新しい `Master/InGame` を指す |
 
 ## 4. 進め方
@@ -106,7 +107,7 @@
 | 0 | 基盤整備 | TimeScale State と Adapter、シーン遷移の配線とインゲームのシーン、PC 用入力マップ、デバッグ手段 | ― | 2026/09/29〜10/05 | 完了（10/04） | [Section00](Sections/Section00_Foundation.md) |
 | 1 | プレイヤー移動の完成 | ダッシュ、ジャンプ、壁走り、短距離ワープ、HP と被ダメージの窓口 | 0 | 10/06〜10/12 | 完了（10/04） | [Section01](Sections/Section01_PlayerMovement.md) |
 | 2 | 近接切断 | MeshCut による剣の切断、ホイールで切断面を回転、切断面のプレビュー、切断の結果（かけらと元の対象）の取得 | 0 | 10/13〜10/19 | 完了（10/05） | [Section02](Sections/Section02_MeleeCut.md) |
-| 3 | かけら・オーブ・チャージ | かけらの通知、かけらのオーブ化と自動吸収、チャージの State、ステージ外周コライダー、オーブのプール | 2 | 10/20〜10/26 | 実装中 | [Section03](Sections/Section03_Charge.md) |
+| 3 | かけら・オーブ・チャージ | かけらの通知、かけらのオーブ化と自動吸収、チャージの State、ステージ外周コライダー、オーブのプール | 2 | 10/20〜10/26 | 完了（10/05） | [Section03](Sections/Section03_Charge.md) |
 | 4 | 雑魚敵と出現 | ステージシーンの分離、パーツ分割メッシュと FK / IK の敵、湧き場所、同時存在数の上限、簡単な AI、HP 0 で失敗 | 1, 3 | 10/27〜11/08 | 未着手 | [Section04](Sections/Section04_Enemy.md) |
 | A | マイルストーンA | 「切って溜める」までがつながる | | 11/08 | | |
 | 5 | ダメージ基盤・破壊対象・クリア判定 | ダメージタイプと対象ごとの判定、ボクセルの破壊対象、重要パーツの体積割合、マップオブジェクト、クリア判定 | 4 | 11/09〜11/22 | 未着手 | [Section05](Sections/Section05_DestructionTarget.md) |
@@ -150,7 +151,8 @@ flowchart LR
 | 敵の切断 | UsefulToolkit.MeshCut（`MultiCutBlade` / `MultiMeshCut` / `CuttableObject` / `MeshDataCache` / `MeshCutObjectPool`）。シーン上では `MeshCut System` の下に `MeshDataCache` / `FragmentPool` / `CutBlade` という名前で置かれる。`MultiCutBlade.ExecuteCut` は切断した対象ごとに `MultiCutResult`（`Original` / `Front` / `Back`）を返す（区間2で拡張）。拡大率は `localScale` で扱うので、切断対象の親に拡大率を持たせない |
 | かけらの上限 | `MeshCutObjectPool` は固定長のリングバッファで、空きがなくなると最も古いかけらを回収して使い回す |
 | 敵の移動 | `com.unity.ai.navigation`（NavMesh。導入済みだが asmdef の参照はまだない） |
-| 敵・オーブの再利用 | `UnityEngine.Pool.ObjectPool<T>` |
+| 敵・オーブの再利用 | `UnityEngine.Pool.ObjectPool<T>`（オーブは区間3の `FragmentOrbAdapter` が使っている） |
+| かけらの接触 | かけらのプレハブに付けた `FragmentContactReporter`（`OnCollisionEnter`）。接触のコールバックは Rigidbody と同じ GameObject のコンポーネントにしか届かない為 |
 | シーン遷移 | `GameSceneController` / `GameSceneInitializer`、SceneGroup アセット（`GameSceneGroupData`） |
 | デバッグ表示 | UsefulToolkit.Debugging の `DebugGUI`（`ObserveVariable` で値を画面に出す。シーンへの配置は `UsefulToolkit/ProgramTools/DebugGUI Setup`）、State の `GetLog()` |
 | ポーズ | 常駐の `PauseBoard` と `IPausable`（UsefulToolkit.ProgramTools。中身はまだほぼない） |

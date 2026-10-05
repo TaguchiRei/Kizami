@@ -22,7 +22,7 @@
 
 | 資産 | 内容 |
 |---|---|
-| 区間3の成果 | チャージの消費操作 |
+| 区間3の成果 | チャージ量の `IChargeState`（`PlayerBoard`、InGame の SceneState）と、加算だけを持つ `ChargeService`（`PlayerInitializer` が生成）。消費の操作はこの区間で `ChargeService` に足す。スキルが切断する場合は、`ExecuteCut` の結果を `FragmentOrbAdapter.ReceiveCutResults` に渡す（渡さないとかけらがオーブにならない） |
 | 区間5の成果 | ダメージの窓口、破壊対象、クリア判定 |
 | [IVoxelShape](../../../Code/Scripts/EngineAdapterLayer/Voxel/Shapes/IVoxelShape.cs) | 球・箱・カプセルの形状 |
 | ボクセルの融解 | ビームの演出の候補（[Thermal.md](../../Voxel/Detailed/Thermal.md)、[Melt.md](../../Voxel/Detailed/Melt.md)） |
