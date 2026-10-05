@@ -84,7 +84,6 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
-Assets/Art/
 Assets/LocalAssets/
 # Claude Code / uloop (ローカルツール設定)
 .claude/
