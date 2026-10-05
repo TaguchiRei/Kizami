@@ -14,35 +14,20 @@ namespace Kizami.BlackBoard
         public PlayerContact Contacts { get; private set; }
         public Vector3 WallNormal { get; private set; }
 
-        private Action<PlayerContact, PlayerContact> _contactsChangedCallback;
+        public override string GetLog()
+        {
+            return $"Contacts: {Contacts}  \nWallNormal: {WallNormal}";
+        }
 
         /// <summary>
-        /// 触れている物と壁の法線を設定する。触れている物が変わったときだけ変化の通知を流す。
+        /// 触れている物と壁の法線を設定する。
         /// </summary>
         /// <param name="contacts">触れている物</param>
         /// <param name="wallNormal">触れている壁の、壁から離れる向きの水平な単位ベクトル。壁に触れていないときは Vector3.zero</param>
         public void SetContacts(PlayerContact contacts, Vector3 wallNormal)
         {
-            WallNormal = wallNormal;
-
-            if (Contacts == contacts) return;
-
-            var previous = Contacts;
             Contacts = contacts;
-            _contactsChangedCallback?.Invoke(previous, contacts);
-        }
-
-        public IDisposable RegisterOnContactsChanged(Action<PlayerContact, PlayerContact> callback)
-        {
-            if (callback == null) throw new ArgumentNullException(nameof(callback));
-
-            _contactsChangedCallback += callback;
-            return new BoardDispose(() => _contactsChangedCallback -= callback);
-        }
-
-        public override string GetLog()
-        {
-            return $"Contacts: {Contacts}  \nWallNormal: {WallNormal}";
+            WallNormal = wallNormal;
         }
     }
 
@@ -51,17 +36,11 @@ namespace Kizami.BlackBoard
     /// </summary>
     public interface IPlayerContactState : IStateGetter
     {
-        /// <summary> 触れている物。何にも触れていない（空中にいる）ときは None </summary>
+        /// <summary> 触れている物。空中にいるときは None </summary>
         PlayerContact Contacts { get; }
 
         /// <summary> 触れている壁の、壁から離れる向きの水平な単位ベクトル。壁に触れていないときは Vector3.zero </summary>
         Vector3 WallNormal { get; }
-
-        /// <summary>
-        /// 触れている物が変化した際に発火するイベントを登録する。
-        /// </summary>
-        /// <param name="callback">変化時に実行する処理。引数に変化前と変化後の値が入る</param>
-        IDisposable RegisterOnContactsChanged(Action<PlayerContact, PlayerContact> callback);
     }
 
     /// <summary>
@@ -70,7 +49,7 @@ namespace Kizami.BlackBoard
     [Flags]
     public enum PlayerContact
     {
-        /// <summary> 何にも触れていない </summary>
+        /// <summary> 接触なし </summary>
         None = 0,
 
         /// <summary> 地面 </summary>

@@ -10,14 +10,14 @@ namespace Kizami.BlackBoard
     {
         public BuildMode BuildMode { get; private set; }
 
-        public void SetBuildMode(BuildMode mode)
-        {
-            BuildMode = mode;
-        }
-
         public override string GetLog()
         {
             return BuildMode.ToString();
+        }
+
+        public void SetBuildMode(BuildMode mode)
+        {
+            BuildMode = mode;
         }
     }
 

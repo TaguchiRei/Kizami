@@ -20,7 +20,7 @@
 温度は、距離と同じ格子の上にサンプルごとに持つ。
 一度も加熱されていないピースは温度の配列そのものを持たず、最初に加熱されたときに確保する。
 
-> 温度の配列は [`VoxelVolume`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L17](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L17)</sup> が持っている。
+> 温度の配列は [`VoxelVolume`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L16](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L16)</sup> が持っている。
 
 ## 3. 加熱の流れ
 
@@ -38,7 +38,7 @@ flowchart TD
 
 ### 温度で距離を引き上げる
 
-融解は「温度が 1 を超えたら、いきなり外側にする」のではなく、[温度に応じて距離を少しずつ外側寄りに引き上げる形で進む](../../../Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelHeatJob.cs)<sup>[L41](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelHeatJob.cs#L41)</sup>。
+融解は「温度が 1 を超えたら、いきなり外側にする」のではなく、[温度に応じて距離を少しずつ外側寄りに引き上げる形で進む](../../../Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelHeatJob.cs)<sup>[L40](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelHeatJob.cs#L40)</sup>。
 
 - 温度 0：引き上げ先は「最も内側」なので、何も変わらない
 - 温度が 1 に近づく：表面近くのサンプルから順に外側寄りになり、表面が少しずつ後退する
@@ -46,30 +46,30 @@ flowchart TD
 
 これにより、溶けていく境目が格子の段差にならず、滑らかに後退していく。
 
-> 加熱の本体は [`VoxelHeatJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelHeatJob.cs)<sup>[L18](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelHeatJob.cs#L18)</sup>、呼び出しは [`VoxelVolume.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L148](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L148)</sup> → [`VoxelPiece.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L366](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L366)</sup> で行っている。
+> 加熱の本体は [`VoxelHeatJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelHeatJob.cs)<sup>[L16](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelHeatJob.cs#L16)</sup>、呼び出しは [`VoxelVolume.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L147](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L147)</sup> → [`VoxelPiece.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L385](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L385)</sup> で行っている。
 
 ### 粒へのまとめ方
 
 溶けたサンプルを 1 つずつ粒にすると数が多すぎるので、格子を数サンプル四方の区画に区切り、[区画ごとに 1 粒にまとめる](../../../Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelMeltGroupJob.cs)<sup>[L27](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelMeltGroupJob.cs#L27)</sup>。
 粒の位置と温度は区画内の平均、体積はサンプル数 × ボクセル 1 つの体積。区画の大きさは設定で変えられる（既定は 1 で、まとめない）。
 
-> この処理は [`VoxelMeltGroupJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelMeltGroupJob.cs)<sup>[L27](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelMeltGroupJob.cs#L27)</sup>（[`VoxelVolume.GroupSamples`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L387](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L387)</sup> 経由）で行っている。
+> この処理は [`VoxelMeltGroupJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelMeltGroupJob.cs)<sup>[L27](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelMeltGroupJob.cs#L27)</sup>（[`VoxelVolume.GroupSamples`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L385](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L385)</sup> 経由）で行っている。
 
 ### 融解で塊が分かれた場合
 
 溶けて固体が分かれた場合も、削ったときと同じく切り離し判定をする（[Piece.md](Piece.md) 参照）。
-違いは、**切り離すには小さすぎる塊を、[消さずに溶けた粒として渡す](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L835](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L835)</sup>** こと。溶け残りの小片が突然消えて見えないようにするため。
+違いは、**切り離すには小さすぎる塊を、[消さずに溶けた粒として渡す](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L854](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L854)</sup>** こと。溶け残りの小片が突然消えて見えないようにするため。
 
 ## 4. 冷却
 
 固体の温度は、毎フレーム一定量ずつ下がる（既定は 1 秒に 0.1）。
 
-全サンプルを毎フレーム見ると重いので、「温度が 0 より高いサンプルを含むかもしれないチャンク」だけを覚えておき、[そこだけを冷やす](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L192](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L192)</sup>。
+全サンプルを毎フレーム見ると重いので、「温度が 0 より高いサンプルを含むかもしれないチャンク」だけを覚えておき、[そこだけを冷やす](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L191](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L191)</sup>。
 冷えきって全サンプルが 0 になったチャンクは対象から外す。
 
 冷えても形は戻らない。溶けて取り除かれた部分はそのまま。
 
-> 冷却は [`VoxelCoolJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelCoolJob.cs)<sup>[L12](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelCoolJob.cs#L12)</sup>（[`VoxelVolume.Cool`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L192](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L192)</sup> 経由）で行い、ピースのフレーム末処理の最初に実行される。
+> 冷却は [`VoxelCoolJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelCoolJob.cs)<sup>[L12](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelCoolJob.cs#L12)</sup>（[`VoxelVolume.Cool`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L191](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L191)</sup> 経由）で行い、ピースのフレーム末処理の最初に実行される。
 
 ## 5. 加熱の入口
 
@@ -92,7 +92,7 @@ sequenceDiagram
 
 ピースを直接加熱することもできるが、その場合もピースに融解システムが設定されていないと何も起きない（一度だけ警告が出る）。
 
-> シーン全体の加熱は [`VoxelMeltSystem.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs)<sup>[L125](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs#L125)</sup>、個別の加熱は [`VoxelPiece.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L366](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L366)</sup> で行う。
+> シーン全体の加熱は [`VoxelMeltSystem.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs)<sup>[L126](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs#L126)</sup>、個別の加熱は [`VoxelPiece.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L385](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L385)</sup> で行う。
 
 ## 6. 設定
 

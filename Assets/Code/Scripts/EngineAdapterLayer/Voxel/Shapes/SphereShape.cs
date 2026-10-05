@@ -16,13 +16,13 @@ namespace Kizami.EngineAdapter.Voxel
         public readonly float3 Center;
         public readonly float Radius;
 
+        public VoxelBounds Bounds => VoxelBounds.FromCenterExtents(Center, Radius);
+
         public SphereShape(float3 center, float radius)
         {
             Center = center;
             Radius = radius;
         }
-
-        public VoxelBounds Bounds => VoxelBounds.FromCenterExtents(Center, Radius);
 
         public float Distance(float3 position)
         {

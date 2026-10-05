@@ -10,10 +10,15 @@ namespace Kizami.BlackBoard
     [RegisterBoard(typeof(PlayerBoard))]
     public sealed class PlayerMovementState : SceneStateBase, IPlayerMovementState
     {
+        private readonly ActionEntryList<PlayerMoveMode, PlayerMoveMode> _modeChangedActions = new();
+
         public Vector3 TargetVelocity { get; private set; }
         public PlayerMoveMode Mode { get; private set; }
 
-        private Action<PlayerMoveMode, PlayerMoveMode> _modeChangedCallback;
+        public override string GetLog()
+        {
+            return $"Mode: {Mode}  \nTargetVelocity: {TargetVelocity}";
+        }
 
         /// <summary>
         /// 移動モードを設定する。移動モードが変わったときだけ変化の通知を流す。
@@ -25,7 +30,7 @@ namespace Kizami.BlackBoard
 
             var previous = Mode;
             Mode = mode;
-            _modeChangedCallback?.Invoke(previous, mode);
+            _modeChangedActions.Invoke(previous, mode);
         }
 
         /// <summary>
@@ -39,15 +44,8 @@ namespace Kizami.BlackBoard
 
         public IDisposable RegisterOnModeChanged(Action<PlayerMoveMode, PlayerMoveMode> callback)
         {
-            if (callback == null) throw new ArgumentNullException(nameof(callback));
-
-            _modeChangedCallback += callback;
-            return new BoardDispose(() => _modeChangedCallback -= callback);
-        }
-
-        public override string GetLog()
-        {
-            return $"Mode: {Mode}  \nTargetVelocity: {TargetVelocity}";
+            return _modeChangedActions.Register(
+                new ActionEntry<PlayerMoveMode, PlayerMoveMode>(false, callback), nameof(callback));
         }
     }
 
@@ -56,10 +54,7 @@ namespace Kizami.BlackBoard
     /// </summary>
     public interface IPlayerMovementState : IStateGetter
     {
-        /// <summary>
-        /// ワールド空間の目標速度（m/s）。通常の移動と壁走りでは水平成分だけを使い、Y 成分は 0 になる。
-        /// ワープ中はワープの速度そのもので、Y 成分も使う。
-        /// </summary>
+        /// <summary> ワールド空間の目標速度（m/s）。通常の移動と壁走りでは Y 成分が 0、ワープ中は Y 成分も使う </summary>
         Vector3 TargetVelocity { get; }
 
         /// <summary> 移動モード </summary>
@@ -73,17 +68,17 @@ namespace Kizami.BlackBoard
     }
 
     /// <summary>
-    /// プレイヤーの移動モード。地面にいるか空中にいるかは PlayerContactState で表し、ここでは区別しない。
+    /// プレイヤーの移動モード。地面と空中の区別は PlayerContactState が持つ。
     /// </summary>
     public enum PlayerMoveMode
     {
         /// <summary> 地上・空中での通常の移動。重力を受ける </summary>
         Normal,
 
-        /// <summary> 壁走り。重力を受けず、壁に沿って進む。移動入力がなければその場にとどまる（ラッチ） </summary>
+        /// <summary> 壁走り。重力を無視して壁に沿って進み、移動入力が 0 のときはその場にとどまる（ラッチ） </summary>
         WallRunning,
 
-        /// <summary> 短距離ワープ。重力を受けず、決まった時間だけ決まった速度で進む </summary>
+        /// <summary> 短距離ワープ。重力を無視して、決まった時間だけ決まった速度で進む </summary>
         Warping
     }
 }

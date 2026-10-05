@@ -1,11 +1,10 @@
 using Kizami.BlackBoard;
+using UsefulToolkit.BlackBoard.BlackBoard;
 
 namespace Kizami.Application
 {
     /// <summary>
     /// 時間の倍率を保持する TimeScaleState を生成し、値を書き込むユースケース。
-    /// TimeScaleState の具象インスタンスはこのクラスだけが保持する。
-    /// 倍率を変える操作は ITimeScaleController として DI コンテナ経由で配る。
     /// </summary>
     public sealed class TimeScaleService : ITimeScaleController
     {
@@ -14,9 +13,11 @@ namespace Kizami.Application
         /// <summary>
         /// TimeScaleState を AppBoard へ登録する。
         /// </summary>
-        /// <param name="appBoard">TimeScaleState の登録先</param>
-        public void Initialize(AppBoard appBoard)
+        /// <param name="blackBoard">TimeScaleState の登録先</param>
+        public void Initialize(IBlackBoard blackBoard)
         {
+            if (!blackBoard.TryGetBoard<AppBoard>(out var appBoard, this)) return;
+
             appBoard.RegisterGameState<ITimeScaleState>(_state);
         }
 

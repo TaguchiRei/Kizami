@@ -11,25 +11,28 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// 滑らかなボクセル（SDF）で表した、かけら 1 つ分のコンポーネント。
-    ///
-    /// ボリュームを保持し、編集されたチャンクのメッシュとコライダーを作り直す。
-    /// 削られて内側が複数の塊に分かれたら、最も大きい塊を残し、
-    /// 他の塊を Rigidbody 付きの新しい VoxelPiece として切り離す。
-    /// Slice で平面を指定すると、切り口で身を減らさずに 2 つに切り分ける。
-    ///
-    /// 加熱されて融点以上になった部分は取り除き、VoxelMeltSystem へ融解した粒として渡す。
-    ///
-    /// ボクセル空間はこの Transform のローカル空間。Transform のスケールは均一である前提。
-    /// 編集後の処理（冷却 → 体積の計測 → 分離 → コールバック → 再メッシュ化）は、編集したフレームの LateUpdate でまとめて行う。
+    /// ボリュームを保持して編集・加熱・切り分けで変わったチャンクのメッシュとコライダーを作り直し、
+    /// 内側が複数の塊に分かれたら最も大きい塊を残して、他の塊を Rigidbody 付きの新しい VoxelPiece として切り離す。
     /// </summary>
+    /// <remarks>
+    /// ボクセル空間はこの Transform のローカル空間で、Transform のスケールは均一である前提。
+    /// 編集後の処理（冷却 → 体積の計測 → 分離 → コールバック → 再メッシュ化）は、編集したフレームの LateUpdate でまとめて行う。
+    /// </remarks>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelPiece : MonoBehaviour
     {
-        private const MeshColliderCookingOptions ColliderCookingOptions =
+        private const MeshColliderCookingOptions COLLIDER_COOKING_OPTIONS =
             MeshColliderCookingOptions.CookForFasterSimulation |
             MeshColliderCookingOptions.EnableMeshCleaning |
             MeshColliderCookingOptions.WeldColocatedVertices |
             MeshColliderCookingOptions.UseFastMidphase;
+
+        private readonly Queue<int> _dirtyQueue = new();
+        private readonly List<VoxelShapeChange> _pendingShapeChanges = new();
+        private readonly List<VoxelPiece> _pendingSlicePieces = new();
+        private readonly ActionChannel<VoxelShapeChange> _shapeChanged = new();
+        private readonly ActionChannel<VoxelPiece[]> _split = new();
+        private readonly ActionChannel<VoxelPiece> _destroyed = new();
 
         [Header("形状")]
         [SerializeField]
@@ -66,13 +69,6 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("融解・蒸発した分の送り先。未設定なら加熱しても何も起きない")]
         private VoxelMeltSystem _meltSystem;
 
-        private readonly Queue<int> _dirtyQueue = new();
-        private readonly List<VoxelShapeChange> _pendingShapeChanges = new();
-        private readonly List<VoxelPiece> _pendingSlicePieces = new();
-        private readonly ActionChannel<VoxelShapeChange> _shapeChanged = new();
-        private readonly ActionChannel<VoxelPiece[]> _split = new();
-        private readonly ActionChannel<VoxelPiece> _destroyed = new();
-
         private VoxelVolume _volume;
         private ChunkSlot[] _chunks;
         private bool[] _isDirty;
@@ -82,7 +78,7 @@ namespace Kizami.EngineAdapter.Voxel
         private bool _needsSplitCheck;
         private bool _hasInitialSampleCount;
         private bool _meltedSinceMeasure;
-        private bool _hasWarnedMissingThermalSettings;
+        private bool _hasWarnedThermalSettings;
 
         public VoxelQualitySettings Quality => _quality;
         public Material Material => _material;
@@ -169,6 +165,29 @@ namespace Kizami.EngineAdapter.Voxel
             {
                 var size = VoxelSize;
                 return size * size * size;
+            }
+        }
+
+        private static void BakeColliders(List<ChunkSlot> slots)
+        {
+            if (slots.Count == 0) return;
+
+            var meshIds = new NativeArray<EntityId>(slots.Count, Allocator.TempJob);
+            for (var i = 0; i < slots.Count; i++)
+            {
+                meshIds[i] = slots[i].Mesh.GetEntityId();
+            }
+
+            new BakeColliderJob
+            {
+                MeshIds = meshIds,
+                CookingOptions = COLLIDER_COOKING_OPTIONS
+            }.Schedule(slots.Count, 1).Complete();
+            meshIds.Dispose();
+
+            foreach (var slot in slots)
+            {
+                slot.AssignCollider();
             }
         }
 
@@ -291,7 +310,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// ワールド空間の平面でピースを 2 つに切り分ける。平面は無限に広いものとして扱い、切り口の分だけ体積が減ることは無い。
+        /// ワールド空間の平面でピースを、体積を保ったまま 2 つに切り分ける。平面は無限に広いものとして扱う。
         /// 平面の両側のうち内側のサンプルが多い側をこのピースに残し、もう一方の側は、つながった塊ごとに新しいピースとして切り離す。
         /// 残した側の中で塊が分かれていれば、LateUpdate の分離の判定で切り離す。
         /// 切り離した直後に両方のメッシュを作り直す。形状変化と分離の通知は、ApplyEdit と同じく LateUpdate で行う。
@@ -374,10 +393,10 @@ namespace Kizami.EngineAdapter.Voxel
 
             if (!HasThermalSettings())
             {
-                if (!_hasWarnedMissingThermalSettings)
+                if (!_hasWarnedThermalSettings)
                 {
                     Debug.LogWarning("VoxelMeltSystem または VoxelThermalSettings が設定されていない為、加熱を無視します。", this);
-                    _hasWarnedMissingThermalSettings = true;
+                    _hasWarnedThermalSettings = true;
                 }
 
                 return;
@@ -1022,38 +1041,15 @@ namespace Kizami.EngineAdapter.Voxel
             return slot;
         }
 
-        private static void BakeColliders(List<ChunkSlot> slots)
-        {
-            if (slots.Count == 0) return;
-
-            var meshIds = new NativeArray<EntityId>(slots.Count, Allocator.TempJob);
-            for (var i = 0; i < slots.Count; i++)
-            {
-                meshIds[i] = slots[i].Mesh.GetEntityId();
-            }
-
-            new BakeColliderJob
-            {
-                MeshIds = meshIds,
-                CookingOptions = ColliderCookingOptions
-            }.Schedule(slots.Count, 1).Complete();
-            meshIds.Dispose();
-
-            foreach (var slot in slots)
-            {
-                slot.AssignCollider();
-            }
-        }
-
         /// <summary>
         /// 全チャンクの極点から、方向ごとに最も外側の点を選び直し、その点群の凸包をこの GameObject の MeshCollider にする。
         /// 点が 4 つ未満なら当たり判定を無効にする。
         /// </summary>
         private void RebuildHullCollider()
         {
-            var directions = new float3[VoxelHullDirections.Count];
-            var bestPoints = new float3[VoxelHullDirections.Count];
-            var bestDots = new float[VoxelHullDirections.Count];
+            var directions = new float3[VoxelHullDirections.COUNT];
+            var bestPoints = new float3[VoxelHullDirections.COUNT];
+            var bestDots = new float[VoxelHullDirections.COUNT];
             for (var d = 0; d < directions.Length; d++)
             {
                 directions[d] = VoxelHullDirections.Get(d);
@@ -1077,7 +1073,7 @@ namespace Kizami.EngineAdapter.Voxel
                 }
             }
 
-            var vertices = new List<Vector3>(VoxelHullDirections.Count);
+            var vertices = new List<Vector3>(VoxelHullDirections.COUNT);
             for (var d = 0; d < bestPoints.Length; d++)
             {
                 if (float.IsNegativeInfinity(bestDots[d])) continue;
@@ -1143,7 +1139,7 @@ namespace Kizami.EngineAdapter.Voxel
             if (_colliderMode == VoxelColliderMode.ChunkMesh)
             {
                 meshCollider = chunkObject.AddComponent<MeshCollider>();
-                meshCollider.cookingOptions = ColliderCookingOptions;
+                meshCollider.cookingOptions = COLLIDER_COOKING_OPTIONS;
             }
 
             meshFilter.sharedMesh = mesh;
@@ -1196,7 +1192,7 @@ namespace Kizami.EngineAdapter.Voxel
                 Vertices = new NativeList<float3>(1024, allocator);
                 Normals = new NativeList<float3>(1024, allocator);
                 Indices = new NativeList<int>(4096, allocator);
-                Extremes = new NativeArray<float3>(VoxelHullDirections.Count, allocator);
+                Extremes = new NativeArray<float3>(VoxelHullDirections.COUNT, allocator);
             }
 
             public void Dispose()

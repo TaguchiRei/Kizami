@@ -17,6 +17,19 @@ namespace Kizami.EngineAdapter.Voxel
         public readonly float3 HalfExtents;
         public readonly quaternion Rotation;
 
+        public VoxelBounds Bounds
+        {
+            get
+            {
+                // 回転後の各軸を、ワールド軸へ射影した長さの和が境界の半径になる
+                var axes = new float3x3(Rotation);
+                var extents = math.abs(axes.c0) * HalfExtents.x
+                              + math.abs(axes.c1) * HalfExtents.y
+                              + math.abs(axes.c2) * HalfExtents.z;
+                return VoxelBounds.FromCenterExtents(Center, extents);
+            }
+        }
+
         public BoxShape(float3 center, float3 halfExtents) : this(center, halfExtents, quaternion.identity)
         {
         }
@@ -51,19 +64,6 @@ namespace Kizami.EngineAdapter.Voxel
                 projectedCenter + planeNormal * halfDepth,
                 new float3(coverRadius * 2f, coverRadius * 2f, halfDepth),
                 quaternion.LookRotation(planeNormal, up));
-        }
-
-        public VoxelBounds Bounds
-        {
-            get
-            {
-                // 回転後の各軸を、ワールド軸へ射影した長さの和が境界の半径になる
-                var axes = new float3x3(Rotation);
-                var extents = math.abs(axes.c0) * HalfExtents.x
-                              + math.abs(axes.c1) * HalfExtents.y
-                              + math.abs(axes.c2) * HalfExtents.z;
-                return VoxelBounds.FromCenterExtents(Center, extents);
-            }
         }
 
         public float Distance(float3 position)

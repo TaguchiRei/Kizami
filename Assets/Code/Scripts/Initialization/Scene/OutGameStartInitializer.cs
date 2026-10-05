@@ -6,17 +6,12 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// 仮のアウトゲームから、インゲームへ遷移するボタンを画面に出す Initializer。仮のアウトゲームの場面シーンへ置く。
-    /// 区間11で、アウトゲーム本来の流れに置き換える。
     /// </summary>
+    // TODO: アウトゲーム本来の流れに置き換える
     public sealed class OutGameStartInitializer : InitializerBase, IInjectable<IGameSceneController>
     {
         private IGameSceneController _sceneController;
         private bool _transitioning;
-
-        public void Inject(IGameSceneController instance)
-        {
-            _sceneController = instance;
-        }
 
         private async void OnGUI()
         {
@@ -31,6 +26,11 @@ namespace Kizami.Initialization
             // アンロードの途中で中断され、SceneState に OutGame がロード済みのまま残る為、トークンは渡さない。
             await _sceneController.GoToInGameAsync();
             _transitioning = false;
+        }
+
+        public void Inject(IGameSceneController instance)
+        {
+            _sceneController = instance;
         }
     }
 }

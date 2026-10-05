@@ -202,7 +202,7 @@ MonoBehaviour:
   _runtimeInitializer: {fileID: 669221186}
   _startScene: 
   _applicationManagementInitializer: {fileID: 669221193}
-  _playerOperationConfigInitializer: {fileID: 669221192}
+  _operationSettingInitializer: {fileID: 669221192}
   _timeScaleInitializer: {fileID: 669221195}
   _inputInitializer: {fileID: 669221191}
   _gameSceneInitializer: {fileID: 669221197}
@@ -252,7 +252,9 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f8815a5859ad6ff4ba70e20d5b4ac56e, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.PlayerOperationConfigInitializer
+  m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.OperationSettingInitializer
+  _sprintInputMode: 0
+  _cutRotateStepAngle: 15
 --- !u!114 &669221193
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -266,8 +268,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.ApplicationManagementInitializer
   _editorBuildModeOverride: 1
-  _sprintInputMode: 0
-  _cutRotateStepAngle: 15
 --- !u!114 &669221194
 MonoBehaviour:
   m_ObjectHideFlags: 0

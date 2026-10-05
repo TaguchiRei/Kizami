@@ -10,14 +10,15 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 近接切断の振り（Swing）を受けて、カメラの位置と向き、切断面の角度から刃を配置し、
-    /// 範囲内の切れる CuttableObject をまとめて切断する。切断の結果は、初期化で受け取った関数へ渡す。
-    /// 刃の位置はカメラの位置、法線はカメラの上方向をカメラの前方向を軸に角度だけ回したもの。
-    /// 範囲は、カメラの前方へ伸びる、刃に沿った薄い直方体。
+    /// カメラの前方へ伸びる薄い直方体の範囲にある切れる CuttableObject をまとめて切断する Adapter。
     /// </summary>
     public sealed class MeleeCutAdapter : InitializableMonoBehaviour
     {
         /// <summary> 範囲内から一度に集めるコライダーの最大数 </summary>
-        private const int MaxHitCount = 128;
+        private const int MAX_HIT_COUNT = 128;
+
+        private readonly Collider[] _hitBuffer = new Collider[MAX_HIT_COUNT];
+        private readonly List<CuttableObject> _targets = new();
 
         [SerializeField]
         [Tooltip("切断に使う刃。プールと同じシーンに置かれたもの")]
@@ -39,14 +40,28 @@ namespace Kizami.EngineAdapter
         [Tooltip("切断の対象を探すレイヤー")]
         private LayerMask _targetLayers = ~0;
 
-        private readonly Collider[] _hitBuffer = new Collider[MaxHitCount];
-        private readonly List<CuttableObject> _targets = new();
-
         /// <summary> 切断の結果を渡す先 </summary>
         private Action<MultiCutResult[]> _onCut;
 
         /// <summary> 切断を実行中か。実行中の振りは無視する </summary>
         private bool _isCutting;
+
+        /// <summary>
+        /// Renderer のバウンディングボックスが、指定した点を通り法線に垂直な平面をまたぐかどうか。
+        /// 平面と交わらない対象を切ると、中身がすべて入ったかけらと空のかけらができる為、切る前に除く。
+        /// </summary>
+        private static bool IsStraddlingPlane(CuttableObject cuttable, Vector3 planePoint, Vector3 normal)
+        {
+            if (cuttable.Renderer == null) return false;
+
+            var bounds = cuttable.Renderer.bounds;
+            var extents = bounds.extents;
+            var radius = Mathf.Abs(normal.x) * extents.x + Mathf.Abs(normal.y) * extents.y +
+                         Mathf.Abs(normal.z) * extents.z;
+            var distance = Vector3.Dot(normal, bounds.center - planePoint);
+
+            return Mathf.Abs(distance) < radius;
+        }
 
         /// <summary>
         /// PlayerInitializer から呼ばれる。
@@ -66,7 +81,6 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 振ったときの角度で刃を配置し、範囲内の切れる対象を切断する。
-        /// 切断の実行中と、対象が 1 つもないときは何もしない。
         /// </summary>
         /// <param name="angle">切断面の角度（度）</param>
         public void Swing(float angle)
@@ -113,7 +127,7 @@ namespace Kizami.EngineAdapter
 
             if (hitCount == _hitBuffer.Length)
             {
-                UsefulLogger.LogWarning($"切断の範囲内のコライダーが上限（{MaxHitCount}）に達しました。", this);
+                UsefulLogger.LogWarning($"切断の範囲内のコライダーが上限（{MAX_HIT_COUNT}）に達しました。", this);
             }
 
             for (var i = 0; i < hitCount; i++)
@@ -124,23 +138,6 @@ namespace Kizami.EngineAdapter
 
                 _targets.Add(cuttable);
             }
-        }
-
-        /// <summary>
-        /// Renderer のバウンディングボックスが、指定した点を通り法線に垂直な平面をまたぐかどうか。
-        /// 平面と交わらない対象を切ると、中身がすべて入ったかけらと空のかけらができる為、切る前に除く。
-        /// </summary>
-        private static bool IsStraddlingPlane(CuttableObject cuttable, Vector3 planePoint, Vector3 normal)
-        {
-            if (cuttable.Renderer == null) return false;
-
-            var bounds = cuttable.Renderer.bounds;
-            var extents = bounds.extents;
-            var radius = Mathf.Abs(normal.x) * extents.x + Mathf.Abs(normal.y) * extents.y +
-                         Mathf.Abs(normal.z) * extents.z;
-            var distance = Vector3.Dot(normal, bounds.center - planePoint);
-
-            return Mathf.Abs(distance) < radius;
         }
 
         /// <summary>

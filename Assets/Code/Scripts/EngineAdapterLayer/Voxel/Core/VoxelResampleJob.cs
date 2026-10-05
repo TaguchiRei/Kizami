@@ -12,28 +12,17 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelResampleJob : IJobParallelFor
     {
-        [ReadOnly] public NativeArray<short> SourceSamples;
         public int3 SourceSampleCount;
         public float3 SourceOrigin;
         public float SourceVoxelSize;
         public float SourceMaxDistance;
 
-        [WriteOnly] public NativeArray<float> Samples;
         public VoxelGridLayout Layout;
         public float TruncationDistance;
 
-        public void Execute(int index)
-        {
-            var sample = Layout.ToSampleCoord(index);
-            var sourceGrid = (Layout.ToLocalPosition(sample) - SourceOrigin) / SourceVoxelSize;
+        [ReadOnly] public NativeArray<short> SourceSamples;
 
-            var distance = math.any(sourceGrid < 0f) || math.any(sourceGrid > (float3)(SourceSampleCount - 1))
-                ? SourceMaxDistance
-                : SampleTrilinear(sourceGrid);
-            distance = math.clamp(distance, -TruncationDistance, TruncationDistance);
-
-            Samples[index] = Layout.EnforceBoundary(sample, distance);
-        }
+        [WriteOnly] public NativeArray<float> Samples;
 
         private float SampleTrilinear(float3 sourceGrid)
         {
@@ -58,6 +47,19 @@ namespace Kizami.EngineAdapter.Voxel
         {
             var index = sample.x + SourceSampleCount.x * (sample.y + SourceSampleCount.y * sample.z);
             return VoxelSdfEncoding.Dequantize(SourceSamples[index], SourceMaxDistance);
+        }
+
+        public void Execute(int index)
+        {
+            var sample = Layout.ToSampleCoord(index);
+            var sourceGrid = (Layout.ToLocalPosition(sample) - SourceOrigin) / SourceVoxelSize;
+
+            var distance = math.any(sourceGrid < 0f) || math.any(sourceGrid > (float3)(SourceSampleCount - 1))
+                ? SourceMaxDistance
+                : SampleTrilinear(sourceGrid);
+            distance = math.clamp(distance, -TruncationDistance, TruncationDistance);
+
+            Samples[index] = Layout.EnforceBoundary(sample, distance);
         }
     }
 }

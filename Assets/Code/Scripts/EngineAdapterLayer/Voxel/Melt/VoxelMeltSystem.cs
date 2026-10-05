@@ -11,20 +11,17 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// VoxelPiece が融解・蒸発した分を受け取り、融解した粒として保持・更新・表示するコンポーネント。シーンに 1 つ置く。
-    ///
     /// このコンポーネントを設定した VoxelPiece を登録し、ワールド空間の範囲でまとめて加熱できる。
-    /// 温度は、常温を 0、融点を 1 とした値。
-    ///
-    /// 粒は重力で落ち、登録済みの VoxelPiece とは SDF で、それ以外の物とはレイキャストで当たりを取る。
-    /// 粒同士はぶつからないが、密集している所では密度の格子を使って押し広げる。
-    /// 温度が高いほど面をよく滑り、凝固点より冷えると止まり、蒸発点以上になると消える。
-    /// 表示は、粒を滑らかにつないだ液面のメッシュか、粒ごとの球のどちらか。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelMeltSystem : MonoBehaviour
     {
-        private const int MaxInstancesPerDraw = 1023;
-        private const int JobBatchSize = 64;
+        private const int MAX_INSTANCES_PER_DRAW = 1023;
+        private const int JOB_BATCH_SIZE = 64;
+
+        private readonly List<VoxelPiece> _pieces = new();
+        private readonly List<VoxelEvaporation> _pendingEvaporations = new();
+        private readonly ActionChannel<IReadOnlyList<VoxelEvaporation>> _evaporated = new();
 
         [SerializeField]
         [Tooltip("加熱・融解・蒸発・冷却と、粒の動きの設定")]
@@ -67,10 +64,6 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("表示方法が Spheres のときに使う、直径 1 のメッシュ。未設定なら球")]
         private Mesh _particleMesh;
 
-        private readonly List<VoxelPiece> _pieces = new();
-        private readonly List<VoxelEvaporation> _pendingEvaporations = new();
-        private readonly ActionChannel<IReadOnlyList<VoxelEvaporation>> _evaporated = new();
-
         private NativeList<VoxelMeltParticle> _particles;
         private NativeArray<Matrix4x4> _matrices;
         private Mesh _renderMesh;
@@ -107,6 +100,14 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> これまでに蒸発した体積の合計（ワールド空間, m³） </summary>
         public float EvaporatedVolume { get; private set; }
+
+        private static Mesh GetBuiltinSphereMesh()
+        {
+            var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var mesh = sphere.GetComponent<MeshFilter>().sharedMesh;
+            Destroy(sphere);
+            return mesh;
+        }
 
         /// <summary>
         /// 設定を差し替える。
@@ -303,7 +304,6 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 粒を 1 フレーム分進めるジョブを順に予約する。handle は予約するたびに最後のジョブへ更新する。
-        /// density が作られていなければ、押し広げは行わない。
         /// </summary>
         private void ScheduleSimulation(NativeArray<VoxelMeltParticle> particles,
             NativeArray<RaycastCommand> commands, NativeArray<RaycastHit> hits, NativeArray<byte> evaporated,
@@ -318,7 +318,7 @@ namespace Kizami.EngineAdapter.Voxel
                 Gravity = (float3)Physics.gravity * _settings.GravityScale,
                 QueryParameters = new QueryParameters(_environmentLayers, false, QueryTriggerInteraction.Ignore, false),
                 Commands = commands
-            }.Schedule(count, JobBatchSize);
+            }.Schedule(count, JOB_BATCH_SIZE);
 
             handle = new VoxelParticleIntegrateJob
             {
@@ -330,9 +330,9 @@ namespace Kizami.EngineAdapter.Voxel
                 FreezeTemperature = _settings.FreezeTemperature,
                 EvaporationTemperature = _settings.EvaporationTemperature,
                 Evaporated = evaporated
-            }.Schedule(count, JobBatchSize, handle);
+            }.Schedule(count, JOB_BATCH_SIZE, handle);
 
-            handle = RaycastCommand.ScheduleBatch(commands, hits, JobBatchSize, 1, handle);
+            handle = RaycastCommand.ScheduleBatch(commands, hits, JOB_BATCH_SIZE, 1, handle);
 
             handle = new VoxelParticleResolveHitJob
             {
@@ -343,7 +343,7 @@ namespace Kizami.EngineAdapter.Voxel
                 ColdDamping = _settings.ColdTangentDamping,
                 FreezeTemperature = _settings.FreezeTemperature,
                 EvaporationTemperature = _settings.EvaporationTemperature
-            }.Schedule(count, JobBatchSize, handle);
+            }.Schedule(count, JOB_BATCH_SIZE, handle);
 
             ScheduleCollisions(particles, deltaTime, ref handle);
 
@@ -372,7 +372,7 @@ namespace Kizami.EngineAdapter.Voxel
                 RestFill = _settings.SpreadRestFill,
                 SpreadSpeed = _settings.SpreadSpeed,
                 Seed = 0x9E3779B9u
-            }.Schedule(particles.Length, JobBatchSize, handle);
+            }.Schedule(particles.Length, JOB_BATCH_SIZE, handle);
         }
 
         /// <summary>
@@ -413,7 +413,7 @@ namespace Kizami.EngineAdapter.Voxel
                     ColdDamping = _settings.ColdTangentDamping,
                     FreezeTemperature = _settings.FreezeTemperature,
                     EvaporationTemperature = _settings.EvaporationTemperature
-                }.Schedule(particles.Length, JobBatchSize, handle);
+                }.Schedule(particles.Length, JOB_BATCH_SIZE, handle);
             }
         }
 
@@ -432,7 +432,7 @@ namespace Kizami.EngineAdapter.Voxel
                 Amount = amount,
                 Falloff = falloff,
                 FreezeTemperature = _settings.FreezeTemperature
-            }.Schedule(_particles.Length, JobBatchSize).Complete();
+            }.Schedule(_particles.Length, JOB_BATCH_SIZE).Complete();
         }
 
         /// <summary>
@@ -550,19 +550,11 @@ namespace Kizami.EngineAdapter.Voxel
                 receiveShadows = true
             };
 
-            for (var start = 0; start < count; start += MaxInstancesPerDraw)
+            for (var start = 0; start < count; start += MAX_INSTANCES_PER_DRAW)
             {
                 Graphics.RenderMeshInstanced(renderParams, _renderMesh, 0, _matrices,
-                    math.min(MaxInstancesPerDraw, count - start), start);
+                    math.min(MAX_INSTANCES_PER_DRAW, count - start), start);
             }
-        }
-
-        private static Mesh GetBuiltinSphereMesh()
-        {
-            var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            var mesh = sphere.GetComponent<MeshFilter>().sharedMesh;
-            Destroy(sphere);
-            return mesh;
         }
     }
 }

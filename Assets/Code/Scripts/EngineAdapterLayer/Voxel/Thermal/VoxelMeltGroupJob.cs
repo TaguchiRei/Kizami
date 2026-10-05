@@ -26,8 +26,6 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelMeltGroupJob : IJob
     {
-        [ReadOnly] public NativeArray<int> SampleIndices;
-        [ReadOnly] public NativeArray<float> Temperatures;
         public VoxelGridLayout Layout;
 
         /// <summary> 1 つの区画の、各軸のサンプル数 </summary>
@@ -35,6 +33,9 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> 区画ごとのまとめた結果の出力先 </summary>
         public NativeList<VoxelMeltGroup> Groups;
+
+        [ReadOnly] public NativeArray<int> SampleIndices;
+        [ReadOnly] public NativeArray<float> Temperatures;
 
         public void Execute()
         {

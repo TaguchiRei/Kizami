@@ -109,7 +109,7 @@ Shader "ScreenSpaceEmbedded/Lit"
             ENDHLSL
         }
 
-        // 通常の影を落とす（削れる前の元の形で落ちる点に注意。README参照）
+        // 通常の影を落とす（削れる前の元の形で落ちる）
         Pass
         {
             Name "ShadowCaster"

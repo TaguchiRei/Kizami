@@ -32,25 +32,34 @@ namespace Kizami.EngineAdapter.Voxel
 
     /// <summary>
     /// 内側のサンプルを 6 近傍の連結成分（塊）に分け、サンプルごとに塊の番号を振る。
-    /// 外側のサンプルには OutsideLabel を振る。塊の番号は Components の添字と一致する。
+    /// 外側のサンプルには OUTSIDE_LABEL を振る。塊の番号は Components の添字と一致する。
     /// </summary>
     [BurstCompile]
     public struct VoxelComponentLabelJob : IJob
     {
-        public const int OutsideLabel = -1;
-        private const int UnvisitedLabel = -2;
+        public const int OUTSIDE_LABEL = -1;
+        private const int PENDING_LABEL = -2;
 
-        [ReadOnly] public NativeArray<float> Samples;
         public VoxelGridLayout Layout;
 
         public NativeArray<int> Labels;
         public NativeList<VoxelComponent> Components;
 
+        [ReadOnly] public NativeArray<float> Samples;
+
+        private void Visit(int index, int label, ref NativeList<int> stack)
+        {
+            if (Labels[index] != PENDING_LABEL) return;
+
+            Labels[index] = label;
+            stack.Add(index);
+        }
+
         public void Execute()
         {
             for (var i = 0; i < Samples.Length; i++)
             {
-                Labels[i] = Samples[i] < 0f ? UnvisitedLabel : OutsideLabel;
+                Labels[i] = Samples[i] < 0f ? PENDING_LABEL : OUTSIDE_LABEL;
             }
 
             var strides = new int3(1, Layout.SampleCount.x, Layout.SampleCount.x * Layout.SampleCount.y);
@@ -58,7 +67,7 @@ namespace Kizami.EngineAdapter.Voxel
 
             for (var start = 0; start < Labels.Length; start++)
             {
-                if (Labels[start] != UnvisitedLabel) continue;
+                if (Labels[start] != PENDING_LABEL) continue;
 
                 var label = Components.Length;
                 var count = 0;
@@ -89,14 +98,6 @@ namespace Kizami.EngineAdapter.Voxel
             }
 
             stack.Dispose();
-        }
-
-        private void Visit(int index, int label, ref NativeList<int> stack)
-        {
-            if (Labels[index] != UnvisitedLabel) return;
-
-            Labels[index] = label;
-            stack.Add(index);
         }
     }
 }

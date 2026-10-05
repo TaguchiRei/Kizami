@@ -1,29 +1,18 @@
 Shader "ScreenSpaceBoolean/Lit"
 {
-    // ========================================================================
-    // Subtractee / Subtractor 本体の"見た目"を描くシェーダー。
-    // Renderer Feature が確定させた合成デプスに対して ZTest Equal で色だけを乗せる。
+    // Subtractee / Subtractor 本体の見た目を描くシェーダー。
+    // Renderer Feature がカメラデプスへ焼いた合成デプスに対して、ZWrite Off / ZTest Equal で色だけを乗せる。
+    // 一致した面＝残すべき面だけが描かれ、削られた面は自動的に落ちる。
+    // ZTest Equal を通すため、頂点のクリップ座標はデプスを書いた側（FrontBack / Carve）と同じ式で求める。
     //
-    // ■ ZTest Equal である理由
-    //   Featureは「ブーリアン後に見えるべき面はこのデプス」というところまでを
-    //   カメラデプスへ焼いてある。ZWrite Off / ZTest Equal にしておくと、
-    //   そのデプスとぴったり一致した面＝残すべき面だけが描かれ、削られた面は
-    //   自動的に落ちる。マスクもクリップも要らない。
-    //
-    //   逆に言うと、頂点のクリップ座標がデプスを書いた側（FrontBack / Carve）と
-    //   ビット単位で一致していないと面ごと消える。Vertで式を揃えているのはこのため。
-    //
-    // ■ マテリアルごとの設定
+    // マテリアルごとの設定
     //   Subtractee用マテリアル : Cull = Back（通常通り）
     //   Subtractor用マテリアル : Cull = Front
-    //     削る側は普段は見えないが、削った穴の内壁＝Subtractorの背面だけは
-    //     見せたいので背面を描く。Carveパスが可視面として書き込んでいるのも
-    //     この背面なので、ZTest Equal がそこだけ通る。
+    //     削った穴の内壁＝Subtractorの背面だけを見せるため背面を描く。Carveパスが可視面として
+    //     書き込んでいるのもこの背面なので、ZTest Equal がそこだけ通る。
     //     （Fragでの法線は裏面基準になるので IS_FRONT_VFACE で反転している）
     //
-    // ■ 影について
-    //   ShadowCasterは通常描画のままなので、影は「削る前の形」で落ちる。
-    // ========================================================================
+    // TODO: ShadowCasterは通常描画のままなので、影が「削る前の形」で落ちる
     Properties
     {
         _BaseMap("Base Map", 2D) = "white" {}
@@ -42,7 +31,7 @@ Shader "ScreenSpaceBoolean/Lit"
             Tags { "LightMode"="UniversalForward" }
 
             Cull [_Cull]
-            ZWrite Off  // デプスはFeatureが確定済み。ここでは触らない
+            ZWrite Off  // デプスはFeatureが確定済み
             ZTest Equal // 合成デプスと一致した面＝残すべき面だけ色を乗せる
 
             HLSLPROGRAM
@@ -127,7 +116,7 @@ Shader "ScreenSpaceBoolean/Lit"
             ENDHLSL
         }
 
-        // 通常の影を落とす（削れる前の元の形で落ちる点に注意。README参照）
+        // 通常の影を落とす（削れる前の元の形で落ちる）
         Pass
         {
             Name "ShadowCaster"

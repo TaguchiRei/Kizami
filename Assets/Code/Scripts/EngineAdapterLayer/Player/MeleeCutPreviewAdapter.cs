@@ -1,6 +1,6 @@
-using System;
 using Kizami.BlackBoard;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 
@@ -15,43 +15,28 @@ namespace Kizami.EngineAdapter
         [Tooltip("切断面を表す線。角度 0 で水平になる向きで置く")]
         private RectTransform _line;
 
-        private IDisposable _stateWaiter;
         private IMeleeCutState _state;
 
         /// <summary>
-        /// PlayerInitializer から呼ばれる。State の登録順に依存しないよう待受で拾う。
+        /// PlayerInitializer から呼ばれる。MeleeCutState の登録より後に呼ぶこと。
         /// </summary>
-        /// <param name="playerBoard">切断面の角度の取得元</param>
-        public void Initialize(PlayerBoard playerBoard)
+        /// <param name="blackBoard">切断面の角度の取得元</param>
+        public void Initialize(IBlackBoard blackBoard)
         {
-            _stateWaiter = playerBoard.SubscribeStateRegister<IMeleeCutState>(
-                () =>
-                {
-                    if (playerBoard.TryGetSceneState<IMeleeCutState>(out var state, out _))
-                    {
-                        _state = state;
-                    }
-                },
-                invokeIfRegistered: true);
-
             if (_line == null)
             {
                 UsefulLogger.LogError("切断面の線（RectTransform）が設定されていません。", this);
+                return;
             }
+
+            if (!blackBoard.TryGetSceneState<PlayerBoard, IMeleeCutState>(out _state, this)) return;
 
             Initialize();
         }
 
         private void Update()
         {
-            if (_state == null || _line == null) return;
-
             _line.localRotation = Quaternion.Euler(0f, 0f, _state.Angle);
-        }
-
-        private void OnDestroy()
-        {
-            _stateWaiter?.Dispose();
         }
     }
 }

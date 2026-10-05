@@ -6,12 +6,11 @@ using UnityEngine.Rendering.Universal;
 
 namespace ScreenSpaceBoolean
 {
-    // Project Settings > Graphics で使っている Universal Renderer アセットの
-    // "Renderer Features" リストにこの Feature を追加して使う。
-    //
-    // Unity 6 の Render Graph（デフォルト）で動くように、Unsafe Pass
-    // （素のCommandBufferをそのまま使える抜け道API）で実装しています。
-    // Compatibility Mode は Unity 6.3 で非推奨/非サポートになったため使いません。
+    /// <summary>
+    /// ステンシルで Subtractor の領域を囲って Subtractee のデプスを掘り、削ったように見せる Renderer Feature。
+    /// Universal Renderer アセットの Renderer Features に追加して使う。
+    /// Render Graph 上で素の CommandBuffer を使うため、Unsafe Pass で実装する。
+    /// </summary>
     public class ScreenSpaceEmbeddedFeature : ScriptableRendererFeature
     {
         [SerializeField] Material compositeMaterial;

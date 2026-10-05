@@ -9,16 +9,21 @@ namespace Kizami.BlackBoard
     [RegisterBoard(typeof(PlayerBoard))]
     public sealed class PlayerHealthState : SceneStateBase, IPlayerHealthState
     {
-        public int Current { get; private set; }
-        public int Max { get; private set; }
+        private readonly ActionEntryList<int, int> _healthChangedActions = new();
 
-        private Action<int, int> _healthChangedCallback;
+        public int Current { get; private set; }
+        public int Max { get; }
 
         /// <param name="max">最大 HP。現在の HP もこの値から始まる</param>
         public PlayerHealthState(int max)
         {
             Max = max;
             Current = max;
+        }
+
+        public override string GetLog()
+        {
+            return $"HP: {Current} / {Max}";
         }
 
         /// <summary>
@@ -32,20 +37,12 @@ namespace Kizami.BlackBoard
 
             var previous = Current;
             Current = current;
-            _healthChangedCallback?.Invoke(previous, current);
+            _healthChangedActions.Invoke(previous, current);
         }
 
         public IDisposable RegisterOnHealthChanged(Action<int, int> callback)
         {
-            if (callback == null) throw new ArgumentNullException(nameof(callback));
-
-            _healthChangedCallback += callback;
-            return new BoardDispose(() => _healthChangedCallback -= callback);
-        }
-
-        public override string GetLog()
-        {
-            return $"HP: {Current} / {Max}";
+            return _healthChangedActions.Register(new ActionEntry<int, int>(false, callback), nameof(callback));
         }
     }
 

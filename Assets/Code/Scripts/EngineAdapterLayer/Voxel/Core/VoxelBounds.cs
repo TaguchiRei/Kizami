@@ -3,21 +3,21 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// ボクセル空間（VoxelObject のローカル空間）上の軸平行境界ボックス。
+    /// ボクセル空間（VoxelPiece のローカル空間）上の軸平行境界ボックス。
     /// </summary>
     public readonly struct VoxelBounds
     {
         public readonly float3 Min;
         public readonly float3 Max;
 
+        public float3 Center => (Min + Max) * 0.5f;
+        public float3 Size => Max - Min;
+
         public VoxelBounds(float3 min, float3 max)
         {
             Min = min;
             Max = max;
         }
-
-        public float3 Center => (Min + Max) * 0.5f;
-        public float3 Size => Max - Min;
 
         /// <summary>
         /// 中心と半径（各軸の半分の長さ）から境界を作る。

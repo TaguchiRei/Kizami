@@ -3,18 +3,13 @@ using Kizami.BlackBoard;
 using Kizami.EngineAdapter;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
-using UsefulToolkit.BlackBoard.Input;
 
 namespace Kizami.Initialization
 {
     /// <summary>
     /// PC とスマホが共用する操作系の入力配線。
-    ///
-    /// 移動・視点はどちらも InputAction がそのまま Application へ届く。スマホの移動スティックは
-    /// On-Screen Controls が InputAction を焚く為、PC と同じ経路で通る。
-    /// スマホの画面ドラッグによる視点操作だけは TouchLookInputSource が外部入力スロット
-    /// (ExternalInputs.TouchLook) へ書き込み、Player/Look にバインドされたスロット経由で届く。
-    /// その入力ソースをビルドモードで差し替える。
+    /// 移動・視点は InputAction のまま Application へ届く（スマホの移動スティックは On-Screen Controls が InputAction を焚く）。
+    /// スマホの画面ドラッグによる視点操作は、TouchLookInputSource が外部入力スロット ExternalInputs.TouchLook 経由で届ける。
     /// </summary>
     public sealed class StandardPlayerInputRouteInitializer : PlayerInputRouteInitializerBase
     {
@@ -26,32 +21,31 @@ namespace Kizami.Initialization
         [Tooltip("有効にする操作用 UI のルート。使わないビルドモードの枠は空にする。")]
         private BuildModeSelector<GameObject> _controlUiRoot = new();
 
-        protected override void ConnectInputSources(IBlackBoard blackBoard, IInputState inputState)
+        protected override void ConnectInputSources(IBlackBoard blackBoard)
         {
-            if (!TryGetBuildMode(blackBoard, out var buildMode)) return;
+            if (!blackBoard.TryGetGameState<AppBoard, IBuildModeState>(out var buildModeState, this)) return;
 
-            SetUpTouchLook(_touchLookSource.Select(buildMode), inputState);
+            var buildMode = buildModeState.BuildMode;
+            SetUpTouchLook(_touchLookSource.Select(buildMode), blackBoard);
             ActivateControlUi(_controlUiRoot.Select(buildMode));
         }
 
         /// <summary>
-        /// 画面ドラッグの入力ソースを、視点操作の外部入力スロットへ繋ぐ。指定が無ければ何もしない。
+        /// 画面ドラッグの入力ソースを、視点操作の外部入力スロットへ繋ぐ。
         /// </summary>
-        /// <param name="touchLookSource">画面ドラッグの入力ソース。無ければ null</param>
-        /// <param name="inputState">入力の読み取り面</param>
-        private void SetUpTouchLook(TouchLookInputSource touchLookSource, IInputState inputState)
+        /// <param name="touchLookSource">画面ドラッグの入力ソース。使わないビルドモードでは null</param>
+        /// <param name="blackBoard">入力ソースが State を取得する取得元</param>
+        private void SetUpTouchLook(TouchLookInputSource touchLookSource, IBlackBoard blackBoard)
         {
             if (touchLookSource == null) return;
 
-            touchLookSource.SetInput(inputState, InputController);
-            touchLookSource.Bind(ActionMaps.Player, ExternalInputs.TouchLook);
-            touchLookSource.Initialize();
+            touchLookSource.Initialize(blackBoard, InputController, ActionMaps.Player, ExternalInputs.TouchLook);
         }
 
         /// <summary>
-        /// 操作用 UI を有効にする。指定が無ければ何もしない。
+        /// 操作用 UI を有効にする。
         /// </summary>
-        /// <param name="controlUiRoot">有効にする UI のルート。無ければ null</param>
+        /// <param name="controlUiRoot">有効にする UI のルート。使わないビルドモードでは null</param>
         private void ActivateControlUi(GameObject controlUiRoot)
         {
             if (controlUiRoot == null) return;

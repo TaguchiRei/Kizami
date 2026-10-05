@@ -22,7 +22,8 @@
 |---|---|
 | スキル `state-centrism-architecture` | 5 層の役割、State の Single Writer、Getter インターフェース、参照ルール |
 | スキル `usefultoolkit` | BlackBoard・State・Initializer・Compositor・SceneGroup・入力の書き方と、エディタのメニュー |
-| [VoxelOverview.md](../Voxel/VoxelOverview.md) | ボクセルを扱う区間（5, 6, 10, 12）で読む |
+| [VoxelOverview.md](../Voxel/VoxelOverview.md) | ボクセルを扱う区間（5, 6, 10, 12, 14）で読む |
+| [EnemyCrowdDiscussion.md](EnemyCrowdDiscussion.md) | 敵の群衆 AI・崩落による撃破・エネルギーの議論の記録。敵を扱う区間（4A〜4C、5、9）で読む |
 | UsefulToolkit.MeshCut の README | `Library/PackageCache/com.rei.usefultoolkit.meshcut@*/README.md`。切断を扱う区間（2, 3, 4）で読む |
 
 ### 手本にする既存コード
@@ -30,9 +31,9 @@
 | 役割 | 手本 | 要点 |
 |---|---|---|
 | State | [PlayerMovementState](../../Code/Scripts/BlackBoardLayer/Player/Runtime/PlayerMovementState.cs)、[BuildModeState](../../Code/Scripts/BlackBoardLayer/CoreSystem/ApplicationManagement/BuildModeState.cs) | シーンごとの値は `SceneStateBase`、常駐の値は `GameStateBase`。読み取り用に `IStateGetter` を継承したインターフェースを用意し、`[RegisterBoard(typeof(〜Board))]` を付ける |
-| Service（Application） | [PlayerMovementService](../../Code/Scripts/Application/Player/PlayerMovementService.cs) | 具象の State を持つのはこのクラスだけ（Single Writer）。Board へはインターフェースで登録する。入力は `IInputState.RegisterInput` で購読する |
-| Adapter（EngineAdapter） | [PlayerMovementAdapterBase](../../Code/Scripts/EngineAdapterLayer/Player/PlayerMovementAdapterBase.cs) | `InitializableMonoBehaviour` を継承し、`SubscribeStateRegister` で State の登録を待ち受けて読む |
-| Initializer | [PlayerInitializer](../../Code/Scripts/Initialization/Player/PlayerInitializer.cs)、[ApplicationManagementInitializer](../../Code/Scripts/Initialization/ApplicationManagement/ApplicationManagementInitializer.cs) | Service と Adapter を生成して配線するだけで、ロジックは持たない |
+| Service（Application） | [PlayerMovementService](../../Code/Scripts/Application/Player/PlayerMovementService.cs) | 具象の State を持つのはこのクラスだけ（Single Writer）。Board へはインターフェースで登録する。`IBlackBoard` をコンストラクタ（DI で先に生成するものは `Initialize`）で受け取り、必要な Board と State は自分で取り出す（[BlackBoardExtensions](../../Code/Scripts/BlackBoardLayer/BlackBoardExtensions.cs)）。入力は `IInputState.RegisterInput` で購読する |
+| Adapter（EngineAdapter） | [PlayerMovementAdapterBase](../../Code/Scripts/EngineAdapterLayer/Player/PlayerMovementAdapterBase.cs) | `InitializableMonoBehaviour` を継承し、`Initialize(IBlackBoard ...)` で受け取った BlackBoard から State を取り出して読む。読む State を登録する Service より後に初期化する。取り出せなかったときは基底の `Initialize()` を呼ばず、Update を止めたままにする |
+| Initializer | [PlayerInitializer](../../Code/Scripts/Initialization/Player/PlayerInitializer.cs)、[ApplicationManagementInitializer](../../Code/Scripts/Initialization/ApplicationManagement/ApplicationManagementInitializer.cs) | Service と Adapter を生成して配線するだけで、ロジックは持たない。State を集めて渡すことはせず、`IBlackBoard` をそのまま渡す |
 | DI で操作面を渡す | [GameSceneInitializer](../../Code/Scripts/Initialization/Scene/GameSceneInitializer.cs)、[PlayerInputRouteInitializerBase](../../Code/Scripts/Initialization/Input/PlayerInputRouteInitializerBase.cs) | 渡す側は `TryRegisterContent`、受け取る側は `IInjectable<T>` |
 | Application と EngineAdapter の直接配線 | [PlayerInitializer](../../Code/Scripts/Initialization/Player/PlayerInitializer.cs) が `PlayerMovementService.Step` を `PlayerMovementAdapterBase.Initialize` に渡す | 毎ステップ変わる値（視線の向き、経過時間）は引数で渡し、結果（打ち出し速度）は戻り値で返す。続く状態は State で渡す |
 | EngineAdapter が持つ State | [PlayerContactState](../../Code/Scripts/BlackBoardLayer/Player/Runtime/PlayerContactState.cs) | 物理の判定の結果を、物理ステップの後に Adapter が書く。チラつきは Adapter 側で抑える |
@@ -60,7 +61,9 @@
 | 項目 | 内容 |
 |---|---|
 | 敵のメッシュ切断 | UsefulToolkit.MeshCut を使う。マルチスレッド、Burst、Job で並列化と非同期化が済んでいる |
-| 敵の構成 | SkinnedMeshRenderer は使わない。パーツごとに分かれた軽量なメッシュ（全パーツを合わせて 2000 ポリゴン未満）を、パーツ単位で FK / IK で動かす |
+| 敵の構成 | SkinnedMeshRenderer は使わない。パーツごとに分かれた軽量なメッシュを、パーツ単位で FK / IK で動かす。仮モデルは四足歩行の AttakkerEnemy（`Assets/Art/Models/AttakkerEnemy.fbx`。三角形は合計 4308、実測）。1000 体をまとめて描画したときの負荷は区間4B で計測する |
+| 敵の群衆（2026-10-05 決定） | 同時に約 1000 体。敵の状態は構造体の NativeArray に持って Burst の Job で更新し、まとめて描画する。切断できる GameObject の体は、近くの敵にだけプールから貸す。経路は距離マップ、移動は簡易物理で、NavMesh は使わない見込み。方式は区間4B の計測用の試作で確定する。詳細は Notion「敵の群衆 AI」「敵の大量描画と体の貸し出し」 |
+| 敵の体のプール（2026-10-05 決定） | 敵の体は最初にすべてプールに用意し、実行中は Instantiate しない |
 | ボスの構成 | 敵と同じく、パーツ単位で FK / IK で動かす。ボクセルのスキニングは使わない |
 | ボクセル | ボクセルでできた物はメッシュ切断できない。切断攻撃に破壊属性を付けたときは、切断方向と同じ向きに、厚みゼロの平面でボクセルを分ける（`VoxelPiece.Slice` で実装済み） |
 | スローモード | `Time.timeScale` を下げて世界全体を遅くする。プレイヤーのアニメーション、視点操作、UI は等速。倍率の正本は TimeScale State で、`Time.timeScale` と `Time.fixedDeltaTime` に反映するのは EngineAdapterLayer の 1 か所だけ。詳細は Notion「時間制御（スローモード）」 |
@@ -76,53 +79,62 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-05 時点。区間3の完了後）
+## 3. 現状（2026-10-06 時点。区間3の完了後のリファクタリングまで）
 
 | 分野 | 状態 |
 |---|---|
 | 基盤（5 層の asmdef、UsefulToolkit、常駐シーン、入力の経路、ビルドモード） | あり |
 | TimeScale（State、Service、Adapter、デバッグの操作と表示） | あり（区間0）。インゲームから出るときの倍率のリセットは未実装 |
 | シーン遷移（`GameSceneController` / `GameSceneInitializer`） | 配線済み（区間0）。常駐シーンから再生すると、アウトゲーム → インゲームの順に入れる。場面シーン（`OutGame` / `InGame`）は `Assets/Level/Scenes/Master/`、SceneGroup アセット（`OutGameGroup` / `InGameGroup`。場面ごとに 1 つ）は `Assets/Level/Data/SceneGroup/`。アウトゲームからインゲームへは、仮のボタン（`OutGameStartInitializer`）で入る |
-| プレイヤーの移動（歩行、ダッシュ、ジャンプ、壁走り、短距離ワープ）と視点操作（Cinemachine） | あり（区間1）。PC とスマホが共用するリグ（`PlayerRoot`、`CameraPivot`、`Main Camera`）は `InGame` にある。遊びのルールに関わる値は `PlayerParameterData`、ダッシュの操作方式は `AccessibilitySettingState`。開発用の `PlayerMoveTest` は区間1で削除した |
+| プレイヤーの移動（歩行、ダッシュ、ジャンプ、壁走り、短距離ワープ）と視点操作（Cinemachine） | あり（区間1）。PC とスマホが共用するリグ（`PlayerRoot`、`CameraPivot`、`Main Camera`）は `InGame` にある。遊びのルールに関わる値は `PlayerParameterData`、操作の設定（ダッシュの操作方式、切断面の回転角度、視点の感度）は `OperationSettingState`（`AppBoard`、常駐）。開発用の `PlayerMoveTest` は区間1で削除した |
 | プレイヤーの HP と被ダメージ | あり（区間1）。`PlayerHealthService.ApplyDamage`（ワープ中は軽減率を適用）と `IPlayerHealthState`。今呼んでいるのはデバッグ操作（`PlayerDebugInitializer`）だけ |
 | 入力（PC の Player マップ） | 区間0で、切断面の回転、ワープ、スローモード、投擲、ランチャー、スキル 1〜3 のアクションを追加済み。Smartphone と VRControllers のマップは未対応 |
-| VR の操作系 | `VrPlayerMovementAdapter` / `VrPlayerInputRouteInitializer` はあるが、どのシーンにも置かれていない |
+| スマホの視点操作 | `TouchLookInputSource` は、タッチ領域の UI に付けて EventSystem のドラッグ通知で動く形になっている。どのシーンにも置かれておらず、InGame には EventSystem もない |
+| VR の操作系 | `VrPlayerMovementAdapter` / `VrPlayerInputRouteInitializer` はあるが、どのシーンにも置かれていない。スティックのデッドゾーンは InputActionAsset の `StickDeadzone` が受け持つ。外部入力スロット `VrMove` / `VrLook` は、Player マップのどの Action にもバインドされていない |
 | ボクセル（ベイク、削る・盛る、塊の分離、平面での切り分け、融解） | あり。ゲームのルールとはまだつながっていない |
 | 近接切断（メッシュ切断） | あり（区間2）。左クリックで、ホイールで回した角度の刃（カメラの位置を通る）で範囲内を切る。InGame に `MeshCut System` と、切断を実行する `MeleeCutAdapter`、切れるダミーの敵がある。攻撃は `PlayerInitializer` が `MeleeCutService` から `MeleeCutAdapter.Swing` へ直接配線している（区間2の `PlayerEventBoard` / `MeleeCutEvents` は区間3で廃止）。切断の結果（元の対象とかけら）は、`PlayerInitializer` が `FragmentOrbAdapter.ReceiveCutResults` へ直接渡している |
 | かけら・オーブ・チャージ | あり（区間3）。InGame の `FragmentOrbAdapter` が、かけらを管理し、ぶつかるか寿命が来たらオーブにして、`Camera.main` へ引き寄せて吸収する。吸収した数は `ChargeService.AddFragments` で `IChargeState`（`PlayerBoard`、InGame の SceneState）に加える。消費の操作はまだない（区間6）。かけらは Shard レイヤーで、Shard 同士は衝突しない。テスト用のステージは `TestWalls/StageBounds` で囲ってある |
+| 画面空間の擬似破壊シェーダー（`Shader/Boolean`、`Shader/Embedded`） | コードは残してあるが、Renderer Feature は Renderer から外してある。ボクセルとメッシュ切断で足りているため使っていない |
 | 敵、スキル、スローモード、装甲、クリア判定、HUD | なし |
 | 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブは旧構成のもの。`Test/InGame.unity` は Build Settings から外してあり、`BuildScenes.InGame` は新しい `Master/InGame` を指す |
 
 ## 4. 進め方
 
 - 先に「刻む → 溜まる → スキルで壊す → クリア」のコアループを、仮の見た目で一周させる。そのあとで、スロー、装甲、敵の種類、強化型スキルを足していく
-- ダメージタイプは「攻撃が持つデータ」として持ち、攻撃と対象ごとの判定を 1 か所の窓口にまとめる（区間5）
+- ダメージタイプは「攻撃が持つデータ」として持つ。攻撃と対象ごとの判定をどこに置くかは、区間5の着手時に決める（2026-10-05 変更）。計画当初は Application の 1 か所の窓口にまとめる予定だったが、区間2〜4では、切断・オーブ化・敵のルールを、利用者が 1 つであることから EngineAdapter に置いている。また、切断は EngineAdapter の `MeleeCutAdapter` が MeshCut を直接呼んでおり、Application の asmdef は MeshCut を参照していない
 - 各区間は 0 章の「区間の進め方」の順で進める
 - 区間計画書は、着手する直前にその時点の実装に合わせて見直す
 
 ## 5. 区間一覧
 
-| # | 区間 | 主な内容 | 前提 | 目安の時期 | 状態 | 計画書 |
-|---|---|---|---|---|---|---|
-| 0 | 基盤整備 | TimeScale State と Adapter、シーン遷移の配線とインゲームのシーン、PC 用入力マップ、デバッグ手段 | ― | 2026/09/29〜10/05 | 完了（10/04） | [Section00](Sections/Section00_Foundation.md) |
-| 1 | プレイヤー移動の完成 | ダッシュ、ジャンプ、壁走り、短距離ワープ、HP と被ダメージの窓口 | 0 | 10/06〜10/12 | 完了（10/04） | [Section01](Sections/Section01_PlayerMovement.md) |
-| 2 | 近接切断 | MeshCut による剣の切断、ホイールで切断面を回転、切断面のプレビュー、切断の結果（かけらと元の対象）の取得 | 0 | 10/13〜10/19 | 完了（10/05） | [Section02](Sections/Section02_MeleeCut.md) |
-| 3 | かけら・オーブ・チャージ | かけらの通知、かけらのオーブ化と自動吸収、チャージの State、ステージ外周コライダー、オーブのプール | 2 | 10/20〜10/26 | 完了（10/05） | [Section03](Sections/Section03_Charge.md) |
-| 4 | 雑魚敵と出現 | ステージシーンの分離、パーツ分割メッシュと FK / IK の敵、湧き場所、同時存在数の上限、簡単な AI、HP 0 で失敗 | 1, 3 | 10/27〜11/08 | 未着手 | [Section04](Sections/Section04_Enemy.md) |
-| A | マイルストーンA | 「切って溜める」までがつながる | | 11/08 | | |
-| 5 | ダメージ基盤・破壊対象・クリア判定 | ダメージタイプと対象ごとの判定、ボクセルの破壊対象、重要パーツの体積割合、マップオブジェクト、クリア判定 | 4 | 11/09〜11/22 | 未着手 | [Section05](Sections/Section05_DestructionTarget.md) |
-| 6 | スキル基盤・攻撃型スキル | スキルの定義データ、装備枠 3、チャージ消費、攻撃型スキル 2 種 | 3, 5 | 11/23〜11/29 | 未着手 | [Section06](Sections/Section06_Skill.md) |
-| B | マイルストーンB | 1 ステージが最初から最後まで遊べる | | 11/29 | | |
-| 7 | スローモード・つかみ・投擲・ランチャー | TimeScale の倍率操作、ゲージ消費、切断回数の上限、かけらのつかみ・投擲・ランチャー、粉砕ダメージ | 3, 5 | 11/30〜12/13 | 未着手 | [Section07](Sections/Section07_SlowMode.md) |
-| 8 | 装甲 | 耐久値、粉砕タイプで一撃破壊、破壊ダメージの遮断、破壊対象の防御パーツ | 5, 7 | 12/14〜12/20 | 未着手 | [Section08](Sections/Section08_Armor.md) |
-| 9 | 敵のバリエーション | シールドを持つ敵、吸収型の敵 | 4, 8 | 12/21〜2027/01/03 | 未着手 | [Section09](Sections/Section09_EnemyVariation.md) |
-| 10 | 強化型スキル | ダメージタイプの付与などの強化型スキル、破壊属性の切断でボクセルを平面で切り分ける | 6, 7 | 2027/01/04〜01/17 | 未着手 | [Section10](Sections/Section10_EnhanceSkill.md) |
-| 11 | ステージ制・インゲームの流れ・HUD | ステージデータ、HUD、リザルト、アウトゲームとの受け渡し、ポーズ | B | 01/18〜01/31 | 未着手 | [Section11](Sections/Section11_StageFlow.md) |
-| 12 | ボス | ボクセルのパーツを FK / IK で動かすボス、最終ステージ | 5, 8 | 02/01〜02/21 | 未着手 | [Section12](Sections/Section12_Boss.md) |
-| 13 | 仕上げ | 負荷調整、エフェクト、SE、パラメータ調整 | 全部 | 02/22〜03/07 | 未着手 | [Section13](Sections/Section13_Polish.md) |
+表は実施する順に並べている。区間の番号は識別用。2026-10-05 に、区間4を 4A・4B・4C に分け、区間14を追加し、区間9を区間11のあとへ移した。
 
-- 目安の時期は、期限を決める前に、区間0の開始日から区間ごとの作業量で割り当てたもの
-- 8〜10 と 11 は順番を入れ替えられる
+| # | 区間 | 主な内容 | 前提 | 目安の時期 | 最速の推定 | 状態 | 計画書 |
+|---|---|---|---|---|---|---|---|
+| 0 | 基盤整備 | TimeScale State と Adapter、シーン遷移の配線とインゲームのシーン、PC 用入力マップ、デバッグ手段 | ― | 2026/09/29〜10/05 | ― | 完了（10/04） | [Section00](Sections/Section00_Foundation.md) |
+| 1 | プレイヤー移動の完成 | ダッシュ、ジャンプ、壁走り、短距離ワープ、HP と被ダメージの窓口 | 0 | 10/06〜10/12 | ― | 完了（10/04） | [Section01](Sections/Section01_PlayerMovement.md) |
+| 2 | 近接切断 | MeshCut による剣の切断、ホイールで切断面を回転、切断面のプレビュー、切断の結果（かけらと元の対象）の取得 | 0 | 10/13〜10/19 | ― | 完了（10/05） | [Section02](Sections/Section02_MeleeCut.md) |
+| 3 | かけら・オーブ・チャージ | かけらの通知、かけらのオーブ化と自動吸収、チャージの State、ステージ外周コライダー、オーブのプール | 2 | 10/20〜10/26 | ― | 完了（10/05） | [Section03](Sections/Section03_Charge.md) |
+| 4A | 敵の体と切断 | ステージシーンの分離、生成システム、敵の体のプール、部位の役割（核・攻撃・移動）、接続部側が残る切断、部位ごとの切断回数の上限、核でだけ倒れる、ディゾルブ、仮の移動 | 1, 3 | 2026/10/06〜10/19 | 10/06〜10/09 | 計画済み | [Section04](Sections/Section04_Enemy.md) |
+| 4B | 群衆 AI の試作と計測 | 敵の状態（NativeArray）、まとめて描画、距離マップの試作、体の貸し出しと返却、貸した体の切断、計測と方式の決定 | 4A | 10/20〜11/02 | 10/10〜10/13 | 未着手 | [Section04B](Sections/Section04B_CrowdPrototype.md) |
+| 4C | 群衆 AI の本実装 | 距離マップ（2 段）、グループとアンカー、隊列、交戦と合流、簡易物理、戻れない敵、脚の IK | 4B | 11/03〜11/16 | 10/14〜10/17 | 未着手 | [Section04C](Sections/Section04C_CrowdAI.md) |
+| A | マイルストーンA | 群れで迫る敵を切って溜める | | 11/16 | 10/17 | | |
+| 5 | ダメージ基盤・破壊対象・崩落・クリア判定 | ダメージタイプと対象ごとの判定、ボクセルの破壊対象、重要パーツの体積割合、マップオブジェクト、崩落による撃破、エネルギーの演出（VFX Graph）、クリア判定 | 4C | 11/17〜12/07 | 10/18〜10/23 | 未着手 | [Section05](Sections/Section05_DestructionTarget.md) |
+| 6 | スキル基盤・攻撃型スキル | スキルの定義データ、装備枠 3、チャージ消費、攻撃型スキル 2 種 | 3, 5 | 12/08〜12/14 | 10/24〜10/25 | 未着手 | [Section06](Sections/Section06_Skill.md) |
+| B | マイルストーンB | 1 ステージが最初から最後まで遊べる | | 12/14 | 10/25 | | |
+| 7 | スローモード・つかみ・投擲・ランチャー | TimeScale の倍率操作、ゲージ消費、スロー中の切断回数の上限、かけらのつかみ・投擲・ランチャー、粉砕ダメージ | 3, 5 | 12/15〜12/28 | 10/26〜10/29 | 未着手 | [Section07](Sections/Section07_SlowMode.md) |
+| 8 | 装甲 | 耐久値、粉砕タイプで一撃破壊、破壊ダメージの遮断、破壊対象の防御パーツ | 5, 7 | 12/29〜2027/01/04 | 10/30〜10/31 | 未着手 | [Section08](Sections/Section08_Armor.md) |
+| 10 | 強化型スキル・回復 | ダメージタイプの付与などの強化型スキル、破壊属性の切断でボクセルを平面で切り分ける、HP を回復するスキル | 6, 7 | 01/05〜01/18 | 11/01〜11/04 | 未着手 | [Section10](Sections/Section10_EnhanceSkill.md) |
+| 11 | ステージ制・インゲームの流れ・HUD | ステージデータ、HUD、失敗（HP 0）、リザルトとスコア、リトライ、アウトゲームとの受け渡し、ポーズ | B | 01/19〜02/01 | 11/05〜11/08 | 未着手 | [Section11](Sections/Section11_StageFlow.md) |
+| 9 | 敵の固有アクション・バリエーション | 雑魚 3 種の固有のアクション（攻撃する敵の攻撃、シールドを持つ敵、吸収型の敵）、特殊部位（敵を生み出す部位など） | 4C, 8, 11 | 02/02〜02/15 | 11/09〜11/12 | 未着手 | [Section09](Sections/Section09_EnemyVariation.md) |
+| 14 | ステージ制作 | チュートリアル、一般戦闘、ギミック戦闘の 3 ステージ（破壊対象、マップ、生成システム、ギミック、チュートリアルの案内） | 9, 11 | 02/16〜03/01 | 11/13〜11/16 | 未着手 | [Section14](Sections/Section14_StageContent.md) |
+| 12 | ボス | ボクセルのパーツをパーツ単位で動かすボス、ボス戦のステージ | 5, 8, 11 | 03/02〜03/22 | 11/17〜11/22 | 未着手 | [Section12](Sections/Section12_Boss.md) |
+| 13 | 仕上げ | 負荷調整、エフェクト、SE、パラメータ調整 | 全部 | 03/23〜04/05 | 11/23〜11/26 | 未着手 | [Section13](Sections/Section13_Polish.md) |
+
+- 目安の時期（2026-10-05 見直し）は、区間0〜3が予定より約 3 週間早く終わったので、区間4以降を前に詰めたもの。区間4（当初 13 日）は 4A・4B・4C の各 2 週間に分け、区間5は崩落とエネルギーの演出を足したので 3 週間にした。区間14は 2 週間。それ以外の区間の長さは、計画当初の見積もりのまま。この結果、完了の目安は当初の 2027/03/07 より遅い 2027/04/05 になった
+- 最速の推定は、区間0〜3の進み方が続いた場合の値。区間0〜3は、計画では 4 週間（28 日）の作業を、2026/09/29〜10/05 の 7 日で終えた（約 4 倍の速さ）。そこで、区間4以降の各区間の長さを 4 で割り、日単位で切り上げた。この進み方が続くとは限らない（8 章の仮定）
+- 区間9（固有のアクション）は「最後の方に作る」方針（2026-10-05）で、区間11のあとに置いた。敵の攻撃は区間9までないので、それまでは HP のデバッグ操作で失敗を確かめる
+- 8・10 と 11 は順番を入れ替えられる
 
 依存関係
 
@@ -130,18 +142,25 @@
 flowchart LR
     S0[0 基盤] --> S1[1 移動]
     S0 --> S2[2 切断] --> S3[3 チャージ]
-    S1 --> S4[4 雑魚敵]
-    S3 --> S4
-    S4 --> MA((A)) --> S5[5 ダメージ・破壊対象・クリア] --> S6[6 スキル] --> MB((B))
+    S1 --> S4A[4A 敵の体と切断]
+    S3 --> S4A
+    S4A --> S4B[4B 群衆 AI の試作] --> S4C[4C 群衆 AI]
+    S4C --> MA((A)) --> S5[5 ダメージ・破壊対象・崩落・クリア] --> S6[6 スキル] --> MB((B))
     S3 --> S6
     MB --> S11[11 ステージ制・HUD]
     S3 --> S7[7 スロー・投擲]
-    S5 --> S7 --> S8[8 装甲] --> S9[9 敵バリエーション]
-    S6 --> S10[10 強化型スキル]
+    S5 --> S7 --> S8[8 装甲] --> S9[9 固有アクション・バリエーション]
+    S4C --> S9
+    S11 --> S9
+    S6 --> S10[10 強化型スキル・回復]
     S7 --> S10
+    S9 --> S14[14 ステージ制作]
+    S11 --> S14
     S5 --> S12[12 ボス]
     S8 --> S12
-    S12 --> S13[13 仕上げ]
+    S11 --> S12
+    S14 --> S13[13 仕上げ]
+    S12 --> S13
 ```
 
 ## 6. 使う既存機能
@@ -150,15 +169,18 @@ flowchart LR
 |---|---|
 | 敵の切断 | UsefulToolkit.MeshCut（`MultiCutBlade` / `MultiMeshCut` / `CuttableObject` / `MeshDataCache` / `MeshCutObjectPool`）。シーン上では `MeshCut System` の下に `MeshDataCache` / `FragmentPool` / `CutBlade` という名前で置かれる。`MultiCutBlade.ExecuteCut` は切断した対象ごとに `MultiCutResult`（`Original` / `Front` / `Back`）を返す（区間2で拡張）。拡大率は `localScale` で扱うので、切断対象の親に拡大率を持たせない |
 | かけらの上限 | `MeshCutObjectPool` は固定長のリングバッファで、空きがなくなると最も古いかけらを回収して使い回す |
-| 敵の移動 | `com.unity.ai.navigation`（NavMesh。導入済みだが asmdef の参照はまだない） |
-| 敵・オーブの再利用 | `UnityEngine.Pool.ObjectPool<T>`（オーブは区間3の `FragmentOrbAdapter` が使っている） |
+| 敵の移動 | 自作の距離マップと簡易物理（Burst の Job）。`com.unity.ai.navigation`（NavMesh）は導入済みだが、使わない見込み（Notion「敵の群衆 AI」） |
+| 敵の大量描画 | BatchRendererGroup ／ GPU Resident Drawer ／ `Graphics.RenderMeshInstanced`（区間4B で比べる）、`IJobParallelForTransform` |
+| オーブの再利用 | `UnityEngine.Pool.ObjectPool<T>`（区間3の `FragmentOrbAdapter` が使っている） |
+| 敵の体・散らばる部位の再利用 | UsefulToolkit.framework の `RecycleBuffer<T>`（固定長のリングバッファ） |
+| 部位の役割の選択 | UsefulToolkit.framework の `SubclassSelectorAttribute`（`[SerializeReference]` のフィールドにサブクラスを選ぶ表示を付ける） |
 | かけらの接触 | かけらのプレハブに付けた `FragmentContactReporter`（`OnCollisionEnter`）。接触のコールバックは Rigidbody と同じ GameObject のコンポーネントにしか届かない為 |
 | シーン遷移 | `GameSceneController` / `GameSceneInitializer`、SceneGroup アセット（`GameSceneGroupData`） |
 | デバッグ表示 | UsefulToolkit.Debugging の `DebugGUI`（`ObserveVariable` で値を画面に出す。シーンへの配置は `UsefulToolkit/ProgramTools/DebugGUI Setup`）、State の `GetLog()` |
 | ポーズ | 常駐の `PauseBoard` と `IPausable`（UsefulToolkit.ProgramTools。中身はまだほぼない） |
 | プレイヤーの物理 | Rigidbody（補間、ContinuousDynamic）、摩擦ゼロの PhysicsMaterial、`Physics.SphereCast`（接地）、`Physics.OverlapCapsuleNonAlloc` と `Collider.ClosestPoint`（壁） |
 | カメラ | Cinemachine |
-| エフェクト | VFX Graph |
+| エフェクト | VFX Graph（崩落で撃破した敵のエネルギーも、VFX Graph で作る方向。区間5） |
 | 破壊対象・マップ | 既存のボクセル（`VoxelModelLoader` / `VoxelPiece` / `IVoxelShape`） |
 | 破壊属性の切断 | `VoxelPiece.Slice`（厚みゼロの平面で切り分ける） |
 | 破壊スキルの演出 | 既存のボクセルの融解（Thermal / Melt） |
@@ -171,18 +193,38 @@ flowchart LR
 | 1 | ワープ中のダメージ軽減率、各移動パラメータ、壁走りに入る条件 |
 | 2 | 切断判定の方式、攻撃の範囲と間隔、生まれたかけらを受け取る方法 |
 | 3 | かけらの通知の経路、かけらを再度切ったときのチャージの数え方、ゲージの上限、かけらが強制回収されたときの扱い |
-| 4 | 雑魚敵がプレイヤーを攻撃する方法、敵を倒す条件、プレイヤーの HP と回復の有無、敵を MeshCut に登録して使い回す方法 |
-| 5 | 重要パーツの指定方法、本体から分離した塊を破壊済みに数えるか、クリアに必要な割合をどの単位で持つか |
+| 4A | 散らばる部位の見た目（GameObject か VFX Graph か）、接続部の近くとみなす距離、動けなくなる移動部位の数 N、部位の系統ごとの切断回数の上限値、生成情報の中身、仮モデルの FBX の扱い |
+| 4B | 体を貸す距離・返す距離と数、短くなった部位を貸し直すときの戻し方、まとめて描画する方法、格子のマスの大きさ、敵の状態とルールを置く層 |
+| 4C | 1 グループの人数と隊形、交戦に入る・抜ける距離、動けない敵の隊列での扱い、距離マップの半径と頻度、歩き方 |
+| 5 | 重要パーツの指定方法、本体から分離した塊を破壊済みに数えるか、クリアに必要な割合をどの単位で持つか、ダメージの判定を置く層、崩落で撃破になる条件、崩落で撃破した敵 1 体あたりのチャージ量と足すタイミング |
 | 6 | 最初に作る攻撃型スキル、消費量 |
-| 7 | スローの倍率、初回消費と継続消費、切断回数の上限、サウンドのスロー表現 |
+| 7 | スローの倍率、初回消費と継続消費、スロー中の切断回数の上限と、部位ごとの切断回数の上限との関係、サウンドのスロー表現 |
 | 8 | 装甲の作り方（メッシュかボクセルか）、耐久値、遮断の判定方法 |
-| 9 | 各敵のパラメータと攻撃パターン |
-| 10 | 強化型スキルの一覧、平面で切り分ける範囲、切り分けた側の扱い |
-| 11 | ステージ数、ステージごとの失敗条件、ポーズを `timeScale = 0` で実装するか |
+| 10 | 強化型スキルの一覧、平面で切り分ける範囲、切り分けた側の扱い、回復スキルの中身と分類 |
+| 11 | ステージごとの失敗条件、失敗したあとの表示、スコアの計算式と表示項目、リトライの方法（UsefulToolkit にシーンを読み直す経路を足す）、ポーズを `timeScale = 0` で実装するか |
+| 9 | 雑魚 3 種のパラメータと固有のアクション、特殊部位の種類 |
+| 14 | ギミック戦闘ステージのギミック、チュートリアルの進め方、各ステージの破壊対象・マップ・敵の配置 |
 | 12 | ボスの形、行動、重要パーツ |
 | 13 | 目標のフレームレートと、対象の PC スペック |
+
+2026-10-05 に、次の仕様を決めて Notion に反映した（仕様検討リスト「区間4開始時の仕様確定」「区間4の詳細仕様の確定」）。
+
+| 仕様 | 内容 |
+|---|---|
+| 敵の部位 | 部位に役割を持たせる。攻撃部位（壊すと攻撃できない）、移動部位（N 個壊すと移動できない）、核（壊すと一撃で倒せる）、特殊部位（例：敵を生み出す部位。種類を足せるようにしておく） |
+| 部位ごとの切断回数の上限 | 部位の系統（その部位と、そこから生まれたかけら）ごとに、切断できる回数に上限を設ける。敵ごとに数えると、脚だけを切って上限に達し、倒せない敵ができる為（2026-10-05 に「1 体あたり」から変更） |
+| 切られた部位 | 接続部に近い側が体に残り、遠い側がかけらになる。接続部の近くを切ると部位全体が落ちる |
+| 倒れる条件と倒れたとき | 切断では核を壊すまで倒れない（崩落では倒れる）。倒れたとき、切断済みの部分はチャージになり、切っていない部位はディゾルブで消える |
+| 雑魚敵 | 3 種類（攻撃する敵、シールドを持つ敵、吸収型の敵）。固有のアクションは最後の方（区間9）で作る |
+| 敵の出現 | ステージシーンの生成システム（実行中の生成位置、初期生成情報、生成情報）から出す。「基本的に無限に出現する」はやめた |
+| プレイヤーの HP | 回復は基本的にスキルで行い、自然回復はない。ステージは HP 満タンで始まる |
+| スコア | 倒した敵の数、クリアタイム、合計被ダメージなどから計算して表示する。報酬には関わらない |
+| ステージ構成 | 4 ステージ（チュートリアル、一般戦闘、ギミック戦闘、ボス戦） |
 
 ## 8. 仮定として置いている事項（未確認）
 
 - 区間の順番は 5 章のとおり
 - `Assets/Docs/Voxel/Skinning/SkinningPlan.md` には手を付けない
+- 最速の推定は、区間0〜3の速さ（計画の約 4 倍）が続くことを前提にしている。区間0〜3はコードの作業が中心だった。区間12・13・14は、モデル（ボクセルの破壊対象、ボス）とステージの制作、調整の割合が大きいので、同じ速さで進まない可能性がある。区間4B は計測の結果で方式が変わる可能性がある
+- 区間4A・4B・4C、区間5の長さ（2 週間・2 週間・2 週間・3 週間）は、区間を分けたときに仮に置いた値
+- アウトゲーム（スキルの購入、装備、通貨、セーブ）を作る作業は、この計画に含めていない。区間11の受け渡しの相手として扱う

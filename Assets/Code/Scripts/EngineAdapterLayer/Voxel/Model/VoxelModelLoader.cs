@@ -9,12 +9,18 @@ namespace Kizami.EngineAdapter.Voxel
     /// VoxelModelAsset の各パーツを、同じ相対パスにある Transform の VoxelPiece へ読み込む。
     /// VoxelPiece が無ければ追加する。
     /// 読み込むと、読み込み前からこの階層にあった MeshRenderer（元のモデルの見た目）を全て非表示にする。
-    ///
     /// パーツと、パーツから切り離された全てのピースを、モデル単位でまとめて扱える。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelModelLoader : MonoBehaviour
     {
+        private readonly List<VoxelPiece> _parts = new();
+        private readonly List<VoxelPiece> _pieces = new();
+        private readonly ActionChannel<VoxelModelLoader> _loaded = new();
+        private readonly ActionChannel<VoxelShapeChange> _pieceShapeChanged = new();
+        private readonly ActionChannel<VoxelPiece[]> _pieceSplit = new();
+        private readonly ActionChannel<VoxelPiece> _pieceDestroyed = new();
+
         [SerializeField]
         [Tooltip("読み込む事前ベイク済みのモデル")]
         private VoxelModelAsset _model;
@@ -39,12 +45,6 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("Start で読み込むか")]
         private bool _loadOnStart = true;
 
-        private readonly List<VoxelPiece> _parts = new();
-        private readonly List<VoxelPiece> _pieces = new();
-        private readonly ActionChannel<VoxelModelLoader> _loaded = new();
-        private readonly ActionChannel<VoxelShapeChange> _pieceShapeChanged = new();
-        private readonly ActionChannel<VoxelPiece[]> _pieceSplit = new();
-        private readonly ActionChannel<VoxelPiece> _pieceDestroyed = new();
         private MeshRenderer[] _sourceRenderers;
 
         public VoxelQualitySettings Quality => _quality;

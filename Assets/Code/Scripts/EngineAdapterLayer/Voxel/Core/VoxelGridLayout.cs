@@ -4,7 +4,6 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// SDF 格子の寸法・位置・チャンク分割。
-    ///
     /// 格子点（サンプル）は各軸 CellCount + 1 個並び、サンプル s のローカル座標は Origin + s * VoxelSize。
     /// セル c はサンプル c と c + 1 に挟まれた立方体。
     /// チャンクはセルを各軸 ChunkSize 個ずつ区切ったもので、メッシュとコライダーの生成単位。
@@ -15,13 +14,12 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary>
         /// チャンクのメッシュ生成が読むサンプル範囲の、チャンクのセル範囲 [min, max) からのはみ出し量。
         /// SurfaceNetsJob はサンプル [min - 2, max + 2) を読む（隣接セルの頂点に 1、中心差分の法線に 1）。
-        /// SurfaceNetsJob の読み取り範囲を変えたらこの値も合わせること。
-        /// ずれると、編集後に再メッシュ化されず継ぎ目が開くチャンクが出る。
+        /// SurfaceNetsJob の読み取り範囲を変えたらこの値も合わせること。ずれると、編集後に再メッシュ化されず継ぎ目が開くチャンクが出る。
         /// </summary>
-        public const int MeshingReadMargin = 2;
+        public const int MESHING_READ_MARGIN = 2;
 
         /// <summary> 最外周のサンプルに強制する最小の距離（ボクセル数換算） </summary>
-        private const float BoundaryMinVoxels = 0.01f;
+        private const float BOUNDARY_MIN_VOXELS = 0.01f;
 
         public readonly float3 Origin;
         public readonly float VoxelSize;
@@ -29,6 +27,9 @@ namespace Kizami.EngineAdapter.Voxel
         public readonly int3 SampleCount;
         public readonly int ChunkSize;
         public readonly int3 ChunkCount;
+
+        public int SampleTotal => SampleCount.x * SampleCount.y * SampleCount.z;
+        public int ChunkTotal => ChunkCount.x * ChunkCount.y * ChunkCount.z;
 
         public VoxelGridLayout(float3 origin, int3 cellCount, float voxelSize, int chunkSize)
         {
@@ -40,9 +41,6 @@ namespace Kizami.EngineAdapter.Voxel
             ChunkCount = (cellCount + chunkSize - 1) / chunkSize;
         }
 
-        public int SampleTotal => SampleCount.x * SampleCount.y * SampleCount.z;
-        public int ChunkTotal => ChunkCount.x * ChunkCount.y * ChunkCount.z;
-
         /// <summary>
         /// 境界ボックスを覆う格子を作る。境界の外側に 1 ボクセルの余白を付ける。
         /// </summary>
@@ -51,6 +49,11 @@ namespace Kizami.EngineAdapter.Voxel
             var padded = bounds.Expand(voxelSize);
             var cellCount = math.max((int3)math.ceil(padded.Size / voxelSize), 1);
             return new VoxelGridLayout(padded.Min, cellCount, voxelSize, chunkSize);
+        }
+
+        private static int3 FloorDiv(int3 value, int divisor)
+        {
+            return (int3)math.floor((float3)value / divisor);
         }
 
         public int ToSampleIndex(int3 sample)
@@ -92,7 +95,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         public float EnforceBoundary(int3 sample, float distance)
         {
-            return IsBoundarySample(sample) ? math.max(distance, VoxelSize * BoundaryMinVoxels) : distance;
+            return IsBoundarySample(sample) ? math.max(distance, VoxelSize * BOUNDARY_MIN_VOXELS) : distance;
         }
 
         public int ToChunkIndex(int3 chunk)
@@ -158,13 +161,8 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         public void GetChunksAffectedBySamples(int3 sampleMin, int3 sampleMax, out int3 chunkMin, out int3 chunkMax)
         {
-            chunkMin = math.max(FloorDiv(sampleMin - MeshingReadMargin, ChunkSize), 0);
-            chunkMax = math.min(FloorDiv(sampleMax + MeshingReadMargin, ChunkSize), ChunkCount - 1);
-        }
-
-        private static int3 FloorDiv(int3 value, int divisor)
-        {
-            return (int3)math.floor((float3)value / divisor);
+            chunkMin = math.max(FloorDiv(sampleMin - MESHING_READ_MARGIN, ChunkSize), 0);
+            chunkMax = math.min(FloorDiv(sampleMax + MESHING_READ_MARGIN, ChunkSize), ChunkCount - 1);
         }
     }
 }

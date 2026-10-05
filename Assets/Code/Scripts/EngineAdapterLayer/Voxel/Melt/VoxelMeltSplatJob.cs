@@ -7,19 +7,13 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// 1 つの液面チャンクの格子へ、そのチャンクに届く粒ごとの球を滑らかにつないだ距離場を書き込む。
-    ///
     /// 格子を EmptyDistance で埋めた後、粒ごとに近くのサンプルへ球までの距離を smooth-min で合成する。
-    /// 粒の球から Reach より離れたサンプルは書き換えない。
+    /// 書き換えるのは、粒の球から Reach 以内のサンプルだけ。
     /// 同じサンプルを複数の粒が書き換える為、1 チャンクの中は並列にせず 1 スレッドで実行する。
     /// </summary>
     [BurstCompile]
     public struct VoxelMeltSplatJob : IJob
     {
-        [ReadOnly] public NativeArray<VoxelMeltParticle> Particles;
-
-        /// <summary> 液面チャンクごとの、書き込みが届く粒の添字 </summary>
-        [ReadOnly] public NativeParallelMultiHashMap<int3, int> ParticlesByChunk;
-
         /// <summary> 書き込む液面チャンク </summary>
         public int3 ChunkKey;
 
@@ -40,19 +34,20 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 粒から遠いサンプルの距離。書き込む距離の上限でもある </summary>
         public float EmptyDistance;
 
-        public void Execute()
+        [ReadOnly] public NativeArray<VoxelMeltParticle> Particles;
+
+        /// <summary> 液面チャンクごとの、書き込みが届く粒の添字 </summary>
+        [ReadOnly] public NativeParallelMultiHashMap<int3, int> ParticlesByChunk;
+
+        /// <summary>
+        /// 2 つの距離の最小値を、差が blend より小さいところで滑らかにつないだ値。
+        /// </summary>
+        private static float SmoothMin(float a, float b, float blend)
         {
-            for (var i = 0; i < Field.Length; i++)
-            {
-                Field[i] = EmptyDistance;
-            }
+            if (blend <= 0f) return math.min(a, b);
 
-            if (!ParticlesByChunk.TryGetFirstValue(ChunkKey, out var particleIndex, out var iterator)) return;
-
-            do
-            {
-                Splat(Particles[particleIndex]);
-            } while (ParticlesByChunk.TryGetNextValue(out particleIndex, ref iterator));
+            var h = math.max(blend - math.abs(a - b), 0f) / blend;
+            return math.min(a, b) - h * h * blend * 0.25f;
         }
 
         private void Splat(in VoxelMeltParticle particle)
@@ -75,15 +70,19 @@ namespace Kizami.EngineAdapter.Voxel
             }
         }
 
-        /// <summary>
-        /// 2 つの距離の最小値を、差が blend より小さいところで滑らかにつないだ値。
-        /// </summary>
-        private static float SmoothMin(float a, float b, float blend)
+        public void Execute()
         {
-            if (blend <= 0f) return math.min(a, b);
+            for (var i = 0; i < Field.Length; i++)
+            {
+                Field[i] = EmptyDistance;
+            }
 
-            var h = math.max(blend - math.abs(a - b), 0f) / blend;
-            return math.min(a, b) - h * h * blend * 0.25f;
+            if (!ParticlesByChunk.TryGetFirstValue(ChunkKey, out var particleIndex, out var iterator)) return;
+
+            do
+            {
+                Splat(Particles[particleIndex]);
+            } while (ParticlesByChunk.TryGetNextValue(out particleIndex, ref iterator));
         }
     }
 
@@ -94,8 +93,6 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelMeltChunkKeysJob : IJob
     {
-        [ReadOnly] public NativeArray<VoxelMeltParticle> Particles;
-
         /// <summary> 液面チャンク 1 つの一辺の長さ（ワールド空間, m） </summary>
         public float ChunkWorldSize;
 
@@ -107,6 +104,8 @@ namespace Kizami.EngineAdapter.Voxel
 
         public NativeParallelMultiHashMap<int3, int> ParticlesByChunk;
         public NativeParallelHashSet<int3> MovingChunks;
+
+        [ReadOnly] public NativeArray<VoxelMeltParticle> Particles;
 
         public void Execute()
         {

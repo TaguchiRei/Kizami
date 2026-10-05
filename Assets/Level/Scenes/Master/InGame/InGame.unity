@@ -1132,11 +1132,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f6013b464040f142b2b5e09cab90d4e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.PlayerInitializer
-  movementAdapter: {fileID: 903436367}
-  cameraAdapter: {fileID: 1307013807}
-  meleeCutPreviewAdapter: {fileID: 1379823854}
-  meleeCutAdapter: {fileID: 1212232924}
-  fragmentOrbAdapter: {fileID: 1946405260}
+  _movementAdapter: {fileID: 903436367}
+  _cameraAdapter: {fileID: 1307013807}
+  _meleeCutPreviewAdapter: {fileID: 1379823854}
+  _meleeCutAdapter: {fileID: 1212232924}
+  _fragmentOrbAdapter: {fileID: 1946405260}
   _parameters: {fileID: 11400000, guid: 5eaa04ccd161b0e4ead04945cd3a481b, type: 2}
 --- !u!136 &903436363
 CapsuleCollider:

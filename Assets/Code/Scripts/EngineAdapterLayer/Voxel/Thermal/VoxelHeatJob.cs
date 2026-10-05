@@ -7,18 +7,14 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// サンプル範囲内の、形状の内側にあるサンプルを加熱し、融解させる。
-    ///
     /// 距離は max(距離, (温度 - 1) × 切り詰め距離) へ引き上げる。温度が融点（1）以上なら外側になる。
     /// 温度が 0 のときの引き上げ先は -切り詰め距離 で、切り詰め済みの距離はそれ以上小さくならない為、距離は変わらない。
-    ///
     /// 具象の形状ごとに [assembly: RegisterGenericJobType(typeof(VoxelHeatJob&lt;形状&gt;))] で登録すること。
     /// 登録が無いと Burst でコンパイルされない。
     /// </summary>
     [BurstCompile]
     public struct VoxelHeatJob<TShape> : IJobParallelFor where TShape : struct, IVoxelShape
     {
-        [NativeDisableParallelForRestriction] public NativeArray<float> Samples;
-        [NativeDisableParallelForRestriction] public NativeArray<float> Temperatures;
         public VoxelGridLayout Layout;
         public TShape Shape;
 
@@ -34,6 +30,9 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> 内側から外側になったサンプルの添字の出力先。容量は範囲のサンプル数以上にしておくこと </summary>
         public NativeList<int>.ParallelWriter MeltedSamples;
+
+        [NativeDisableParallelForRestriction] public NativeArray<float> Samples;
+        [NativeDisableParallelForRestriction] public NativeArray<float> Temperatures;
 
         /// <summary> 距離を書き換えたサンプルがあれば、0 番目に 1 を書く </summary>
         [NativeDisableParallelForRestriction] public NativeArray<int> Changed;

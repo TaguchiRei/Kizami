@@ -6,23 +6,23 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// 凸包コライダーの頂点を選ぶ方向。球面上にほぼ均等に並ぶ Count 方向（フィボナッチ格子）。
+    /// 凸包コライダーの頂点を選ぶ方向。球面上にほぼ均等に並ぶ COUNT 方向（フィボナッチ格子）。
     /// </summary>
     public static class VoxelHullDirections
     {
         /// <summary>
         /// 方向の数。凸包の頂点数はこの数以下になる。
-        /// 凸包の面数が PhysX の上限 255 を超えると警告が出て部分的な凸包になる為、頂点数を抑えている。
+        /// 凸包の面数が PhysX の上限 255 を超えると警告が出て部分的な凸包になるので、頂点数を抑えている。
         /// </summary>
-        public const int Count = 64;
+        public const int COUNT = 64;
 
-        private const float GoldenAngle = 2.39996323f;
+        private const float GOLDEN_ANGLE = 2.39996323f;
 
         public static float3 Get(int index)
         {
-            var y = 1f - (index + 0.5f) * 2f / Count;
+            var y = 1f - (index + 0.5f) * 2f / COUNT;
             var radius = math.sqrt(1f - y * y);
-            var phi = index * GoldenAngle;
+            var phi = index * GOLDEN_ANGLE;
             return new float3(math.cos(phi) * radius, y, math.sin(phi) * radius);
         }
     }
@@ -40,7 +40,7 @@ namespace Kizami.EngineAdapter.Voxel
         {
             if (Points.Length == 0) return;
 
-            for (var d = 0; d < VoxelHullDirections.Count; d++)
+            for (var d = 0; d < VoxelHullDirections.COUNT; d++)
             {
                 var direction = VoxelHullDirections.Get(d);
                 var best = Points[0];

@@ -3,24 +3,20 @@ using UnityEngine;
 using UnityEngine.XR;
 using UsefulToolkit.Attributes;
 using UsefulToolkit.BlackBoard.BlackBoard;
-using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 using UsefulToolkit.Utility;
 
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// アプリケーション全体に関わるステート（BuildModeState / AccessibilitySettingState）を生成する Initializer。常駐シーンへ置く。
-    ///
-    /// BuildModeState は入力経路とプレイヤーリグの選択が参照する為、
-    /// 入力システム (InputInitializerBase) より先に初期化する必要がある。
+    /// アプリケーション全体に関わるステート（BuildModeState）を生成する Initializer。常駐シーンへ置く。
+    /// BuildModeState は入力経路とプレイヤーリグの選択が参照するので、入力システム（InputInitializerBase）より先に初期化する。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.InitializerEarly - 10)]
     public sealed class ApplicationManagementInitializer : InitializerBase
     {
         /// <summary>
-        /// エディタ上でビルドモードを固定する為の指定。Auto なら実行環境から判定する。
-        /// ビルドには影響しない。
+        /// エディタ上でビルドモードを固定するための指定。Auto なら実行環境から判定する。ビルドには影響しない。
         /// </summary>
         private enum BuildModeOverride
         {
@@ -34,22 +30,12 @@ namespace Kizami.Initialization
         [Tooltip("エディタ上でのみ有効。Auto 以外にすると実行環境の判定を無視して固定する。")]
         private BuildModeOverride _editorBuildModeOverride = BuildModeOverride.Auto;
 
-        [SerializeField]
-        [Tooltip("ダッシュ入力の受け付け方の初期値")]
-        private SprintInputMode _sprintInputMode = SprintInputMode.Hold;
-
-        [SerializeField, Range(1f, 90f)]
-        [Tooltip("切断面の回転入力（ホイール 1 段）1 回あたりの回転角度（度）の初期値")]
-        private float _cutRotateStepAngle = 15f;
-
         private BuildModeState _buildModeState;
-        private AccessibilitySettingState _accessibilitySettingState;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
-            if (!blackBoard.TryGetStateBoard<AppBoard>(out var appBoard))
+            if (!blackBoard.TryGetBoard<AppBoard>(out var appBoard, this))
             {
-                UsefulLogger.LogError("AppBoard が未登録の為、BuildModeState を登録できません。", this);
                 base.Initialize(blackBoard);
                 return;
             }
@@ -57,11 +43,6 @@ namespace Kizami.Initialization
             _buildModeState = new BuildModeState();
             _buildModeState.SetBuildMode(ResolveBuildMode());
             appBoard.RegisterGameState<IBuildModeState>(_buildModeState);
-
-            _accessibilitySettingState = new AccessibilitySettingState();
-            _accessibilitySettingState.SetSprintInputMode(_sprintInputMode);
-            _accessibilitySettingState.SetCutRotateStepAngle(_cutRotateStepAngle);
-            appBoard.RegisterGameState<IAccessibilitySettingState>(_accessibilitySettingState);
 
             base.Initialize(blackBoard);
         }

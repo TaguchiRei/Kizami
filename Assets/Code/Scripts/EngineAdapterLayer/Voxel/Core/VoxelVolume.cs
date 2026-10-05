@@ -8,7 +8,6 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// 格子点ごとに SDF（表面までの符号付き距離。負が内側）と温度を持つボクセルデータ。
-    ///
     /// 距離は ±TruncationDistance に切り詰めて保持する。
     /// 格子の最外周のサンプルは常に正（外側）に保たれる為、生成されるメッシュは必ず閉じる。
     /// 温度は常温を 0、融点を 1 とした値で、初めて加熱されたときに配列を確保する。
@@ -18,9 +17,9 @@ namespace Kizami.EngineAdapter.Voxel
     {
         /// <summary>
         /// 切り詰め距離のボクセル数換算。
-        /// 法線の計算が表面の前後 2 サンプルの距離の差を使う為、2 より大きく保つこと。
+        /// 法線の計算が表面の前後 2 サンプルの距離の差を使うので、2 より大きく保つこと。
         /// </summary>
-        public const float TruncationVoxels = 4f;
+        public const float TRUNCATION_VOXELS = 4f;
 
         private readonly bool[] _isHotChunk;
         private readonly List<int> _hotChunks = new();
@@ -28,7 +27,7 @@ namespace Kizami.EngineAdapter.Voxel
         private NativeArray<float> _temperatures;
 
         public VoxelGridLayout Layout { get; }
-        public float TruncationDistance => Layout.VoxelSize * TruncationVoxels;
+        public float TruncationDistance => Layout.VoxelSize * TRUNCATION_VOXELS;
         public bool IsCreated => _samples.IsCreated;
 
         /// <summary> 温度の配列を確保済みか </summary>
@@ -38,6 +37,9 @@ namespace Kizami.EngineAdapter.Voxel
         public bool HasHotChunks => _hotChunks.Count > 0;
 
         internal NativeArray<float> Samples => _samples;
+
+        /// <summary> 格子のローカル空間での範囲（最外周のサンプルを含む） </summary>
+        public VoxelBounds LocalBounds => new(Layout.ToLocalPosition(int3.zero), Layout.ToLocalPosition(Layout.SampleCount - 1));
 
         /// <summary>
         /// 全サンプルを外側（+切り詰め距離）で埋めた空のボリュームを作る。
@@ -65,9 +67,6 @@ namespace Kizami.EngineAdapter.Voxel
             _isHotChunk = new bool[layout.ChunkTotal];
             _samples = samples;
         }
-
-        /// <summary> 格子のローカル空間での範囲（最外周のサンプルを含む） </summary>
-        public VoxelBounds LocalBounds => new(Layout.ToLocalPosition(int3.zero), Layout.ToLocalPosition(Layout.SampleCount - 1));
 
         /// <summary>
         /// 同じ格子・同じ距離・同じ温度を持つ複製を作る。冷却の対象のチャンクも引き継ぐ。
@@ -277,7 +276,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary>
         /// 内側のサンプルを 6 近傍でつながった塊に分ける。
         /// </summary>
-        /// <param name="labels">サンプルごとの塊の番号の出力先。長さは Layout.SampleTotal。外側は VoxelComponentLabelJob.OutsideLabel</param>
+        /// <param name="labels">サンプルごとの塊の番号の出力先。長さは Layout.SampleTotal。外側は VoxelComponentLabelJob.OUTSIDE_LABEL</param>
         /// <param name="components">塊の一覧の出力先。添字が塊の番号と一致する</param>
         public void LabelComponents(NativeArray<int> labels, NativeList<VoxelComponent> components)
         {
@@ -379,7 +378,6 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// サンプルを、格子を各軸 coarseness 個ずつに区切った区画ごとにまとめ、位置と温度の平均を求める。
-        /// 温度の配列が無ければ何もしない。
         /// </summary>
         /// <param name="sampleIndices">まとめるサンプルの添字</param>
         /// <param name="coarseness">1 つの区画の、各軸のサンプル数</param>
@@ -397,12 +395,6 @@ namespace Kizami.EngineAdapter.Voxel
                 Coarseness = math.max(coarseness, 1),
                 Groups = groups
             }.Schedule().Complete();
-        }
-
-        public void Dispose()
-        {
-            if (_samples.IsCreated) _samples.Dispose();
-            if (_temperatures.IsCreated) _temperatures.Dispose();
         }
 
         /// <summary>
@@ -434,6 +426,12 @@ namespace Kizami.EngineAdapter.Voxel
                 _isHotChunk[chunkIndex] = true;
                 _hotChunks.Add(chunkIndex);
             }
+        }
+
+        public void Dispose()
+        {
+            if (_samples.IsCreated) _samples.Dispose();
+            if (_temperatures.IsCreated) _temperatures.Dispose();
         }
 
     }

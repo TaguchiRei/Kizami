@@ -50,13 +50,13 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelParticleDensityJob : IJob
     {
-        [ReadOnly] public NativeArray<VoxelMeltParticle> Particles;
-
         /// <summary> 格子の間隔（ワールド空間, m） </summary>
         public float CellSize;
 
         /// <summary> 格子点ごとの、配られた体積（ワールド空間, m³）の出力先 </summary>
         public NativeParallelHashMap<int3, float> Density;
+
+        [ReadOnly] public NativeArray<VoxelMeltParticle> Particles;
 
         public void Execute()
         {
@@ -79,7 +79,6 @@ namespace Kizami.EngineAdapter.Voxel
 
     /// <summary>
     /// 粒が密集している所で、密度が下がる向きへ粒の速度を足し、粒を押し広げる。
-    ///
     /// 位置を直接動かすと面をすり抜けうる為、速度だけを変え、移動と当たり判定は次のフレームの処理に任せる。
     /// 押すのは、このフレームの当たり判定で面に触れた粒だけで、向きは水平に限る。
     /// 空中の粒を押すと落ちている列が飛び散り、上向きに押すと打ち上がって空中で冷える為。
@@ -89,7 +88,6 @@ namespace Kizami.EngineAdapter.Voxel
     public struct VoxelParticleSpreadJob : IJobParallelFor
     {
         public NativeArray<VoxelMeltParticle> Particles;
-        [ReadOnly] public NativeParallelHashMap<int3, float> Density;
 
         /// <summary> 格子の間隔（ワールド空間, m） </summary>
         public float CellSize;
@@ -103,24 +101,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 同じ位置に重なった粒を散らす向きを決める乱数の種 </summary>
         public uint Seed;
 
-        public void Execute(int index)
-        {
-            var particle = Particles[index];
-            if (particle.IsFrozen || !particle.IsTouching) return;
-
-            var cellVolume = CellSize * CellSize * CellSize;
-            var fill = VoxelParticleDensity.Sample(Density, particle.Position, CellSize) / cellVolume;
-            var excess = fill - RestFill;
-            if (excess <= 0f) return;
-
-            var direction = ComputeDirection(particle.Position, index);
-            var targetSpeed = SpreadSpeed * math.min(excess, 1f);
-            var speedAlong = math.dot(particle.Velocity, direction);
-            if (speedAlong >= targetSpeed) return;
-
-            particle.Velocity += direction * (targetSpeed - speedAlong);
-            Particles[index] = particle;
-        }
+        [ReadOnly] public NativeParallelHashMap<int3, float> Density;
 
         /// <summary>
         /// 密度が下がる向きを、水平に限って求める。
@@ -145,6 +126,25 @@ namespace Kizami.EngineAdapter.Voxel
             var random = Random.CreateFromIndex(Seed ^ (uint)index);
             var horizontal = random.NextFloat2Direction();
             return new float3(horizontal.x, 0f, horizontal.y);
+        }
+
+        public void Execute(int index)
+        {
+            var particle = Particles[index];
+            if (particle.IsFrozen || !particle.IsTouching) return;
+
+            var cellVolume = CellSize * CellSize * CellSize;
+            var fill = VoxelParticleDensity.Sample(Density, particle.Position, CellSize) / cellVolume;
+            var excess = fill - RestFill;
+            if (excess <= 0f) return;
+
+            var direction = ComputeDirection(particle.Position, index);
+            var targetSpeed = SpreadSpeed * math.min(excess, 1f);
+            var speedAlong = math.dot(particle.Velocity, direction);
+            if (speedAlong >= targetSpeed) return;
+
+            particle.Velocity += direction * (targetSpeed - speedAlong);
+            Particles[index] = particle;
         }
     }
 }

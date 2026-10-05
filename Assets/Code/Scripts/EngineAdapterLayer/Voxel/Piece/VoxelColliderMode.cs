@@ -1,7 +1,7 @@
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// VoxelObject の当たり判定の作り方。
+    /// VoxelPiece の当たり判定の作り方。
     /// </summary>
     public enum VoxelColliderMode
     {

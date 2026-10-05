@@ -1,24 +1,21 @@
 using System;
 using Kizami.BlackBoard;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// プレイヤーの移動と視点を Transform / Rigidbody へ反映する Abstractor の基底。
-    /// 視点操作も移動の一種として同じコンポーネントが受け持つ。
-    ///
-    /// 水平移動の反映と、触れている物（PlayerContactState）の判定・書き込みは操作系によらず共通なのでここに置き、
-    /// 視点入力をどう回転へ変換するか（何度回すか、上下を使うか、時間で積分するか）だけを
-    /// 派生＝操作系ごとの実装が決める。
-    /// PlayerContactState の具象インスタンスはこのクラスだけが保持する（Single Writer）。
+    /// プレイヤーの移動と視点を Transform / Rigidbody へ反映する Adapter の基底。
+    /// 水平移動の反映と、触れている物（PlayerContactState）の判定・書き込みはここで行い、
+    /// 視点入力を回転へ変換する方法だけを操作系ごとの派生が決める。
     /// </summary>
     public abstract class PlayerMovementAdapterBase : InitializableMonoBehaviour
     {
-        [SerializeField] private Rigidbody _rigidbody;
-        [SerializeField] private CapsuleCollider _collider;
+        private readonly PlayerContactState _contactState = new();
+        private readonly Collider[] _wallOverlapBuffer = new Collider[8];
 
         [Header("接地の判定")]
         [SerializeField, Min(0f)]
@@ -38,21 +35,11 @@ namespace Kizami.EngineAdapter
         [Tooltip("壁走りのできる壁として判定するレイヤー")]
         private LayerMask _wallLayers;
 
-        [Header("水平速度の補間レート（地上・壁走り中） (m/s^2)")]
-        [SerializeField, Min(0f)] private float _acceleration = 40f;
-        [SerializeField, Min(0f)] private float _deceleration = 60f;
-
-        [Header("水平速度の補間レート（空中） (m/s^2)")]
-        [SerializeField, Min(0f)] private float _airAcceleration = 10f;
-        [SerializeField, Min(0f)] private float _airDeceleration = 10f;
-
-        private readonly PlayerContactState _contactState = new();
-        private readonly Collider[] _wallOverlapBuffer = new Collider[8];
+        [SerializeField] private Rigidbody _rigidbody;
+        [SerializeField] private CapsuleCollider _collider;
 
         private IPlayerMovementState _movementState;
         private Func<Vector3, float, Vector3?> _step;
-        private IDisposable _movementStateWaiter;
-        private IDisposable _lookStateWaiter;
         private IDisposable _lookSubscription;
         private Vector3 _horizontalVelocity;
 
@@ -63,45 +50,25 @@ namespace Kizami.EngineAdapter
         private PlayerMoveMode _lastAppliedMode;
 
         /// <summary>
-        /// PlayerInitializer から呼ばれる。State の登録順に依存しないよう待受で拾う。
+        /// PlayerInitializer から呼ばれる。PlayerMovementState と PlayerLookState の登録より後に呼ぶこと。
         /// </summary>
-        /// <param name="playerBoard">移動・視点ステートの取得元</param>
+        /// <param name="blackBoard">PlayerContactState の登録先と、移動・視点ステートの取得元</param>
         /// <param name="step">FixedUpdate ごとに視線の向きと経過時間を渡して呼び、打ち出し速度を受け取る処理（PlayerMovementService.Step）</param>
-        public void Initialize(PlayerBoard playerBoard, Func<Vector3, float, Vector3?> step)
+        public void Initialize(IBlackBoard blackBoard, Func<Vector3, float, Vector3?> step)
         {
+            if (_rigidbody == null || _collider == null)
+            {
+                UsefulLogger.LogError("Rigidbody または CapsuleCollider が設定されていません。", this);
+                return;
+            }
+
+            if (!blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this) ||
+                !blackBoard.TryGetSceneState<PlayerBoard, IPlayerMovementState>(out _movementState, this) ||
+                !blackBoard.TryGetSceneState<PlayerBoard, IPlayerLookState>(out var lookState, this)) return;
+
             _step = step;
-
             playerBoard.RegisterSceneState<IPlayerContactState>(_contactState, gameObject.scene.buildIndex);
-
-            _movementStateWaiter = playerBoard.SubscribeStateRegister<IPlayerMovementState>(
-                () =>
-                {
-                    if (playerBoard.TryGetSceneState<IPlayerMovementState>(out var state, out _))
-                    {
-                        _movementState = state;
-                    }
-                },
-                invokeIfRegistered: true);
-
-            _lookStateWaiter = playerBoard.SubscribeStateRegister<IPlayerLookState>(
-                () =>
-                {
-                    if (!playerBoard.TryGetSceneState<IPlayerLookState>(out var state, out _)) return;
-
-                    _lookSubscription?.Dispose();
-                    _lookSubscription = state.RegisterOnLookInputChanged(OnLookInputChanged);
-                },
-                invokeIfRegistered: true);
-
-            if (_rigidbody == null)
-            {
-                UsefulLogger.LogError("Rigidbody が設定されていません。", this);
-            }
-
-            if (_collider == null)
-            {
-                UsefulLogger.LogError("CapsuleCollider が設定されていません。", this);
-            }
+            _lookSubscription = lookState.RegisterOnLookInputChanged(OnLookInputChanged);
 
             // 派生の検証を通す為、base ではなく仮想メソッド側を呼ぶ
             Initialize();
@@ -118,28 +85,34 @@ namespace Kizami.EngineAdapter
         /// </summary>
         protected virtual Vector3 GetViewDirection() => transform.forward;
 
+        protected virtual void OnDestroy()
+        {
+            _lookSubscription?.Dispose();
+        }
+
+        [Header("水平速度の補間レート（地上・壁走り中） (m/s^2)")]
+        [SerializeField, Min(0f)] private float _acceleration = 40f;
+        [SerializeField, Min(0f)] private float _deceleration = 60f;
+
+        [Header("水平速度の補間レート（空中） (m/s^2)")]
+        [SerializeField, Min(0f)] private float _airAcceleration = 10f;
+        [SerializeField, Min(0f)] private float _airDeceleration = 10f;
+
         /// <summary>
         /// 1 ステップ分の処理を次の順で行う。
         /// 1. 直前の物理ステップの結果から触れている物を判定し、PlayerContactState に書き込む
         /// 2. 視線の向きと経過時間を渡して PlayerMovementService.Step を呼び、打ち出し速度を受け取る
         /// 3. 移動モードに応じて重力を切り替え、目標速度（PlayerMovementState.TargetVelocity の水平成分）へ向けて
         ///    水平速度を緩やかに補間し、Rigidbody に反映する
-        /// Step が触れている物を読む為、1 は 2 より先に行う必要がある。
-        /// 打ち出し速度があれば、Y 軸方向の速度をその Y 成分で置き換え、水平成分が 0 でなければ水平速度もそれで置き換える。
-        /// 打ち出し速度がなければ、壁走り中とワープが終わったステップでは Y 軸方向の速度を 0 にし、
-        /// それ以外は Rigidbody の現在値（重力等）をそのまま通す。
-        /// ワープ中は補間せず、目標速度（Y 成分を含む）をそのまま Rigidbody に設定する。
-        /// ワープが終わったステップでは、水平速度をワープを始める直前の値に戻してから補間する。
+        /// Step が触れている物を読むので、1 は 2 より先に行う。
+        /// ワープ中は目標速度（Y 成分を含む）をそのまま Rigidbody に設定し、
+        /// ワープが終わったステップでは水平速度をワープを始める直前の値に戻してから補間する。
         /// </summary>
         private void FixedUpdate()
         {
-            if (_rigidbody == null || _collider == null) return;
-
             UpdateContacts();
 
             var launchVelocity = _step?.Invoke(GetViewDirection(), Time.fixedDeltaTime);
-
-            if (_movementState == null) return;
 
             var mode = _movementState.Mode;
             var previousMode = _lastAppliedMode;
@@ -227,12 +200,12 @@ namespace Kizami.EngineAdapter
         private bool IsGrounded(Vector3 bottomSphereCenter, float radius)
         {
             // SphereCast は開始時点で重なっているコライダーを検出しない。
-            // 落下中に 1 ステップで地面へめり込んでも取りこぼさないよう、球をカプセルより SkinWidth だけ小さくし、
-            // 下側の球の中心から半径分だけ上を起点にして飛ばす（半径 + SkinWidth までのめり込みを許容する）
-            const float SkinWidth = 0.05f;
-            var castRadius = radius - SkinWidth;
+            // 落下中に 1 ステップで地面へめり込んでも取りこぼさないよう、球をカプセルより SKIN_WIDTH だけ小さくし、
+            // 下側の球の中心から半径分だけ上を起点にして飛ばす（半径 + SKIN_WIDTH までのめり込みを許容する）
+            const float SKIN_WIDTH = 0.05f;
+            var castRadius = radius - SKIN_WIDTH;
             var castOrigin = bottomSphereCenter + Vector3.up * radius;
-            var castDistance = radius + SkinWidth + _groundCheckDistance;
+            var castDistance = radius + SKIN_WIDTH + _groundCheckDistance;
 
             return Physics.SphereCast(castOrigin, castRadius, Vector3.down, out _, castDistance,
                 _groundLayers, QueryTriggerInteraction.Ignore);
@@ -268,13 +241,6 @@ namespace Kizami.EngineAdapter
             }
 
             return wallNormal != Vector3.zero;
-        }
-
-        protected virtual void OnDestroy()
-        {
-            _lookSubscription?.Dispose();
-            _lookStateWaiter?.Dispose();
-            _movementStateWaiter?.Dispose();
         }
     }
 }

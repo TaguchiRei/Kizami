@@ -6,10 +6,8 @@ Shader "Hidden/ScreenSpaceEmbedded/Mask"
     //         Subtractee の裏側より奥まで削れていたら完全に貫通させる
     // Pass 3: ステンシルのマークをクリア（Ref 0）
     //
-    // 注意（reversed-Z）: プラットフォームによって depth の 0/1 の向きが逆になります
-    // (D3D/Metal/Vulkan は reversed-Z、OpenGL は non-reversed が一般的)。
-    // 実機・実環境でエフェクトが反転しているように見えたら、
-    // 各 Pass の ZTest (LEqual<->GEqual) と Pass2 の比較演算子 (<=) を反転させてください。
+    // TODO: Pass2 の比較 (<=) と完全貫通の 1.0、SSEmbedded_Composite の d >= 1.0 は生のデプスを non-reversed-Z 前提で扱っており、
+    //       reversed-Z のプラットフォーム（D3D/Metal/Vulkan）では反転する
     SubShader
     {
         Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" }
@@ -94,9 +92,10 @@ Shader "Hidden/ScreenSpaceEmbedded/Mask"
             {
                 float2 uv = i.screenPos.xy / i.screenPos.w;
                 float subtracteeBack  = SAMPLE_TEXTURE2D(_SubtracteeBackDepth, sampler_SubtracteeBackDepth, uv).r;
-                float subtractorDepth = i.positionHCS.z / i.positionHCS.w;
+                // フラグメントのSV_POSITION.zはw除算済みのウィンドウ空間デプスなので、ここで .w で割ってはいけない
+                float subtractorDepth = i.positionHCS.z;
 
-                // Subtractee の裏側より手前にしか削れていない場合は何もしない
+                // Subtractee の裏側より奥まで削れたピクセルだけを貫通させる
                 if (subtractorDepth <= subtracteeBack) discard;
 
                 FragOut o;
