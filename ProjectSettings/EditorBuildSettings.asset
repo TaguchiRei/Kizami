@@ -14,6 +14,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Level/Scenes/Master/InGame/InGame.unity
     guid: 18976aa85a0625e4a8f37ba97e84a697
+  - enabled: 1
+    path: Assets/Level/Scenes/Stage/TestStage/TestStage.unity
+    guid: 2b0523fa01c08bf439e000c32904c665
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: edfbb3cacf0b2034987abf17624ed979, type: 2}
