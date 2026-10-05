@@ -44,7 +44,7 @@ flowchart TD
 
 ポイント：
 
-- 距離の計算は Unity の VFX Graph に含まれる [GPU ベイカーをそのまま使っている](../../../Code/Scripts/EngineAdapterLayer/Voxel/Editor/Bake/VoxelModelBaker.cs)<sup>[L120](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Editor/Bake/VoxelModelBaker.cs#L120)</sup>（自前実装ではない）
+- 距離の計算は Unity の VFX Graph に含まれる [GPU ベイカーをそのまま使っている](../../../Code/Scripts/EngineAdapterLayer/Voxel/Editor/Bake/VoxelModelBaker.cs)<sup>[L118](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Editor/Bake/VoxelModelBaker.cs#L118)</sup>（自前実装ではない）
 - **パーツごとにベイクした場合**、各パーツは「元のモデル階層の中のどの Transform か」を相対パスで覚えておく。読み込み時はこのパスで同じ場所の Transform を探す
 - 距離は ±最大距離（既定 0.3）を [16bit 整数の全範囲に割り当てて圧縮する](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelSdfEncoding.cs)<sup>[L13](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelSdfEncoding.cs#L13)</sup>。これより遠い値は丸められる
 - 解像度には上限（384）がある。GPU ベイカーは総ボクセル数が一定を超えると例外を投げるため
@@ -72,7 +72,7 @@ flowchart TD
 モデルのルートにモデル読み込み役のコンポーネントを付け、ベイク済みアセットと品質設定を指定する。
 既定では Start で自動的に読み込む。
 
-> この役割は [`VoxelModelLoader`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L16](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L16)</sup> クラスが担っている。
+> この役割は [`VoxelModelLoader`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L15](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L15)</sup> クラスが担っている。
 
 ### 処理の流れ
 
@@ -109,7 +109,7 @@ sequenceDiagram
 - [元の見た目は非表示にするだけで、削除はしない](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L217](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L217)</sup>
 - 全チャンクをダーティにするので、表示は数フレームかけて出そろう（1フレームの作り直し上限に従う）
 
-> 読み込みは [`VoxelModelLoader.Load`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L179](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L179)</sup>、パーツ側の受け取りは [`VoxelPiece.LoadSdf`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L237](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L237)</sup> メソッドで行っている。
+> 読み込みは [`VoxelModelLoader.Load`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L179](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L179)</sup>、パーツ側の受け取りは [`VoxelPiece.LoadSdf`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L256](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L256)</sup> メソッドで行っている。
 
 ## 4. モデル単位でのまとめ役
 
@@ -141,4 +141,4 @@ flowchart TD
 
 読み込み直した場合、既に切り離された破片はそのまま残る。
 
-> これらは [`VoxelModelLoader`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L16](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L16)</sup> の [`RegisterOnLoaded`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L142](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L142)</sup> / [`RegisterOnPieceShapeChanged`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L151](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L151)</sup> / [`RegisterOnPieceSplit`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L161](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L161)</sup> / [`RegisterOnPieceDestroyed`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L170](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L170)</sup> メソッドで登録する。
+> これらは [`VoxelModelLoader`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L15](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L15)</sup> の [`RegisterOnLoaded`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L142](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L142)</sup> / [`RegisterOnPieceShapeChanged`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L151](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L151)</sup> / [`RegisterOnPieceSplit`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L161](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L161)</sup> / [`RegisterOnPieceDestroyed`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs)<sup>[L170](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs#L170)</sup> メソッドで登録する。

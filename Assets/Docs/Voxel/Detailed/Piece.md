@@ -14,7 +14,7 @@
 
 ボクセル空間はこの物体のローカル空間と同じで、物体の拡大率は均一である前提。
 
-> この役割は [`VoxelPiece`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L26](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L26)</sup> クラスが担っている。
+> この役割は [`VoxelPiece`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L22](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L22)</sup> クラスが担っている。
 
 ## 2. 状態の移り変わり
 
@@ -32,7 +32,7 @@ stateDiagram-v2
     待機 --> [*]: 破棄（落下して消えた場合も含む）
 ```
 
-ポイントは、**編集の指示を受けた時点では距離の書き換えだけを行い、[重い後処理はフレームの最後（LateUpdate）にまとめて1回だけ行う](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L561](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L561)</sup>** こと。
+ポイントは、**編集の指示を受けた時点では距離の書き換えだけを行い、[重い後処理はフレームの最後（LateUpdate）にまとめて1回だけ行う](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L580](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L580)</sup>** こと。
 1フレームで何回削られても、体積の計測や分離判定は1回で済む。
 
 ## 3. 編集を受けたときの流れ
@@ -59,7 +59,7 @@ sequenceDiagram
 
 盛る（足す）だけでは物体が分かれることはないので、分離の判定は削ったときにだけ行う。
 
-> この処理は [`VoxelPiece.ApplyEdit`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L260](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L260)</sup> メソッドで行っている。
+> この処理は [`VoxelPiece.ApplyEdit`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L279](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L279)</sup> メソッドで行っている。
 
 ## 4. フレームの最後にまとめて行うこと
 
@@ -89,11 +89,11 @@ flowchart TD
 - 分離の通知は、新しいピースのメッシュとコライダーが **できあがった後** に出る
 - 平面での切り分け（6 節）で切り離したピースも、同じ分離の通知にまとめて出る
 
-> この処理は [`VoxelPiece.LateUpdate`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L561](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L561)</sup> で行っている。
+> この処理は [`VoxelPiece.LateUpdate`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L580](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L580)</sup> で行っている。
 
 ## 5. 体積の計測と分離
 
-[内側のサンプルを塊に分け、そのサンプル数から体積を求める](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L632](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L632)</sup>（体積 ＝ 内側サンプル数 × ボクセル1つの体積）。
+[内側のサンプルを塊に分け、そのサンプル数から体積を求める](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L651](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L651)</sup>（体積 ＝ 内側サンプル数 × ボクセル1つの体積）。
 
 ```mermaid
 flowchart TD
@@ -117,7 +117,7 @@ flowchart TD
 - 小さすぎる塊（既定 8 サンプル未満）は、別の物体にせず消す。細かいゴミが大量に物体化するのを防ぐ
 - 「最初の体積」は最初の計測時に一度だけ記録され、以降は「今の体積 / 最初の体積」で残り具合が分かる
 
-> この処理は [`VoxelPiece.Measure`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L632](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L632)</sup> メソッドで行っている。
+> この処理は [`VoxelPiece.Measure`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L651](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L651)</sup> メソッドで行っている。
 
 ### 新しいピースの生成
 
@@ -139,12 +139,12 @@ sequenceDiagram
     end
 ```
 
-Rigidbody より **先に** [凸包コライダーを作るのは](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L752](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L752)</sup>、Rigidbody が追加された時点の形状から重心と慣性を計算させるため（順番を逆にすると重心がずれる）。
+Rigidbody より **先に** [凸包コライダーを作るのは](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L771](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L771)</sup>、Rigidbody が追加された時点の形状から重心と慣性を計算させるため（順番を逆にすると重心がずれる）。
 
 切り離されたピースも同じ仕組みで動くので、さらに削れば孫ピースが生まれる。
 切り離されたピースは一定の高さ（既定 Y = -20）より下に落ちると自動的に破棄される。
 
-> この処理は [`VoxelPiece.SpawnPiece`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L752](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L752)</sup> メソッドで行っている。
+> この処理は [`VoxelPiece.SpawnPiece`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L771](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L771)</sup> メソッドで行っている。
 
 ## 6. 平面での切り分け（スライス）
 
@@ -165,7 +165,7 @@ flowchart TD
     I --> J[新しいピースを<br/>分離通知の待ちに加える]
 ```
 
-- 片側を削る処理は、ふつうの「引く」編集と同じもの。平面の片側は、[片面を平面に重ねた大きな箱](../../../Code/Scripts/EngineAdapterLayer/Voxel/Shapes/BoxShape.cs)<sup>[L38](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Shapes/BoxShape.cs#L38)</sup>で表している（[Core.md](Core.md) の「形状について」を参照）
+- 片側を削る処理は、ふつうの「引く」編集と同じもの。平面の片側は、[片面を平面に重ねた大きな箱](../../../Code/Scripts/EngineAdapterLayer/Voxel/Shapes/BoxShape.cs)<sup>[L51](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Shapes/BoxShape.cs#L51)</sup>で表している（[Core.md](Core.md) の「形状について」を参照）
 - 内側サンプルが多い側が自分に残る（削ったときの分離と同じ規則）。固定の壁を切ると、小さい側が Rigidbody 付きで落ちる
 - 自分と複製を入れ替えられるのは、**複製が元と同じ格子を持つ** から。チャンクのオブジェクトをそのまま使い回している為、複製の範囲を元と違うものにすると入れ替えた後のメッシュが壊れる
 - 自分の側がさらにいくつかの塊に分かれた場合（例：U 字形を横に切った）は、次の LateUpdate の分離判定で切り離される。複製の側は、切り分けたその場で塊ごとに分けている
@@ -176,7 +176,7 @@ flowchart TD
 
 ボリューム全体を複製して全体を削り、両方のメッシュをすぐに作り直すので、大きいピースほど重い（胴体のパーツ 1 つで約 40ms）。
 
-> この処理は [`VoxelPiece.Slice`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L303](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L303)</sup> メソッドで行っている。複製側を塊ごとにピースにするのは [`SpawnComponents`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L695](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L695)</sup>、分離通知への合流は [`MergeSlicePieces`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L728](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L728)</sup> メソッド。
+> この処理は [`VoxelPiece.Slice`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L322](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L322)</sup> メソッドで行っている。複製側を塊ごとにピースにするのは [`SpawnComponents`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L714](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L714)</sup>、分離通知への合流は [`MergeSlicePieces`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L747](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L747)</sup> メソッド。
 
 ## 7. 外部への通知
 
@@ -188,7 +188,7 @@ flowchart TD
 
 モデルから読み込んだピースの場合、これらの通知はモデル読み込み役にも転送され、モデル単位でまとめて受け取れる（[Bake.md](Bake.md) を参照）。
 
-> 通知は [`VoxelPiece.RegisterOnShapeChanged`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L501](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L501)</sup> / [`RegisterOnSplit`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L512](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L512)</sup> / [`RegisterOnDestroyed`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L521](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L521)</sup> メソッドで登録する。通知内容は [`VoxelShapeChange`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelShapeChange.cs)<sup>[L23](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelShapeChange.cs#L23)</sup> 構造体に入っている。
+> 通知は [`VoxelPiece.RegisterOnShapeChanged`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L520](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L520)</sup> / [`RegisterOnSplit`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L531](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L531)</sup> / [`RegisterOnDestroyed`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L540](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L540)</sup> メソッドで登録する。通知内容は [`VoxelShapeChange`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelShapeChange.cs)<sup>[L23](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelShapeChange.cs#L23)</sup> 構造体に入っている。
 
 ## 8. 品質設定
 

@@ -14,7 +14,7 @@
 
 融解システムはシーンに 1 つ置き、融解する全てのピースがそれを共有する。
 
-> この役割は [`VoxelMeltSystem`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs)<sup>[L24](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs#L24)</sup> クラスが担っている。
+> この役割は [`VoxelMeltSystem`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs)<sup>[L17](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs#L17)</sup> クラスが担っている。
 
 ## 2. 粒の一生
 
@@ -54,7 +54,7 @@ flowchart TD
 
 これらはすべて順番につないだジョブとして並列に処理する。
 
-> この流れは [`VoxelMeltSystem`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs)<sup>[L24](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs#L24)</sup> の Update（シミュレーション）と LateUpdate（通知・表示）で行っている。
+> この流れは [`VoxelMeltSystem`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs)<sup>[L17](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs#L17)</sup> の Update（シミュレーション）と LateUpdate（通知・表示）で行っている。
 
 ### 順番に関わる注意
 
@@ -77,19 +77,19 @@ flowchart TD
 溶けた直後はコライダーの作り直しが追いついていない（作り直しは数フレームに分散されるため）。
 距離の格子は溶けた瞬間に更新されているので、これを直接読めば、溶けてできたくぼみにも正しく流れ込む。
 
-> この処理は [`VoxelParticleCollideJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleJobs.cs)<sup>[L160](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleJobs.cs#L160)</sup> で行っている。
+> この処理は [`VoxelParticleCollideJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleJobs.cs)<sup>[L164](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleJobs.cs#L164)</sup> で行っている。
 
 ### 押し広げ
 
 粒同士はぶつからないので、そのままだと同じ場所に重なって山になる。これを防ぐため、次のようにする。
 
 1. 粒の大きさ程度の間隔の格子に、各粒の体積を周囲 8 点へ配る（どこにどれだけ粒が詰まっているかが分かる）
-2. 詰まり具合が基準を超えている粒に、[詰まり具合が下がる向きの速度を足す](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleSpreadJobs.cs)<sup>[L89](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleSpreadJobs.cs#L89)</sup>
+2. 詰まり具合が基準を超えている粒に、[詰まり具合が下がる向きの速度を足す](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleSpreadJobs.cs)<sup>[L88](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleSpreadJobs.cs#L88)</sup>
 
 押すのは **面に触れている粒だけ**、向きは **水平だけ** に限る。空中の粒を押すと落ちている列が飛び散り、上向きに押すと打ち上がって空中で冷えるため。
 位置は直接動かさず、速度だけを変える（位置を動かすと面をすり抜けうるため）。
 
-> この処理は [`VoxelParticleDensityJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleSpreadJobs.cs)<sup>[L51](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleSpreadJobs.cs#L51)</sup> と [`VoxelParticleSpreadJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleSpreadJobs.cs)<sup>[L89](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleSpreadJobs.cs#L89)</sup> で行っている。
+> この処理は [`VoxelParticleDensityJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleSpreadJobs.cs)<sup>[L51](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleSpreadJobs.cs#L51)</sup> と [`VoxelParticleSpreadJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleSpreadJobs.cs)<sup>[L88](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelParticleSpreadJobs.cs#L88)</sup> で行っている。
 
 ## 4. 表示
 
@@ -113,10 +113,10 @@ flowchart LR
 ```
 
 - 固体とは別の、ワールド空間に固定した格子を使う。一辺 16 セルの液面チャンクに区切る
-- 粒ごとに「球までの距離」を書き込み、近い球同士は [smooth-min](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSplatJob.cs)<sup>[L81](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSplatJob.cs#L81)</sup>（最小値を取りつつ境目を丸める）でつないで、液だまりのように見せる
+- 粒ごとに「球までの距離」を書き込み、近い球同士は [smooth-min](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSplatJob.cs)<sup>[L45](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSplatJob.cs#L45)</sup>（最小値を取りつつ境目を丸める）でつないで、液だまりのように見せる
 - 見た目の球は、粒の体積から求めた半径に倍率（既定 1.5）を掛けて大きめにしている。粒同士がつながりやすくなる反面、見た目の体積は実際より増える
 
-作り直すのは、次のいずれかに当たる液面チャンクだけ。[止まった粒しか無いチャンクはメッシュを使い回す](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSurface.cs)<sup>[L107](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSurface.cs#L107)</sup>ので、全部固まれば液面の負荷はほぼ無くなる。
+作り直すのは、次のいずれかに当たる液面チャンクだけ。[止まった粒しか無いチャンクはメッシュを使い回す](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSurface.cs)<sup>[L106](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSurface.cs#L106)</sup>ので、全部固まれば液面の負荷はほぼ無くなる。
 
 - 動いている粒が届くチャンク
 - 前のフレームに動いていた粒が届いていたチャンク（離れた跡を消すため）
@@ -125,7 +125,7 @@ flowchart LR
 
 液面チャンクの格子の余白と、Surface Nets が読む範囲は対になっている。**片方だけ変えるとチャンクの境目で面が開く**（固体の場合と同じ。[Meshing.md](Meshing.md) 参照）。
 
-> 液面の管理は [`VoxelMeltSurface`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSurface.cs)<sup>[L21](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSurface.cs#L21)</sup>、距離の書き込みは [`VoxelMeltSplatJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSplatJob.cs)<sup>[L16](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSplatJob.cs#L16)</sup>、作り直すチャンクの判定は [`VoxelMeltChunkKeysJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSplatJob.cs)<sup>[L95](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSplatJob.cs#L95)</sup> で行っている。
+> 液面の管理は [`VoxelMeltSurface`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSurface.cs)<sup>[L20](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSurface.cs#L20)</sup>、距離の書き込みは [`VoxelMeltSplatJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSplatJob.cs)<sup>[L15](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSplatJob.cs#L15)</sup>、作り直すチャンクの判定は [`VoxelMeltChunkKeysJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSplatJob.cs)<sup>[L94](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSplatJob.cs#L94)</sup> で行っている。
 
 ## 5. 設定
 
