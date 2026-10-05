@@ -3,7 +3,6 @@ using Kizami.BlackBoard;
 using UnityEngine;
 using UsefulToolkit.Attributes;
 using UsefulToolkit.BlackBoard.BlackBoard;
-using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Debugging;
 using UsefulToolkit.Initialization;
 using UsefulToolkit.Utility;
@@ -30,10 +29,8 @@ namespace Kizami.Initialization
         public override void Initialize(IBlackBoard blackBoard)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (!blackBoard.TryGetStateBoard<AppBoard>(out var appBoard) ||
-                !appBoard.TryGetGameState<ITimeScaleState>(out _state))
+            if (!blackBoard.TryGetGameState<AppBoard, ITimeScaleState>(out _state, this))
             {
-                UsefulLogger.LogError("ITimeScaleState が未登録の為、倍率のデバッグ表示を行えません。", this);
                 base.Initialize(blackBoard);
                 return;
             }

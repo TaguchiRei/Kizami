@@ -1,6 +1,7 @@
 using System;
 using Kizami.BlackBoard;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.Initialization;
 
 namespace Kizami.EngineAdapter
@@ -10,24 +11,17 @@ namespace Kizami.EngineAdapter
     /// </summary>
     public abstract class PlayerCameraAdapterBase : InitializableMonoBehaviour
     {
-        private IDisposable _lookStateWaiter;
         private IDisposable _lookSubscription;
 
         /// <summary>
-        /// PlayerInitializer から呼ばれる。State の登録を待ち受けて拾う。
+        /// PlayerInitializer から呼ばれる。PlayerLookState の登録より後に呼ぶこと。
         /// </summary>
-        /// <param name="playerBoard">視点ステートの取得元</param>
-        public void Initialize(PlayerBoard playerBoard)
+        /// <param name="blackBoard">視点ステートの取得元</param>
+        public void Initialize(IBlackBoard blackBoard)
         {
-            _lookStateWaiter = playerBoard.SubscribeStateRegister<IPlayerLookState>(
-                () =>
-                {
-                    if (!playerBoard.TryGetSceneState<IPlayerLookState>(out var state, out _)) return;
+            if (!blackBoard.TryGetSceneState<PlayerBoard, IPlayerLookState>(out var lookState, this)) return;
 
-                    _lookSubscription?.Dispose();
-                    _lookSubscription = state.RegisterOnLookInputChanged(OnLookInputChanged);
-                },
-                invokeIfRegistered: true);
+            _lookSubscription = lookState.RegisterOnLookInputChanged(OnLookInputChanged);
 
             // 派生の検証を通す為、base ではなく仮想メソッド側を呼ぶ
             Initialize();
@@ -42,7 +36,6 @@ namespace Kizami.EngineAdapter
         protected virtual void OnDestroy()
         {
             _lookSubscription?.Dispose();
-            _lookStateWaiter?.Dispose();
         }
     }
 }

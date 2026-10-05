@@ -1,6 +1,7 @@
 using System;
 using Kizami.BlackBoard;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 
@@ -47,8 +48,6 @@ namespace Kizami.EngineAdapter
 
         private IPlayerMovementState _movementState;
         private Func<Vector3, float, Vector3?> _step;
-        private IDisposable _movementStateWaiter;
-        private IDisposable _lookStateWaiter;
         private IDisposable _lookSubscription;
         private Vector3 _horizontalVelocity;
 
@@ -59,45 +58,25 @@ namespace Kizami.EngineAdapter
         private PlayerMoveMode _lastAppliedMode;
 
         /// <summary>
-        /// PlayerInitializer から呼ばれる。State の登録を待ち受けて拾う。
+        /// PlayerInitializer から呼ばれる。PlayerMovementState と PlayerLookState の登録より後に呼ぶこと。
         /// </summary>
-        /// <param name="playerBoard">移動・視点ステートの取得元</param>
+        /// <param name="blackBoard">PlayerContactState の登録先と、移動・視点ステートの取得元</param>
         /// <param name="step">FixedUpdate ごとに視線の向きと経過時間を渡して呼び、打ち出し速度を受け取る処理（PlayerMovementService.Step）</param>
-        public void Initialize(PlayerBoard playerBoard, Func<Vector3, float, Vector3?> step)
+        public void Initialize(IBlackBoard blackBoard, Func<Vector3, float, Vector3?> step)
         {
+            if (_rigidbody == null || _collider == null)
+            {
+                UsefulLogger.LogError("Rigidbody または CapsuleCollider が設定されていません。", this);
+                return;
+            }
+
+            if (!blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this) ||
+                !blackBoard.TryGetSceneState<PlayerBoard, IPlayerMovementState>(out _movementState, this) ||
+                !blackBoard.TryGetSceneState<PlayerBoard, IPlayerLookState>(out var lookState, this)) return;
+
             _step = step;
-
             playerBoard.RegisterSceneState<IPlayerContactState>(_contactState, gameObject.scene.buildIndex);
-
-            _movementStateWaiter = playerBoard.SubscribeStateRegister<IPlayerMovementState>(
-                () =>
-                {
-                    if (playerBoard.TryGetSceneState<IPlayerMovementState>(out var state, out _))
-                    {
-                        _movementState = state;
-                    }
-                },
-                invokeIfRegistered: true);
-
-            _lookStateWaiter = playerBoard.SubscribeStateRegister<IPlayerLookState>(
-                () =>
-                {
-                    if (!playerBoard.TryGetSceneState<IPlayerLookState>(out var state, out _)) return;
-
-                    _lookSubscription?.Dispose();
-                    _lookSubscription = state.RegisterOnLookInputChanged(OnLookInputChanged);
-                },
-                invokeIfRegistered: true);
-
-            if (_rigidbody == null)
-            {
-                UsefulLogger.LogError("Rigidbody が設定されていません。", this);
-            }
-
-            if (_collider == null)
-            {
-                UsefulLogger.LogError("CapsuleCollider が設定されていません。", this);
-            }
+            _lookSubscription = lookState.RegisterOnLookInputChanged(OnLookInputChanged);
 
             // 派生の検証を通す為、base ではなく仮想メソッド側を呼ぶ
             Initialize();
@@ -126,13 +105,9 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void FixedUpdate()
         {
-            if (_rigidbody == null || _collider == null) return;
-
             UpdateContacts();
 
             var launchVelocity = _step?.Invoke(GetViewDirection(), Time.fixedDeltaTime);
-
-            if (_movementState == null) return;
 
             var mode = _movementState.Mode;
             var previousMode = _lastAppliedMode;
@@ -266,8 +241,6 @@ namespace Kizami.EngineAdapter
         protected virtual void OnDestroy()
         {
             _lookSubscription?.Dispose();
-            _lookStateWaiter?.Dispose();
-            _movementStateWaiter?.Dispose();
         }
     }
 }

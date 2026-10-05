@@ -42,25 +42,18 @@ namespace Kizami.Initialization
         public override void Initialize(IBlackBoard blackBoard)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (!blackBoard.TryGetStateBoard<PlayerBoard>(out var playerBoard) ||
-                !playerBoard.TryGetSceneState(out _healthState, out _) ||
-                !playerBoard.TryGetSceneState<IPlayerMovementState>(out var movementState, out _))
+            if (!blackBoard.TryGetSceneState<PlayerBoard, IPlayerHealthState>(out _healthState, this) ||
+                !blackBoard.TryGetSceneState<PlayerBoard, IPlayerMovementState>(out var movementState, this))
             {
-                UsefulLogger.LogError(
-                    "IPlayerHealthState または IPlayerMovementState が未登録の為、プレイヤーのデバッグ操作を行えません。", this);
                 base.Initialize(blackBoard);
                 return;
             }
 
             DebugGUI.ObserveVariable("Player HP", () => $"{_healthState.Current} / {_healthState.Max}");
 
-            if (playerBoard.TryGetSceneState<IChargeState>(out var chargeState, out _))
+            if (blackBoard.TryGetSceneState<PlayerBoard, IChargeState>(out var chargeState, this))
             {
                 DebugGUI.ObserveVariable("Charge", () => $"{chargeState.Current} / {chargeState.Max}");
-            }
-            else
-            {
-                UsefulLogger.LogError("IChargeState が未登録の為、チャージ量を表示できません。", this);
             }
 
             if (_fragmentOrbAdapter != null)

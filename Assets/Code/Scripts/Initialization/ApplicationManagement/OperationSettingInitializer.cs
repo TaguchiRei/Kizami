@@ -3,7 +3,6 @@ using Kizami.BlackBoard;
 using UnityEngine;
 using UsefulToolkit.Attributes;
 using UsefulToolkit.BlackBoard.BlackBoard;
-using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 using UsefulToolkit.Utility;
 
@@ -28,14 +27,7 @@ namespace Kizami.Initialization
 
         public override void Initialize(IBlackBoard blackBoard)
         {
-            if (!blackBoard.TryGetStateBoard<AppBoard>(out var appBoard))
-            {
-                UsefulLogger.LogError("AppBoard が未登録の為、操作設定を登録できません。", this);
-                base.Initialize(blackBoard);
-                return;
-            }
-
-            _settingService = new OperationSettingService(appBoard, _sprintInputMode, _cutRotateStepAngle);
+            _settingService = new OperationSettingService(blackBoard, _sprintInputMode, _cutRotateStepAngle);
 
             base.Initialize(blackBoard);
         }

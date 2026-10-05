@@ -3,7 +3,6 @@ using Kizami.BlackBoard;
 using Kizami.EngineAdapter;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
-using UsefulToolkit.BlackBoard.Input;
 
 namespace Kizami.Initialization
 {
@@ -22,11 +21,12 @@ namespace Kizami.Initialization
         [Tooltip("有効にする操作用 UI のルート。使わないビルドモードの枠は空にする。")]
         private BuildModeSelector<GameObject> _controlUiRoot = new();
 
-        protected override void ConnectInputSources(IBlackBoard blackBoard, IInputState inputState)
+        protected override void ConnectInputSources(IBlackBoard blackBoard)
         {
-            if (!TryGetBuildMode(blackBoard, out var buildMode)) return;
+            if (!blackBoard.TryGetGameState<AppBoard, IBuildModeState>(out var buildModeState, this)) return;
 
-            SetUpTouchLook(_touchLookSource.Select(buildMode), inputState);
+            var buildMode = buildModeState.BuildMode;
+            SetUpTouchLook(_touchLookSource.Select(buildMode), blackBoard);
             ActivateControlUi(_controlUiRoot.Select(buildMode));
         }
 
@@ -34,14 +34,12 @@ namespace Kizami.Initialization
         /// 画面ドラッグの入力ソースを、視点操作の外部入力スロットへ繋ぐ。
         /// </summary>
         /// <param name="touchLookSource">画面ドラッグの入力ソース。使わないビルドモードでは null</param>
-        /// <param name="inputState">入力の読み取り面</param>
-        private void SetUpTouchLook(TouchLookInputSource touchLookSource, IInputState inputState)
+        /// <param name="blackBoard">入力ソースが State を取得する取得元</param>
+        private void SetUpTouchLook(TouchLookInputSource touchLookSource, IBlackBoard blackBoard)
         {
             if (touchLookSource == null) return;
 
-            touchLookSource.SetInput(inputState, InputController);
-            touchLookSource.Bind(ActionMaps.Player, ExternalInputs.TouchLook);
-            touchLookSource.Initialize();
+            touchLookSource.Initialize(blackBoard, InputController, ActionMaps.Player, ExternalInputs.TouchLook);
         }
 
         /// <summary>

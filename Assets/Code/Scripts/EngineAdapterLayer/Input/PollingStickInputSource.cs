@@ -1,7 +1,8 @@
 using System;
+using Kizami.BlackBoard;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Input;
-using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 
 namespace Kizami.EngineAdapter
@@ -30,45 +31,28 @@ namespace Kizami.EngineAdapter
         private bool _isInputActive;
 
         /// <summary>
-        /// 入力の読み出し元と、外部入力の書き込み先を渡す。Initialize より前に呼ぶこと。
+        /// 入力の読み出し元と外部入力の書き込み先、どの (map, action) を読み出してどの外部入力スロットへ書き込むかを渡す。
         /// </summary>
-        /// <param name="inputState">入力の読み取り面</param>
+        /// <param name="blackBoard">入力の読み取り面の取得元</param>
         /// <param name="inputController">入力の操作面</param>
-        public void SetInput(IInputState inputState, IInputController inputController)
-        {
-            _inputState = inputState;
-            _inputController = inputController;
-        }
-
-        /// <summary>
-        /// どの (map, action) を読み出し、どの外部入力スロットへ書き込むかを指定する。
-        /// Initialize より前に呼ぶこと。
-        /// </summary>
         /// <param name="sourceMap">読み出し元の ActionMap</param>
         /// <param name="sourceAction">読み出し元の Action</param>
         /// <param name="destinationMap">書き込みの可否を判定する ActionMap。スロットをバインドした Action が属するもの</param>
         /// <param name="destinationSlot">書き込み先の外部入力スロット</param>
         /// <param name="ignoreVertical">縦方向の入力を捨てるか。VR の視点操作 (左右のみ) では true</param>
-        public void Bind(Enum sourceMap, Enum sourceAction, Enum destinationMap, Enum destinationSlot,
-            bool ignoreVertical = false)
+        public void Initialize(IBlackBoard blackBoard, IInputController inputController, Enum sourceMap,
+            Enum sourceAction, Enum destinationMap, Enum destinationSlot, bool ignoreVertical)
         {
+            if (!blackBoard.TryGetGameState<InputBoard, IInputState>(out _inputState, this)) return;
+
+            _inputController = inputController;
             _sourceMap = sourceMap;
             _sourceAction = sourceAction;
             _destinationMap = destinationMap;
             _destinationSlot = destinationSlot;
             _ignoreVertical = ignoreVertical;
-        }
 
-        public override void Initialize()
-        {
-            base.Initialize();
-
-            if (!IsConfigured())
-            {
-                UsefulLogger.LogError(
-                    "InputState / InputController / Bind が設定されていません。" +
-                    "Initialize() より前に SetInput / Bind を呼んでください。", this);
-            }
+            Initialize();
         }
 
         private void OnDestroy()
@@ -78,8 +62,6 @@ namespace Kizami.EngineAdapter
 
         private void Update()
         {
-            if (!IsConfigured()) return;
-
             if (!_inputState.InputEnabled || !_inputState.IsActionMapActive(_destinationMap))
             {
                 ReleaseIfActive();
@@ -105,16 +87,6 @@ namespace Kizami.EngineAdapter
 
             _isInputActive = true;
             _inputController.WriteExternalInput(_destinationSlot, value);
-        }
-
-        /// <summary>
-        /// SetInput / Bind の内容が全て揃っているか。
-        /// </summary>
-        private bool IsConfigured()
-        {
-            return _inputState != null && _inputController != null &&
-                   _sourceMap != null && _sourceAction != null &&
-                   _destinationMap != null && _destinationSlot != null;
         }
 
         /// <summary>

@@ -1,6 +1,7 @@
 using Kizami.BlackBoard;
 using Kizami.External;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 
 namespace Kizami.Application
 {
@@ -17,16 +18,18 @@ namespace Kizami.Application
         /// <summary>
         /// PlayerHealthState を生成して PlayerBoard へ登録する。Initialize より前のダメージは無視する。
         /// </summary>
-        /// <param name="playerBoard">PlayerHealthState の登録先と、PlayerMovementState の取得元</param>
+        /// <param name="blackBoard">PlayerHealthState の登録先と、PlayerMovementState の取得元</param>
         /// <param name="parameters">最大 HP とワープ中の軽減率</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
-        public void Initialize(PlayerBoard playerBoard, PlayerParameterData parameters, int sceneId)
+        public void Initialize(IBlackBoard blackBoard, PlayerParameterData parameters, int sceneId)
         {
+            if (!blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this)) return;
+
             _state = new PlayerHealthState(parameters.MaxHealth);
             _warpDamageReduction = parameters.WarpDamageReduction;
 
             playerBoard.RegisterSceneState<IPlayerHealthState>(_state, sceneId);
-            playerBoard.TryGetSceneState(out _movementState, out _);
+            blackBoard.TryGetSceneState<PlayerBoard, IPlayerMovementState>(out _movementState, this);
         }
 
         /// <summary>

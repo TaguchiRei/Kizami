@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using Kizami.BlackBoard;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.EnhancedTouch;
 using UnityEngine.UI;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Input;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
@@ -43,40 +45,21 @@ namespace Kizami.EngineAdapter
         private bool _hasWrittenNonZero;
 
         /// <summary>
-        /// 入力を流してよいかの判定に使う読み取り面と、外部入力の書き込み先を渡す。
-        /// Initialize より前に呼ぶこと。
+        /// 入力を流してよいかの判定に使う読み取り面と外部入力の書き込み先、書き込みの可否を判定する ActionMap と書き込み先のスロットを渡す。
         /// </summary>
-        /// <param name="inputState">入力の読み取り面</param>
+        /// <param name="blackBoard">入力の読み取り面の取得元</param>
         /// <param name="inputController">入力の操作面</param>
-        public void SetInput(IInputState inputState, IInputController inputController)
-        {
-            _inputState = inputState;
-            _inputController = inputController;
-        }
-
-        /// <summary>
-        /// 書き込みの可否を判定する ActionMap と、書き込み先の外部入力スロットを指定する。
-        /// Initialize より前に呼ぶこと。
-        /// </summary>
         /// <param name="map">書き込みの可否を判定する ActionMap。スロットをバインドした Action が属するもの</param>
         /// <param name="slot">書き込み先の外部入力スロット</param>
-        public void Bind(Enum map, Enum slot)
+        public void Initialize(IBlackBoard blackBoard, IInputController inputController, Enum map, Enum slot)
         {
+            if (!blackBoard.TryGetGameState<InputBoard, IInputState>(out _inputState, this)) return;
+
+            _inputController = inputController;
             _map = map;
             _slot = slot;
-        }
 
-        public override void Initialize()
-        {
-            base.Initialize();
-
-            if (_inputState == null || _inputController == null || _map == null || _slot == null)
-            {
-                UsefulLogger.LogError(
-                    "InputState / InputController / Bind が設定されていません。" +
-                    "Initialize() より前に SetInput / Bind を呼んでください。", this);
-                return;
-            }
+            Initialize();
 
             if (_rayCaster == null)
             {

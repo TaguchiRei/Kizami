@@ -3,7 +3,6 @@ using UnityEngine;
 using UnityEngine.XR;
 using UsefulToolkit.Attributes;
 using UsefulToolkit.BlackBoard.BlackBoard;
-using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 using UsefulToolkit.Utility;
 
@@ -35,9 +34,8 @@ namespace Kizami.Initialization
 
         public override void Initialize(IBlackBoard blackBoard)
         {
-            if (!blackBoard.TryGetStateBoard<AppBoard>(out var appBoard))
+            if (!blackBoard.TryGetBoard<AppBoard>(out var appBoard, this))
             {
-                UsefulLogger.LogError("AppBoard が未登録の為、BuildModeState を登録できません。", this);
                 base.Initialize(blackBoard);
                 return;
             }

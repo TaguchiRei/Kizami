@@ -1,5 +1,4 @@
 using Kizami.Application;
-using Kizami.BlackBoard;
 using Kizami.EngineAdapter;
 using UnityEngine;
 using UsefulToolkit.Attributes;
@@ -28,18 +27,12 @@ namespace Kizami.Initialization
 
         public override void Initialize(IBlackBoard blackBoard)
         {
-            if (!blackBoard.TryGetStateBoard<AppBoard>(out var appBoard))
-            {
-                UsefulLogger.LogError("AppBoard が未登録の為、TimeScaleState を登録できません。", this);
-                base.Initialize(blackBoard);
-                return;
-            }
+            _service.Initialize(blackBoard);
 
-            _service.Initialize(appBoard);
-
+            // TimeScaleAdapter は TimeScaleState を取得する為、TimeScaleService の初期化より後に初期化する
             if (_adapter != null)
             {
-                _adapter.Initialize(appBoard);
+                _adapter.Initialize(blackBoard);
             }
             else
             {
