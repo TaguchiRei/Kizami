@@ -11,7 +11,7 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// (Player, Move) / (Player, Look) チャンネルへ繋ぐ入力ソースを決める配線役の基底。
-    /// 操作シーンへ置き、そのシーンの操作系に合った派生を使う。
+    /// インゲームのシーンへ置き、操作系に合った派生を使う。
     ///
     /// チャンネルは 3 ビルド共通で固定し、差し替えるのは入力ソースだけに留める。
     /// これにより Application 層（PlayerMovementService / PlayerLookService）は
@@ -60,7 +60,7 @@ namespace Kizami.Initialization
         protected abstract void ConnectInputSources(IBlackBoard blackBoard, IInputState inputState);
 
         /// <summary>
-        /// 現在のビルドモードを取得する。同じ操作シーンを複数のビルドモードで共用する派生だけが使う。
+        /// 現在のビルドモードを取得する。複数のビルドモードで共用する派生だけが使う。
         /// </summary>
         /// <param name="blackBoard">IBuildModeState の取得元</param>
         /// <param name="buildMode">取得したビルドモード</param>

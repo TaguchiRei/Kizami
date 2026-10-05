@@ -12,7 +12,7 @@ using UsefulToolkit.Utility;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// プレイヤーへダメージを与える操作と、HP の画面表示を行うデバッグ用の Initializer。操作シーンへ置く。
+    /// プレイヤーへダメージを与える操作と、HP の画面表示を行うデバッグ用の Initializer。インゲームのシーンへ置く。
     ///
     /// 操作は OnGUI のボタンとトグルで行う。トグルが有効な間は、移動モードが Warping に変わった瞬間にダメージを与える。
     /// HP の表示は DebugGUI.ObserveVariable に値を登録し、HP が 0 になったらログを出す。

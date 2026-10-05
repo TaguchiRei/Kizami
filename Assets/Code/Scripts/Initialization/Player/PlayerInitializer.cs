@@ -13,8 +13,9 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// プレイヤーの移動・視点・HP・近接切断まわり（Service / State / Abstractor）を生成して繋ぐだけの配線役。
-    /// ロジックは持たない。操作シーンへ置く。
+    /// ロジックは持たない。インゲームのシーンへ置く。
     /// PlayerHealthService は具象型のまま DI コンテナへ登録する。
+    /// MeleeCutService が振ったときに、MeleeCutAdapter の切断を直接呼ぶように繋ぐ。
     ///
     /// 視点入力を実際の回転へどう変換するかは操作系ごとに違うが、その差は
     /// 各シーンへ置く PlayerMovementAbstractorBase の派生が吸収する為、ここは選び分けをしない。
@@ -24,6 +25,7 @@ namespace Kizami.Initialization
         [SerializeField] private PlayerMovementAdapterBase movementAdapter;
         [SerializeField] private PlayerCameraAdapterBase cameraAdapter;
         [SerializeField] private MeleeCutPreviewAdapter meleeCutPreviewAdapter;
+        [SerializeField] private MeleeCutAdapter meleeCutAdapter;
 
         [SerializeField]
         [Tooltip("プレイヤーの移動・HP・近接切断のパラメータ")]
@@ -37,7 +39,7 @@ namespace Kizami.Initialization
 
         private void Awake()
         {
-            StandardPlayerControlCompositor.TryRegisterContent(_healthService);
+            InGameCompositor.TryRegisterContent(_healthService);
         }
 
         public override void Initialize(IBlackBoard blackBoard)
@@ -77,14 +79,6 @@ namespace Kizami.Initialization
                 return;
             }
 
-            if (!blackBoard.TryGetEventBoard<PlayerEventBoard>(out var playerEventBoard))
-            {
-                UsefulLogger.LogError(
-                    "PlayerEventBoard が未登録です。常駐シーンの Root Compositor を再生成してください。", this);
-                base.Initialize(blackBoard);
-                return;
-            }
-
             if (_parameters == null)
             {
                 UsefulLogger.LogError("PlayerParameterData が設定されていません。", this);
@@ -106,8 +100,17 @@ namespace Kizami.Initialization
 
             _lookService = new PlayerLookService(playerBoard, inputState, configState, sceneId);
 
-            _meleeCutService = new MeleeCutService(playerBoard, playerEventBoard, inputState,
-                accessibilitySettingState, _parameters, () => Time.unscaledTimeAsDouble, sceneId);
+            if (meleeCutAdapter != null)
+            {
+                meleeCutAdapter.Initialize();
+            }
+            else
+            {
+                UsefulLogger.LogError("MeleeCutAdapter が設定されていません。", this);
+            }
+
+            _meleeCutService = new MeleeCutService(playerBoard, inputState, accessibilitySettingState, _parameters,
+                () => Time.unscaledTimeAsDouble, meleeCutAdapter != null ? meleeCutAdapter.Swing : null, sceneId);
 
             // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
             _healthService.Initialize(playerBoard, _parameters, sceneId);

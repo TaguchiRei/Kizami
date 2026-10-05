@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Text;
 using Cysharp.Threading.Tasks;
-using Kizami.BlackBoard;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
@@ -11,7 +9,7 @@ using UsefulToolkit.MeshCut;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 近接切断の振り（IMeleeCutEvents.OnSwing）を受けて、カメラの位置と向き、切断面の角度から刃を配置し、
+    /// 近接切断の振り（Swing）を受けて、カメラの位置と向き、切断面の角度から刃を配置し、
     /// 範囲内の切れる CuttableObject をまとめて切断する。切断の結果はログに出す。
     /// 刃の位置はカメラの位置、法線はカメラの上方向をカメラの前方向を軸に角度だけ回したもの。
     /// 範囲は、カメラの前方へ伸びる、刃に沿った薄い直方体。
@@ -44,34 +42,20 @@ namespace Kizami.EngineAdapter
         private readonly Collider[] _hitBuffer = new Collider[MaxHitCount];
         private readonly List<CuttableObject> _targets = new();
 
-        private IDisposable _eventWaiter;
-        private IDisposable _swingSubscription;
-
         /// <summary> 切断を実行中か。実行中の振りは無視する </summary>
         private bool _isCutting;
 
         /// <summary>
-        /// MeleeCutInitializer から呼ばれる。Event の登録順に依存しないよう待受で拾う。
+        /// PlayerInitializer から呼ばれる。
         /// </summary>
-        /// <param name="playerEventBoard">近接切断の Event の取得元</param>
-        public void Initialize(PlayerEventBoard playerEventBoard)
+        public override void Initialize()
         {
-            _eventWaiter = playerEventBoard.SubscribeEventRegister<IMeleeCutEvents>(
-                () =>
-                {
-                    if (!playerEventBoard.TryGetSceneEvent<IMeleeCutEvents>(out var events, out _)) return;
-
-                    _swingSubscription?.Dispose();
-                    _swingSubscription = events.OnSwing.Register(OnSwing);
-                },
-                invokeIfRegistered: true);
-
             if (_blade == null)
             {
                 UsefulLogger.LogError("MultiCutBlade が設定されていません。", this);
             }
 
-            Initialize();
+            base.Initialize();
         }
 
         /// <summary>
@@ -79,7 +63,7 @@ namespace Kizami.EngineAdapter
         /// 切断の実行中と、対象が 1 つもないときは何もしない。
         /// </summary>
         /// <param name="angle">切断面の角度（度）</param>
-        private void OnSwing(float angle)
+        public void Swing(float angle)
         {
             if (!Initialized || _blade == null) return;
 
@@ -190,12 +174,6 @@ namespace Kizami.EngineAdapter
         private static string Describe(CuttableObject cuttable)
         {
             return $"{cuttable.name}#{cuttable.transform.GetSiblingIndex()}";
-        }
-
-        private void OnDestroy()
-        {
-            _swingSubscription?.Dispose();
-            _eventWaiter?.Dispose();
         }
     }
 }

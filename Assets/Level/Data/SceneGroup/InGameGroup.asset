@@ -15,9 +15,8 @@ MonoBehaviour:
   _hasMainScene: 1
   _groupData:
     <HasMainScene>k__BackingField: 1
-    _sceneIds: 0200000003000000
+    _sceneIds: 02000000
   _mainSceneName: InGame
-  _additionalSceneNames:
-  - StandardPlayerControl
+  _additionalSceneNames: []
   _mainScene: 2
-  _additionalScenes: 03000000
+  _additionalScenes: 

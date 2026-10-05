@@ -9,10 +9,10 @@ using UsefulToolkit.BlackBoard.Input;
 namespace Kizami.Application
 {
     /// <summary>
-    /// 近接切断の入力を解釈して MeleeCutState へ書き込み、MeleeCutEvents を流すユースケース。
-    /// MeleeCutState と MeleeCutEvents の具象インスタンスはこのクラスだけが保持する（Single Writer）。
+    /// 近接切断の入力を解釈して MeleeCutState へ書き込み、振ったことを切断の実行役へ伝えるユースケース。
+    /// MeleeCutState の具象インスタンスはこのクラスだけが保持する（Single Writer）。
     /// 切断面の回転入力 1 回ごとに、アクセシビリティの設定にある角度だけ切断面を回す。
-    /// 攻撃入力は、前回振ってから攻撃間隔が経っていれば、そのときの角度で OnSwing を流す。
+    /// 攻撃入力は、前回振ってから攻撃間隔が経っていれば、そのときの角度で振ったときの関数を呼ぶ。
     /// </summary>
     public sealed class MeleeCutService : IDisposable
     {
@@ -20,32 +20,32 @@ namespace Kizami.Application
         private const float AngleRange = 180f;
 
         private readonly MeleeCutState _state = new();
-        private readonly MeleeCutEvents _events = new();
         private readonly IAccessibilitySettingState _accessibilitySettingState;
         private readonly PlayerParameterData _parameters;
         private readonly Func<double> _getUnscaledTime;
+        private readonly Action<float> _onSwing;
         private readonly List<IDisposable> _subscriptions = new();
 
         /// <summary> 前回振った時刻（unscaled の秒） </summary>
         private double _lastSwingTime = double.NegativeInfinity;
 
         /// <param name="playerBoard">MeleeCutState の登録先</param>
-        /// <param name="playerEventBoard">MeleeCutEvents の登録先</param>
         /// <param name="inputState">切断面の回転入力と攻撃入力の取得元</param>
         /// <param name="accessibilitySettingState">回転入力 1 回あたりの回転角度の取得元</param>
         /// <param name="parameters">攻撃間隔の取得元</param>
         /// <param name="getUnscaledTime">スローモードの影響を受けない現在の時刻（秒）を返す関数</param>
-        /// <param name="sceneId">State と Event を紐づけるシーンのビルドインデックス</param>
-        public MeleeCutService(PlayerBoard playerBoard, PlayerEventBoard playerEventBoard, IInputState inputState,
+        /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）</param>
+        /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
+        public MeleeCutService(PlayerBoard playerBoard, IInputState inputState,
             IAccessibilitySettingState accessibilitySettingState, PlayerParameterData parameters,
-            Func<double> getUnscaledTime, int sceneId)
+            Func<double> getUnscaledTime, Action<float> onSwing, int sceneId)
         {
             _accessibilitySettingState = accessibilitySettingState;
             _parameters = parameters;
             _getUnscaledTime = getUnscaledTime;
+            _onSwing = onSwing;
 
             playerBoard.RegisterSceneState<IMeleeCutState>(_state, sceneId);
-            playerEventBoard.RegisterSceneEvent<IMeleeCutEvents>(_events, sceneId);
 
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.CutRotate, OnCutRotate));
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Attack, OnAttack));
@@ -63,7 +63,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 前回振ってから攻撃間隔が経っていれば、今の角度で OnSwing を流す。間隔内の入力は捨てる。
+        /// 前回振ってから攻撃間隔が経っていれば、今の角度で振ったときの関数を呼ぶ。間隔内の入力は捨てる。
         /// </summary>
         private void OnAttack(InputContext<float> context)
         {
@@ -73,7 +73,7 @@ namespace Kizami.Application
             if (now - _lastSwingTime < _parameters.MeleeAttackInterval) return;
 
             _lastSwingTime = now;
-            _events.RaiseSwing(_state.Angle);
+            _onSwing?.Invoke(_state.Angle);
         }
 
         public void Dispose()

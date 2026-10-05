@@ -65,8 +65,8 @@
 | ボクセル | ボクセルでできた物はメッシュ切断できない。切断攻撃に破壊属性を付けたときは、切断方向と同じ向きに、厚みゼロの平面でボクセルを分ける（`VoxelPiece.Slice` で実装済み） |
 | スローモード | `Time.timeScale` を下げて世界全体を遅くする。プレイヤーのアニメーション、視点操作、UI は等速。倍率の正本は TimeScale State で、`Time.timeScale` と `Time.fixedDeltaTime` に反映するのは EngineAdapterLayer の 1 か所だけ。詳細は Notion「時間制御（スローモード）」 |
 | アーキテクチャ | State-Centrism Architecture（Initialization / Application / BlackBoardLayer / ExternalLayer / EngineAdapterLayer）と UsefulToolkit |
-| シーン構成 | 常駐シーン（`UsefulToolkitPersistent`）＋ 場面シーン（アウトゲーム / インゲーム。3 ビルド共通）＋ 操作シーン（プレイヤー一式と入力の配線。ビルドモードごと）。場面と操作シーンの組を SceneGroup で持ち、`GameSceneController` が場面の単位で切り替える。操作シーンは場面をまたいで残る |
-| インゲームのシーン（2026-10-04 決定） | インゲームの場面シーン（`InGame`）には、ステージによらず使うシステム（MeshCut System、敵の生成の仕組み など）を置く。ライティング、敵の生成位置、置くオブジェクトは、ステージごとのステージシーンに置く。敵などの切断対象は `MeshDataCache` の子に置く必要があるので、`InGame` に置く。ステージシーンを分ける作業は区間4の最初に行う。複数のシーンを読み込んだときは、アクティブなシーンのライティングの設定（環境光、スカイボックス）だけが効くので、ステージシーンをアクティブにする |
+| シーン構成（2026-10-05 変更） | 常駐シーン（`UsefulToolkitPersistent`）＋ 場面シーン（アウトゲーム / インゲーム。3 ビルド共通）。場面ごとに 1 つの SceneGroup を持ち、`GameSceneController` が場面の単位で切り替える。プレイヤー一式（リグ、入力の配線、プレイヤーの Initializer）は `InGame` に置き、インゲームの機能を 1 つの DI のスコープにまとめる。プラットフォームごとのリグは `InGame` に置いてビルドモードで選ぶ（選ぶ仕組みは VR のリグを置くときに作る）。リグは実行時に Instantiate しない（Compositor はシーンに置いた Initializer しか初期化しない為）。アウトゲームにはプレイヤーを置かない。以前の「操作シーン（StandardPlayerControl）」は区間3のコミット0で廃止した |
+| インゲームのシーン（2026-10-04 決定） | インゲームの場面シーン（`InGame`）には、ステージによらず使うシステム（MeshCut System、敵の生成の仕組み、プレイヤー一式 など）を置く。ライティング、敵の生成位置、置くオブジェクトは、ステージごとのステージシーンに置く。敵などの切断対象は `MeshDataCache` の子に置く必要があるので、`InGame` に置く。ステージシーンを分ける作業は区間4の最初に行う。複数のシーンを読み込んだときは、アクティブなシーンのライティングの設定（環境光、スカイボックス）だけが効くので、ステージシーンをアクティブにする |
 
 ## 2. プラットフォームの方針
 
@@ -76,19 +76,19 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-05 時点。区間2の完了後）
+## 3. 現状（2026-10-05 時点。区間3のコミット0の後）
 
 | 分野 | 状態 |
 |---|---|
 | 基盤（5 層の asmdef、UsefulToolkit、常駐シーン、入力の経路、ビルドモード） | あり |
 | TimeScale（State、Service、Adapter、デバッグの操作と表示） | あり（区間0）。インゲームから出るときの倍率のリセットは未実装 |
-| シーン遷移（`GameSceneController` / `GameSceneInitializer`） | 配線済み（区間0）。常駐シーンから再生すると、アウトゲーム → インゲームの順に入れる。場面シーン（`OutGame` / `InGame`）と操作シーン（`StandardPlayerControl`）は `Assets/Level/Scenes/Master/`、SceneGroup アセットは `Assets/Level/Data/SceneGroup/`。アウトゲームからインゲームへは、仮のボタン（`OutGameStartInitializer`）で入る |
-| プレイヤーの移動（歩行、ダッシュ、ジャンプ、壁走り、短距離ワープ）と視点操作（Cinemachine） | あり（区間1）。PC とスマホが共用する操作系は `StandardPlayerControl` シーンにある。遊びのルールに関わる値は `PlayerParameterData`、ダッシュの操作方式は `AccessibilitySettingState`。開発用の `PlayerMoveTest` は区間1で削除した |
+| シーン遷移（`GameSceneController` / `GameSceneInitializer`） | 配線済み（区間0）。常駐シーンから再生すると、アウトゲーム → インゲームの順に入れる。場面シーン（`OutGame` / `InGame`）は `Assets/Level/Scenes/Master/`、SceneGroup アセット（`OutGameGroup` / `InGameGroup`。場面ごとに 1 つ）は `Assets/Level/Data/SceneGroup/`。アウトゲームからインゲームへは、仮のボタン（`OutGameStartInitializer`）で入る |
+| プレイヤーの移動（歩行、ダッシュ、ジャンプ、壁走り、短距離ワープ）と視点操作（Cinemachine） | あり（区間1）。PC とスマホが共用するリグ（`PlayerRoot`、`CameraPivot`、`Main Camera`）は `InGame` にある。遊びのルールに関わる値は `PlayerParameterData`、ダッシュの操作方式は `AccessibilitySettingState`。開発用の `PlayerMoveTest` は区間1で削除した |
 | プレイヤーの HP と被ダメージ | あり（区間1）。`PlayerHealthService.ApplyDamage`（ワープ中は軽減率を適用）と `IPlayerHealthState`。今呼んでいるのはデバッグ操作（`PlayerDebugInitializer`）だけ |
 | 入力（PC の Player マップ） | 区間0で、切断面の回転、ワープ、スローモード、投擲、ランチャー、スキル 1〜3 のアクションを追加済み。Smartphone と VRControllers のマップは未対応 |
 | VR の操作系 | `VrPlayerMovementAdapter` / `VrPlayerInputRouteInitializer` はあるが、どのシーンにも置かれていない |
 | ボクセル（ベイク、削る・盛る、塊の分離、平面での切り分け、融解） | あり。ゲームのルールとはまだつながっていない |
-| 近接切断（メッシュ切断） | あり（区間2）。左クリックで、ホイールで回した角度の刃（カメラの位置を通る）で範囲内を切る。InGame に `MeshCut System` と、切断を実行する `MeleeCutAdapter`（`MeleeCutInitializer` と `InGameCompositor` で初期化）、切れるダミーの敵がある。攻撃は `PlayerEventBoard` の `IMeleeCutEvents.OnSwing` で操作シーンから InGame へ渡す。切断の結果（元の対象とかけら）はログに出すだけで、通知の仕組みはまだない（区間3） |
+| 近接切断（メッシュ切断） | あり（区間2）。左クリックで、ホイールで回した角度の刃（カメラの位置を通る）で範囲内を切る。InGame に `MeshCut System` と、切断を実行する `MeleeCutAdapter`、切れるダミーの敵がある。攻撃は `PlayerInitializer` が `MeleeCutService` から `MeleeCutAdapter.Swing` へ直接配線している（区間2の `PlayerEventBoard` / `MeleeCutEvents` は区間3で廃止）。切断の結果（元の対象とかけら）はログに出すだけで、通知の仕組みはまだない（区間3） |
 | 敵、チャージ、スキル、スローモード、装甲、クリア判定、HUD | なし |
 | 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブは旧構成のもの。`Test/InGame.unity` は Build Settings から外してあり、`BuildScenes.InGame` は新しい `Master/InGame` を指す |
 
@@ -106,7 +106,7 @@
 | 0 | 基盤整備 | TimeScale State と Adapter、シーン遷移の配線とインゲームのシーン、PC 用入力マップ、デバッグ手段 | ― | 2026/09/29〜10/05 | 完了（10/04） | [Section00](Sections/Section00_Foundation.md) |
 | 1 | プレイヤー移動の完成 | ダッシュ、ジャンプ、壁走り、短距離ワープ、HP と被ダメージの窓口 | 0 | 10/06〜10/12 | 完了（10/04） | [Section01](Sections/Section01_PlayerMovement.md) |
 | 2 | 近接切断 | MeshCut による剣の切断、ホイールで切断面を回転、切断面のプレビュー、切断の結果（かけらと元の対象）の取得 | 0 | 10/13〜10/19 | 完了（10/05） | [Section02](Sections/Section02_MeleeCut.md) |
-| 3 | かけら・オーブ・チャージ | かけらの通知、かけらのオーブ化と自動吸収、チャージの State、ステージ外周コライダー、オーブのプール | 2 | 10/20〜10/26 | 未着手 | [Section03](Sections/Section03_Charge.md) |
+| 3 | かけら・オーブ・チャージ | かけらの通知、かけらのオーブ化と自動吸収、チャージの State、ステージ外周コライダー、オーブのプール | 2 | 10/20〜10/26 | 実装中 | [Section03](Sections/Section03_Charge.md) |
 | 4 | 雑魚敵と出現 | ステージシーンの分離、パーツ分割メッシュと FK / IK の敵、湧き場所、同時存在数の上限、簡単な AI、HP 0 で失敗 | 1, 3 | 10/27〜11/08 | 未着手 | [Section04](Sections/Section04_Enemy.md) |
 | A | マイルストーンA | 「切って溜める」までがつながる | | 11/08 | | |
 | 5 | ダメージ基盤・破壊対象・クリア判定 | ダメージタイプと対象ごとの判定、ボクセルの破壊対象、重要パーツの体積割合、マップオブジェクト、クリア判定 | 4 | 11/09〜11/22 | 未着手 | [Section05](Sections/Section05_DestructionTarget.md) |
