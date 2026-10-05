@@ -195,12 +195,12 @@ namespace Kizami.EngineAdapter
         private bool IsGrounded(Vector3 bottomSphereCenter, float radius)
         {
             // SphereCast は開始時点で重なっているコライダーを検出しない。
-            // 落下中に 1 ステップで地面へめり込んでも取りこぼさないよう、球をカプセルより SkinWidth だけ小さくし、
-            // 下側の球の中心から半径分だけ上を起点にして飛ばす（半径 + SkinWidth までのめり込みを許容する）
-            const float SkinWidth = 0.05f;
-            var castRadius = radius - SkinWidth;
+            // 落下中に 1 ステップで地面へめり込んでも取りこぼさないよう、球をカプセルより SKIN_WIDTH だけ小さくし、
+            // 下側の球の中心から半径分だけ上を起点にして飛ばす（半径 + SKIN_WIDTH までのめり込みを許容する）
+            const float SKIN_WIDTH = 0.05f;
+            var castRadius = radius - SKIN_WIDTH;
             var castOrigin = bottomSphereCenter + Vector3.up * radius;
-            var castDistance = radius + SkinWidth + _groundCheckDistance;
+            var castDistance = radius + SKIN_WIDTH + _groundCheckDistance;
 
             return Physics.SphereCast(castOrigin, castRadius, Vector3.down, out _, castDistance,
                 _groundLayers, QueryTriggerInteraction.Ignore);

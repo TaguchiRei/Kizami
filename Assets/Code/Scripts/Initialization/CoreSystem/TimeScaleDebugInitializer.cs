@@ -16,7 +16,7 @@ namespace Kizami.Initialization
     [InitializeOrder(InitializeOrderConst.Initializer)]
     public sealed class TimeScaleDebugInitializer : InitializerBase, IInjectable<ITimeScaleController>
     {
-        private static readonly float[] PresetScales = { 0f, 0.1f, 0.25f, 0.5f, 1f };
+        private static readonly float[] _presetScales = { 0f, 0.1f, 0.25f, 0.5f, 1f };
 
         private ITimeScaleController _controller;
         private ITimeScaleState _state;
@@ -47,14 +47,14 @@ namespace Kizami.Initialization
         {
             if (_controller == null || _state == null) return;
 
-            const float Width = 360f;
-            GUILayout.BeginArea(new Rect(10f, Screen.height - 90f, Width, 80f), GUI.skin.box);
+            const float WIDTH = 360f;
+            GUILayout.BeginArea(new Rect(10f, Screen.height - 90f, WIDTH, 80f), GUI.skin.box);
 
             float scale = GUILayout.HorizontalSlider(_state.Scale, TimeScaleState.MIN_SCALE, TimeScaleState.MAX_SCALE);
             if (!Mathf.Approximately(scale, _state.Scale)) _controller.SetScale(scale);
 
             GUILayout.BeginHorizontal();
-            foreach (float preset in PresetScales)
+            foreach (float preset in _presetScales)
             {
                 if (GUILayout.Button(preset.ToString("0.##"))) _controller.SetScale(preset);
             }

@@ -19,7 +19,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// 切り詰め距離のボクセル数換算。
         /// 法線の計算が表面の前後 2 サンプルの距離の差を使うので、2 より大きく保つこと。
         /// </summary>
-        public const float TruncationVoxels = 4f;
+        public const float TRUNCATION_VOXELS = 4f;
 
         private readonly bool[] _isHotChunk;
         private readonly List<int> _hotChunks = new();
@@ -27,7 +27,7 @@ namespace Kizami.EngineAdapter.Voxel
         private NativeArray<float> _temperatures;
 
         public VoxelGridLayout Layout { get; }
-        public float TruncationDistance => Layout.VoxelSize * TruncationVoxels;
+        public float TruncationDistance => Layout.VoxelSize * TRUNCATION_VOXELS;
         public bool IsCreated => _samples.IsCreated;
 
         /// <summary> 温度の配列を確保済みか </summary>
@@ -276,7 +276,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary>
         /// 内側のサンプルを 6 近傍でつながった塊に分ける。
         /// </summary>
-        /// <param name="labels">サンプルごとの塊の番号の出力先。長さは Layout.SampleTotal。外側は VoxelComponentLabelJob.OutsideLabel</param>
+        /// <param name="labels">サンプルごとの塊の番号の出力先。長さは Layout.SampleTotal。外側は VoxelComponentLabelJob.OUTSIDE_LABEL</param>
         /// <param name="components">塊の一覧の出力先。添字が塊の番号と一致する</param>
         public void LabelComponents(NativeArray<int> labels, NativeList<VoxelComponent> components)
         {

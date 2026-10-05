@@ -15,7 +15,7 @@ namespace Kizami.EngineAdapter
     public sealed class MeleeCutAdapter : InitializableMonoBehaviour
     {
         /// <summary> 範囲内から一度に集めるコライダーの最大数 </summary>
-        private const int MaxHitCount = 128;
+        private const int MAX_HIT_COUNT = 128;
 
         [SerializeField]
         [Tooltip("切断に使う刃。プールと同じシーンに置かれたもの")]
@@ -37,7 +37,7 @@ namespace Kizami.EngineAdapter
         [Tooltip("切断の対象を探すレイヤー")]
         private LayerMask _targetLayers = ~0;
 
-        private readonly Collider[] _hitBuffer = new Collider[MaxHitCount];
+        private readonly Collider[] _hitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly List<CuttableObject> _targets = new();
 
         /// <summary> 切断の結果を渡す先 </summary>
@@ -110,7 +110,7 @@ namespace Kizami.EngineAdapter
 
             if (hitCount == _hitBuffer.Length)
             {
-                UsefulLogger.LogWarning($"切断の範囲内のコライダーが上限（{MaxHitCount}）に達しました。", this);
+                UsefulLogger.LogWarning($"切断の範囲内のコライダーが上限（{MAX_HIT_COUNT}）に達しました。", this);
             }
 
             for (var i = 0; i < hitCount; i++)

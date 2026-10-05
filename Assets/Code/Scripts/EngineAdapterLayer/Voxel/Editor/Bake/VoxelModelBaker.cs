@@ -14,7 +14,7 @@ namespace Kizami.Editor.Voxel
     public static class VoxelModelBaker
     {
         /// <summary> 最大辺の解像度の上限。MeshToSDFBaker は総ボクセル数が 2^27 を超えると例外を投げる </summary>
-        private const int MaxResolution = 384;
+        private const int MAX_RESOLUTION = 384;
 
         /// <summary>
         /// ベイクして VoxelModelAsset に保存する。同じパスのアセットがあれば中身を差し替える（GUID は保たれる）。
@@ -120,10 +120,10 @@ namespace Kizami.Editor.Voxel
         {
             var size = bounds.size + Vector3.one * (settings.PaddingVoxels * settings.VoxelSize * 2f);
             var resolution = Mathf.CeilToInt(Mathf.Max(size.x, Mathf.Max(size.y, size.z)) / settings.VoxelSize);
-            if (resolution > MaxResolution)
+            if (resolution > MAX_RESOLUTION)
             {
-                Debug.LogWarning($"'{path}' の解像度 {resolution} が上限 {MaxResolution} を超える為、上限に丸めます。");
-                resolution = MaxResolution;
+                Debug.LogWarning($"'{path}' の解像度 {resolution} が上限 {MAX_RESOLUTION} を超える為、上限に丸めます。");
+                resolution = MAX_RESOLUTION;
             }
 
             var baker = createBaker(size, bounds.center, resolution);

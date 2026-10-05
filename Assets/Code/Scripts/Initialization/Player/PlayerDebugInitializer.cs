@@ -89,8 +89,8 @@ namespace Kizami.Initialization
         {
             if (_healthService == null || _healthState == null) return;
 
-            const float Width = 360f;
-            GUILayout.BeginArea(new Rect(10f, Screen.height - 160f, Width, 60f), GUI.skin.box);
+            const float WIDTH = 360f;
+            GUILayout.BeginArea(new Rect(10f, Screen.height - 160f, WIDTH, 60f), GUI.skin.box);
 
             if (GUILayout.Button($"ダメージ ({_damageAmount})")) _healthService.ApplyDamage(_damageAmount);
             _isDamageOnWarpEnabled = GUILayout.Toggle(_isDamageOnWarpEnabled, "ワープを始めた瞬間にダメージ");

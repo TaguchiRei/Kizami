@@ -16,10 +16,10 @@ namespace Kizami.EngineAdapter.Voxel
         /// SurfaceNetsJob はサンプル [min - 2, max + 2) を読む（隣接セルの頂点に 1、中心差分の法線に 1）。
         /// SurfaceNetsJob の読み取り範囲を変えたらこの値も合わせること。ずれると、編集後に再メッシュ化されず継ぎ目が開くチャンクが出る。
         /// </summary>
-        public const int MeshingReadMargin = 2;
+        public const int MESHING_READ_MARGIN = 2;
 
         /// <summary> 最外周のサンプルに強制する最小の距離（ボクセル数換算） </summary>
-        private const float BoundaryMinVoxels = 0.01f;
+        private const float BOUNDARY_MIN_VOXELS = 0.01f;
 
         public readonly float3 Origin;
         public readonly float VoxelSize;
@@ -90,7 +90,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         public float EnforceBoundary(int3 sample, float distance)
         {
-            return IsBoundarySample(sample) ? math.max(distance, VoxelSize * BoundaryMinVoxels) : distance;
+            return IsBoundarySample(sample) ? math.max(distance, VoxelSize * BOUNDARY_MIN_VOXELS) : distance;
         }
 
         public int ToChunkIndex(int3 chunk)
@@ -156,8 +156,8 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         public void GetChunksAffectedBySamples(int3 sampleMin, int3 sampleMax, out int3 chunkMin, out int3 chunkMax)
         {
-            chunkMin = math.max(FloorDiv(sampleMin - MeshingReadMargin, ChunkSize), 0);
-            chunkMax = math.min(FloorDiv(sampleMax + MeshingReadMargin, ChunkSize), ChunkCount - 1);
+            chunkMin = math.max(FloorDiv(sampleMin - MESHING_READ_MARGIN, ChunkSize), 0);
+            chunkMax = math.min(FloorDiv(sampleMax + MESHING_READ_MARGIN, ChunkSize), ChunkCount - 1);
         }
 
         private static int3 FloorDiv(int3 value, int divisor)

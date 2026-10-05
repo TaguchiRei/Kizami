@@ -14,10 +14,10 @@ namespace Kizami.Application
     public sealed class GameSceneController : IGameSceneController
     {
         /// <summary> シーングループ配列の中で、アウトゲームのグループの位置 </summary>
-        private const int OutGameIndex = 0;
+        private const int OUT_GAME_INDEX = 0;
 
         /// <summary> シーングループ配列の中で、インゲームのグループの位置 </summary>
-        private const int InGameIndex = 1;
+        private const int IN_GAME_INDEX = 1;
 
         private SceneLoadService _sceneLoadService;
 
@@ -37,8 +37,8 @@ namespace Kizami.Application
             }
 
             var sceneGroups = new SceneGroup[2];
-            sceneGroups[OutGameIndex] = outGameGroup;
-            sceneGroups[InGameIndex] = inGameGroup;
+            sceneGroups[OUT_GAME_INDEX] = outGameGroup;
+            sceneGroups[IN_GAME_INDEX] = inGameGroup;
 
             _sceneLoadService = new SceneLoadService(blackBoard, sceneGroups);
             return true;
@@ -52,17 +52,17 @@ namespace Kizami.Application
         {
             if (!TryGetService(out var service)) return UniTask.FromResult(false);
 
-            return service.Initialize(OutGameIndex, cancellationToken);
+            return service.Initialize(OUT_GAME_INDEX, cancellationToken);
         }
 
         public UniTask<bool> GoToOutGameAsync(CancellationToken cancellationToken = default)
         {
-            return LoadAsync(OutGameIndex, cancellationToken);
+            return LoadAsync(OUT_GAME_INDEX, cancellationToken);
         }
 
         public UniTask<bool> GoToInGameAsync(CancellationToken cancellationToken = default)
         {
-            return LoadAsync(InGameIndex, cancellationToken);
+            return LoadAsync(IN_GAME_INDEX, cancellationToken);
         }
 
         /// <summary>

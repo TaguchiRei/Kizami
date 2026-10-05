@@ -15,11 +15,11 @@ namespace Kizami.Initialization
     /// </summary>
     public sealed class PlayerInitializer : InitializerBase
     {
-        [SerializeField] private PlayerMovementAdapterBase movementAdapter;
-        [SerializeField] private PlayerCameraAdapterBase cameraAdapter;
-        [SerializeField] private MeleeCutPreviewAdapter meleeCutPreviewAdapter;
-        [SerializeField] private MeleeCutAdapter meleeCutAdapter;
-        [SerializeField] private FragmentOrbAdapter fragmentOrbAdapter;
+        [SerializeField] private PlayerMovementAdapterBase _movementAdapter;
+        [SerializeField] private PlayerCameraAdapterBase _cameraAdapter;
+        [SerializeField] private MeleeCutPreviewAdapter _meleeCutPreviewAdapter;
+        [SerializeField] private MeleeCutAdapter _meleeCutAdapter;
+        [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
 
         [SerializeField]
         [Tooltip("プレイヤーの移動・HP・近接切断・チャージのパラメータ")]
@@ -51,18 +51,18 @@ namespace Kizami.Initialization
             _lookService = new PlayerLookService(blackBoard, sceneId);
             _chargeService = new ChargeService(blackBoard, _parameters, sceneId);
 
-            if (fragmentOrbAdapter != null)
+            if (_fragmentOrbAdapter != null)
             {
-                fragmentOrbAdapter.Initialize(_chargeService.AddFragments);
+                _fragmentOrbAdapter.Initialize(_chargeService.AddFragments);
             }
             else
             {
                 UsefulLogger.LogError("FragmentOrbAdapter が設定されていません。", this);
             }
 
-            if (meleeCutAdapter != null)
+            if (_meleeCutAdapter != null)
             {
-                meleeCutAdapter.Initialize(fragmentOrbAdapter != null ? fragmentOrbAdapter.ReceiveCutResults : null);
+                _meleeCutAdapter.Initialize(_fragmentOrbAdapter != null ? _fragmentOrbAdapter.ReceiveCutResults : null);
             }
             else
             {
@@ -70,15 +70,15 @@ namespace Kizami.Initialization
             }
 
             _meleeCutService = new MeleeCutService(blackBoard, _parameters,
-                meleeCutAdapter != null ? meleeCutAdapter.Swing : null, sceneId);
+                _meleeCutAdapter != null ? _meleeCutAdapter.Swing : null, sceneId);
 
             // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
             _healthService.Initialize(blackBoard, _parameters, sceneId);
 
             // 以降の Adapter は Service が登録した State を取得する為、Service の生成より後に初期化する
-            if (movementAdapter != null)
+            if (_movementAdapter != null)
             {
-                movementAdapter.Initialize(blackBoard, _movementService.Step);
+                _movementAdapter.Initialize(blackBoard, _movementService.Step);
             }
             else
             {
@@ -86,14 +86,14 @@ namespace Kizami.Initialization
             }
 
             // カメラの上下方向反映は操作系によっては使わない（例: VR は HMD の姿勢が担う）為、未設定でもエラーにしない
-            if (cameraAdapter != null)
+            if (_cameraAdapter != null)
             {
-                cameraAdapter.Initialize(blackBoard);
+                _cameraAdapter.Initialize(blackBoard);
             }
 
-            if (meleeCutPreviewAdapter != null)
+            if (_meleeCutPreviewAdapter != null)
             {
-                meleeCutPreviewAdapter.Initialize(blackBoard);
+                _meleeCutPreviewAdapter.Initialize(blackBoard);
             }
             else
             {

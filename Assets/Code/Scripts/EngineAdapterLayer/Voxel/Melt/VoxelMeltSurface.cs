@@ -11,7 +11,7 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// 融解した粒の見た目となる液面のメッシュ。
-    /// ワールド空間を一辺 ChunkCells セルの液面チャンクに区切り、チャンクごとに
+    /// ワールド空間を一辺 CHUNK_CELLS セルの液面チャンクに区切り、チャンクごとに
     /// 粒ごとの球を滑らかにつないだ距離場を書き込んで、Surface Nets でメッシュにする。
     /// 作り直すのは、動いている粒が届くチャンク・前回動いていた粒が届いていたチャンク・粒が消えたチャンクだけで、
     /// 止まった粒しか無いチャンクはメッシュを使い回す。頂点はワールド空間。
@@ -20,13 +20,13 @@ namespace Kizami.EngineAdapter.Voxel
     public sealed class VoxelMeltSurface : IDisposable
     {
         /// <summary> 液面チャンク 1 つの、各軸のセル数 </summary>
-        public const int ChunkCells = 16;
+        public const int CHUNK_CELLS = 16;
 
         /// <summary>
         /// チャンクの格子が、面を作るセル範囲の外側に持つ余白のセル数。
         /// SurfaceNetsJob が面を作るセル範囲の外を読む量と一致させること。足りないと、チャンクの境目で面が開く。
         /// </summary>
-        private const int PaddingCells = VoxelGridLayout.MeshingReadMargin;
+        private const int PADDING_CELLS = VoxelGridLayout.MESHING_READ_MARGIN;
 
         private readonly Dictionary<int3, SurfaceChunk> _chunks = new();
         private readonly HashSet<int3> _previousMovingChunks = new();
@@ -49,10 +49,10 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 直近の作り直しにかかった時間 </summary>
         public double LastBuildMilliseconds { get; private set; }
 
-        private float ChunkWorldSize => ChunkCells * _voxelSize;
+        private float ChunkWorldSize => CHUNK_CELLS * _voxelSize;
 
         /// <summary> 粒の球の表面から、距離を書き込む範囲 </summary>
-        private float SplatReach => _blend + _voxelSize * VoxelGridLayout.MeshingReadMargin;
+        private float SplatReach => _blend + _voxelSize * VoxelGridLayout.MESHING_READ_MARGIN;
 
         /// <summary>
         /// 液面の作り方を設定する。前回と異なれば、次の Update で全チャンクを作り直す。
@@ -184,16 +184,16 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         private float GetKeyReach()
         {
-            return SplatReach + PaddingCells * _voxelSize;
+            return SplatReach + PADDING_CELLS * _voxelSize;
         }
 
         /// <summary>
-        /// チャンクの格子を作る。面を作るセル範囲の外側に、全方向へ PaddingCells セルの余白を付ける。
+        /// チャンクの格子を作る。面を作るセル範囲の外側に、全方向へ PADDING_CELLS セルの余白を付ける。
         /// </summary>
         private VoxelGridLayout CreateChunkLayout(int3 key)
         {
-            var cellCount = ChunkCells + PaddingCells * 2;
-            var origin = (float3)key * ChunkWorldSize - PaddingCells * _voxelSize;
+            var cellCount = CHUNK_CELLS + PADDING_CELLS * 2;
+            var origin = (float3)key * ChunkWorldSize - PADDING_CELLS * _voxelSize;
             return new VoxelGridLayout(origin, new int3(cellCount), _voxelSize, cellCount);
         }
 
@@ -213,7 +213,7 @@ namespace Kizami.EngineAdapter.Voxel
             var buffers = new ChunkBuffers[count];
             var handles = new NativeArray<JobHandle>(count, Allocator.Temp);
             var reach = SplatReach;
-            var emptyDistance = _voxelSize * VoxelVolume.TruncationVoxels;
+            var emptyDistance = _voxelSize * VoxelVolume.TRUNCATION_VOXELS;
 
             for (var i = 0; i < count; i++)
             {
@@ -237,8 +237,8 @@ namespace Kizami.EngineAdapter.Voxel
                 {
                     Samples = buffers[i].Field,
                     Layout = layout,
-                    CellMin = new int3(PaddingCells),
-                    CellMax = new int3(PaddingCells + ChunkCells),
+                    CellMin = new int3(PADDING_CELLS),
+                    CellMax = new int3(PADDING_CELLS + CHUNK_CELLS),
                     Vertices = buffers[i].Vertices,
                     Normals = buffers[i].Normals,
                     Indices = buffers[i].Indices

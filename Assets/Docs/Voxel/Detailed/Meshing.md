@@ -57,7 +57,7 @@ flowchart LR
 
 この「2」はメッシュ生成が読む範囲と対応しており、**片方だけ変えると、編集後に継ぎ目が開くチャンクが出る**。
 
-> この「2」は [`VoxelGridLayout.MeshingReadMargin`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs)<sup>[L21](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs#L21)</sup> 定数、影響チャンクの計算は [`VoxelGridLayout.GetChunksAffectedBySamples`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs)<sup>[L159](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs#L159)</sup> メソッドで行っている。
+> この「2」は [`VoxelGridLayout.MESHING_READ_MARGIN`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs)<sup>[L21](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs#L21)</sup> 定数、影響チャンクの計算は [`VoxelGridLayout.GetChunksAffectedBySamples`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs)<sup>[L159](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs#L159)</sup> メソッドで行っている。
 
 ## 4. 当たり判定の3つのモード
 

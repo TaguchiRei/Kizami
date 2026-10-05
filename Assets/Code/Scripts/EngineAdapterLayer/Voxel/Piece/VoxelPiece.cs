@@ -21,7 +21,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelPiece : MonoBehaviour
     {
-        private const MeshColliderCookingOptions ColliderCookingOptions =
+        private const MeshColliderCookingOptions COLLIDER_COOKING_OPTIONS =
             MeshColliderCookingOptions.CookForFasterSimulation |
             MeshColliderCookingOptions.EnableMeshCleaning |
             MeshColliderCookingOptions.WeldColocatedVertices |
@@ -78,7 +78,7 @@ namespace Kizami.EngineAdapter.Voxel
         private bool _needsSplitCheck;
         private bool _hasInitialSampleCount;
         private bool _meltedSinceMeasure;
-        private bool _hasWarnedMissingThermalSettings;
+        private bool _hasWarnedThermalSettings;
 
         public VoxelQualitySettings Quality => _quality;
         public Material Material => _material;
@@ -370,10 +370,10 @@ namespace Kizami.EngineAdapter.Voxel
 
             if (!HasThermalSettings())
             {
-                if (!_hasWarnedMissingThermalSettings)
+                if (!_hasWarnedThermalSettings)
                 {
                     Debug.LogWarning("VoxelMeltSystem または VoxelThermalSettings が設定されていない為、加熱を無視します。", this);
-                    _hasWarnedMissingThermalSettings = true;
+                    _hasWarnedThermalSettings = true;
                 }
 
                 return;
@@ -1031,7 +1031,7 @@ namespace Kizami.EngineAdapter.Voxel
             new BakeColliderJob
             {
                 MeshIds = meshIds,
-                CookingOptions = ColliderCookingOptions
+                CookingOptions = COLLIDER_COOKING_OPTIONS
             }.Schedule(slots.Count, 1).Complete();
             meshIds.Dispose();
 
@@ -1047,9 +1047,9 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         private void RebuildHullCollider()
         {
-            var directions = new float3[VoxelHullDirections.Count];
-            var bestPoints = new float3[VoxelHullDirections.Count];
-            var bestDots = new float[VoxelHullDirections.Count];
+            var directions = new float3[VoxelHullDirections.COUNT];
+            var bestPoints = new float3[VoxelHullDirections.COUNT];
+            var bestDots = new float[VoxelHullDirections.COUNT];
             for (var d = 0; d < directions.Length; d++)
             {
                 directions[d] = VoxelHullDirections.Get(d);
@@ -1073,7 +1073,7 @@ namespace Kizami.EngineAdapter.Voxel
                 }
             }
 
-            var vertices = new List<Vector3>(VoxelHullDirections.Count);
+            var vertices = new List<Vector3>(VoxelHullDirections.COUNT);
             for (var d = 0; d < bestPoints.Length; d++)
             {
                 if (float.IsNegativeInfinity(bestDots[d])) continue;
@@ -1139,7 +1139,7 @@ namespace Kizami.EngineAdapter.Voxel
             if (_colliderMode == VoxelColliderMode.ChunkMesh)
             {
                 meshCollider = chunkObject.AddComponent<MeshCollider>();
-                meshCollider.cookingOptions = ColliderCookingOptions;
+                meshCollider.cookingOptions = COLLIDER_COOKING_OPTIONS;
             }
 
             meshFilter.sharedMesh = mesh;
@@ -1192,7 +1192,7 @@ namespace Kizami.EngineAdapter.Voxel
                 Vertices = new NativeList<float3>(1024, allocator);
                 Normals = new NativeList<float3>(1024, allocator);
                 Indices = new NativeList<int>(4096, allocator);
-                Extremes = new NativeArray<float3>(VoxelHullDirections.Count, allocator);
+                Extremes = new NativeArray<float3>(VoxelHullDirections.COUNT, allocator);
             }
 
             public void Dispose()

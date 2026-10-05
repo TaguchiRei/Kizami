@@ -15,7 +15,7 @@ namespace Kizami.Application
     public sealed class MeleeCutService : IDisposable
     {
         /// <summary> 切断面の角度の範囲（度）。180 度回すと同じ面になる </summary>
-        private const float AngleRange = 180f;
+        private const float ANGLE_RANGE = 180f;
 
         private readonly MeleeCutState _state = new();
         private readonly IOperationSettingState _settingState;
@@ -54,7 +54,7 @@ namespace Kizami.Application
             if (context.Phase != InputPhase.Performed || context.Value == 0f) return;
 
             var step = Mathf.Sign(context.Value) * _settingState.CutRotateStepAngle;
-            _state.SetAngle(Mathf.Repeat(_state.Angle + step, AngleRange));
+            _state.SetAngle(Mathf.Repeat(_state.Angle + step, ANGLE_RANGE));
         }
 
         /// <summary>

@@ -11,7 +11,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// 表面をまたぐ格子の辺ごとに、その辺を囲む 4 セルの頂点を四角形で結ぶ。
     /// 法線は各格子点の中心差分の勾配を、頂点位置でトリリニア補間して求める。
     /// 頂点と法線はボクセル空間（ローカル空間）で出力する。
-    /// 読むサンプル範囲は VoxelGridLayout.MeshingReadMargin と対応している。
+    /// 読むサンプル範囲は VoxelGridLayout.MESHING_READ_MARGIN と対応している。
     /// </summary>
     [BurstCompile]
     public struct SurfaceNetsJob : IJob
