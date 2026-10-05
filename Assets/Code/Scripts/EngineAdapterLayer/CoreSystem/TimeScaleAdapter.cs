@@ -7,9 +7,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// TimeScaleState の倍率を Time.timeScale と Time.fixedDeltaTime へ反映する Adapter。
-    ///
     /// Time.timeScale と Time.fixedDeltaTime へ書き込むのはプロジェクト全体でこのクラスだけ。
-    /// fixedDeltaTime は初期化時の値を基準に、基準値 × 倍率で更新する。倍率が 0 のときは変更しない。
     /// </summary>
     public sealed class TimeScaleAdapter : InitializableMonoBehaviour
     {
@@ -40,7 +38,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 倍率を Time.timeScale と Time.fixedDeltaTime へ書き込む。
+        /// 倍率を Time.timeScale へ、初期化時の fixedDeltaTime × 倍率を Time.fixedDeltaTime へ書き込む。
         /// </summary>
         /// <param name="scale">反映する倍率</param>
         private void Apply(float scale)

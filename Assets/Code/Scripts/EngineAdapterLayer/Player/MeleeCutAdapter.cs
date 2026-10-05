@@ -10,9 +10,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 近接切断の振り（Swing）を受けて、カメラの位置と向き、切断面の角度から刃を配置し、
-    /// 範囲内の切れる CuttableObject をまとめて切断する。切断の結果は、初期化で受け取った関数へ渡す。
-    /// 刃の位置はカメラの位置、法線はカメラの上方向をカメラの前方向を軸に角度だけ回したもの。
-    /// 範囲は、カメラの前方へ伸びる、刃に沿った薄い直方体。
+    /// カメラの前方へ伸びる薄い直方体の範囲にある切れる CuttableObject をまとめて切断する Adapter。
     /// </summary>
     public sealed class MeleeCutAdapter : InitializableMonoBehaviour
     {
@@ -66,7 +64,6 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 振ったときの角度で刃を配置し、範囲内の切れる対象を切断する。
-        /// 切断の実行中と、対象が 1 つもないときは何もしない。
         /// </summary>
         /// <param name="angle">切断面の角度（度）</param>
         public void Swing(float angle)

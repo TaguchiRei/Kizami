@@ -19,7 +19,7 @@ namespace Kizami.EngineAdapter
         private IMeleeCutState _state;
 
         /// <summary>
-        /// PlayerInitializer から呼ばれる。State の登録順に依存しないよう待受で拾う。
+        /// PlayerInitializer から呼ばれる。State の登録を待ち受けて拾う。
         /// </summary>
         /// <param name="playerBoard">切断面の角度の取得元</param>
         public void Initialize(PlayerBoard playerBoard)

@@ -9,16 +9,9 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// PC / スマホ用の視点（上下方向）反映。
-    /// Cinemachine カメラの Tilt 軸を直接書き換える。可動域は CinemachinePanTilt.TiltAxis.Range（Inspector）で管理する。
-    ///
-    /// 視点入力はマウスや指の移動量として扱う為、届いたその場で回転へ加算する。
-    /// 経過時間では割らない（移動量そのものが既にそのフレーム分の量である為）。
-    ///
-    /// Look 入力は Pointer/delta（OS カーソルの移動量）を使う為、カーソルが画面外へ出ると
-    /// それ以上デルタが得られない。これを避ける為、有効化中はカーソルを中央にロックし非表示にする。
-    /// タッチ操作のスマホではカーソル自体が存在しない為、この設定は実質何もしない。
-    ///
-    /// エディタでは、Alt キーを押している間だけカーソルのロックを外して表示する（デバッグ用）。
+    /// Cinemachine カメラの Tilt 軸を直接書き換え、可動域は CinemachinePanTilt.TiltAxis.Range（Inspector）で管理する。
+    /// 視点入力はそのフレーム分の移動量なので、経過時間で割らずに届いたその場で回転へ加算する。
+    /// Look 入力は Pointer/delta を使い、カーソルが画面外へ出るとデルタが得られないので、有効化中はカーソルを中央にロックして隠す。
     /// </summary>
     public sealed class StandardPlayerCameraAdapter : PlayerCameraAdapterBase
     {

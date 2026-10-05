@@ -7,16 +7,10 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// スティック入力を毎フレーム読み出して、外部入力スロットへ書き込む入力ソース。
-    /// VR コントローラのスティック用。
+    /// スティック入力を毎フレーム読み出して外部入力スロットへ書き込む、VR コントローラ用の入力ソース。
     /// 書き込んだ値は仮想デバイスを経由して、スロットをバインドした InputAction として発火する。
-    ///
-    /// InputAction の started / canceled は一切購読しない。XR デバイスのスティックでは
-    /// 入力を継続していても started と canceled が繰り返し発火する為、コールバック経由では
-    /// 入力の継続を正しく追えない。現在値の読み出し (ReadValue) だけを真とする。
-    ///
-    /// 書き込みの可否は流し込み先の ActionMap が有効かどうかで判定する為、
-    /// アウトゲーム / インゲームの ActionMap 切り替えに追従する。
+    /// XR デバイスのスティックは入力を継続していても started / canceled が繰り返し発火するので、
+    /// InputAction のコールバックは購読せず、ReadValue の現在値だけを使う。
     /// </summary>
     public sealed class PollingStickInputSource : InitializableMonoBehaviour
     {

@@ -7,13 +7,9 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// プレイヤーの移動と視点を Transform / Rigidbody へ反映する Abstractor の基底。
-    /// 視点操作も移動の一種として同じコンポーネントが受け持つ。
-    ///
-    /// 水平移動の反映と、触れている物（PlayerContactState）の判定・書き込みは操作系によらず共通なのでここに置き、
-    /// 視点入力をどう回転へ変換するか（何度回すか、上下を使うか、時間で積分するか）だけを
-    /// 派生＝操作系ごとの実装が決める。
-    /// PlayerContactState の具象インスタンスはこのクラスだけが保持する（Single Writer）。
+    /// プレイヤーの移動と視点を Transform / Rigidbody へ反映する Adapter の基底。
+    /// 水平移動の反映と、触れている物（PlayerContactState）の判定・書き込みはここで行い、
+    /// 視点入力を回転へ変換する方法だけを操作系ごとの派生が決める。
     /// </summary>
     public abstract class PlayerMovementAdapterBase : InitializableMonoBehaviour
     {
@@ -63,7 +59,7 @@ namespace Kizami.EngineAdapter
         private PlayerMoveMode _lastAppliedMode;
 
         /// <summary>
-        /// PlayerInitializer から呼ばれる。State の登録順に依存しないよう待受で拾う。
+        /// PlayerInitializer から呼ばれる。State の登録を待ち受けて拾う。
         /// </summary>
         /// <param name="playerBoard">移動・視点ステートの取得元</param>
         /// <param name="step">FixedUpdate ごとに視線の向きと経過時間を渡して呼び、打ち出し速度を受け取る処理（PlayerMovementService.Step）</param>
@@ -124,12 +120,9 @@ namespace Kizami.EngineAdapter
         /// 2. 視線の向きと経過時間を渡して PlayerMovementService.Step を呼び、打ち出し速度を受け取る
         /// 3. 移動モードに応じて重力を切り替え、目標速度（PlayerMovementState.TargetVelocity の水平成分）へ向けて
         ///    水平速度を緩やかに補間し、Rigidbody に反映する
-        /// Step が触れている物を読む為、1 は 2 より先に行う必要がある。
-        /// 打ち出し速度があれば、Y 軸方向の速度をその Y 成分で置き換え、水平成分が 0 でなければ水平速度もそれで置き換える。
-        /// 打ち出し速度がなければ、壁走り中とワープが終わったステップでは Y 軸方向の速度を 0 にし、
-        /// それ以外は Rigidbody の現在値（重力等）をそのまま通す。
-        /// ワープ中は補間せず、目標速度（Y 成分を含む）をそのまま Rigidbody に設定する。
-        /// ワープが終わったステップでは、水平速度をワープを始める直前の値に戻してから補間する。
+        /// Step が触れている物を読むので、1 は 2 より先に行う。
+        /// ワープ中は目標速度（Y 成分を含む）をそのまま Rigidbody に設定し、
+        /// ワープが終わったステップでは水平速度をワープを始める直前の値に戻してから補間する。
         /// </summary>
         private void FixedUpdate()
         {

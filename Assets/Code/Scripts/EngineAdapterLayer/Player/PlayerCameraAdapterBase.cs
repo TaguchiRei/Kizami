@@ -6,8 +6,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 視点操作の上下方向をカメラへ反映する Abstractor の基底。
-    /// 左右方向（体の向き）は PlayerMovementAdapterBase 側が担当し、ここでは扱わない。
+    /// 視点操作の上下方向をカメラへ反映する Adapter の基底。左右方向（体の向き）は PlayerMovementAdapterBase が担当する。
     /// </summary>
     public abstract class PlayerCameraAdapterBase : InitializableMonoBehaviour
     {
@@ -15,7 +14,7 @@ namespace Kizami.EngineAdapter
         private IDisposable _lookSubscription;
 
         /// <summary>
-        /// PlayerInitializer から呼ばれる。State の登録順に依存しないよう待受で拾う。
+        /// PlayerInitializer から呼ばれる。State の登録を待ち受けて拾う。
         /// </summary>
         /// <param name="playerBoard">視点ステートの取得元</param>
         public void Initialize(PlayerBoard playerBoard)

@@ -9,16 +9,14 @@ using UsefulToolkit.MeshCut;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 切断で生まれたかけらを管理し、オーブに変えてプレイヤーに吸収させる。
-    /// 切断の結果を受け取ると、切られた元の対象を管理から外し、表と裏のかけらを登録する。
-    /// かけらがプールに回収されたとき（CuttableObject.ReuseAction）も管理から外す。
-    /// かけらは、生まれてから猶予時間が過ぎた後に何かにぶつかるか、寿命が来るとオーブになる。
-    /// オーブは MainCamera の位置へ向かい、届いたら吸収した数を初期化で受け取った関数へ渡す。
-    /// オーブが上限の数だけあるときは、オーブを出さずにその場で吸収したものとして渡す。
-    /// 非アクティブなかけらはオーブにしない。切り直されている途中のかけらは、ExecuteCut が先に非アクティブにし、
-    /// 切断の結果が届くまで管理に残る為（結果が届いたときに管理から外れる）。
-    /// かけらとオーブの時間は Time.time / Time.deltaTime で数える（スローモード中は一緒に遅くなる）。
+    /// 切断で生まれたかけらを管理し、オーブに変えてプレイヤーに吸収させる Adapter。
+    /// かけらは生まれてから猶予時間が過ぎた後に何かにぶつかるか、寿命が来るとオーブになり、オーブは MainCamera の位置へ向かって吸収される。
     /// </summary>
+    /// <remarks>
+    /// 切り直されている途中のかけらは ExecuteCut が先に非アクティブにし、切断の結果が届くまで管理に残るので、
+    /// 非アクティブなかけらはオーブにしない。
+    /// かけらとオーブの時間は Time.time / Time.deltaTime で数え、スローモード中は一緒に遅くなる。
+    /// </remarks>
     public sealed class FragmentOrbAdapter : InitializableMonoBehaviour
     {
         [SerializeField]
@@ -189,7 +187,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// かけらを管理から外してプールへ返し、その位置にオーブを出す。
         /// 管理から外すのは返す前に行う。返すときにも ReuseAction が呼ばれる為。
-        /// オーブが上限の数だけあるときは、オーブを出さずにその場で吸収したものとして渡す。
+        /// オーブが上限の数だけあるときは、その場で吸収したものとして渡す。
         /// </summary>
         private void ConvertToOrb(CuttableObject fragment)
         {

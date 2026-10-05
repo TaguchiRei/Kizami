@@ -6,7 +6,6 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// かけらが何かのコライダーにぶつかったことを知らせる。かけらのプレハブに、CuttableObject と一緒に付ける。
-    /// トリガーへの侵入は知らせない。
     /// </summary>
     [RequireComponent(typeof(CuttableObject))]
     public sealed class FragmentContactReporter : MonoBehaviour

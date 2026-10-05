@@ -12,12 +12,9 @@ using Touch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// タッチ領域の UI 上で始まったドラッグの移動量を、外部入力スロットへ書き込む入力ソース。
-    /// スマホの視点操作用。
+    /// タッチ領域の UI 上で始まったドラッグの移動量を外部入力スロットへ書き込む、スマホの視点操作用の入力ソース。
     /// 書き込んだ値は仮想デバイスを経由して、スロットをバインドした InputAction として発火する。
-    ///
-    /// 仮想デバイスは次に書き込むまで値を保持する為、指が止まっているフレームと指を離した時は
-    /// ゼロを書き込む。書き込まないと直前の移動量が残り続け、視点が回り続ける。
+    /// 仮想デバイスは次に書き込むまで値を保持するので、指が止まっているフレームと指を離したときはゼロを書き込む。
     /// </summary>
     public sealed class TouchLookInputSource : InitializableMonoBehaviour
     {
@@ -42,7 +39,7 @@ namespace Kizami.EngineAdapter
         private int _trackedTouchId = -1;
         private Vector2 _lastPosition;
 
-        /// <summary> 直前に書き込んだ値がゼロ以外か。ゼロを毎フレーム書き込まない為に持つ </summary>
+        /// <summary> 直前に書き込んだ値がゼロ以外か。ゼロの書き込みを 1 回に抑えるために持つ </summary>
         private bool _hasWrittenNonZero;
 
         /// <summary>
@@ -195,7 +192,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 外部入力スロットへ値を書き込む。直前もゼロだった場合のゼロは書き込まない。
+        /// 外部入力スロットへ値を書き込む。ゼロが続くときは最初の 1 回だけ書き込む。
         /// </summary>
         /// <param name="value">書き込む値</param>
         private void Write(Vector2 value)
@@ -209,7 +206,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 入力範囲内にあるか、ボタンなどと被っていないかを調べる。
+        /// スクリーン座標の最前面にある UI が、タッチ領域のタグを持つかを調べる。
         /// </summary>
         /// <param name="screenPosition">調べるスクリーン座標</param>
         private bool IsInsideTouchArea(Vector2 screenPosition)

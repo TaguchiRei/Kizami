@@ -4,12 +4,9 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// VR 用の移動・視点反映。視点は左右の連続旋回だけを XR Origin へ反映する。
-    ///
-    /// 上下方向は HMD の姿勢が担う為、入力値の y は捨てる。この打ち切りが VR 固有の仕様であり、
-    /// State と Application 側は上下の入力を載せたままで構わない。
-    /// 視点入力はスティックの倒し量として扱う為、旋回速度とみなして経過時間で積分する。
-    /// XR Origin を回すと、その子であるカメラの姿勢に旋回分が加算される。
+    /// VR 用の移動・視点反映。
+    /// 上下方向は HMD の姿勢が担うので、入力値の y は捨て、左右の連続旋回だけを XR Origin へ反映する。
+    /// 視点入力はスティックの倒し量なので、旋回速度とみなして経過時間で積分する。
     /// </summary>
     public sealed class VrPlayerMovementAdapter : PlayerMovementAdapterBase
     {

@@ -5,12 +5,8 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// PC / スマホ用の移動・視点（左右方向）反映。
-    /// 視点は水平方向（Yaw）を体に反映する。体を上下に傾けないのは、移動方向が体の向きに従う為。
-    /// 上下方向（Pitch）は PlayerCameraAdapterBase 側（StandardPlayerCameraAdapter）が
-    /// Cinemachine カメラへ反映する。
-    ///
-    /// 視点入力はマウスや指の移動量として扱う為、届いたその場で回転へ加算する。
-    /// 経過時間では割らない（移動量そのものが既にそのフレーム分の量である為）。
+    /// 移動方向が体の向きに従うので、体には水平方向（Yaw）だけを反映し、上下方向（Pitch）は StandardPlayerCameraAdapter が反映する。
+    /// 視点入力はそのフレーム分の移動量なので、経過時間で割らずに届いたその場で回転へ加算する。
     /// </summary>
     public sealed class StandardPlayerMovementAdapter : PlayerMovementAdapterBase
     {
