@@ -1,6 +1,5 @@
 using Cysharp.Threading.Tasks;
 using Kizami.Application;
-using Kizami.BlackBoard;
 using UnityEngine;
 using UsefulToolkit.Attributes;
 using UsefulToolkit.BlackBoard.BlackBoard;
@@ -14,8 +13,6 @@ namespace Kizami.Initialization
     /// <summary>
     /// シーン遷移の操作面を組み立て、起動時にアウトゲームへ遷移する Initializer。常駐シーンへ置く。
     ///
-    /// 場面のシーンは 3 ビルドで共通なので、ビルドモードごとに差し替えるのは
-    /// 組み合わせる操作シーンだけになる。PC とスマホは同じシーングループを指定してよい。
     /// 遷移の操作面は DI コンテナへ登録し、受け取る側は
     /// IInjectable&lt;IGameSceneController&gt; を実装する。
     /// </summary>
@@ -24,11 +21,11 @@ namespace Kizami.Initialization
     {
         [SerializeField]
         [Tooltip("アウトゲームで読み込むシーングループ。")]
-        private BuildModeSelector<SceneGroupDataBase> _outGameGroups = new();
+        private SceneGroupDataBase _outGameGroup;
 
         [SerializeField]
         [Tooltip("インゲームで読み込むシーングループ。")]
-        private BuildModeSelector<SceneGroupDataBase> _inGameGroups = new();
+        private SceneGroupDataBase _inGameGroup;
 
         [SerializeField]
         [Tooltip("起動時にアウトゲームへ自動で遷移する。")]
@@ -43,17 +40,14 @@ namespace Kizami.Initialization
 
         public override void Initialize(IBlackBoard blackBoard)
         {
-            if (!TryBuildSceneGroups(out var sceneGroups)) return;
-
-            if (!blackBoard.TryGetStateBoard<AppBoard>(out var appBoard) ||
-                !appBoard.TryGetGameState<IBuildModeState>(out var buildModeState))
+            if (_outGameGroup == null || _outGameGroup.GroupData == null ||
+                _inGameGroup == null || _inGameGroup.GroupData == null)
             {
-                UsefulLogger.LogError(
-                    "IBuildModeState が未登録の為、操作系に応じたシーングループを選べません。", this);
+                UsefulLogger.LogError("シーングループが設定されていない為、シーン遷移を初期化できません。", this);
                 return;
             }
 
-            if (!_sceneController.Initialize(blackBoard, sceneGroups, buildModeState)) return;
+            if (!_sceneController.Initialize(blackBoard, _outGameGroup.GroupData, _inGameGroup.GroupData)) return;
 
             base.Initialize(blackBoard);
 
@@ -61,38 +55,6 @@ namespace Kizami.Initialization
             {
                 _sceneController.StartGameAsync(destroyCancellationToken).Forget();
             }
-        }
-
-        /// <summary>
-        /// GameSceneController が期待する並び（アウトゲームの全ビルドモード分 → インゲームの全ビルドモード分）で
-        /// シーングループを 1 本の配列へ連結する。
-        /// </summary>
-        /// <param name="sceneGroups">組み立てたシーングループ</param>
-        /// <returns>全ての枠が設定されていて組み立てられたか</returns>
-        private bool TryBuildSceneGroups(out SceneGroup[] sceneGroups)
-        {
-            sceneGroups = null;
-
-            var sources = new SceneGroupDataBase[BuildModeSelector.Count * 2];
-            _outGameGroups.ToArray().CopyTo(sources, 0);
-            _inGameGroups.ToArray().CopyTo(sources, BuildModeSelector.Count);
-
-            var groups = new SceneGroup[sources.Length];
-
-            for (int i = 0; i < sources.Length; i++)
-            {
-                if (sources[i] == null || sources[i].GroupData == null)
-                {
-                    UsefulLogger.LogError(
-                        "シーングループに未設定の枠がある為、シーン遷移を初期化できません。", this);
-                    return false;
-                }
-
-                groups[i] = sources[i].GroupData;
-            }
-
-            sceneGroups = groups;
-            return true;
         }
     }
 }

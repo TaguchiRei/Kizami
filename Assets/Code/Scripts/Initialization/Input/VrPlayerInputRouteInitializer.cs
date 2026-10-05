@@ -8,7 +8,7 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// VR の操作シーンの入力配線。VR 専用シーンにしか置かれない為、ビルドモードは参照しない。
+    /// VR の操作系の入力配線。ビルドモードは参照しない。
     ///
     /// 移動・視点ともに VRControllers のスティックをポーリングで読み、外部入力スロット
     /// (ExternalInputs.VrMove / VrLook) へ書き込む。

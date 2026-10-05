@@ -22,7 +22,7 @@
 
 - 敵は、パーツごとに分かれた軽量なメッシュ（全パーツを合わせて 2000 ポリゴン未満）を、パーツ単位で FK / IK で動かす。SkinnedMeshRenderer は使わない
 - 敵の移動と FK / IK は `Time.deltaTime` を使う（スロー中は一緒に遅くなる）。Animator を使う場合、Update Mode は Normal にする
-- 区間1で、被ダメージの窓口 `PlayerHealthService.ApplyDamage(int)`（ワープ中は軽減率を適用）と、HP の読み取り面 `IPlayerHealthState`（`RegisterOnHealthChanged` で HP が 0 になったことを受け取れる）を作った。`PlayerHealthService` は `PlayerInitializer` が具象型のまま `StandardPlayerControlCompositor` に DI 登録している
+- 区間1で、被ダメージの窓口 `PlayerHealthService.ApplyDamage(int)`（ワープ中は軽減率を適用）と、HP の読み取り面 `IPlayerHealthState`（`RegisterOnHealthChanged` で HP が 0 になったことを受け取れる）を作った。`PlayerHealthService` は `PlayerInitializer` が具象型のまま `InGameCompositor` に DI 登録している（区間3で操作シーンを InGame に統合した）
 
 ## MeshCut の制約（敵に関わるもの）
 
@@ -38,14 +38,14 @@
 
 | # | 作業 | 層 | 内容 |
 |---|---|---|---|
-| 4-0 | ステージシーンの分離 | Level | ステージシーンを作り、今の InGame にあるライト・地面・テスト用の壁を移す。SceneGroup を InGame ＋ ステージシーン ＋ 操作シーンにする。ライティングの設定はアクティブなシーンのものだけ効くので、ステージシーンをアクティブにする。敵の生成位置はステージシーンに置き、敵（切断対象）は InGame の `MeshDataCache` の子に置く（2026-10-04 のシーン構成の決定。全体計画の「技術前提」） |
+| 4-0 | ステージシーンの分離 | Level | ステージシーンを作り、今の InGame にあるライト・地面・テスト用の壁（区間3で作った外周の `StageBounds` を含む）を移す。SceneGroup を InGame ＋ ステージシーンにする。ライティングの設定はアクティブなシーンのものだけ効くので、ステージシーンをアクティブにする。敵の生成位置はステージシーンに置き、敵（切断対象）は InGame の `MeshDataCache` の子に置く（2026-10-04 のシーン構成の決定。全体計画の「技術前提」） |
 | 4-1 | 敵の仮モデル | Level | パーツに分かれたロボットの仮モデル。各パーツを切断できるようにする |
 | 4-2 | パーツを動かす仕組み | EngineAdapter | パーツ単位の FK / IK |
 | 4-3 | 敵の State | BlackBoard / Application | 生きている敵の一覧と数 |
 | 4-4 | 出現 | Application / EngineAdapter | 湧き場所、同時に存在する数の上限、出現間隔。ステージごとの値はここでは仮のデータにする |
 | 4-5 | AI | Application / EngineAdapter | プレイヤーに近づいて攻撃する。移動は NavMesh を使う（EngineAdapter の asmdef に `Unity.AI.Navigation` の参照を足す） |
 | 4-6 | プレイヤーへの攻撃 | Application | 区間1の被ダメージの窓口を呼ぶ |
-| 4-7 | 討伐 | Application / EngineAdapter | 区間3で作るかけらの通知（元の対象つき）から、どの敵のどのパーツが切られたかを知り、倒れる判定と後片付けをする |
+| 4-7 | 討伐 | Application / EngineAdapter | 切断の結果（`MultiCutResult` の `Original`）から、どの敵のどのパーツが切られたかを知り、倒れる判定と後片付けをする。区間3では `PlayerInitializer` が `MeleeCutAdapter` の結果を `FragmentOrbAdapter` だけに直接渡しているので、受け取り手を足す方法（配線を足す、Event にする など）を決める |
 | 4-8 | 失敗 | Application | HP が 0 の通知を受けて失敗にする。失敗画面は仮 |
 | 4-9 | プール | EngineAdapter | 敵を使い回す。上の「MeshCut の制約」を満たす方法で、切られたパーツを元に戻す |
 
@@ -67,7 +67,7 @@
 | 4 | 出現の仮の値 | 同時に存在する数の上限と、出現間隔 |
 | 5 | 地形の変化 | ボクセルが削れて地形が変わったときの NavMesh の扱い |
 | 6 | 失敗したあとの流れ | 仮にリトライのみ など |
-| 7 | 敵から被ダメージの窓口へ届く経路 | DI のスコープは Compositor ごとに分かれ、InGame シーンからは StandardPlayerControl のスコープに登録した `PlayerHealthService` を受け取れない。常駐シーンの Root スコープへ移す、ダメージを Board 経由で渡す、などから選ぶ |
+| 7 | 敵から被ダメージの窓口へ届く経路 | 区間3で操作シーンを InGame に統合したので、InGame の Initializer が `IInjectable<PlayerHealthService>` で受け取れる。ステージシーンに置く物から呼ぶ場合は、ステージシーンが別の Compositor のスコープになる点に注意する |
 
 ## 他プラットフォームへの対応
 

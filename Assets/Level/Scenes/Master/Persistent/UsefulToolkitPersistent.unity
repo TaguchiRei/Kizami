@@ -266,6 +266,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.ApplicationManagementInitializer
   _editorBuildModeOverride: 1
+  _sprintInputMode: 0
+  _cutRotateStepAngle: 15
 --- !u!114 &669221194
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -315,14 +317,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a77b58c27212b749bd9156b8febea27, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.GameSceneInitializer
-  _outGameGroups:
-    _pc: {fileID: 11400000, guid: 9e29efc0c2d64ec449d65b6914e2f856, type: 2}
-    _mobile: {fileID: 11400000, guid: 9e29efc0c2d64ec449d65b6914e2f856, type: 2}
-    _vr: {fileID: 11400000, guid: 9e29efc0c2d64ec449d65b6914e2f856, type: 2}
-  _inGameGroups:
-    _pc: {fileID: 11400000, guid: 9887d82077f25504f982d304dd4e9f8b, type: 2}
-    _mobile: {fileID: 11400000, guid: 9887d82077f25504f982d304dd4e9f8b, type: 2}
-    _vr: {fileID: 11400000, guid: 9887d82077f25504f982d304dd4e9f8b, type: 2}
+  _outGameGroup: {fileID: 11400000, guid: 9e29efc0c2d64ec449d65b6914e2f856, type: 2}
+  _inGameGroup: {fileID: 11400000, guid: 9887d82077f25504f982d304dd4e9f8b, type: 2}
   _transitionOnStart: 1
 --- !u!1 &752471123
 GameObject:

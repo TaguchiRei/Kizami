@@ -8,7 +8,7 @@ using UsefulToolkit.BlackBoard.Input;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// PC とスマホが共用する操作シーンの入力配線。
+    /// PC とスマホが共用する操作系の入力配線。
     ///
     /// 移動・視点はどちらも InputAction がそのまま Application へ届く。スマホの移動スティックは
     /// On-Screen Controls が InputAction を焚く為、PC と同じ経路で通る。
