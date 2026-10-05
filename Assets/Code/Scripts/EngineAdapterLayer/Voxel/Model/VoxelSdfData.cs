@@ -21,17 +21,6 @@ namespace Kizami.EngineAdapter.Voxel
         [SerializeField] private float _maxDistance;
         [SerializeField] private short[] _samples;
 
-        public VoxelSdfData(string path, Vector3 origin, Vector3Int sampleCount, float voxelSize, float maxDistance,
-            short[] samples)
-        {
-            _path = path;
-            _origin = origin;
-            _sampleCount = sampleCount;
-            _voxelSize = voxelSize;
-            _maxDistance = maxDistance;
-            _samples = samples;
-        }
-
         public string Path => _path;
         public float3 Origin => _origin;
         public int3 SampleCount => new(_sampleCount.x, _sampleCount.y, _sampleCount.z);
@@ -44,5 +33,16 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> 端のサンプル同士を結ぶ、ローカル空間の範囲 </summary>
         public VoxelBounds LocalBounds => new(Origin, Origin + (float3)(SampleCount - 1) * _voxelSize);
+
+        public VoxelSdfData(string path, Vector3 origin, Vector3Int sampleCount, float voxelSize, float maxDistance,
+            short[] samples)
+        {
+            _path = path;
+            _origin = origin;
+            _sampleCount = sampleCount;
+            _voxelSize = voxelSize;
+            _maxDistance = maxDistance;
+            _samples = samples;
+        }
     }
 }

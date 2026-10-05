@@ -19,6 +19,10 @@ namespace Kizami.EngineAdapter.Voxel
         private const int MAX_INSTANCES_PER_DRAW = 1023;
         private const int JOB_BATCH_SIZE = 64;
 
+        private readonly List<VoxelPiece> _pieces = new();
+        private readonly List<VoxelEvaporation> _pendingEvaporations = new();
+        private readonly ActionChannel<IReadOnlyList<VoxelEvaporation>> _evaporated = new();
+
         [SerializeField]
         [Tooltip("加熱・融解・蒸発・冷却と、粒の動きの設定")]
         private VoxelThermalSettings _settings;
@@ -60,10 +64,6 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("表示方法が Spheres のときに使う、直径 1 のメッシュ。未設定なら球")]
         private Mesh _particleMesh;
 
-        private readonly List<VoxelPiece> _pieces = new();
-        private readonly List<VoxelEvaporation> _pendingEvaporations = new();
-        private readonly ActionChannel<IReadOnlyList<VoxelEvaporation>> _evaporated = new();
-
         private NativeList<VoxelMeltParticle> _particles;
         private NativeArray<Matrix4x4> _matrices;
         private Mesh _renderMesh;
@@ -100,6 +100,14 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> これまでに蒸発した体積の合計（ワールド空間, m³） </summary>
         public float EvaporatedVolume { get; private set; }
+
+        private static Mesh GetBuiltinSphereMesh()
+        {
+            var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var mesh = sphere.GetComponent<MeshFilter>().sharedMesh;
+            Destroy(sphere);
+            return mesh;
+        }
 
         /// <summary>
         /// 設定を差し替える。
@@ -547,14 +555,6 @@ namespace Kizami.EngineAdapter.Voxel
                 Graphics.RenderMeshInstanced(renderParams, _renderMesh, 0, _matrices,
                     math.min(MAX_INSTANCES_PER_DRAW, count - start), start);
             }
-        }
-
-        private static Mesh GetBuiltinSphereMesh()
-        {
-            var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            var mesh = sphere.GetComponent<MeshFilter>().sharedMesh;
-            Destroy(sphere);
-            return mesh;
         }
     }
 }

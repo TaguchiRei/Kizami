@@ -27,6 +27,13 @@ namespace Kizami.EngineAdapter.Voxel
             MeshColliderCookingOptions.WeldColocatedVertices |
             MeshColliderCookingOptions.UseFastMidphase;
 
+        private readonly Queue<int> _dirtyQueue = new();
+        private readonly List<VoxelShapeChange> _pendingShapeChanges = new();
+        private readonly List<VoxelPiece> _pendingSlicePieces = new();
+        private readonly ActionChannel<VoxelShapeChange> _shapeChanged = new();
+        private readonly ActionChannel<VoxelPiece[]> _split = new();
+        private readonly ActionChannel<VoxelPiece> _destroyed = new();
+
         [Header("形状")]
         [SerializeField]
         [Tooltip("ボクセルの大きさ・チャンクの大きさ・再メッシュ化の上限")]
@@ -61,13 +68,6 @@ namespace Kizami.EngineAdapter.Voxel
         [SerializeField]
         [Tooltip("融解・蒸発した分の送り先。未設定なら加熱しても何も起きない")]
         private VoxelMeltSystem _meltSystem;
-
-        private readonly Queue<int> _dirtyQueue = new();
-        private readonly List<VoxelShapeChange> _pendingShapeChanges = new();
-        private readonly List<VoxelPiece> _pendingSlicePieces = new();
-        private readonly ActionChannel<VoxelShapeChange> _shapeChanged = new();
-        private readonly ActionChannel<VoxelPiece[]> _split = new();
-        private readonly ActionChannel<VoxelPiece> _destroyed = new();
 
         private VoxelVolume _volume;
         private ChunkSlot[] _chunks;
@@ -165,6 +165,29 @@ namespace Kizami.EngineAdapter.Voxel
             {
                 var size = VoxelSize;
                 return size * size * size;
+            }
+        }
+
+        private static void BakeColliders(List<ChunkSlot> slots)
+        {
+            if (slots.Count == 0) return;
+
+            var meshIds = new NativeArray<EntityId>(slots.Count, Allocator.TempJob);
+            for (var i = 0; i < slots.Count; i++)
+            {
+                meshIds[i] = slots[i].Mesh.GetEntityId();
+            }
+
+            new BakeColliderJob
+            {
+                MeshIds = meshIds,
+                CookingOptions = COLLIDER_COOKING_OPTIONS
+            }.Schedule(slots.Count, 1).Complete();
+            meshIds.Dispose();
+
+            foreach (var slot in slots)
+            {
+                slot.AssignCollider();
             }
         }
 
@@ -1016,29 +1039,6 @@ namespace Kizami.EngineAdapter.Voxel
             slot.SetMesh(buffers, triangleCount);
             slot.ExtremePoints = useHull ? buffers.Extremes.ToArray() : null;
             return slot;
-        }
-
-        private static void BakeColliders(List<ChunkSlot> slots)
-        {
-            if (slots.Count == 0) return;
-
-            var meshIds = new NativeArray<EntityId>(slots.Count, Allocator.TempJob);
-            for (var i = 0; i < slots.Count; i++)
-            {
-                meshIds[i] = slots[i].Mesh.GetEntityId();
-            }
-
-            new BakeColliderJob
-            {
-                MeshIds = meshIds,
-                CookingOptions = COLLIDER_COOKING_OPTIONS
-            }.Schedule(slots.Count, 1).Complete();
-            meshIds.Dispose();
-
-            foreach (var slot in slots)
-            {
-                slot.AssignCollider();
-            }
         }
 
         /// <summary>

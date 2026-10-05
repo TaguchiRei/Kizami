@@ -19,6 +19,18 @@ namespace Kizami.EngineAdapter
     /// </remarks>
     public sealed class FragmentOrbAdapter : InitializableMonoBehaviour
     {
+        /// <summary> 管理中のかけらと、生まれた時刻（Time.time） </summary>
+        private readonly Dictionary<CuttableObject, float> _fragments = new();
+
+        /// <summary> 回収時と接触時の処理を登録済みのかけら </summary>
+        private readonly HashSet<CuttableObject> _hookedFragments = new();
+
+        /// <summary> 寿命が来たかけらを集める作業用の一覧 </summary>
+        private readonly List<CuttableObject> _expiredFragments = new();
+
+        /// <summary> 出ているオーブ </summary>
+        private readonly List<Transform> _orbs = new();
+
         [SerializeField]
         [Tooltip("かけらのプール。オーブにしたかけらを返す先")]
         private MeshCutObjectPool _fragmentPool;
@@ -46,18 +58,6 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(1)]
         [Tooltip("同時に存在するオーブの数の上限")]
         private int _maxOrbCount = 64;
-
-        /// <summary> 管理中のかけらと、生まれた時刻（Time.time） </summary>
-        private readonly Dictionary<CuttableObject, float> _fragments = new();
-
-        /// <summary> 回収時と接触時の処理を登録済みのかけら </summary>
-        private readonly HashSet<CuttableObject> _hookedFragments = new();
-
-        /// <summary> 寿命が来たかけらを集める作業用の一覧 </summary>
-        private readonly List<CuttableObject> _expiredFragments = new();
-
-        /// <summary> 出ているオーブ </summary>
-        private readonly List<Transform> _orbs = new();
 
         private ObjectPool<Transform> _orbPool;
         private Action<int> _onAbsorbed;

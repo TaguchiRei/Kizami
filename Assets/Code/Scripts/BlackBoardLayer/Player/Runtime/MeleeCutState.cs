@@ -10,6 +10,11 @@ namespace Kizami.BlackBoard
     {
         public float Angle { get; private set; }
 
+        public override string GetLog()
+        {
+            return $"Angle: {Angle}";
+        }
+
         /// <summary>
         /// 切断面の角度を設定する。
         /// </summary>
@@ -17,11 +22,6 @@ namespace Kizami.BlackBoard
         public void SetAngle(float angle)
         {
             Angle = angle;
-        }
-
-        public override string GetLog()
-        {
-            return $"Angle: {Angle}";
         }
     }
 

@@ -55,16 +55,6 @@ namespace Kizami.Application
             return service.Initialize(OUT_GAME_INDEX, cancellationToken);
         }
 
-        public UniTask<bool> GoToOutGameAsync(CancellationToken cancellationToken = default)
-        {
-            return LoadAsync(OUT_GAME_INDEX, cancellationToken);
-        }
-
-        public UniTask<bool> GoToInGameAsync(CancellationToken cancellationToken = default)
-        {
-            return LoadAsync(IN_GAME_INDEX, cancellationToken);
-        }
-
         /// <summary>
         /// 場面のシーングループを上書きロードする。
         /// </summary>
@@ -85,6 +75,16 @@ namespace Kizami.Application
 
             UsefulLogger.LogError("シーン遷移が初期化されていません。", this);
             return false;
+        }
+
+        public UniTask<bool> GoToOutGameAsync(CancellationToken cancellationToken = default)
+        {
+            return LoadAsync(OUT_GAME_INDEX, cancellationToken);
+        }
+
+        public UniTask<bool> GoToInGameAsync(CancellationToken cancellationToken = default)
+        {
+            return LoadAsync(IN_GAME_INDEX, cancellationToken);
         }
     }
 

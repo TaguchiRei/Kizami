@@ -21,11 +21,6 @@ namespace Kizami.Initialization
         private ITimeScaleController _controller;
         private ITimeScaleState _state;
 
-        public void Inject(ITimeScaleController instance)
-        {
-            _controller = instance;
-        }
-
         public override void Initialize(IBlackBoard blackBoard)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -63,5 +58,10 @@ namespace Kizami.Initialization
             GUILayout.EndArea();
         }
 #endif
+
+        public void Inject(ITimeScaleController instance)
+        {
+            _controller = instance;
+        }
     }
 }

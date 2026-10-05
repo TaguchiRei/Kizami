@@ -34,11 +34,6 @@ namespace Kizami.Initialization
         private IDisposable _modeSubscription;
         private bool _isDamageOnWarpEnabled;
 
-        public void Inject(PlayerHealthService instance)
-        {
-            _healthService = instance;
-        }
-
         public override void Initialize(IBlackBoard blackBoard)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -103,6 +98,11 @@ namespace Kizami.Initialization
         {
             _healthSubscription?.Dispose();
             _modeSubscription?.Dispose();
+        }
+
+        public void Inject(PlayerHealthService instance)
+        {
+            _healthService = instance;
         }
     }
 }

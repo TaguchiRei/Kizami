@@ -11,12 +11,13 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelCoolJob : IJobParallelFor
     {
-        [NativeDisableParallelForRestriction] public NativeArray<float> Temperatures;
-        [ReadOnly] public NativeArray<int> ChunkIndices;
         public VoxelGridLayout Layout;
 
         /// <summary> 下げる温度 </summary>
         public float Amount;
+
+        [NativeDisableParallelForRestriction] public NativeArray<float> Temperatures;
+        [ReadOnly] public NativeArray<int> ChunkIndices;
 
         /// <summary> チャンクごとの、下げた後の最高温度の出力先。添字は ChunkIndices と一致する </summary>
         [WriteOnly] public NativeArray<float> MaxTemperatures;

@@ -40,11 +40,20 @@ namespace Kizami.EngineAdapter.Voxel
         public const int OUTSIDE_LABEL = -1;
         private const int PENDING_LABEL = -2;
 
-        [ReadOnly] public NativeArray<float> Samples;
         public VoxelGridLayout Layout;
 
         public NativeArray<int> Labels;
         public NativeList<VoxelComponent> Components;
+
+        [ReadOnly] public NativeArray<float> Samples;
+
+        private void Visit(int index, int label, ref NativeList<int> stack)
+        {
+            if (Labels[index] != PENDING_LABEL) return;
+
+            Labels[index] = label;
+            stack.Add(index);
+        }
 
         public void Execute()
         {
@@ -89,14 +98,6 @@ namespace Kizami.EngineAdapter.Voxel
             }
 
             stack.Dispose();
-        }
-
-        private void Visit(int index, int label, ref NativeList<int> stack)
-        {
-            if (Labels[index] != PENDING_LABEL) return;
-
-            Labels[index] = label;
-            stack.Add(index);
         }
     }
 }

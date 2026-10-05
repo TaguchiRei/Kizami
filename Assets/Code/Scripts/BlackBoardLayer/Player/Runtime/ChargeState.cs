@@ -18,6 +18,11 @@ namespace Kizami.BlackBoard
             Max = max;
         }
 
+        public override string GetLog()
+        {
+            return $"Charge: {Current} / {Max}";
+        }
+
         /// <summary>
         /// 現在のチャージ量を設定する。値は 0〜上限に収める。
         /// </summary>
@@ -25,11 +30,6 @@ namespace Kizami.BlackBoard
         public void SetCurrent(int current)
         {
             Current = Math.Clamp(current, 0, Max);
-        }
-
-        public override string GetLog()
-        {
-            return $"Charge: {Current} / {Max}";
         }
     }
 

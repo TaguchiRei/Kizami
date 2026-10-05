@@ -38,6 +38,9 @@ namespace Kizami.EngineAdapter.Voxel
 
         internal NativeArray<float> Samples => _samples;
 
+        /// <summary> 格子のローカル空間での範囲（最外周のサンプルを含む） </summary>
+        public VoxelBounds LocalBounds => new(Layout.ToLocalPosition(int3.zero), Layout.ToLocalPosition(Layout.SampleCount - 1));
+
         /// <summary>
         /// 全サンプルを外側（+切り詰め距離）で埋めた空のボリュームを作る。
         /// </summary>
@@ -64,9 +67,6 @@ namespace Kizami.EngineAdapter.Voxel
             _isHotChunk = new bool[layout.ChunkTotal];
             _samples = samples;
         }
-
-        /// <summary> 格子のローカル空間での範囲（最外周のサンプルを含む） </summary>
-        public VoxelBounds LocalBounds => new(Layout.ToLocalPosition(int3.zero), Layout.ToLocalPosition(Layout.SampleCount - 1));
 
         /// <summary>
         /// 同じ格子・同じ距離・同じ温度を持つ複製を作る。冷却の対象のチャンクも引き継ぐ。
@@ -397,12 +397,6 @@ namespace Kizami.EngineAdapter.Voxel
             }.Schedule().Complete();
         }
 
-        public void Dispose()
-        {
-            if (_samples.IsCreated) _samples.Dispose();
-            if (_temperatures.IsCreated) _temperatures.Dispose();
-        }
-
         /// <summary>
         /// ローカル空間の範囲を、格子に収まるサンプル範囲 [sampleMin, sampleMax]（両端を含む）へ変換する。
         /// </summary>
@@ -432,6 +426,12 @@ namespace Kizami.EngineAdapter.Voxel
                 _isHotChunk[chunkIndex] = true;
                 _hotChunks.Add(chunkIndex);
             }
+        }
+
+        public void Dispose()
+        {
+            if (_samples.IsCreated) _samples.Dispose();
+            if (_temperatures.IsCreated) _temperatures.Dispose();
         }
 
     }

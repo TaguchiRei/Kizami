@@ -13,11 +13,6 @@ namespace Kizami.Initialization
         private IGameSceneController _sceneController;
         private bool _transitioning;
 
-        public void Inject(IGameSceneController instance)
-        {
-            _sceneController = instance;
-        }
-
         private async void OnGUI()
         {
             if (_sceneController == null || _transitioning) return;
@@ -31,6 +26,11 @@ namespace Kizami.Initialization
             // アンロードの途中で中断され、SceneState に OutGame がロード済みのまま残る為、トークンは渡さない。
             await _sceneController.GoToInGameAsync();
             _transitioning = false;
+        }
+
+        public void Inject(IGameSceneController instance)
+        {
+            _sceneController = instance;
         }
     }
 }

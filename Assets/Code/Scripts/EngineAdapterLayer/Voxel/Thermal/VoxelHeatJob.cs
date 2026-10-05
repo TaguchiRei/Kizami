@@ -15,8 +15,6 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelHeatJob<TShape> : IJobParallelFor where TShape : struct, IVoxelShape
     {
-        [NativeDisableParallelForRestriction] public NativeArray<float> Samples;
-        [NativeDisableParallelForRestriction] public NativeArray<float> Temperatures;
         public VoxelGridLayout Layout;
         public TShape Shape;
 
@@ -32,6 +30,9 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> 内側から外側になったサンプルの添字の出力先。容量は範囲のサンプル数以上にしておくこと </summary>
         public NativeList<int>.ParallelWriter MeltedSamples;
+
+        [NativeDisableParallelForRestriction] public NativeArray<float> Samples;
+        [NativeDisableParallelForRestriction] public NativeArray<float> Temperatures;
 
         /// <summary> 距離を書き換えたサンプルがあれば、0 番目に 1 を書く </summary>
         [NativeDisableParallelForRestriction] public NativeArray<int> Changed;

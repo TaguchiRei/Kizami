@@ -11,8 +11,9 @@ namespace Kizami.EngineAdapter.Voxel
     /// </summary>
     public struct BakeColliderJob : IJobParallelFor
     {
-        [ReadOnly] public NativeArray<EntityId> MeshIds;
         public MeshColliderCookingOptions CookingOptions;
+
+        [ReadOnly] public NativeArray<EntityId> MeshIds;
 
         public void Execute(int index)
         {

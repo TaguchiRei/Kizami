@@ -12,8 +12,6 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelExtractComponentJob : IJobParallelFor
     {
-        [ReadOnly] public NativeArray<float> SourceSamples;
-        [ReadOnly] public NativeArray<int> SourceLabels;
         public VoxelGridLayout SourceLayout;
 
         /// <summary> 新しい格子のサンプル 0 に対応する、元の格子のサンプル </summary>
@@ -21,8 +19,12 @@ namespace Kizami.EngineAdapter.Voxel
 
         public int Label;
 
-        [WriteOnly] public NativeArray<float> Samples;
         public VoxelGridLayout Layout;
+
+        [ReadOnly] public NativeArray<float> SourceSamples;
+        [ReadOnly] public NativeArray<int> SourceLabels;
+
+        [WriteOnly] public NativeArray<float> Samples;
 
         public void Execute(int index)
         {
@@ -42,14 +44,16 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelCopySamplesJob : IJobParallelFor
     {
-        [ReadOnly] public NativeArray<float> SourceValues;
         public VoxelGridLayout SourceLayout;
 
         /// <summary> 新しい格子のサンプル 0 に対応する、元の格子のサンプル </summary>
         public int3 SourceSampleMin;
 
-        [WriteOnly] public NativeArray<float> Values;
         public VoxelGridLayout Layout;
+
+        [ReadOnly] public NativeArray<float> SourceValues;
+
+        [WriteOnly] public NativeArray<float> Values;
 
         public void Execute(int index)
         {
@@ -64,12 +68,13 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelCollectComponentSamplesJob : IJob
     {
-        [ReadOnly] public NativeArray<int> Labels;
         public VoxelGridLayout Layout;
         public int3 RangeMin;
         public int3 RangeMax;
         public int Label;
         public NativeList<int> SampleIndices;
+
+        [ReadOnly] public NativeArray<int> Labels;
 
         public void Execute()
         {
@@ -112,13 +117,14 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelEraseComponentJob : IJobParallelFor
     {
-        [NativeDisableParallelForRestriction] public NativeArray<float> Samples;
-        [ReadOnly] public NativeArray<int> Labels;
         public VoxelGridLayout Layout;
         public int3 RangeMin;
         public int3 RangeSize;
         public int Label;
         public float TruncationDistance;
+
+        [NativeDisableParallelForRestriction] public NativeArray<float> Samples;
+        [ReadOnly] public NativeArray<int> Labels;
 
         public void Execute(int index)
         {

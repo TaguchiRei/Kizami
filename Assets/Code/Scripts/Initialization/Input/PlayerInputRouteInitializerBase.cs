@@ -19,11 +19,6 @@ namespace Kizami.Initialization
         /// <summary> 入力の操作面。Initialize より前に Compositor から注入される </summary>
         protected IInputController InputController { get; private set; }
 
-        public void Inject(IInputController instance)
-        {
-            InputController = instance;
-        }
-
         public override void Initialize(IBlackBoard blackBoard)
         {
             if (InputController == null)
@@ -47,5 +42,10 @@ namespace Kizami.Initialization
         /// </summary>
         /// <param name="blackBoard">入力ソースが State を取得する取得元</param>
         protected abstract void ConnectInputSources(IBlackBoard blackBoard);
+
+        public void Inject(IInputController instance)
+        {
+            InputController = instance;
+        }
     }
 }

@@ -174,11 +174,6 @@ namespace Kizami.EngineAdapter.Voxel
             }
         }
 
-        public void Dispose()
-        {
-            ClearChunks();
-        }
-
         /// <summary>
         /// 粒の球の表面から、チャンクの格子（余白を含む）へ影響する範囲。
         /// </summary>
@@ -291,6 +286,11 @@ namespace Kizami.EngineAdapter.Voxel
             _previousMovingChunks.Clear();
             _pendingChunks.Clear();
             TriangleCount = 0;
+        }
+
+        public void Dispose()
+        {
+            ClearChunks();
         }
 
         /// <summary>

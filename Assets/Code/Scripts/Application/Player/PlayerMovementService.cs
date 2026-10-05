@@ -57,6 +57,18 @@ namespace Kizami.Application
         /// <summary> 次のワープができるまでの残り時間（秒） </summary>
         private float _warpCooldownRemaining;
 
+        /// <summary> ダッシュ入力の受け付け方に応じて、押下中またはトグルの状態を返す </summary>
+        private bool IsSprinting => _settingState.SprintInputMode == SprintInputMode.Hold
+            ? _isSprintHeld
+            : _isSprintToggled;
+
+        /// <summary> 地面に触れているか </summary>
+        private bool IsGrounded => _contactState != null && (_contactState.Contacts & PlayerContact.Ground) != 0;
+
+        /// <summary> 空中で壁に触れているか。地面と壁の両方に触れているときは地面を優先して false </summary>
+        private bool IsTouchingWallInAir => _contactState != null && !IsGrounded &&
+                                            (_contactState.Contacts & PlayerContact.Wall) != 0;
+
         /// <param name="blackBoard">PlayerMovementState の登録先と、入力・ダッシュ入力の受け付け方・触れている物の取得元</param>
         /// <param name="parameters">移動のパラメータ</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
@@ -87,18 +99,6 @@ namespace Kizami.Application
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Jump, OnJump));
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Warp, OnWarp));
         }
-
-        /// <summary> ダッシュ入力の受け付け方に応じて、押下中またはトグルの状態を返す </summary>
-        private bool IsSprinting => _settingState.SprintInputMode == SprintInputMode.Hold
-            ? _isSprintHeld
-            : _isSprintToggled;
-
-        /// <summary> 地面に触れているか </summary>
-        private bool IsGrounded => _contactState != null && (_contactState.Contacts & PlayerContact.Ground) != 0;
-
-        /// <summary> 空中で壁に触れているか。地面と壁の両方に触れているときは地面を優先して false </summary>
-        private bool IsTouchingWallInAir => _contactState != null && !IsGrounded &&
-                                            (_contactState.Contacts & PlayerContact.Wall) != 0;
 
         /// <summary>
         /// EngineAdapterLayer の FixedUpdate から物理の 1 ステップごとに呼ばれ、記録済みの入力と視線の向き、

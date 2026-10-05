@@ -17,15 +17,15 @@ namespace Kizami.EngineAdapter.Voxel
         public readonly float3 PointB;
         public readonly float Radius;
 
+        public VoxelBounds Bounds =>
+            new VoxelBounds(math.min(PointA, PointB) - Radius, math.max(PointA, PointB) + Radius);
+
         public CapsuleShape(float3 pointA, float3 pointB, float radius)
         {
             PointA = pointA;
             PointB = pointB;
             Radius = radius;
         }
-
-        public VoxelBounds Bounds =>
-            new VoxelBounds(math.min(PointA, PointB) - Radius, math.max(PointA, PointB) + Radius);
 
         public float Distance(float3 position)
         {

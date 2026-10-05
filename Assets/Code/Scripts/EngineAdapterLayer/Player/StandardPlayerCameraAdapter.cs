@@ -40,6 +40,33 @@ namespace Kizami.EngineAdapter
             SetCursorLocked(true);
         }
 
+        protected override void OnDestroy()
+        {
+            base.OnDestroy();
+
+            SetCursorLocked(false);
+        }
+
+        protected override void OnLookInputChanged(Vector2 lookInput)
+        {
+            if (_panTilt == null) return;
+            if (lookInput.y == 0f) return;
+
+            // 入力の上方向へ視点を向ける = カメラの Tilt は負方向へ回る。
+            // TiltAxis.Value は MutateCameraState 内でクランプされない為、ここで TiltAxis.Range に収める
+            _panTilt.TiltAxis.Value = _panTilt.TiltAxis.ClampValue(_panTilt.TiltAxis.Value - lookInput.y * _degreesPerInput);
+        }
+
+        /// <summary>
+        /// カーソルを画面中央にロックして隠すか、ロックを外して表示する。
+        /// </summary>
+        /// <param name="locked">ロックして隠すなら true</param>
+        private static void SetCursorLocked(bool locked)
+        {
+            Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !locked;
+        }
+
 #if UNITY_EDITOR
         /// <summary>
         /// Alt キーを押している間はカーソルのロックを外して表示し、離したらロックして隠す。
@@ -57,32 +84,5 @@ namespace Kizami.EngineAdapter
             SetCursorLocked(!isReleased);
         }
 #endif
-
-        protected override void OnDestroy()
-        {
-            base.OnDestroy();
-
-            SetCursorLocked(false);
-        }
-
-        /// <summary>
-        /// カーソルを画面中央にロックして隠すか、ロックを外して表示する。
-        /// </summary>
-        /// <param name="locked">ロックして隠すなら true</param>
-        private static void SetCursorLocked(bool locked)
-        {
-            Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
-            Cursor.visible = !locked;
-        }
-
-        protected override void OnLookInputChanged(Vector2 lookInput)
-        {
-            if (_panTilt == null) return;
-            if (lookInput.y == 0f) return;
-
-            // 入力の上方向へ視点を向ける = カメラの Tilt は負方向へ回る。
-            // TiltAxis.Value は MutateCameraState 内でクランプされない為、ここで TiltAxis.Range に収める
-            _panTilt.TiltAxis.Value = _panTilt.TiltAxis.ClampValue(_panTilt.TiltAxis.Value - lookInput.y * _degreesPerInput);
-        }
     }
 }

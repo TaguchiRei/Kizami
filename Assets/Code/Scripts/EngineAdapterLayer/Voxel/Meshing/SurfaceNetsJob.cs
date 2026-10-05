@@ -16,7 +16,6 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct SurfaceNetsJob : IJob
     {
-        [ReadOnly] public NativeArray<float> Samples;
         public VoxelGridLayout Layout;
 
         /// <summary> 面を作るセル範囲の最小（含む） </summary>
@@ -29,18 +28,54 @@ namespace Kizami.EngineAdapter.Voxel
         public NativeList<float3> Normals;
         public NativeList<int> Indices;
 
-        public void Execute()
+        [ReadOnly] public NativeArray<float> Samples;
+
+        /// <summary>
+        /// セルの 12 辺のうち表面をまたぐものについて、表面との交点のセル内座標（0〜1）を平均する。
+        /// </summary>
+        private static float3 AverageCrossing(float4 lower, float4 upper)
         {
-            // 面は隣接する 4 セルの頂点を結ぶ為、頂点は面を作るセル範囲より最小側へ 1 セル広く作る
-            var vertexCellMin = math.max(CellMin - 1, 0);
-            var vertexCellSize = CellMax - vertexCellMin;
-            var cellToVertex = new NativeArray<int>(vertexCellSize.x * vertexCellSize.y * vertexCellSize.z,
-                Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            var sum = float3.zero;
+            var count = 0;
 
-            GenerateVertices(vertexCellMin, vertexCellSize, cellToVertex);
-            GenerateQuads(vertexCellMin, vertexCellSize, cellToVertex);
+            for (var a = 0; a < 8; a++)
+            for (var bit = 1; bit < 8; bit <<= 1)
+            {
+                if ((a & bit) != 0) continue;
 
-            cellToVertex.Dispose();
+                var b = a | bit;
+                var distanceA = Corner(lower, upper, a);
+                var distanceB = Corner(lower, upper, b);
+                if (distanceA < 0f == distanceB < 0f) continue;
+
+                var t = distanceA / (distanceA - distanceB);
+                sum += math.lerp(CornerOffset(a), CornerOffset(b), t);
+                count++;
+            }
+
+            return sum / count;
+        }
+
+        private static float Corner(float4 lower, float4 upper, int index)
+        {
+            return index < 4 ? lower[index] : upper[index - 4];
+        }
+
+        private static float3 CornerOffset(int index)
+        {
+            return new float3(index & 1, (index >> 1) & 1, index >> 2);
+        }
+
+        private static int3 Unit(int axis)
+        {
+            var unit = int3.zero;
+            unit[axis] = 1;
+            return unit;
+        }
+
+        private static int ToVertexSlot(int3 offset, int3 size)
+        {
+            return offset.x + size.x * (offset.y + size.y * offset.z);
         }
 
         /// <summary>
@@ -144,32 +179,6 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// セルの 12 辺のうち表面をまたぐものについて、表面との交点のセル内座標（0〜1）を平均する。
-        /// </summary>
-        private static float3 AverageCrossing(float4 lower, float4 upper)
-        {
-            var sum = float3.zero;
-            var count = 0;
-
-            for (var a = 0; a < 8; a++)
-            for (var bit = 1; bit < 8; bit <<= 1)
-            {
-                if ((a & bit) != 0) continue;
-
-                var b = a | bit;
-                var distanceA = Corner(lower, upper, a);
-                var distanceB = Corner(lower, upper, b);
-                if (distanceA < 0f == distanceB < 0f) continue;
-
-                var t = distanceA / (distanceA - distanceB);
-                sum += math.lerp(CornerOffset(a), CornerOffset(b), t);
-                count++;
-            }
-
-            return sum / count;
-        }
-
-        /// <summary>
         /// セルの 8 隅の勾配を、セル内座標 inCell でトリリニア補間して正規化する。
         /// </summary>
         private float3 ComputeNormal(int3 cell, float3 inCell)
@@ -209,26 +218,18 @@ namespace Kizami.EngineAdapter.Voxel
             return Samples[Layout.ToSampleIndex(sample)];
         }
 
-        private static float Corner(float4 lower, float4 upper, int index)
+        public void Execute()
         {
-            return index < 4 ? lower[index] : upper[index - 4];
-        }
+            // 面は隣接する 4 セルの頂点を結ぶ為、頂点は面を作るセル範囲より最小側へ 1 セル広く作る
+            var vertexCellMin = math.max(CellMin - 1, 0);
+            var vertexCellSize = CellMax - vertexCellMin;
+            var cellToVertex = new NativeArray<int>(vertexCellSize.x * vertexCellSize.y * vertexCellSize.z,
+                Allocator.Temp, NativeArrayOptions.UninitializedMemory);
 
-        private static float3 CornerOffset(int index)
-        {
-            return new float3(index & 1, (index >> 1) & 1, index >> 2);
-        }
+            GenerateVertices(vertexCellMin, vertexCellSize, cellToVertex);
+            GenerateQuads(vertexCellMin, vertexCellSize, cellToVertex);
 
-        private static int3 Unit(int axis)
-        {
-            var unit = int3.zero;
-            unit[axis] = 1;
-            return unit;
-        }
-
-        private static int ToVertexSlot(int3 offset, int3 size)
-        {
-            return offset.x + size.x * (offset.y + size.y * offset.z);
+            cellToVertex.Dispose();
         }
     }
 }

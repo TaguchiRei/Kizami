@@ -14,8 +14,8 @@ namespace Kizami.EngineAdapter
     /// </summary>
     public abstract class PlayerMovementAdapterBase : InitializableMonoBehaviour
     {
-        [SerializeField] private Rigidbody _rigidbody;
-        [SerializeField] private CapsuleCollider _collider;
+        private readonly PlayerContactState _contactState = new();
+        private readonly Collider[] _wallOverlapBuffer = new Collider[8];
 
         [Header("接地の判定")]
         [SerializeField, Min(0f)]
@@ -35,16 +35,8 @@ namespace Kizami.EngineAdapter
         [Tooltip("壁走りのできる壁として判定するレイヤー")]
         private LayerMask _wallLayers;
 
-        [Header("水平速度の補間レート（地上・壁走り中） (m/s^2)")]
-        [SerializeField, Min(0f)] private float _acceleration = 40f;
-        [SerializeField, Min(0f)] private float _deceleration = 60f;
-
-        [Header("水平速度の補間レート（空中） (m/s^2)")]
-        [SerializeField, Min(0f)] private float _airAcceleration = 10f;
-        [SerializeField, Min(0f)] private float _airDeceleration = 10f;
-
-        private readonly PlayerContactState _contactState = new();
-        private readonly Collider[] _wallOverlapBuffer = new Collider[8];
+        [SerializeField] private Rigidbody _rigidbody;
+        [SerializeField] private CapsuleCollider _collider;
 
         private IPlayerMovementState _movementState;
         private Func<Vector3, float, Vector3?> _step;
@@ -92,6 +84,19 @@ namespace Kizami.EngineAdapter
         /// ワールド空間の視線の向きを返す。既定ではこの Transform の前方を返す。
         /// </summary>
         protected virtual Vector3 GetViewDirection() => transform.forward;
+
+        protected virtual void OnDestroy()
+        {
+            _lookSubscription?.Dispose();
+        }
+
+        [Header("水平速度の補間レート（地上・壁走り中） (m/s^2)")]
+        [SerializeField, Min(0f)] private float _acceleration = 40f;
+        [SerializeField, Min(0f)] private float _deceleration = 60f;
+
+        [Header("水平速度の補間レート（空中） (m/s^2)")]
+        [SerializeField, Min(0f)] private float _airAcceleration = 10f;
+        [SerializeField, Min(0f)] private float _airDeceleration = 10f;
 
         /// <summary>
         /// 1 ステップ分の処理を次の順で行う。
@@ -236,11 +241,6 @@ namespace Kizami.EngineAdapter
             }
 
             return wallNormal != Vector3.zero;
-        }
-
-        protected virtual void OnDestroy()
-        {
-            _lookSubscription?.Dispose();
         }
     }
 }

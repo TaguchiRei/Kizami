@@ -14,6 +14,13 @@ namespace Kizami.EngineAdapter.Voxel
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelModelLoader : MonoBehaviour
     {
+        private readonly List<VoxelPiece> _parts = new();
+        private readonly List<VoxelPiece> _pieces = new();
+        private readonly ActionChannel<VoxelModelLoader> _loaded = new();
+        private readonly ActionChannel<VoxelShapeChange> _pieceShapeChanged = new();
+        private readonly ActionChannel<VoxelPiece[]> _pieceSplit = new();
+        private readonly ActionChannel<VoxelPiece> _pieceDestroyed = new();
+
         [SerializeField]
         [Tooltip("読み込む事前ベイク済みのモデル")]
         private VoxelModelAsset _model;
@@ -38,12 +45,6 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("Start で読み込むか")]
         private bool _loadOnStart = true;
 
-        private readonly List<VoxelPiece> _parts = new();
-        private readonly List<VoxelPiece> _pieces = new();
-        private readonly ActionChannel<VoxelModelLoader> _loaded = new();
-        private readonly ActionChannel<VoxelShapeChange> _pieceShapeChanged = new();
-        private readonly ActionChannel<VoxelPiece[]> _pieceSplit = new();
-        private readonly ActionChannel<VoxelPiece> _pieceDestroyed = new();
         private MeshRenderer[] _sourceRenderers;
 
         public VoxelQualitySettings Quality => _quality;

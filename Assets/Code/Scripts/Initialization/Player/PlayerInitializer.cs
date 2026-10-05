@@ -15,27 +15,22 @@ namespace Kizami.Initialization
     /// </summary>
     public sealed class PlayerInitializer : InitializerBase
     {
+        private readonly PlayerHealthService _healthService = new();
+
+        [SerializeField]
+        [Tooltip("プレイヤーの移動・HP・近接切断・チャージのパラメータ")]
+        private PlayerParameterData _parameters;
+
         [SerializeField] private PlayerMovementAdapterBase _movementAdapter;
         [SerializeField] private PlayerCameraAdapterBase _cameraAdapter;
         [SerializeField] private MeleeCutPreviewAdapter _meleeCutPreviewAdapter;
         [SerializeField] private MeleeCutAdapter _meleeCutAdapter;
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
 
-        [SerializeField]
-        [Tooltip("プレイヤーの移動・HP・近接切断・チャージのパラメータ")]
-        private PlayerParameterData _parameters;
-
-        private readonly PlayerHealthService _healthService = new();
-
         private PlayerMovementService _movementService;
         private PlayerLookService _lookService;
         private MeleeCutService _meleeCutService;
         private ChargeService _chargeService;
-
-        private void Awake()
-        {
-            InGameCompositor.TryRegisterContent(_healthService);
-        }
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -101,6 +96,11 @@ namespace Kizami.Initialization
             }
 
             base.Initialize(blackBoard);
+        }
+
+        private void Awake()
+        {
+            InGameCompositor.TryRegisterContent(_healthService);
         }
 
         private void OnDestroy()

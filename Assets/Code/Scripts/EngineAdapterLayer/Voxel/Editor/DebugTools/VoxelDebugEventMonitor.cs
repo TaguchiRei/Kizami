@@ -10,6 +10,8 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
     /// </summary>
     public sealed class VoxelDebugEventMonitor : MonoBehaviour
     {
+        private readonly List<IDisposable> _registrations = new();
+
         [SerializeField]
         [Tooltip("モデル全体のコールバックを見る対象")]
         private VoxelModelLoader _loader;
@@ -18,7 +20,6 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
         [Tooltip("_loader が未設定のとき、コールバックを見る対象のピース")]
         private VoxelPiece _piece;
 
-        private readonly List<IDisposable> _registrations = new();
         private int _shapeChangedCount;
         private int _meltChangedCount;
         private int _splitCount;

@@ -28,6 +28,9 @@ namespace Kizami.EngineAdapter.Voxel
         public readonly int ChunkSize;
         public readonly int3 ChunkCount;
 
+        public int SampleTotal => SampleCount.x * SampleCount.y * SampleCount.z;
+        public int ChunkTotal => ChunkCount.x * ChunkCount.y * ChunkCount.z;
+
         public VoxelGridLayout(float3 origin, int3 cellCount, float voxelSize, int chunkSize)
         {
             Origin = origin;
@@ -38,9 +41,6 @@ namespace Kizami.EngineAdapter.Voxel
             ChunkCount = (cellCount + chunkSize - 1) / chunkSize;
         }
 
-        public int SampleTotal => SampleCount.x * SampleCount.y * SampleCount.z;
-        public int ChunkTotal => ChunkCount.x * ChunkCount.y * ChunkCount.z;
-
         /// <summary>
         /// 境界ボックスを覆う格子を作る。境界の外側に 1 ボクセルの余白を付ける。
         /// </summary>
@@ -49,6 +49,11 @@ namespace Kizami.EngineAdapter.Voxel
             var padded = bounds.Expand(voxelSize);
             var cellCount = math.max((int3)math.ceil(padded.Size / voxelSize), 1);
             return new VoxelGridLayout(padded.Min, cellCount, voxelSize, chunkSize);
+        }
+
+        private static int3 FloorDiv(int3 value, int divisor)
+        {
+            return (int3)math.floor((float3)value / divisor);
         }
 
         public int ToSampleIndex(int3 sample)
@@ -158,11 +163,6 @@ namespace Kizami.EngineAdapter.Voxel
         {
             chunkMin = math.max(FloorDiv(sampleMin - MESHING_READ_MARGIN, ChunkSize), 0);
             chunkMax = math.min(FloorDiv(sampleMax + MESHING_READ_MARGIN, ChunkSize), ChunkCount - 1);
-        }
-
-        private static int3 FloorDiv(int3 value, int divisor)
-        {
-            return (int3)math.floor((float3)value / divisor);
         }
     }
 }

@@ -25,13 +25,14 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelCsgJob<TShape> : IJobParallelFor where TShape : struct, IVoxelShape
     {
-        [NativeDisableParallelForRestriction] public NativeArray<float> Samples;
         public VoxelGridLayout Layout;
         public TShape Shape;
         public VoxelCsgOperation Operation;
         public int3 RangeMin;
         public int3 RangeSize;
         public float TruncationDistance;
+
+        [NativeDisableParallelForRestriction] public NativeArray<float> Samples;
 
         public void Execute(int index)
         {

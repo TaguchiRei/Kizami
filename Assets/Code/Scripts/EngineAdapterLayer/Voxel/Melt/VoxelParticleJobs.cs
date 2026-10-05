@@ -101,10 +101,12 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelParticleRaycastBuildJob : IJobParallelFor
     {
-        [ReadOnly] public NativeArray<VoxelMeltParticle> Particles;
         public float DeltaTime;
         public float3 Gravity;
         public QueryParameters QueryParameters;
+
+        [ReadOnly] public NativeArray<VoxelMeltParticle> Particles;
+
         [WriteOnly] public NativeArray<RaycastCommand> Commands;
 
         public void Execute(int index)
@@ -129,12 +131,14 @@ namespace Kizami.EngineAdapter.Voxel
     public struct VoxelParticleResolveHitJob : IJobParallelFor
     {
         public NativeArray<VoxelMeltParticle> Particles;
-        [ReadOnly] public NativeArray<RaycastHit> Hits;
+
         public float DeltaTime;
         public float HotDamping;
         public float ColdDamping;
         public float FreezeTemperature;
         public float EvaporationTemperature;
+
+        [ReadOnly] public NativeArray<RaycastHit> Hits;
 
         public void Execute(int index)
         {
@@ -160,7 +164,7 @@ namespace Kizami.EngineAdapter.Voxel
     public struct VoxelParticleCollideJob : IJobParallelFor
     {
         public NativeArray<VoxelMeltParticle> Particles;
-        [ReadOnly] public NativeArray<float> Samples;
+
         public VoxelGridLayout Layout;
         public float4x4 WorldToLocal;
         public float4x4 LocalToWorld;
@@ -173,6 +177,8 @@ namespace Kizami.EngineAdapter.Voxel
         public float ColdDamping;
         public float FreezeTemperature;
         public float EvaporationTemperature;
+
+        [ReadOnly] public NativeArray<float> Samples;
 
         public void Execute(int index)
         {
