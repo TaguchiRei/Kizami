@@ -61,6 +61,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("1 列に並べる数を変えるのは、新しい数がこの時間（秒）続いたとき。狭い所の出入りで並びが細かく入れ替わらないようにする")]
         private float _columnChangeDelay;
 
+        [SerializeField, Range(0, MAX_GROUP_SIZE)]
+        [Tooltip("メンバーがこの数以下に減ったグループは、近くの空きのあるグループへ合流する")]
+        private int _mergeSize;
+
         [SerializeField, Min(0f)]
         [Tooltip("アンカーは、プレイヤーまでの経路の長さがこの値（m）以下になったら、プレイヤーを囲む螺旋の上の置き場を受け取り、そこへ向かう")]
         private float _encircleDistance;
@@ -141,6 +145,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 1 列に並べる数を変えるまでに、新しい数が続く必要がある時間（秒） </summary>
         public float ColumnChangeDelay => _columnChangeDelay;
 
+        /// <summary> 近くのグループへ合流する、メンバーの数の上限 </summary>
+        public int MergeSize => _mergeSize;
+
         /// <summary> アンカーが包囲の置き場を受け取る、プレイヤーまでの経路の長さ（m） </summary>
         public float EncircleDistance => _encircleDistance;
 
@@ -189,6 +196,7 @@ namespace Kizami.EngineAdapter
             _lateralSpacing = 2.5f,
             _maxColumns = 4,
             _columnChangeDelay = 1f,
+            _mergeSize = 4,
             _encircleDistance = 40f,
             _encircleLeaveDistance = 30f,
             _encircleInnerRadius = 15f,

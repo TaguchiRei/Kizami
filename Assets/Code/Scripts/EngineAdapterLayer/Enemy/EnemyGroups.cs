@@ -21,6 +21,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 道筋に点を足す間隔（m） </summary>
         public const float PATH_SPACING = 1f;
 
+        /// <summary> 合流する先のグループの、アンカーどうしの距離の上限（m） </summary>
+        private const float MERGE_DISTANCE = 40f;
+
         private NativeArray<EnemyGroup> _groups;
 
         /// <summary> グループごとに PATH_CAPACITY 個の区画を持つ道筋の点 </summary>
@@ -35,8 +38,8 @@ namespace Kizami.EngineAdapter
         /// <summary> 生成した敵を入れていくグループ。次に入れる敵で新しいグループを作るなら -1 </summary>
         private int _openGroup = -1;
 
-        /// <summary> 次に隊列の順番を並べ替えるグループを探し始める番号 </summary>
-        private int _reorderCursor;
+        /// <summary> 次に整えるグループを探し始める番号 </summary>
+        private int _maintainCursor;
 
         /// <summary> グループの状態。EnemyMoveJob が読む </summary>
         public NativeArray<EnemyGroup> Groups => _groups;
@@ -70,6 +73,15 @@ namespace Kizami.EngineAdapter
             _members = new NativeArray<int>(capacity * EnemyFormationSettings.MAX_GROUP_SIZE, Allocator.Persistent);
             _engageSlots = new NativeArray<int>(capacity, Allocator.Persistent);
             for (var i = 0; i < capacity; i++) _engageSlots[i] = -1;
+        }
+
+        /// <summary>
+        /// 敵をグループから抜く。抜いた敵の区画は、次にそのグループを整えるときに詰める。
+        /// </summary>
+        public static void Leave(ref EnemyAgent agent)
+        {
+            agent.GroupIndex = -1;
+            agent.IsEngaged = false;
         }
 
         /// <summary>
@@ -131,17 +143,24 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 使われているグループを 1 つ順番に選び、メンバーの隊列の順番を、プレイヤーまでの経路が短い順に並べ替える。
-        /// 先頭の列に、プレイヤーに近いメンバーが来るようにし、隊列の位置へ向かうメンバーどうしが交差しにくくする。消えたメンバーは最後に回す。
-        /// Job が走っていない間に呼ぶ。
+        /// 使われているグループを 1 つ順番に選んで整える。毎フレーム 1 グループずつ呼ぶ。Job が走っていない間に呼ぶ。
+        /// 倒れた敵、ほかのグループへ移った敵、動けなくなった敵を隊列から抜いて順番を詰め（穴を後ろへずらす）、
+        /// メンバーが合流する数以下に減っていれば、近くの空きのあるグループへ合流させる。
+        /// 合流しなければ、メンバーの隊列の順番を、プレイヤーまでの経路が短い順に並べ替える（先頭の列にプレイヤーに近いメンバーが来て、隊列の位置へ向かうメンバーどうしが交差しにくくなる）。
         /// </summary>
-        public void ReorderNext(NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances)
+        /// <param name="brokenMovePartLimit">壊れた移動部位がこの数に達した敵は動けないので、グループから抜いてその場に残す</param>
+        public void MaintainNext(NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances,
+            in EnemyFormationSettings formation, int brokenMovePartLimit)
         {
             for (var attempt = 0; attempt < _groups.Length; attempt++)
             {
-                var g = _reorderCursor;
-                _reorderCursor = (_reorderCursor + 1) % _groups.Length;
+                var g = _maintainCursor;
+                _maintainCursor = (_maintainCursor + 1) % _groups.Length;
                 if (!_groups[g].IsActive) continue;
+
+                Compact(g, agents, brokenMovePartLimit);
+                if (!_groups[g].IsActive) return;
+                if (_groups[g].MemberCount <= formation.MergeSize && TryMerge(g, agents, formation)) return;
 
                 Reorder(g, agents, grid, distances);
                 return;
@@ -154,6 +173,83 @@ namespace Kizami.EngineAdapter
             if (_paths.IsCreated) _paths.Dispose();
             if (_members.IsCreated) _members.Dispose();
             if (_engageSlots.IsCreated) _engageSlots.Dispose();
+        }
+
+        /// <summary>
+        /// 倒れた敵、ほかのグループへ移った敵、動けなくなった敵を区画から抜き、残りを順番を保って前へ詰める。
+        /// 動けなくなった敵はグループから抜いて交戦もやめさせ、その場に残す。残りがいなければグループを空ける。
+        /// </summary>
+        private void Compact(int g, NativeArray<EnemyAgent> agents, int brokenMovePartLimit)
+        {
+            var offset = g * EnemyFormationSettings.MAX_GROUP_SIZE;
+            var group = _groups[g];
+            var count = 0;
+
+            for (var i = 0; i < group.MemberCount; i++)
+            {
+                var index = _members[offset + i];
+                var agent = agents[index];
+                if (!agent.IsAlive || agent.GroupIndex != g) continue;
+
+                if (agent.BrokenMovePartCount >= brokenMovePartLimit)
+                {
+                    Leave(ref agent);
+                    agents[index] = agent;
+                    continue;
+                }
+
+                agent.SlotIndex = count;
+                agents[index] = agent;
+                _members[offset + count] = index;
+                count++;
+            }
+
+            group.MemberCount = count;
+            group.IsActive = count > 0;
+            _groups[g] = group;
+        }
+
+        /// <summary>
+        /// グループ g のメンバーを、MERGE_DISTANCE より近く、合わせても人数を超えないグループのうち、アンカーが最も近いグループの隊列の最後に移す。
+        /// 移したら g を空けて true を返す。
+        /// </summary>
+        private bool TryMerge(int g, NativeArray<EnemyAgent> agents, in EnemyFormationSettings formation)
+        {
+            var source = _groups[g];
+            var target = -1;
+            var bestDistanceSq = MERGE_DISTANCE * MERGE_DISTANCE;
+
+            for (var h = 0; h < _groups.Length; h++)
+            {
+                var other = _groups[h];
+                if (h == g || !other.IsActive || other.MemberCount + source.MemberCount > formation.GroupSize) continue;
+
+                var distanceSq = math.distancesq(other.AnchorPosition.xz, source.AnchorPosition.xz);
+                if (distanceSq >= bestDistanceSq) continue;
+
+                bestDistanceSq = distanceSq;
+                target = h;
+            }
+
+            if (target < 0) return false;
+
+            var destination = _groups[target];
+            for (var i = 0; i < source.MemberCount; i++)
+            {
+                var index = _members[g * EnemyFormationSettings.MAX_GROUP_SIZE + i];
+                var agent = agents[index];
+                agent.GroupIndex = target;
+                agent.SlotIndex = destination.MemberCount;
+                agents[index] = agent;
+                _members[target * EnemyFormationSettings.MAX_GROUP_SIZE + destination.MemberCount] = index;
+                destination.MemberCount++;
+            }
+
+            _groups[target] = destination;
+            source.IsActive = false;
+            source.MemberCount = 0;
+            _groups[g] = source;
+            return true;
         }
 
         private void Reorder(int g, NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances)

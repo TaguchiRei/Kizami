@@ -22,9 +22,8 @@ namespace Kizami.EngineAdapter
     /// 歩く速さは、敵ごとに ±10% ずらす（全員が同じ速さで動いて見えないようにする為）。
     /// 進んだ先の列に乗る層がなければ（壁や、降りられる高さを超える崖）、そのフレームは進まない。
     /// 段差は、登れる高さまでならその場で乗り、少しの下りは床に合わせ、それより低ければ落ちる。
-    /// 壊れた移動部位が上限に達した敵は歩かないが、足場がなくなれば落ちる。
+    /// 壊れた移動部位が上限に達した敵は歩かないが、足場がなくなれば落ちる（グループからは EnemyGroups が抜く）。
     /// </remarks>
-    // TODO: 区間4C で、移動部位を失って止まった敵の隊列での扱いを入れる
     [BurstCompile]
     public struct EnemyMoveJob : IJobParallelFor
     {
@@ -99,8 +98,26 @@ namespace Kizami.EngineAdapter
 
             if (agent.IsGrounded && agent.BrokenMovePartCount < BrokenMovePartLimit) Walk(ref agent, index);
             UpdateVertical(ref agent);
+            UpdateUnreachableTime(ref agent);
 
             Agents[index] = agent;
+        }
+
+        /// <summary>
+        /// 立っている層からプレイヤーへたどり着けない（距離マップの値がない）間、その時間を数える。たどり着けたら 0 に戻す。落ちている間は数えたままにする。
+        /// </summary>
+        private void UpdateUnreachableTime(ref EnemyAgent agent)
+        {
+            if (!agent.IsAlive || !agent.IsGrounded) return;
+
+            var isReachable = Grid.TryGetColumn(agent.Position, out var column);
+            if (isReachable)
+            {
+                var node = Grid.GetHighestNodeBelow(column, agent.Position.y + GROUND_TOLERANCE);
+                isReachable = node >= 0 && !float.IsPositiveInfinity(Distances[node]);
+            }
+
+            agent.UnreachableTime = isReachable ? 0f : agent.UnreachableTime + DeltaTime;
         }
 
         private void Walk(ref EnemyAgent agent, int index)
