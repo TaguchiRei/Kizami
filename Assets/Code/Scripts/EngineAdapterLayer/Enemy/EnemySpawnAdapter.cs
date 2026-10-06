@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Unity.Collections;
+using Unity.Mathematics;
+using Unity.Profiling;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
@@ -10,16 +13,27 @@ using Random = UnityEngine.Random;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵の体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出し、仮の移動をさせる Adapter。インゲームのシーンへ置く。
+    /// 敵の状態（EnemyAgent）の配列と体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出す Adapter。インゲームのシーンへ置く。
+    /// 敵の状態の数は EnemySpawnSystem の同時に存在する数の上限で、出ている敵は EnemyCrowdRenderer でまとめて描画する。
     /// 近接切断の結果は、切られた部位を持つ体へ渡す。体から外れた切っていない部位は、見た目用の物（EnemyDebris）で散らばらせて消す。
-    /// 体と見た目用の物は初期化のときに作り、実行中は作らない。体に空きがなければ出さず、見た目用の物に空きがなければ最も古い物を使い回す。
+    /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さず、見た目用の物に空きがなければ最も古い物を使い回す。
     /// </summary>
     /// <remarks>
-    /// 敵を出すのは MeshDataCache のストアができてから。部位を登録し直すのにストアが要る為。
-    /// 生成の間隔、仮の移動、見た目用の物の動きは Time.deltaTime で数え、スローモード中は一緒に遅くなる。
+    /// 敵を出すのは MeshDataCache のストアができてから。体を貸すときに部位を登録し直すのにストアが要る為。
+    /// 生成の間隔と見た目用の物の動きは Time.deltaTime で数え、スローモード中は一緒に遅くなる。
     /// </remarks>
+    // TODO: 区間4B のコミット 4 で、近くの敵に体を貸す
     public sealed class EnemySpawnAdapter : InitializableMonoBehaviour
     {
+        /// <summary> かかった時間を平均するフレームの数 </summary>
+        private const int TIMING_SAMPLE_COUNT = 30;
+
+        private const string UPDATE_MARKER_NAME = "Kizami.Enemy.Update";
+        private const string RENDER_MARKER_NAME = "Kizami.Enemy.Render";
+
+        private static readonly ProfilerMarker _updateMarker = new(UPDATE_MARKER_NAME);
+        private static readonly ProfilerMarker _renderMarker = new(RENDER_MARKER_NAME);
+
         private readonly List<EnemyBody> _bodies = new();
         private readonly List<EnemySpawnPoint> _spawnPoints = new();
         private readonly List<EnemyInitialSpawnArea> _initialSpawnAreas = new();
@@ -28,15 +42,19 @@ namespace Kizami.EngineAdapter
         private readonly Dictionary<CuttableObject, EnemyBody> _partOwners = new();
 
         [SerializeField]
-        [Tooltip("敵の体のプレハブ")]
+        [Tooltip("敵の体のプレハブ。まとめて描画する部位のメッシュ・マテリアル・位置もここから読む")]
         private EnemyBody _bodyPrefab;
+
+        [SerializeField, Min(0)]
+        [Tooltip("体の数。近くの敵に貸す切断できる体で、初期化のときにこの数だけ作る")]
+        private int _bodyCount = 32;
 
         [SerializeField]
         [Tooltip("かけらのプール。体に残す側のかけらを返す先")]
         private MeshCutObjectPool _fragmentPool;
 
         [SerializeField]
-        [Tooltip("仮の移動で近づく先（プレイヤー）")]
+        [Tooltip("敵が向かう先（プレイヤー）")]
         private Transform _target;
 
         [SerializeField]
@@ -65,6 +83,13 @@ namespace Kizami.EngineAdapter
 
         private EnemySpawnSystem _spawnSystem;
 
+        private NativeArray<EnemyAgent> _agents;
+
+        private EnemyCrowdRenderer _crowdRenderer;
+
+        private ProfilerRecorder _updateRecorder;
+        private ProfilerRecorder _renderRecorder;
+
         /// <summary> 見た目用の部位。並びは _debrisBuffer の RecycleId と同じ </summary>
         private EnemyDebris[] _debris;
 
@@ -83,24 +108,48 @@ namespace Kizami.EngineAdapter
         {
             get
             {
+                if (!_agents.IsCreated) return 0;
+
                 var count = 0;
-                foreach (var body in _bodies)
+                foreach (var agent in _agents)
                 {
-                    if (body.IsSpawned) count++;
+                    if (agent.IsAlive) count++;
                 }
 
                 return count;
             }
         }
 
-        /// <summary> プールにある体の数（同時に存在する数の上限） </summary>
-        public int Capacity => _bodies.Count;
+        /// <summary> 敵の状態の数（同時に存在する数の上限） </summary>
+        public int Capacity => _agents.IsCreated ? _agents.Length : 0;
+
+        /// <summary> Update 全体にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
+        public double UpdateMilliseconds => GetAverageMilliseconds(_updateRecorder);
+
+        /// <summary> まとめて描画の準備にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
+        public double RenderMilliseconds => GetAverageMilliseconds(_renderRecorder);
 
         /// <summary> ステージシーンの実行中の生成位置 </summary>
         public IReadOnlyList<EnemySpawnPoint> SpawnPoints => _spawnPoints;
 
         /// <summary>
-        /// EnemyInitializer から呼ばれる。ステージシーンの EnemySpawnSystem を探し、上限の数だけ体と、見た目用の部位を作る。
+        /// ProfilerRecorder に残っている直近のフレームの時間（ns）を平均し、ms で返す。
+        /// </summary>
+        private static double GetAverageMilliseconds(ProfilerRecorder recorder)
+        {
+            if (!recorder.Valid || recorder.Count == 0) return 0d;
+
+            var total = 0L;
+            for (var i = 0; i < recorder.Count; i++)
+            {
+                total += recorder.GetSample(i).Value;
+            }
+
+            return total / (double)recorder.Count * 1e-6;
+        }
+
+        /// <summary>
+        /// EnemyInitializer から呼ばれる。ステージシーンの EnemySpawnSystem を探し、上限の数だけ敵の状態と、体と、見た目用の部位を作る。
         /// 見つからないときは Update を止めたままにする。
         /// </summary>
         /// <param name="spawnOrb">倒れた体に残っていた切断済みの部位を、オーブにする関数。引数はオーブを出す位置</param>
@@ -138,7 +187,12 @@ namespace Kizami.EngineAdapter
                 _debrisBuffer = new RecycleBuffer<EnemyDebris>(_debris);
             }
 
-            for (var i = 0; i < _spawnSystem.MaxAliveCount; i++)
+            _agents = new NativeArray<EnemyAgent>(_spawnSystem.MaxAliveCount, Allocator.Persistent);
+            _crowdRenderer = new EnemyCrowdRenderer(_bodyPrefab, _agents.Length);
+            _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
+            _renderRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, RENDER_MARKER_NAME, TIMING_SAMPLE_COUNT);
+
+            for (var i = 0; i < _bodyCount; i++)
             {
                 var body = Instantiate(_bodyPrefab, transform);
                 body.gameObject.SetActive(false);
@@ -176,27 +230,43 @@ namespace Kizami.EngineAdapter
             var cache = MeshDataCache.Instance;
             if (cache == null || cache.Store == null) return;
 
-            if (!_hasSpawnedInitial)
+            using (_updateMarker.Auto())
             {
-                SpawnInitial(cache);
-                _hasSpawnedInitial = true;
-            }
+                if (!_hasSpawnedInitial)
+                {
+                    SpawnInitial();
+                    _hasSpawnedInitial = true;
+                }
 
-            SpawnByInterval(cache);
-            MoveBodies();
-            UpdateDebris();
+                SpawnByInterval();
+
+                using (_renderMarker.Auto())
+                {
+                    _crowdRenderer.Render(_agents);
+                }
+
+                UpdateDebris();
+            }
+        }
+
+        private void OnDestroy()
+        {
+            _crowdRenderer?.Dispose();
+            if (_agents.IsCreated) _agents.Dispose();
+            _updateRecorder.Dispose();
+            _renderRecorder.Dispose();
         }
 
         /// <summary>
         /// 初期生成情報の範囲に、決まった数の敵を置く。
         /// </summary>
-        private void SpawnInitial(MeshDataCache cache)
+        private void SpawnInitial()
         {
             foreach (var area in _initialSpawnAreas)
             {
                 for (var i = 0; i < area.Count; i++)
                 {
-                    if (!TrySpawn(area.GetSpawnPosition(), cache)) return;
+                    if (!TrySpawn(area.GetSpawnPosition())) return;
                 }
             }
         }
@@ -204,7 +274,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 生成情報ごとに間隔を数え、間隔が来たら次の有効な生成位置から、一度に出す数の上限まで出す。
         /// </summary>
-        private void SpawnByInterval(MeshDataCache cache)
+        private void SpawnByInterval()
         {
             var spawnInfos = _spawnSystem.SpawnInfos;
 
@@ -219,7 +289,7 @@ namespace Kizami.EngineAdapter
 
                 for (var n = 0; n < info.MaxCountPerSpawn; n++)
                 {
-                    if (!TrySpawn(point.GetSpawnPosition(), cache)) break;
+                    if (!TrySpawn(point.GetSpawnPosition())) break;
                 }
             }
         }
@@ -245,41 +315,32 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// プールの空いている体を、目標の方を向けて出す。空きがなければ出さない。
+        /// 空いている敵の状態を使い、目標の方を向けて出す。空きがなければ出さない。
         /// </summary>
-        private bool TrySpawn(Vector3 position, MeshDataCache cache)
+        private bool TrySpawn(Vector3 position)
         {
-            foreach (var body in _bodies)
+            for (var i = 0; i < _agents.Length; i++)
             {
-                if (body.IsSpawned) continue;
+                if (_agents[i].IsAlive) continue;
 
-                body.Spawn(position, GetRotationToTarget(position), cache);
+                _agents[i] = new EnemyAgent
+                {
+                    IsAlive = true,
+                    Position = position,
+                    Yaw = GetYawToTarget(position)
+                };
                 return true;
             }
 
             return false;
         }
 
-        private Quaternion GetRotationToTarget(Vector3 position)
+        private float GetYawToTarget(Vector3 position)
         {
-            if (_target == null) return Quaternion.identity;
+            if (_target == null) return 0f;
 
             var direction = _target.position - position;
-            direction.y = 0f;
-            return direction.sqrMagnitude > 0f ? Quaternion.LookRotation(direction) : Quaternion.identity;
-        }
-
-        private void MoveBodies()
-        {
-            if (_target == null) return;
-
-            var target = _target.position;
-            var deltaTime = Time.deltaTime;
-
-            foreach (var body in _bodies)
-            {
-                if (body.IsSpawned) body.MoveToward(target, deltaTime);
-            }
+            return direction.x == 0f && direction.z == 0f ? 0f : math.atan2(direction.x, direction.z);
         }
 
         /// <summary>

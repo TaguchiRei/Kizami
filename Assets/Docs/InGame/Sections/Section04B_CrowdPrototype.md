@@ -172,3 +172,8 @@ sequenceDiagram
 ## 見つけた問題（今回は扱わない）
 
 なし（2026-10-06 時点）。
+
+## 実装中に確かめたこと
+
+- （コミット 1）`Graphics.RenderMeshInstanced` で 1 回に描けるのは最大 1023 個で、URP Lit のように uniform scaling を仮定しないシェーダーでは 511 個。Unity は自動で分けないので、`EnemyCrowdRenderer` が 511 個ずつに分けて描く
+- （コミット 1）`AttackerEnemy.fbx` のマテリアルは FBX に埋め込まれていて、GPU インスタンシングが無効だった。プロジェクトはインスタンシングのバリアントを使われていなければ削る設定（`GraphicsSettings` の `m_InstancingStripping: 0`）なので、実行中に有効にしてもビルドでは描けない。マテリアルを `Assets/Art/Materials/AttackerEnemy.mat` に取り出してインスタンシングを有効にし、FBX の読み込み設定でこのマテリアルを使うようにした。体（GameObject）とまとめて描画の両方がこのマテリアルを使う

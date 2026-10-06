@@ -11,7 +11,7 @@ namespace Kizami.EngineAdapter
     public sealed class EnemySpawnSystem : MonoBehaviour
     {
         [SerializeField, Min(0)]
-        [Tooltip("同時に存在する敵の数の上限。インゲームの体のプールは、この数の体を作る")]
+        [Tooltip("同時に存在する敵の数の上限。インゲームの EnemySpawnAdapter は、この数の敵の状態を作る")]
         private int _maxAliveCount = 10;
 
         [SerializeField]

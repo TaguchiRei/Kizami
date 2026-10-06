@@ -741,7 +741,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f41ffb9323ec139419df89f3b5166f4c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemySpawnSystem
-  _maxAliveCount: 10
+  _maxAliveCount: 1000
   _spawnInfos:
   - _maxCountPerSpawn: 1
     _interval: 3
@@ -1078,8 +1078,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 139349e45bf16fa4991984c48b9307ee, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyInitialSpawnArea
-  _radius: 3
-  _count: 2
+  _radius: 30
+  _count: 1000
 --- !u!1 &1584850692
 GameObject:
   m_ObjectHideFlags: 0

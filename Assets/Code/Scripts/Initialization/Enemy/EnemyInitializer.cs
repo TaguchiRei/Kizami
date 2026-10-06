@@ -10,7 +10,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// 敵の生成と体のプール（EnemySpawnAdapter）を初期化し、出ている敵の数と生成位置の有効・無効を画面に出す配線役。インゲームのシーンへ置く。
+    /// 敵の生成と体のプール（EnemySpawnAdapter）を初期化し、出ている敵の数、生成位置の有効・無効、敵の処理にかかった時間を画面に出す配線役。インゲームのシーンへ置く。
     /// 倒れた体に残っていた切断済みの部位は、FragmentOrbAdapter でオーブにする。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
@@ -39,6 +39,8 @@ namespace Kizami.Initialization
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 DebugGUI.ObserveVariable("Enemies", () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity}");
                 DebugGUI.ObserveVariable("Spawn Points", GetSpawnPointText);
+                DebugGUI.ObserveVariable("Enemy ms",
+                    () => $"update {_spawnAdapter.UpdateMilliseconds:F2} / render {_spawnAdapter.RenderMilliseconds:F2}");
 #endif
             }
             else
