@@ -30,7 +30,8 @@ Notion の「敵の群衆 AI」「敵の大量描画と体の貸し出し」の�
 
 | 資産 | 内容 |
 |---|---|
-| 区間4A の成果 | 敵の体（`EnemyBody`）とプール、部位の役割、切断の受け取り、生成システム |
+| 区間4A の成果 | 敵の体（`EnemyBody`）とプール、部位の役割、切断の受け取り、生成システム。体は `EnemySpawnAdapter` が初期化のときに上限の数だけ作り、`Spawn` のたびに全部位を `RestoreInitialShape` で戻して `MeshDataCache.Register` で登録し直す。部位の状態（失った部位、切られた形、切断回数）は `EnemyBody` の中にだけ持つので、貸し直すときに切られた形を戻すには、形を敵の状態の側にも持つ必要がある。仮の移動は `EnemyBody.MoveToward`（4B で置き換える） |
+| 区間4A で拡張した MeshCut | `MeshDataCache.Register`、`CuttableObject` の切断回数（`MaxCutCount` / `CutCount`）、`AdoptCutShape`（`AdoptColliderMode.FitOwnColliders`）、`RestoreInitialShape` |
 | メッシュ切断 | 計算の中心は Burst の Job とネイティブのデータ。Unity のオブジェクトに依存するのは、入口（`Physics.OverlapBox`、`CuttableObject`）と出口（かけらのコライダー、速度、MeshFilter）だけ |
 | ボクセル | `VoxelShapeChange.LocalBounds`（形状が変わった範囲）、`SampleDistance`（SDF） |
 
