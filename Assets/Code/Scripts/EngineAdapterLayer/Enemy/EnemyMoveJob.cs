@@ -6,20 +6,25 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 出ている敵を 1 体ずつ動かす。グループに入っている敵は隊列の位置へ、グループを持たない敵は距離マップの値が下がる隣の列へ向かって歩き、立てる層がなくなると落ちる。
+    /// 出ている敵を 1 体ずつ動かす。交戦中の敵はプレイヤーの周りの置き場へ、グループに入っている敵は隊列の位置へ、
+    /// グループを持たない敵は距離マップの値が下がる隣の列へ向かって歩き、立てる層がなくなると落ちる。
     /// 自分の番号の敵だけを書き換え、ほかの敵は見ない。
     /// </summary>
     /// <remarks>
+    /// プレイヤーまでの経路の長さが交戦に入る距離以下になった敵は隊列から外れ、抜ける距離を超えたら隊列に戻る。
+    /// 交戦中の敵の置き場は EnemyGroupJob が割り当て、プレイヤーと一緒に動く。置き場をまだ持たない間は、その場でプレイヤーを向いて待つ。
     /// 隊列の位置は、グループの道筋に沿ってアンカーから (列の番号 × 列の間隔) 後ろの点から、道筋の右へ (列の中の位置 × 横の間隔) ずらした点。
-    /// 横へずらす途中で道筋と同じ高さの床が途切れたら、その手前で止める（通路では細くなる）。
-    /// 隊列の位置へまっすぐ進めない（隣の列に乗れない）ときは、距離マップの値が下がる列へ進む。
-    /// 向きは進む先へ回る速さの上限つきで回し、向いている方へ進む。進む先から外れている間は、そのずれの分だけ遅くなる。隊列の位置に着いたら、道筋の向きを向く。
+    /// アンカーが包囲の置き場を持つ間は、道筋ではなくアンカーの向きのまっすぐ後ろに並べる（着いたアンカーはプレイヤーを向くので、横隊がプレイヤーを向く）。
+    /// 横へずらす途中でその点と同じ高さの床が途切れたら、その手前で止める（通路では細くなる）。
+    /// 目指す位置へまっすぐ進めない（隣の列に乗れない）ときは、目指す位置に近づく隣の列へ、それもなければ距離マップの値が下がる列へ進む。
+    /// 向きは進む先へ回る速さの上限つきで回し、向いている方へ進む。進む先から外れている間は、そのずれの分だけ遅くなる。
+    /// 隊列の位置に着いたら隊列の向きを、交戦の置き場に着いたらプレイヤーを向く。
     /// 歩く速さは、敵ごとに ±10% ずらす（全員が同じ速さで動いて見えないようにする為）。
     /// 進んだ先の列に乗る層がなければ（壁や、降りられる高さを超える崖）、そのフレームは進まない。
     /// 段差は、登れる高さまでならその場で乗り、少しの下りは床に合わせ、それより低ければ落ちる。
     /// 壊れた移動部位が上限に達した敵は歩かないが、足場がなくなれば落ちる。
     /// </remarks>
-    // TODO: 区間4C で、交戦と合流、移動部位を失って止まった敵の隊列での扱いを入れる
+    // TODO: 区間4C で、移動部位を失って止まった敵の隊列での扱いを入れる
     [BurstCompile]
     public struct EnemyMoveJob : IJobParallelFor
     {
@@ -35,10 +40,10 @@ namespace Kizami.EngineAdapter
         /// <summary> 周りの列に着地したときに、位置をマスの縁から離す距離（m） </summary>
         private const float COLUMN_EDGE_MARGIN = 0.05f;
 
-        /// <summary> 隊列の位置にこの距離（m）まで近づいたら、着いたとみなして止まる </summary>
+        /// <summary> 目指す位置にこの距離（m）まで近づいたら、着いたとみなして止まる </summary>
         private const float ARRIVE_DISTANCE = 0.3f;
 
-        /// <summary> 隊列の位置までの距離がこの値（m）より近いと、近さに合わせて遅くなる </summary>
+        /// <summary> 目指す位置までの距離がこの値（m）より近いと、近さに合わせて遅くなる </summary>
         private const float SLOW_DOWN_DISTANCE = 2f;
 
         /// <summary> 歩く速さを敵ごとにずらす割合の幅（±） </summary>
@@ -54,7 +59,14 @@ namespace Kizami.EngineAdapter
         /// <summary> グループごとに EnemyGroups.PATH_CAPACITY 個の区画を持つ道筋の点 </summary>
         [ReadOnly] public NativeArray<float3> Paths;
 
+        /// <summary> 敵ごとの、交戦する敵の置き場の番号。持たなければ -1 </summary>
+        [ReadOnly] public NativeArray<int> EngageSlots;
+
         public EnemyFormationSettings Formation;
+
+        /// <summary> プレイヤーの位置。交戦の置き場の中心 </summary>
+        public float3 PlayerPosition;
+
         public float DeltaTime;
 
         /// <summary> 歩く速さ（m/s） </summary>
@@ -100,33 +112,83 @@ namespace Kizami.EngineAdapter
 
             var height = Grid.Heights[node];
             var distance = Distances[node];
-            if (distance <= StopDistance) return;
+            UpdateEngagement(ref agent, distance);
+
+            var toPlayer = (PlayerPosition - agent.Position).xz;
+            var yawToPlayer = math.atan2(toPlayer.x, toPlayer.y);
+            if (distance <= StopDistance)
+            {
+                Turn(ref agent, yawToPlayer);
+                return;
+            }
 
             var speed = MoveSpeed * (1f + SPEED_JITTER * (2f * GetAgentRandom(index) - 1f));
 
-            if (TryGetSlotTarget(agent, out var target, out var slotYaw))
+            if (agent.IsEngaged)
             {
-                var toTarget = target - agent.Position.xz;
-                var targetDistance = math.length(toTarget);
-                if (targetDistance < ARRIVE_DISTANCE)
+                var slot = EngageSlots[index];
+                if (slot < 0)
                 {
-                    Turn(ref agent, slotYaw);
+                    Turn(ref agent, yawToPlayer);
                     return;
                 }
 
-                speed *= math.saturate(targetDistance / SLOW_DOWN_DISTANCE);
-                var probe = agent.Position.xz + toTarget / targetDistance * Grid.CellSize;
-                if (!IsBlocked(column, height, probe))
-                {
-                    Step(ref agent, column, height, toTarget, speed);
-                    return;
-                }
+                var spiralPoint = PlayerPosition.xz + EnemyFormationSettings.GetSpiralOffset(slot, Formation.SpiralInnerRadius,
+                    Formation.SpiralLoopSpacing, Formation.SpiralSlotSpacing);
+                MoveToward(ref agent, column, height, distance, spiralPoint, yawToPlayer, speed);
+                return;
+            }
+
+            if (TryGetSlotTarget(agent, out var target, out var slotYaw))
+            {
+                MoveToward(ref agent, column, height, distance, target, slotYaw, speed);
+                return;
             }
 
             if (float.IsPositiveInfinity(distance)) return;
             if (!Grid.TryGetDownhillColumn(column, height, distance, Distances, out var nextColumn)) return;
 
             Step(ref agent, column, height, (Grid.GetCellCenter(nextColumn, 0f) - agent.Position).xz, speed);
+        }
+
+        /// <summary>
+        /// プレイヤーまでの経路の長さが交戦に入る距離以下なら交戦に入り、抜ける距離を超えたら（たどり着けなくなったときも）抜ける。
+        /// </summary>
+        private void UpdateEngagement(ref EnemyAgent agent, float distance)
+        {
+            if (!agent.IsEngaged && distance <= Formation.EngageEnterDistance) agent.IsEngaged = true;
+            else if (agent.IsEngaged && distance > Formation.EngageExitDistance) agent.IsEngaged = false;
+        }
+
+        /// <summary>
+        /// 水平の位置 target へ向かう。着いたら arriveYaw を向いて止まる。
+        /// まっすぐ進めなければ target に近づく隣の列へ、それもなければ距離マップの値が下がる列へ進む。
+        /// </summary>
+        private void MoveToward(ref EnemyAgent agent, int column, float height, float distance, float2 target, float arriveYaw,
+            float speed)
+        {
+            var toTarget = target - agent.Position.xz;
+            var targetDistance = math.length(toTarget);
+            if (targetDistance < ARRIVE_DISTANCE)
+            {
+                Turn(ref agent, arriveYaw);
+                return;
+            }
+
+            speed *= math.saturate(targetDistance / SLOW_DOWN_DISTANCE);
+            var probe = agent.Position.xz + toTarget / targetDistance * Grid.CellSize;
+            if (!IsBlocked(column, height, probe))
+            {
+                Step(ref agent, column, height, toTarget, speed);
+                return;
+            }
+
+            if (Grid.TryGetColumnToward(column, height, target, out var towardColumn)
+                || (!float.IsPositiveInfinity(distance)
+                    && Grid.TryGetDownhillColumn(column, height, distance, Distances, out towardColumn)))
+            {
+                Step(ref agent, column, height, (Grid.GetCellCenter(towardColumn, 0f) - agent.Position).xz, speed);
+            }
         }
 
         /// <summary>
@@ -164,7 +226,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// グループに入っている敵の、隊列の位置（水平）と、その位置での道筋の向きを返す。グループを持たなければ false。
+        /// グループに入っている敵の、隊列の位置（水平）と、その位置での隊列の向きを返す。グループを持たなければ false。
         /// </summary>
         private bool TryGetSlotTarget(in EnemyAgent agent, out float2 target, out float yaw)
         {
@@ -180,8 +242,20 @@ namespace Kizami.EngineAdapter
             var lane = agent.SlotIndex % columnCount;
             var lanesInRow = math.min(columnCount, group.MemberCount - row * columnCount);
             var lateral = (lane - (lanesInRow - 1) * 0.5f) * Formation.LateralSpacing;
+            var back = row * Formation.RowSpacing;
 
-            SamplePath(agent.GroupIndex, group, row * Formation.RowSpacing, out var point, out var tangent);
+            float3 point;
+            float2 tangent;
+            if (group.EncircleSlot >= 0)
+            {
+                tangent = new float2(math.sin(group.AnchorYaw), math.cos(group.AnchorYaw));
+                point = group.AnchorPosition - new float3(tangent.x, 0f, tangent.y) * back;
+            }
+            else
+            {
+                SamplePath(agent.GroupIndex, group, back, out point, out tangent);
+            }
+
             var right = new float2(tangent.y, -tangent.x);
             target = point.xz + right * ClampLateral(point, right, lateral);
             yaw = math.atan2(tangent.x, tangent.y);

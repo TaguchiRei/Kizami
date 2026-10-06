@@ -6,7 +6,8 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵のグループ（EnemyGroup）と、その道筋とメンバーの配列を持つ。EnemySpawnAdapter が、生成した敵を順にグループへ入れ、毎フレーム EnemyGroupJob を回す。
+    /// 敵のグループ（EnemyGroup）と、その道筋とメンバーの配列、交戦する敵の置き場の配列を持つ。
+    /// EnemySpawnAdapter が、生成した敵を順にグループへ入れ、毎フレーム EnemyGroupJob を回し、グループを 1 つずつ並べ替える。
     /// </summary>
     /// <remarks>
     /// グループの数は敵の状態の数と同じだけ用意する。1 体ずつ出した敵がそれぞれ別のグループになっても足りるようにする為。
@@ -28,14 +29,23 @@ namespace Kizami.EngineAdapter
         /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、メンバーの敵の番号 </summary>
         private NativeArray<int> _members;
 
+        /// <summary> 敵ごとの、交戦する敵の置き場の番号。持たなければ -1。EnemyGroupJob が割り当てる </summary>
+        private NativeArray<int> _engageSlots;
+
         /// <summary> 生成した敵を入れていくグループ。次に入れる敵で新しいグループを作るなら -1 </summary>
         private int _openGroup = -1;
+
+        /// <summary> 次に隊列の順番を並べ替えるグループを探し始める番号 </summary>
+        private int _reorderCursor;
 
         /// <summary> グループの状態。EnemyMoveJob が読む </summary>
         public NativeArray<EnemyGroup> Groups => _groups;
 
         /// <summary> 道筋の点。EnemyMoveJob が読む </summary>
         public NativeArray<float3> Paths => _paths;
+
+        /// <summary> 敵ごとの、交戦する敵の置き場の番号。EnemyMoveJob が読む </summary>
+        public NativeArray<int> EngageSlots => _engageSlots;
 
         /// <summary> 使われているグループの数 </summary>
         public int ActiveCount
@@ -52,12 +62,14 @@ namespace Kizami.EngineAdapter
             }
         }
 
-        /// <param name="capacity">グループの数の上限</param>
+        /// <param name="capacity">敵の状態の数。グループの数の上限も同じ数にする</param>
         public EnemyGroups(int capacity)
         {
             _groups = new NativeArray<EnemyGroup>(capacity, Allocator.Persistent);
             _paths = new NativeArray<float3>(capacity * PATH_CAPACITY, Allocator.Persistent);
             _members = new NativeArray<int>(capacity * EnemyFormationSettings.MAX_GROUP_SIZE, Allocator.Persistent);
+            _engageSlots = new NativeArray<int>(capacity, Allocator.Persistent);
+            for (var i = 0; i < capacity; i++) _engageSlots[i] = -1;
         }
 
         /// <summary>
@@ -100,20 +112,40 @@ namespace Kizami.EngineAdapter
         /// グループを 1 つずつ更新する Job を回す。
         /// </summary>
         public JobHandle Schedule(NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances,
-            in EnemyFormationSettings formation, float moveSpeed, float deltaTime)
+            in EnemyFormationSettings formation, float3 playerPosition, float moveSpeed, float deltaTime)
         {
             return new EnemyGroupJob
             {
                 Groups = _groups,
                 Paths = _paths,
                 Members = _members,
+                EngageSlots = _engageSlots,
                 Agents = agents,
                 Grid = grid,
                 Distances = distances,
                 Formation = formation,
+                PlayerPosition = playerPosition,
                 MoveSpeed = moveSpeed,
                 DeltaTime = deltaTime
             }.Schedule();
+        }
+
+        /// <summary>
+        /// 使われているグループを 1 つ順番に選び、メンバーの隊列の順番を、プレイヤーまでの経路が短い順に並べ替える。
+        /// 先頭の列に、プレイヤーに近いメンバーが来るようにし、隊列の位置へ向かうメンバーどうしが交差しにくくする。消えたメンバーは最後に回す。
+        /// Job が走っていない間に呼ぶ。
+        /// </summary>
+        public void ReorderNext(NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances)
+        {
+            for (var attempt = 0; attempt < _groups.Length; attempt++)
+            {
+                var g = _reorderCursor;
+                _reorderCursor = (_reorderCursor + 1) % _groups.Length;
+                if (!_groups[g].IsActive) continue;
+
+                Reorder(g, agents, grid, distances);
+                return;
+            }
         }
 
         public void Dispose()
@@ -121,6 +153,50 @@ namespace Kizami.EngineAdapter
             if (_groups.IsCreated) _groups.Dispose();
             if (_paths.IsCreated) _paths.Dispose();
             if (_members.IsCreated) _members.Dispose();
+            if (_engageSlots.IsCreated) _engageSlots.Dispose();
+        }
+
+        private void Reorder(int g, NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances)
+        {
+            var offset = g * EnemyFormationSettings.MAX_GROUP_SIZE;
+            var count = _groups[g].MemberCount;
+            Span<float> keys = stackalloc float[EnemyFormationSettings.MAX_GROUP_SIZE];
+
+            for (var i = 0; i < count; i++)
+            {
+                var agent = agents[_members[offset + i]];
+                keys[i] = float.MaxValue;
+                if (!agent.IsAlive || agent.GroupIndex != g || !grid.TryGetColumn(agent.Position, out var column)) continue;
+
+                var node = grid.GetHighestNodeBelow(column, agent.Position.y + grid.ClimbHeight);
+                if (node >= 0) keys[i] = distances[node];
+            }
+
+            for (var i = 1; i < count; i++)
+            {
+                var key = keys[i];
+                var member = _members[offset + i];
+                var j = i - 1;
+                while (j >= 0 && keys[j] > key)
+                {
+                    keys[j + 1] = keys[j];
+                    _members[offset + j + 1] = _members[offset + j];
+                    j--;
+                }
+
+                keys[j + 1] = key;
+                _members[offset + j + 1] = member;
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                var index = _members[offset + i];
+                var agent = agents[index];
+                if (!agent.IsAlive || agent.GroupIndex != g) continue;
+
+                agent.SlotIndex = i;
+                agents[index] = agent;
+            }
         }
 
         /// <summary>
@@ -149,6 +225,7 @@ namespace Kizami.EngineAdapter
                     AnchorYaw = anchorYaw,
                     AnchorDistance = float.PositiveInfinity,
                     IsAdvancing = false,
+                    EncircleSlot = -1,
                     PhaseTimer = phaseTimer,
                     ColumnCount = 1,
                     PendingColumnCount = 1,

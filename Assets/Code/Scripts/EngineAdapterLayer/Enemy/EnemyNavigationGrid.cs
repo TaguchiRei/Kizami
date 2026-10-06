@@ -139,6 +139,38 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 高さ height で列 column にいるとき、隣の 8 列のうち、進んで乗れて、中心が水平の位置 target に今の列より近く、最も近い列を返す。
+        /// 距離マップはプレイヤーへの経路しか持たないので、プレイヤー以外の点（隊列の位置や包囲の置き場）へ回り込むときに使う。
+        /// </summary>
+        public bool TryGetColumnToward(int column, float height, float2 target, out int nextColumn)
+        {
+            nextColumn = -1;
+            var bestDistanceSq = math.distancesq(GetCellCenter(column, 0f).xz, target);
+            var x = column % Width;
+            var z = column / Width;
+
+            for (var direction = 0; direction < 8; direction++)
+            {
+                var offset = GetNeighborOffset(direction);
+                var nx = x + offset.x;
+                var nz = z + offset.y;
+                if (nx < 0 || nx >= Width || nz < 0 || nz >= Depth) continue;
+
+                var candidate = nz * Width + nx;
+                var distanceSq = math.distancesq(GetCellCenter(candidate, 0f).xz, target);
+                if (distanceSq >= bestDistanceSq || GetLandingNode(candidate, height) < 0) continue;
+
+                if (offset.x != 0 && offset.y != 0
+                    && !(CanCross(z * Width + nx, height) && CanCross(nz * Width + x, height))) continue;
+
+                bestDistanceSq = distanceSq;
+                nextColumn = candidate;
+            }
+
+            return nextColumn >= 0;
+        }
+
+        /// <summary>
         /// 高さ fromHeight から列 column へ進んだときに乗る層が、登れる高さの範囲で上下するだけか。
         /// 斜めに進むときに、間の 2 つの列について確かめる（壁の角を抜けない為）。
         /// </summary>

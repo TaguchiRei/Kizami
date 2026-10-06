@@ -5,6 +5,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 敵のグループ 1 つの状態。EnemyGroups が NativeArray に持ち、EnemyGroupJob が更新し、EnemyMoveJob が読む。
     /// グループの先頭（アンカー）は体を持たない仮想の隊長で、距離マップを下って歩き、通った道筋を記録する。メンバーは道筋に沿った隊列の位置を目指す。
+    /// プレイヤーに近づいたアンカーは、プレイヤーを囲む螺旋の上の置き場へ向かい、メンバーはアンカーの後ろにまっすぐ並ぶ横隊になる。
     /// </summary>
     /// <remarks>
     /// 道筋は、グループごとに EnemyGroups.PATH_CAPACITY 個の区画を持つリングバッファに、PATH_SPACING ごとの点として持つ。
@@ -29,6 +30,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 進んでいる間か。false の間は止まって待つ </summary>
         public bool IsAdvancing;
+
+        /// <summary> プレイヤーを囲む螺旋の上の置き場の番号。置き場を持たず、距離マップを下っている間は -1 </summary>
+        public int EncircleSlot;
+
+        /// <summary> アンカーが包囲の置き場に着いているか </summary>
+        public bool HasArrived;
 
         /// <summary> 進む・待つを切り替えるまでの残り時間（秒） </summary>
         public float PhaseTimer;

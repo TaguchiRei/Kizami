@@ -33,6 +33,9 @@ namespace Kizami.EngineAdapter
         /// <summary> グループの隊列の中の順番。先頭の列から、列の中は左から数える </summary>
         public int SlotIndex;
 
+        /// <summary> 隊列から外れて交戦しているか。プレイヤーまでの経路の長さで、入る距離と抜ける距離を変えて切り替える </summary>
+        public bool IsEngaged;
+
         /// <summary> 体から外れた部位。ビット i が体の部位 i を表す </summary>
         public uint LostParts;
 

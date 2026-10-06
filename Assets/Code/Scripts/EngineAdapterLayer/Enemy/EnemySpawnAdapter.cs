@@ -445,13 +445,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// グループを更新してから、敵を動かす。
+        /// グループを更新してから、敵を動かす。動かしたあと、グループを 1 つ並べ替える。
         /// </summary>
         private void MoveAgents()
         {
             var deltaTime = Time.deltaTime;
+            var playerPosition = _target != null ? (float3)_target.position : float3.zero;
             var groupHandle = _groups.Schedule(_agents, _distanceField.Grid, _distanceField.Distances, _formation,
-                _moveSpeed, deltaTime);
+                playerPosition, _moveSpeed, deltaTime);
 
             new EnemyMoveJob
             {
@@ -460,7 +461,9 @@ namespace Kizami.EngineAdapter
                 Distances = _distanceField.Distances,
                 Groups = _groups.Groups,
                 Paths = _groups.Paths,
+                EngageSlots = _groups.EngageSlots,
                 Formation = _formation,
+                PlayerPosition = playerPosition,
                 DeltaTime = deltaTime,
                 MoveSpeed = _moveSpeed,
                 TurnSpeed = math.radians(_turnSpeed),
@@ -468,6 +471,8 @@ namespace Kizami.EngineAdapter
                 Gravity = -Physics.gravity.y,
                 BrokenMovePartLimit = _bodyPrefab.BrokenMovePartLimit
             }.Schedule(_agents.Length, 64, groupHandle).Complete();
+
+            _groups.ReorderNext(_agents, _distanceField.Grid, _distanceField.Distances);
         }
 
         /// <summary>
