@@ -15,6 +15,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 敵の状態（EnemyAgent）の配列と体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出す Adapter。インゲームのシーンへ置く。
     /// 敵の状態の数は EnemySpawnSystem の同時に存在する数の上限で、出ている敵は EnemyCrowdRenderer でまとめて描画する。
+    /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、距離マップはプレイヤーのいるノードが変わるたびに計算し直す。
     /// 近接切断の結果は、切られた部位を持つ体へ渡す。体から外れた切っていない部位は、見た目用の物（EnemyDebris）で散らばらせて消す。
     /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さず、見た目用の物に空きがなければ最も古い物を使い回す。
     /// </summary>
@@ -54,8 +55,32 @@ namespace Kizami.EngineAdapter
         private MeshCutObjectPool _fragmentPool;
 
         [SerializeField]
-        [Tooltip("敵が向かう先（プレイヤー）")]
+        [Tooltip("敵が向かう先（プレイヤー）。距離マップはここからの距離を持つ")]
         private Transform _target;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("経路の格子のマスの一辺（m）")]
+        private float _cellSize = 1f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("敵の背丈（m）。床の上にこの高さだけ物がなければ、立てる層にする")]
+        private float _enemyHeight = 4f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("敵が登れる段差の高さ（m）")]
+        private float _climbHeight = 1f;
+
+        [SerializeField]
+        [Tooltip("経路の格子を作るときに、床と障害物として扱うレイヤー")]
+        private LayerMask _groundLayers = 1;
+
+        [SerializeField]
+        [Tooltip("実行中に、プレイヤーの周りの距離マップをギズモで描く")]
+        private bool _drawDistanceField;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("距離マップをギズモで描く、プレイヤーからの半径（m）")]
+        private float _distanceGizmoRadius = 25f;
 
         [SerializeField]
         [Tooltip("体から外れた切っていない部位を消すディゾルブのマテリアル。シェーダーは float のプロパティ _DissolveAmount（0〜1）で消える")]
@@ -86,6 +111,8 @@ namespace Kizami.EngineAdapter
         private NativeArray<EnemyAgent> _agents;
 
         private EnemyCrowdRenderer _crowdRenderer;
+
+        private EnemyDistanceField _distanceField;
 
         private ProfilerRecorder _updateRecorder;
         private ProfilerRecorder _renderRecorder;
@@ -128,6 +155,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> まとめて描画の準備にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
         public double RenderMilliseconds => GetAverageMilliseconds(_renderRecorder);
+
+        /// <summary> 経路の格子と距離マップ。初期化の前は null </summary>
+        public EnemyDistanceField DistanceField => _distanceField;
 
         /// <summary> ステージシーンの実行中の生成位置 </summary>
         public IReadOnlyList<EnemySpawnPoint> SpawnPoints => _spawnPoints;
@@ -189,6 +219,8 @@ namespace Kizami.EngineAdapter
 
             _agents = new NativeArray<EnemyAgent>(_spawnSystem.MaxAliveCount, Allocator.Persistent);
             _crowdRenderer = new EnemyCrowdRenderer(_bodyPrefab, _agents.Length);
+            _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
+                _groundLayers);
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _renderRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, RENDER_MARKER_NAME, TIMING_SAMPLE_COUNT);
 
@@ -240,6 +272,8 @@ namespace Kizami.EngineAdapter
 
                 SpawnByInterval();
 
+                if (_target != null) _distanceField.Update(_target.position);
+
                 using (_renderMarker.Auto())
                 {
                     _crowdRenderer.Render(_agents);
@@ -252,9 +286,17 @@ namespace Kizami.EngineAdapter
         private void OnDestroy()
         {
             _crowdRenderer?.Dispose();
+            _distanceField?.Dispose();
             if (_agents.IsCreated) _agents.Dispose();
             _updateRecorder.Dispose();
             _renderRecorder.Dispose();
+        }
+
+        private void OnDrawGizmos()
+        {
+            if (!_drawDistanceField || _distanceField == null || _target == null) return;
+
+            _distanceField.DrawGizmos(_target.position, _distanceGizmoRadius);
         }
 
         /// <summary>

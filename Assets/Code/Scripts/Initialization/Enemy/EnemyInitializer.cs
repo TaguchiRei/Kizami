@@ -41,6 +41,7 @@ namespace Kizami.Initialization
                 DebugGUI.ObserveVariable("Spawn Points", GetSpawnPointText);
                 DebugGUI.ObserveVariable("Enemy ms",
                     () => $"update {_spawnAdapter.UpdateMilliseconds:F2} / render {_spawnAdapter.RenderMilliseconds:F2}");
+                DebugGUI.ObserveVariable("Distance Field", GetDistanceFieldText);
 #endif
             }
             else
@@ -49,6 +50,17 @@ namespace Kizami.Initialization
             }
 
             base.Initialize(blackBoard);
+        }
+
+        /// <summary>
+        /// 距離マップの立てる層の数と、格子を作る時間・距離の計算 1 回の時間（ms）を並べる。
+        /// </summary>
+        private string GetDistanceFieldText()
+        {
+            var field = _spawnAdapter.DistanceField;
+            if (field == null) return "-";
+
+            return $"nodes {field.NodeCount} (overflow {field.OverflowColumnCount}) / bake {field.BakeMilliseconds:F1} / compute {field.ComputeMilliseconds:F2}";
         }
 
         /// <summary>

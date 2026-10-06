@@ -18,11 +18,24 @@ namespace Kizami.EngineAdapter
         [Tooltip("実行中に出す敵の情報")]
         private EnemySpawnInfo[] _spawnInfos = Array.Empty<EnemySpawnInfo>();
 
+        [SerializeField]
+        [Tooltip("敵の経路の格子を作る範囲（ワールド座標）。床を探すレイは上面から底面まで撃つので、天井より下に置く")]
+        private Bounds _navigationBounds = new(Vector3.zero, new Vector3(100f, 30f, 100f));
+
         /// <summary> 同時に存在する敵の数の上限 </summary>
         public int MaxAliveCount => _maxAliveCount;
 
         /// <summary> 実行中に出す敵の情報 </summary>
         public IReadOnlyList<EnemySpawnInfo> SpawnInfos => _spawnInfos;
+
+        /// <summary> 敵の経路の格子を作る範囲（ワールド座標） </summary>
+        public Bounds NavigationBounds => _navigationBounds;
+
+        private void OnDrawGizmosSelected()
+        {
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireCube(_navigationBounds.center, _navigationBounds.size);
+        }
     }
 
     /// <summary>
