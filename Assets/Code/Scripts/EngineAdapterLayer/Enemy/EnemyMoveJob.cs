@@ -26,6 +26,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 立っている層とみなす、位置より上の高さ（m） </summary>
         private const float GROUND_TOLERANCE = 0.05f;
 
+        /// <summary> 真下の列に着地できる層がないときに、着地先を探す周りの列の数 </summary>
+        private const int LANDING_SEARCH_RADIUS = 2;
+
+        /// <summary> 周りの列に着地したときに、位置をマスの縁から離す距離（m） </summary>
+        private const float COLUMN_EDGE_MARGIN = 0.05f;
+
         public NativeArray<EnemyAgent> Agents;
         public EnemyNavigationGrid Grid;
         [ReadOnly] public NativeArray<float> Distances;
@@ -121,6 +127,8 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 立っている敵は床の高さに合わせ、床が下がりすぎていれば落とす。落ちている敵は重力で落とし、床に着いたら立たせる。
+        /// 真下の列に着地できる層がなければ、周りの列のうち最も近い列の層に着地し、位置をその列の中へずらす。
+        /// 橋の下のように頭上が背丈より低い所は立てる層にならないので、真下だけを見ると地面を抜けて落ち続ける為。
         /// 格子の範囲より下まで落ちた敵は、ステージから消す。
         /// </summary>
         private void UpdateVertical(ref EnemyAgent agent)
@@ -144,9 +152,18 @@ namespace Kizami.EngineAdapter
             agent.VerticalSpeed -= Gravity * DeltaTime;
             agent.Position.y += agent.VerticalSpeed * DeltaTime;
 
-            var landing = hasColumn ? Grid.GetHighestNodeBelow(column, previousY + GROUND_TOLERANCE) : -1;
+            var landing = -1;
+            var landingColumn = column;
+            if (hasColumn)
+            {
+                landing = Grid.GetHighestNodeBelow(column, previousY + GROUND_TOLERANCE);
+                if (landing < 0) landing = FindNearbyLanding(column, previousY + GROUND_TOLERANCE, out landingColumn);
+            }
+
             if (landing >= 0 && agent.Position.y <= Grid.Heights[landing])
             {
+                if (landingColumn != column) MoveIntoColumn(ref agent.Position, landingColumn);
+
                 agent.Position.y = Grid.Heights[landing];
                 agent.VerticalSpeed = 0f;
                 agent.IsGrounded = true;
@@ -154,6 +171,54 @@ namespace Kizami.EngineAdapter
             }
 
             if (agent.Position.y < Grid.Origin.y) agent.IsAlive = false;
+        }
+
+        /// <summary>
+        /// 列 column の周り LANDING_SEARCH_RADIUS 列までを近い順に調べ、最初に見つかった周の中で、高さ maxHeight 以下で最も高い層を返す。なければ -1。
+        /// </summary>
+        private int FindNearbyLanding(int column, float maxHeight, out int landingColumn)
+        {
+            landingColumn = -1;
+            var x = column % Grid.Width;
+            var z = column / Grid.Width;
+
+            for (var radius = 1; radius <= LANDING_SEARCH_RADIUS; radius++)
+            {
+                var best = -1;
+                for (var dz = -radius; dz <= radius; dz++)
+                {
+                    for (var dx = -radius; dx <= radius; dx++)
+                    {
+                        if (math.max(math.abs(dx), math.abs(dz)) != radius) continue;
+
+                        var nx = x + dx;
+                        var nz = z + dz;
+                        if (nx < 0 || nx >= Grid.Width || nz < 0 || nz >= Grid.Depth) continue;
+
+                        var candidateColumn = nz * Grid.Width + nx;
+                        var node = Grid.GetHighestNodeBelow(candidateColumn, maxHeight);
+                        if (node < 0 || (best >= 0 && Grid.Heights[node] <= Grid.Heights[best])) continue;
+
+                        best = node;
+                        landingColumn = candidateColumn;
+                    }
+                }
+
+                if (best >= 0) return best;
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// 水平の位置を、列 column のマスの中の最も近い点へ移す。
+        /// </summary>
+        private void MoveIntoColumn(ref float3 position, int column)
+        {
+            var cellMin = Grid.Origin.xz + new float2(column % Grid.Width, column / Grid.Width) * Grid.CellSize;
+            var inside = math.clamp(position.xz, cellMin + COLUMN_EDGE_MARGIN, cellMin + Grid.CellSize - COLUMN_EDGE_MARGIN);
+            position.x = inside.x;
+            position.z = inside.y;
         }
     }
 }
