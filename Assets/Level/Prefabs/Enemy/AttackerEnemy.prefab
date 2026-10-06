@@ -107,6 +107,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1602327258362906900}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4095957035178863860}
     - targetCorrespondingSourceObject: {fileID: -6123892243938059410, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6841229613804630078}
@@ -174,9 +177,19 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 5505983852874233367}
   m_SourcePrefab: {fileID: 100100000, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
+--- !u!4 &259607693237171716 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2264167230838727192, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
+  m_PrefabInstance: {fileID: 2085658984846775324}
+  m_PrefabAsset: {fileID: 0}
 --- !u!33 &442296873635330284 stripped
 MeshFilter:
   m_CorrespondingSourceObject: {fileID: -7290512637083226896, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
+  m_PrefabInstance: {fileID: 2085658984846775324}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &1064845312762087278 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1312422023288869746, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
   m_PrefabInstance: {fileID: 2085658984846775324}
   m_PrefabAsset: {fileID: 0}
 --- !u!1 &1166667710754056525 stripped
@@ -274,6 +287,36 @@ MonoBehaviour:
     - rid: 8226038166398435423
       type: {class: MovePartRole, ns: Kizami.EngineAdapter, asm: Kizami.EngineAdapter.Runtime}
       data: 
+--- !u!114 &4095957035178863860
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1166667710754056525}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aef9283c79c25064cbb817190f5f901c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyLegs
+  _legs:
+  - _upper: {fileID: 2217370737834281202}
+    _lower: {fileID: 5461933232232365365}
+    _pair: 0
+  - _upper: {fileID: 3295671259875217660}
+    _lower: {fileID: 8412428872730284341}
+    _pair: 0
+  - _upper: {fileID: 1064845312762087278}
+    _lower: {fileID: 4100255294271074136}
+    _pair: 1
+  - _upper: {fileID: 8901087811011621733}
+    _lower: {fileID: 259607693237171716}
+    _pair: 1
+  _reachRate: 0.7
+  _splay: 0.7
+  _stepThreshold: 0.9
+  _stepDuration: 0.35
+  _stepHeight: 0.6
 --- !u!1 &1450252475275653236 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 635547659545568360, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
@@ -339,6 +382,11 @@ MeshRenderer:
   m_CorrespondingSourceObject: {fileID: 158140078059148714, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
   m_PrefabInstance: {fileID: 2085658984846775324}
   m_PrefabAsset: {fileID: 0}
+--- !u!4 &2217370737834281202 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -9064601200702153490, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
+  m_PrefabInstance: {fileID: 2085658984846775324}
+  m_PrefabAsset: {fileID: 0}
 --- !u!23 &2612596253138195178 stripped
 MeshRenderer:
   m_CorrespondingSourceObject: {fileID: -5138482136055724298, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
@@ -347,6 +395,11 @@ MeshRenderer:
 --- !u!23 &2966868777874516462 stripped
 MeshRenderer:
   m_CorrespondingSourceObject: {fileID: 3881487860180499954, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
+  m_PrefabInstance: {fileID: 2085658984846775324}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &3295671259875217660 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -5670827670872046368, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
   m_PrefabInstance: {fileID: 2085658984846775324}
   m_PrefabAsset: {fileID: 0}
 --- !u!1 &3722302481789990190 stripped
@@ -454,6 +507,11 @@ MonoBehaviour:
   _densityShrinkMin: 0.85
   _densityThreshold: 10
   _maxRadius: 0.5
+--- !u!4 &4100255294271074136 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -6622904181016102076, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
+  m_PrefabInstance: {fileID: 2085658984846775324}
+  m_PrefabAsset: {fileID: 0}
 --- !u!23 &4565940490600653626 stripped
 MeshRenderer:
   m_CorrespondingSourceObject: {fileID: -6652725513331149018, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
@@ -472,6 +530,11 @@ MeshFilter:
 --- !u!23 &5121406730137797765 stripped
 MeshRenderer:
   m_CorrespondingSourceObject: {fileID: 6621236493321785497, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
+  m_PrefabInstance: {fileID: 2085658984846775324}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &5461933232232365365 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -2937173111512454871, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
   m_PrefabInstance: {fileID: 2085658984846775324}
   m_PrefabAsset: {fileID: 0}
 --- !u!33 &5480154684639034366 stripped
@@ -864,6 +927,11 @@ MonoBehaviour:
   _densityShrinkMin: 0.85
   _densityThreshold: 10
   _maxRadius: 0.5
+--- !u!4 &8412428872730284341 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -1707061385907616471, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
+  m_PrefabInstance: {fileID: 2085658984846775324}
+  m_PrefabAsset: {fileID: 0}
 --- !u!33 &8812633134367285424 stripped
 MeshFilter:
   m_CorrespondingSourceObject: {fileID: -1820161308051868500, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
@@ -919,6 +987,11 @@ MonoBehaviour:
   _densityShrinkMin: 0.85
   _densityThreshold: 10
   _maxRadius: 0.5
+--- !u!4 &8901087811011621733 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7455352939793409913, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}
+  m_PrefabInstance: {fileID: 2085658984846775324}
+  m_PrefabAsset: {fileID: 0}
 --- !u!23 &8909251463926954027 stripped
 MeshRenderer:
   m_CorrespondingSourceObject: {fileID: -1777309096020906953, guid: 42419bbfaed1d0d4ebd4540229b7e120, type: 3}

@@ -21,7 +21,7 @@ namespace Kizami.EngineAdapter
     /// 距離マップは、プレイヤーのいるノードが変わるか、格子を調べ直すたびに計算し直す。
     /// プレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ生成位置へ戻す。
     /// 生成した敵は出した順にグループ（EnemyGroups）へ入れ、毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
-    /// 切断できる体（EnemyBody）は、プレイヤーから貸す距離の中にいる敵へ近い順に貸し、返す距離より離れたら返す。返す距離は貸す距離より遠い。
+    /// 切断できる体（EnemyBody）は、プレイヤーから貸す距離の中にいる敵へ近い順に貸し、返す距離より離れたら返す。返す距離は貸す距離より遠い。貸している体の脚は EnemyLegs で歩かせる。
     /// 体を返すときは、短くなった部位の形を EnemyShapeKeeper に預け、次に貸すときに戻す。預ける空きがなければ、その敵の体は返さない。
     /// 体に空きがないときは、切断の届きうる近さ（取り上げる距離）の敵を優先し、その敵より一定以上遠い敵のうち最も遠い敵から体を取り上げる。
     /// 近接切断の結果は、切られた部位を持つ体へ渡し、体の部位の状態を敵の状態へ書き戻す。体から外れた切っていない部位は、見た目用の物（EnemyDebris）で散らばらせて消す。
@@ -194,6 +194,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 体ごとの、貸している敵の _agents での番号。貸していなければ -1。並びは _bodies と同じ </summary>
         private int[] _bodyAgents;
 
+        /// <summary> 体ごとの脚。脚を持たない体では null。並びは _bodies と同じ </summary>
+        private EnemyLegs[] _bodyLegs;
+
         /// <summary> 体を貸す候補の敵の、プレイヤーとの距離の 2 乗。並べ替えに使う作業用の配列 </summary>
         private float[] _lendCandidateDistances;
 
@@ -347,6 +350,7 @@ namespace Kizami.EngineAdapter
             _lendCandidateDistances = new float[_agents.Length];
             _lendCandidates = new int[_agents.Length];
             _bodyAgents = new int[_bodyCount];
+            _bodyLegs = new EnemyLegs[_bodyCount];
             _renderRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, RENDER_MARKER_NAME, TIMING_SAMPLE_COUNT);
 
             for (var i = 0; i < _bodyCount; i++)
@@ -356,6 +360,7 @@ namespace Kizami.EngineAdapter
                 body.Initialize(spawnOrb, SpawnDebris);
                 _bodies.Add(body);
                 _bodyAgents[i] = -1;
+                _bodyLegs[i] = body.GetComponent<EnemyLegs>();
 
                 foreach (var part in body.Parts)
                 {
@@ -644,6 +649,7 @@ namespace Kizami.EngineAdapter
                 _shapeKeeper.Keep(agentIndex, body);
             }
 
+            if (_bodyLegs[bodyIndex] != null) _bodyLegs[bodyIndex].ResetPose();
             body.Return();
 
             agent.BodyIndex = -1;
@@ -653,13 +659,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 空いている体を敵に貸し、預けていた短くなった部位の形を戻す。
+        /// 空いている体を敵に貸し、預けていた短くなった部位の形を戻す。足を基準の位置に置く。
         /// </summary>
         private void LendBody(int bodyIndex, int agentIndex, MeshDataCache cache)
         {
             var agent = _agents[agentIndex];
             _bodies[bodyIndex].Lend(agent, cache);
             _shapeKeeper.Restore(agentIndex, _bodies[bodyIndex]);
+            if (_bodyLegs[bodyIndex] != null) _bodyLegs[bodyIndex].ResetFeet(_distanceField.Grid);
 
             agent.BodyIndex = bodyIndex;
             _agents[agentIndex] = agent;
@@ -667,7 +674,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 貸している体の位置と向きを、敵の状態に合わせる。
+        /// 貸している体の位置と向きを敵の状態に合わせ、脚を動かす。
         /// </summary>
         private void SyncBodyTransforms()
         {
@@ -679,6 +686,7 @@ namespace Kizami.EngineAdapter
                 var agent = _agents[agentIndex];
                 _bodies[bodyIndex].transform.SetPositionAndRotation(agent.Position,
                     Quaternion.Euler(0f, math.degrees(agent.Yaw), 0f));
+                if (_bodyLegs[bodyIndex] != null) _bodyLegs[bodyIndex].UpdateLegs(Time.deltaTime, _distanceField.Grid);
             }
         }
 
