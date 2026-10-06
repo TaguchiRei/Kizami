@@ -9,7 +9,7 @@ using UnityEngine.Rendering;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵の状態から部位ごとの行列を Job で作り、Graphics.RenderMeshInstanced で部位ごとにまとめて描画する。
+    /// 体を貸していない敵の状態から部位ごとの行列を Job で作り、Graphics.RenderMeshInstanced で部位ごとにまとめて描画する。体から外れた部位は描かない。
     /// 部位のメッシュ・マテリアル・体の根から見た位置は、体のプレハブから初期化のときに読む。
     /// </summary>
     /// <remarks>
@@ -76,7 +76,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// ステージに出ている敵の部位を、このフレームの描画に出す。
+        /// ステージに出ていて体を貸していない敵の、残っている部位を、このフレームの描画に出す。
         /// </summary>
         public void Render(NativeArray<EnemyAgent> agents)
         {
@@ -116,7 +116,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 部位 1 つにつき 1 回呼ばれ、出ている敵のその部位の行列を、部位の区画に詰めて書く。
+        /// 部位 1 つにつき 1 回呼ばれ、描く敵のその部位の行列を、部位の区画に詰めて書く。
         /// </summary>
         [BurstCompile]
         private struct BuildMatricesJob : IJobParallelFor
@@ -135,10 +135,12 @@ namespace Kizami.EngineAdapter
                 var local = PartLocalMatrices[part];
                 var count = 0;
 
+                var partBit = 1u << part;
+
                 for (var i = 0; i < Agents.Length; i++)
                 {
                     var agent = Agents[i];
-                    if (!agent.IsAlive) continue;
+                    if (!agent.IsAlive || agent.BodyIndex >= 0 || (agent.LostParts & partBit) != 0) continue;
 
                     var root = float4x4.TRS(agent.Position, quaternion.RotateY(agent.Yaw), new float3(1f));
                     Matrices[regionStart + count] = math.mul(root, local);

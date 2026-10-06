@@ -1,14 +1,17 @@
 using System;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.MeshCut;
 
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵 1 体の体。敵のプレハブの根に付け、EnemySpawnAdapter のプールから使い回す。
-    /// 出すたびに全部位を切断前の形に戻し、MeshDataCache へ登録し直す。
+    /// 敵 1 体の切断できる体。敵のプレハブの根に付け、EnemySpawnAdapter が近くの敵（EnemyAgent）に貸して使い回す。
+    /// 貸すたびに、敵の状態にある部位の状態（失った部位、壊れた部位）を反映し、残っている部位を MeshDataCache へ登録し直す。
     /// プールで非アクティブのまま待つ部位は、MeshDataCache の初期登録に含まれない為。
+    /// 返すときと倒れたときは、全部位を切断前の形に戻してからプールへ戻る。
     /// </summary>
     /// <remarks>
     /// 部位を切られたときは、接続部（基準点）の側を体に残し、反対側をかけらにする。
@@ -18,6 +21,9 @@ namespace Kizami.EngineAdapter
     /// </remarks>
     public sealed class EnemyBody : MonoBehaviour
     {
+        /// <summary> 部位の状態を敵の状態のビットに持つので、部位はこの数まで </summary>
+        private const int MAX_PARTS = 32;
+
         [SerializeField]
         [Tooltip("体を作る部位")]
         private EnemyPart[] _parts;
@@ -40,8 +46,8 @@ namespace Kizami.EngineAdapter
         /// <summary> 切っていない部位を見た目用の物で散らばらせる関数。引数は部位と、散らばる中心 </summary>
         private Action<CuttableObject, Vector3> _spawnDebris;
 
-        /// <summary> ステージに出ているか </summary>
-        public bool IsSpawned => gameObject.activeSelf;
+        /// <summary> 敵に貸しているか。倒れるか返すと false になる </summary>
+        public bool IsLent => gameObject.activeSelf;
 
         /// <summary> 壊れた移動部位の数が上限より少ないか </summary>
         public bool CanMove => _brokenMovePartCount < _brokenMovePartLimit;
@@ -61,27 +67,58 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 指定した位置と向きで体を出し、全部位を切断できる状態にする。
+        /// 敵の位置と向きで体を出し、敵の部位の状態を反映する。失った部位は隠し、残っている部位を切断できる状態にする。
         /// </summary>
+        /// <param name="agent">体を貸す敵</param>
         /// <param name="cache">部位を登録し直す先</param>
-        public void Spawn(Vector3 position, Quaternion rotation, MeshDataCache cache)
+        public void Lend(in EnemyAgent agent, MeshDataCache cache)
         {
-            transform.SetPositionAndRotation(position, rotation);
+            transform.SetPositionAndRotation(agent.Position, Quaternion.Euler(0f, math.degrees(agent.Yaw), 0f));
             gameObject.SetActive(true);
-            _brokenMovePartCount = 0;
+            _brokenMovePartCount = agent.BrokenMovePartCount;
 
             for (var i = 0; i < _parts.Length; i++)
             {
-                _isLost[i] = false;
-                _isBroken[i] = false;
+                _isLost[i] = (agent.LostParts & (1u << i)) != 0;
+                _isBroken[i] = (agent.BrokenParts & (1u << i)) != 0;
 
                 var cuttable = _parts[i].Cuttable;
                 if (cuttable == null) continue;
 
-                cuttable.gameObject.SetActive(true);
-                cuttable.RestoreInitialShape();
-                cache.Register(cuttable);
+                cuttable.gameObject.SetActive(!_isLost[i]);
+                if (!_isLost[i]) cache.Register(cuttable);
             }
+        }
+
+        /// <summary>
+        /// 体の部位の状態を、敵の状態へ書き戻す。倒れた体なら、敵をステージから消す。
+        /// </summary>
+        public void WriteState(ref EnemyAgent agent)
+        {
+            agent.LostParts = 0u;
+            agent.BrokenParts = 0u;
+            for (var i = 0; i < _parts.Length; i++)
+            {
+                if (_isLost[i]) agent.LostParts |= 1u << i;
+                if (_isBroken[i]) agent.BrokenParts |= 1u << i;
+            }
+
+            agent.BrokenMovePartCount = _brokenMovePartCount;
+            if (!IsLent) agent.IsAlive = false;
+        }
+
+        /// <summary>
+        /// 体を敵から返す。全部位を切断前の形に戻し、非アクティブにしてプールへ戻す。部位の状態は、先に WriteState で敵へ書き戻しておく。
+        /// </summary>
+        // TODO: 区間4B のコミット 5 で、短くなった部位の形を預けてから戻す
+        public void Return()
+        {
+            foreach (var part in _parts)
+            {
+                if (part.Cuttable != null) part.Cuttable.RestoreInitialShape();
+            }
+
+            gameObject.SetActive(false);
         }
 
         /// <summary>
@@ -94,7 +131,7 @@ namespace Kizami.EngineAdapter
         /// <param name="fragmentPool">体に残す側のかけらを返す先</param>
         public void ReceiveCut(MultiCutResult result, Plane plane, MeshCutObjectPool fragmentPool)
         {
-            if (!IsSpawned) return;
+            if (!IsLent) return;
 
             var index = IndexOf(result.Original);
             if (index < 0 || _isLost[index]) return;
@@ -118,19 +155,14 @@ namespace Kizami.EngineAdapter
         /// </summary>
         public void Defeat()
         {
-            if (!IsSpawned) return;
+            if (!IsLent) return;
 
             for (var i = 0; i < _parts.Length; i++)
             {
                 if (!_isLost[i]) Discard(i);
             }
 
-            foreach (var part in _parts)
-            {
-                if (part.Cuttable != null) part.Cuttable.RestoreInitialShape();
-            }
-
-            gameObject.SetActive(false);
+            Return();
         }
 
         /// <summary>
@@ -143,6 +175,11 @@ namespace Kizami.EngineAdapter
 
         private void Awake()
         {
+            if (_parts.Length > MAX_PARTS)
+            {
+                UsefulLogger.LogError($"敵の体の部位は {MAX_PARTS} 個までです（{_parts.Length} 個）。", this);
+            }
+
             _isLost = new bool[_parts.Length];
             _isBroken = new bool[_parts.Length];
         }
@@ -238,7 +275,7 @@ namespace Kizami.EngineAdapter
                 _isBroken[i] = true;
                 _parts[i].Role?.OnBroken(this);
 
-                if (!IsSpawned) return;
+                if (!IsLent) return;
             }
         }
     }

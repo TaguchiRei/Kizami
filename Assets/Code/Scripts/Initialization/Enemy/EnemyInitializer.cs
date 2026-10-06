@@ -40,7 +40,8 @@ namespace Kizami.Initialization
                 DebugGUI.ObserveVariable("Enemies", () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity}");
                 DebugGUI.ObserveVariable("Spawn Points", GetSpawnPointText);
                 DebugGUI.ObserveVariable("Enemy ms",
-                    () => $"update {_spawnAdapter.UpdateMilliseconds:F2} / move {_spawnAdapter.MoveMilliseconds:F2} / render {_spawnAdapter.RenderMilliseconds:F2}");
+                    () => $"update {_spawnAdapter.UpdateMilliseconds:F2} / move {_spawnAdapter.MoveMilliseconds:F2} / body {_spawnAdapter.BodyMilliseconds:F2} / render {_spawnAdapter.RenderMilliseconds:F2}");
+                DebugGUI.ObserveVariable("Bodies", () => $"{_spawnAdapter.LentBodyCount} / {_spawnAdapter.BodyCount}");
                 DebugGUI.ObserveVariable("Distance Field", GetDistanceFieldText);
 #endif
             }
