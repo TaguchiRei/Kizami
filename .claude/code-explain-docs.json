@@ -1,0 +1,9 @@
+{
+  "docRoot": "Assets/Docs",
+  "linkMode": "template",
+  "linkTemplate": "https://github.com/TaguchiRei/Kizami/blob/main/{path}",
+  "themeLinks": {},
+  "codeLinkMode": "relative",
+  "codeLinkTemplate": "",
+  "codeLineLinkTemplate": "https://github.com/TaguchiRei/Kizami/blob/main/{path}#L{line}"
+}

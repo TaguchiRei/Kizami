@@ -86,5 +86,9 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ss]ceneDependencyCache*
 Assets/LocalAssets/
 # Claude Code / uloop (ローカルツール設定)
-.claude/
+# .claude/ の共有設定とスキルはクラウドセッションでも使うので追跡する
+.claude/settings.local.json
+.claude/worktrees/
+# uloop のスキルは Unity エディタが動く環境でしか使えないので追跡しない
+.claude/skills/uloop-*/
 .uloop/
