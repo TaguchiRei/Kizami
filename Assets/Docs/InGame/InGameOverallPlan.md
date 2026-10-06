@@ -62,8 +62,8 @@
 | 項目 | 内容 |
 |---|---|
 | 敵のメッシュ切断 | UsefulToolkit.MeshCut を使う。マルチスレッド、Burst、Job で並列化と非同期化が済んでいる |
-| 敵の構成 | SkinnedMeshRenderer は使わない。パーツごとに分かれた軽量なメッシュを、パーツ単位で FK / IK で動かす。仮モデルは四足歩行の AttackerEnemy（`Assets/Art/Models/AttackerEnemy.fbx`。区間4A で、`AttakkerEnemy.blend` を直して別名の `AttackerEnemy.blend` から書き出した。三角形は合計 4310、実測。体のプレハブは `Assets/Level/Prefabs/Enemy/AttackerEnemy.prefab`）。1000 体をまとめて描画したときの負荷は区間4B で計測する |
-| 敵の群衆（2026-10-05 決定） | 同時に約 1000 体。敵の状態は構造体の NativeArray に持って Burst の Job で更新し、まとめて描画する。切断できる GameObject の体は、近くの敵にだけプールから貸す。経路は距離マップ、移動は簡易物理で、NavMesh は使わない見込み。方式は区間4B の計測用の試作で確定する。詳細は Notion「敵の群衆 AI」「敵の大量描画と体の貸し出し」 |
+| 敵の構成 | SkinnedMeshRenderer は使わない。パーツごとに分かれた軽量なメッシュを、パーツ単位で FK / IK で動かす。仮モデルは四足歩行の AttackerEnemy（`Assets/Art/Models/AttackerEnemy.fbx`。区間4A で、`AttakkerEnemy.blend` を直して別名の `AttackerEnemy.blend` から書き出した。三角形は合計 4310、実測。体のプレハブは `Assets/Level/Prefabs/Enemy/AttackerEnemy.prefab`）。1000 体をまとめて描画すると、通常の描画と影で約 862 万の三角形になる（区間4B で計測） |
+| 敵の群衆（2026-10-05 決定、2026-10-06 区間4B で確定） | 同時に約 1000 体。敵の状態は構造体の NativeArray（`EnemyAgent`）に持って Burst の Job で更新し、`Graphics.RenderMeshInstanced` でまとめて描画する。切断できる GameObject の体は、近くの敵にだけプールから貸す。経路は縦の列ごとに立てる層を持つ格子と、プレイヤーからの距離マップ。移動は簡易物理で、NavMesh は使わない。詳細は Notion「敵の群衆 AI」「敵の大量描画と体の貸し出し」と、区間4B の計画書の「計測の結果」 |
 | 敵の体のプール（2026-10-05 決定） | 敵の体は最初にすべてプールに用意し、実行中は Instantiate しない |
 | ボスの構成 | 敵と同じく、パーツ単位で FK / IK で動かす。ボクセルのスキニングは使わない |
 | ボクセル | ボクセルでできた物はメッシュ切断できない。切断攻撃に破壊属性を付けたときは、切断方向と同じ向きに、厚みゼロの平面でボクセルを分ける（`VoxelPiece.Slice` で実装済み） |
@@ -80,7 +80,7 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-06 時点。区間4A の完了まで）
+## 3. 現状（2026-10-06 時点。区間4B の完了まで）
 
 | 分野 | 状態 |
 |---|---|
@@ -97,7 +97,8 @@
 | かけら・オーブ・チャージ | あり（区間3）。InGame の `FragmentOrbAdapter` が、かけらを管理し、ぶつかるか寿命が来たらオーブにして、`Camera.main` へ引き寄せて吸収する。吸収した数は `ChargeService.AddFragments` で `IChargeState`（`PlayerBoard`、InGame の SceneState）に加える。消費の操作はまだない（区間6）。かけらは Shard レイヤーで、Shard 同士は衝突しない。テスト用のステージは `TestWalls/StageBounds` で囲ってある |
 | 画面空間の擬似破壊シェーダー（`Shader/Boolean`、`Shader/Embedded`） | コードは残してあるが、Renderer Feature は Renderer から外してある。ボクセルとメッシュ切断で足りているため使っていない |
 | ステージシーン | あり（区間4A）。`Assets/Level/Scenes/Stage/TestStage/TestStage.unity` にライト・地面・`TestWalls`（`StageBounds`）・`EnemySpawnSystem` を置き、`InGameGroup` は `[TestStage（アクティブ）, InGame]` |
-| 敵の体と切断 | あり（区間4A）。InGame の `Enemy`（`EnemyInitializer`、`EnemySpawnAdapter`）が、体のプール（初期化のときに上限の数だけ作る）、ステージシーンの `EnemySpawnSystem` に従った生成、仮の移動（プレイヤーへまっすぐ）、切断の受け取り、見た目用の部位（`EnemyDebris`、ディゾルブ `Kizami/EnemyDissolve`）を持つ。`EnemyBody` は、接続部側を残す、子の部位を失う、役割（核で倒れる・移動部位 4 つで止まる）、倒れたら切断済みはオーブ・切っていない部位は見た目用の物、を行う。部位の状態は `EnemyBody` の中にだけ持つ。群衆 AI と攻撃はない |
+| 敵の体と切断 | あり（区間4A・4B）。InGame の `Enemy`（`EnemyInitializer`、`EnemySpawnAdapter`）が、敵の状態（`EnemyAgent` の NativeArray。ステージシーンの `EnemySpawnSystem` の上限の数）、生成、体のプール（Inspector の数、既定 32）、近くの敵への体の貸し出しと返却、切断の受け取り、見た目用の部位（`EnemyDebris`、ディゾルブ `Kizami/EnemyDissolve`）を持つ。`EnemyBody` は、接続部側を残す、子の部位を失う、役割（核で倒れる・移動部位 4 つで止まる）、倒れたら切断済みはオーブ・切っていない部位は見た目用の物、を行う。部位の状態は体を返しても `EnemyAgent` に持ち続け、短くなった部位の形は `EnemyShapeKeeper` が預かる。攻撃はない |
+| 敵の群衆 | 試作あり（区間4B）。1000 体を `EnemyCrowdRenderer`（`RenderMeshInstanced`）でまとめて描画し、`EnemyMoveJob` で距離マップ（`EnemyDistanceField`。格子は初期化のときに物理のクエリで作る）を下って歩かせる。グループ・隊列・敵どうしを離す処理はなく、同じ所へ向かう敵は 1 点に重なる（4C） |
 | スキル、スローモード、装甲、クリア判定、HUD | なし |
 | 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブ（`Enemy/AttakkerEnemy.prefab` など。区間4A で作った `Enemy/AttackerEnemy.prefab` は除く）は旧構成のもの。旧 FBX `Assets/Art/Models/AttakkerEnemy.fbx` は、旧構成のプレハブと開発用のシーンが参照している為に残してある。`Assets/Art/` は区間4A から git の対象。`Test/InGame.unity` は Build Settings から外してあり、`BuildScenes.InGame` は新しい `Master/InGame` を指す |
 
@@ -119,7 +120,7 @@
 | 2 | 近接切断 | MeshCut による剣の切断、ホイールで切断面を回転、切断面のプレビュー、切断の結果（かけらと元の対象）の取得 | 0 | 10/13〜10/19 | ― | 完了（10/05） | [Section02](Sections/Section02_MeleeCut.md) |
 | 3 | かけら・オーブ・チャージ | かけらの通知、かけらのオーブ化と自動吸収、チャージの State、ステージ外周コライダー、オーブのプール | 2 | 10/20〜10/26 | ― | 完了（10/05） | [Section03](Sections/Section03_Charge.md) |
 | 4A | 敵の体と切断 | ステージシーンの分離、生成システム、敵の体のプール、部位の役割（核・攻撃・移動）、接続部側が残る切断、部位ごとの切断回数の上限、核でだけ倒れる、ディゾルブ、仮の移動 | 1, 3 | 2026/10/06〜10/19 | 10/06〜10/09 | 完了（10/06） | [Section04](Sections/Section04_Enemy.md) |
-| 4B | 群衆 AI の試作と計測 | 敵の状態（NativeArray）、まとめて描画、距離マップの試作、体の貸し出しと返却、貸した体の切断、計測と方式の決定 | 4A | 10/20〜11/02 | 10/10〜10/13 | 着手（2026-10-06） | [Section04B](Sections/Section04B_CrowdPrototype.md) |
+| 4B | 群衆 AI の試作と計測 | 敵の状態（NativeArray）、まとめて描画、距離マップの試作、体の貸し出しと返却、貸した体の切断、計測と方式の決定 | 4A | 10/20〜11/02 | 10/10〜10/13 | 完了（2026-10-06） | [Section04B](Sections/Section04B_CrowdPrototype.md) |
 | 4C | 群衆 AI の本実装 | 距離マップ（2 段）、グループとアンカー、隊列、交戦と合流、簡易物理、戻れない敵、脚の IK | 4B | 11/03〜11/16 | 10/14〜10/17 | 未着手 | [Section04C](Sections/Section04C_CrowdAI.md) |
 | A | マイルストーンA | 群れで迫る敵を切って溜める | | 11/16 | 10/17 | | |
 | 5 | ダメージ基盤・破壊対象・崩落・クリア判定 | ダメージタイプと対象ごとの判定、ボクセルの破壊対象、重要パーツの体積割合、マップオブジェクト、崩落による撃破、エネルギーの演出（VFX Graph）、クリア判定 | 4C | 11/17〜12/07 | 10/18〜10/23 | 未着手 | [Section05](Sections/Section05_DestructionTarget.md) |
@@ -172,8 +173,9 @@ flowchart LR
 |---|---|
 | 敵の切断 | UsefulToolkit.MeshCut（`MultiCutBlade` / `MultiMeshCut` / `CuttableObject` / `MeshDataCache` / `MeshCutObjectPool`）。シーン上では `MeshCut System` の下に `MeshDataCache` / `FragmentPool` / `CutBlade` という名前で置かれる。`MultiCutBlade.ExecuteCut` は切断した対象ごとに `MultiCutResult`（`Original` / `Front` / `Back`）を返す（区間2で拡張）。区間4A で、`MeshDataCache.Register`（実行中に 1 つ登録）、`CuttableObject` の切断回数の上限（`MaxCutCount` / `CutCount`。かけらへ引き継ぐ）、`AdoptCutShape`（かけらの形を移す。`AdoptColliderMode.FitOwnColliders` で元のコライダーを残った形に合わせる）、`RestoreInitialShape`（切断前の形に戻す）を拡張した。拡大率は `localScale` で扱うので、切断対象の親に拡大率を持たせない |
 | かけらの上限 | `MeshCutObjectPool` は固定長のリングバッファで、空きがなくなると最も古いかけらを回収して使い回す |
-| 敵の移動 | 自作の距離マップと簡易物理（Burst の Job）。`com.unity.ai.navigation`（NavMesh）は導入済みだが、使わない見込み（Notion「敵の群衆 AI」） |
-| 敵の大量描画 | BatchRendererGroup ／ GPU Resident Drawer ／ `Graphics.RenderMeshInstanced`（区間4B で比べる）、`IJobParallelForTransform` |
+| 敵の移動 | 自作の距離マップと簡易物理（Burst の Job）。格子は `RaycastCommand` と `OverlapBoxCommand`（物理のバッチのクエリ）で作る。`com.unity.ai.navigation`（NavMesh）は導入済みだが、使わない（Notion「敵の群衆 AI」） |
+| 敵の大量描画 | `Graphics.RenderMeshInstanced`（区間4B で採用。1 回に 511 体まで描けるので、それを超える分は分けて描く）。マテリアルは GPU インスタンシングを有効にしたアセットにする（プロジェクトはインスタンシングのバリアントを使われていなければ削る設定の為）。BatchRendererGroup と GPU Resident Drawer は使わない |
+| 計測 | Unity の `ProfilerMarker` と `ProfilerRecorder`（Burst の Job の中の時間も、ワーカースレッドの分まで取れる） |
 | オーブの再利用 | `UnityEngine.Pool.ObjectPool<T>`（区間3の `FragmentOrbAdapter` が使っている） |
 | 散らばる部位の再利用 | UsefulToolkit.framework の `RecycleBuffer<T>`（固定長のリングバッファ）。区間4A の `EnemyDebris`。敵の体のプールは、空きがなければ出さない規則なので、`List` で持つ |
 | 部位の役割の選択 | UsefulToolkit.framework の `SubclassSelectorAttribute`（`[SerializeReference]` のフィールドにサブクラスを選ぶ表示を付ける） |

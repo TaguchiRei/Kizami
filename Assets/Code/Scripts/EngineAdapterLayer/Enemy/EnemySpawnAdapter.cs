@@ -20,6 +20,7 @@ namespace Kizami.EngineAdapter
     /// 出ている敵は、毎フレーム EnemyMoveJob で距離マップを下って歩かせ、落とす。
     /// 切断できる体（EnemyBody）は、プレイヤーから貸す距離の中にいる敵へ近い順に貸し、返す距離より離れたら返す。返す距離は貸す距離より遠い。
     /// 体を返すときは、短くなった部位の形を EnemyShapeKeeper に預け、次に貸すときに戻す。預ける空きがなければ、その敵の体は返さない。
+    /// 体に空きがないときは、切断の届きうる近さ（取り上げる距離）の敵を優先し、その敵より一定以上遠い敵のうち最も遠い敵から体を取り上げる。
     /// 近接切断の結果は、切られた部位を持つ体へ渡し、体の部位の状態を敵の状態へ書き戻す。体から外れた切っていない部位は、見た目用の物（EnemyDebris）で散らばらせて消す。
     /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さず、見た目用の物に空きがなければ最も古い物を使い回す。
     /// </summary>
@@ -64,6 +65,14 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0f)]
         [Tooltip("プレイヤーとの距離がこの値（m）より離れた敵から、体を返す。貸す距離より遠くする")]
         private float _returnDistance = 18f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("体の空きがないとき、プレイヤーとの距離がこの値（m）以下の体を持たない敵には、より遠い敵から体を取り上げて貸す。切断の届く距離と、敵の体の根から部位の端までの長さを足した値より大きくする")]
+        private float _reclaimDistance = 9f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("体を取り上げる相手は、貸す敵よりこの値（m）以上遠い敵に限る。近い 2 体の間で体が行き来しないようにする")]
+        private float _reclaimMargin = 3f;
 
         [SerializeField, Min(0)]
         [Tooltip("体を返した敵の、短くなった部位の形を預かれる数。初期化のときにこの数だけ保管用の物を作る")]
@@ -427,7 +436,6 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 返す距離より離れた敵と、落ちてステージから消えた敵から、体を返す。
-        /// 生きている敵の体は、部位の状態を敵の状態へ書き戻し、短くなった部位の形を預けてから返す。預ける空きがなければ返さない。
         /// </summary>
         private void ReturnBodies()
         {
@@ -442,38 +450,19 @@ namespace Kizami.EngineAdapter
                 var agent = _agents[agentIndex];
                 if (agent.IsAlive && math.distancesq(agent.Position, target) <= returnDistanceSq) continue;
 
-                var body = _bodies[bodyIndex];
-                if (agent.IsAlive)
-                {
-                    if (!_shapeKeeper.CanKeep(body)) continue;
-
-                    body.WriteState(ref agent);
-                    _shapeKeeper.Keep(agentIndex, body);
-                }
-
-                body.Return();
-
-                agent.BodyIndex = -1;
-                _agents[agentIndex] = agent;
-                _bodyAgents[bodyIndex] = -1;
+                TryReturnBody(bodyIndex);
             }
         }
 
         /// <summary>
-        /// 貸す距離の中にいる、体を貸していない敵へ、近い順に空いている体を貸し、預けていた短くなった部位の形を戻す。
+        /// 貸す距離の中にいる、体を貸していない敵へ、近い順に空いている体を貸す。
+        /// 空きがなければ、取り上げる距離の中の敵に限り、その敵より取り上げの差以上遠い敵のうち最も遠い敵から体を返させて貸す。
         /// </summary>
         private void LendBodies(MeshDataCache cache)
         {
-            var freeCount = 0;
-            foreach (var agentIndex in _bodyAgents)
-            {
-                if (agentIndex < 0) freeCount++;
-            }
-
-            if (freeCount == 0) return;
-
             var target = (float3)_target.position;
             var lendDistanceSq = _lendDistance * _lendDistance;
+            var reclaimDistanceSq = _reclaimDistance * _reclaimDistance;
             var candidateCount = 0;
 
             for (var i = 0; i < _agents.Length; i++)
@@ -497,17 +486,82 @@ namespace Kizami.EngineAdapter
             for (var c = 0; c < candidateCount; c++)
             {
                 while (nextBody < _bodyAgents.Length && _bodyAgents[nextBody] >= 0) nextBody++;
-                if (nextBody == _bodyAgents.Length) return;
 
-                var agentIndex = _lendCandidates[c];
-                var agent = _agents[agentIndex];
-                _bodies[nextBody].Lend(agent, cache);
-                _shapeKeeper.Restore(agentIndex, _bodies[nextBody]);
+                var bodyIndex = nextBody;
+                if (bodyIndex == _bodyAgents.Length)
+                {
+                    if (_lendCandidateDistances[c] > reclaimDistanceSq) return;
 
-                agent.BodyIndex = nextBody;
-                _agents[agentIndex] = agent;
-                _bodyAgents[nextBody] = agentIndex;
+                    var minDistance = math.sqrt(_lendCandidateDistances[c]) + _reclaimMargin;
+                    bodyIndex = FindFarthestLentBody(target, minDistance * minDistance);
+                    if (bodyIndex < 0 || !TryReturnBody(bodyIndex)) return;
+                }
+
+                LendBody(bodyIndex, _lendCandidates[c], cache);
             }
+        }
+
+        /// <summary>
+        /// 貸している体のうち、敵がプレイヤーから距離の 2 乗 minDistanceSq より遠く、最も遠いものを返す。なければ -1。
+        /// </summary>
+        private int FindFarthestLentBody(float3 target, float minDistanceSq)
+        {
+            var farthest = -1;
+            var farthestDistanceSq = minDistanceSq;
+
+            for (var bodyIndex = 0; bodyIndex < _bodies.Count; bodyIndex++)
+            {
+                var agentIndex = _bodyAgents[bodyIndex];
+                if (agentIndex < 0) continue;
+
+                var distanceSq = math.distancesq(_agents[agentIndex].Position, target);
+                if (distanceSq <= farthestDistanceSq) continue;
+
+                farthest = bodyIndex;
+                farthestDistanceSq = distanceSq;
+            }
+
+            return farthest;
+        }
+
+        /// <summary>
+        /// 体を敵から返す。生きている敵なら、部位の状態を敵の状態へ書き戻し、短くなった部位の形を預けてから返す。
+        /// 預ける空きがなければ返さず false を返す。
+        /// </summary>
+        private bool TryReturnBody(int bodyIndex)
+        {
+            var agentIndex = _bodyAgents[bodyIndex];
+            var agent = _agents[agentIndex];
+            var body = _bodies[bodyIndex];
+
+            if (agent.IsAlive)
+            {
+                if (!_shapeKeeper.CanKeep(body)) return false;
+
+                body.WriteState(ref agent);
+                _shapeKeeper.Keep(agentIndex, body);
+            }
+
+            body.Return();
+
+            agent.BodyIndex = -1;
+            _agents[agentIndex] = agent;
+            _bodyAgents[bodyIndex] = -1;
+            return true;
+        }
+
+        /// <summary>
+        /// 空いている体を敵に貸し、預けていた短くなった部位の形を戻す。
+        /// </summary>
+        private void LendBody(int bodyIndex, int agentIndex, MeshDataCache cache)
+        {
+            var agent = _agents[agentIndex];
+            _bodies[bodyIndex].Lend(agent, cache);
+            _shapeKeeper.Restore(agentIndex, _bodies[bodyIndex]);
+
+            agent.BodyIndex = bodyIndex;
+            _agents[agentIndex] = agent;
+            _bodyAgents[bodyIndex] = agentIndex;
         }
 
         /// <summary>

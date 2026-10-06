@@ -119,10 +119,10 @@ PC（マウスとキーボード）を先に作り、そのあとスマホと VR
 
 ## 敵の群衆
 
-議論の全体は `Assets/Docs/InGame/EnemyCrowdDiscussion.md` にある。区間 4 は 4A（敵の体と切断）、4B（群衆 AI の試作と計測）、4C（群衆 AI の本実装）に分かれ、経路の方式は 4B の計測で確定する。
+議論の全体は `Assets/Docs/InGame/EnemyCrowdDiscussion.md` にある。区間 4 は 4A（敵の体と切断）、4B（群衆 AI の試作と計測）、4C（群衆 AI の本実装）に分かれる。4B は完了し、方式と計測の結果は `Assets/Docs/InGame/Sections/Section04B_CrowdPrototype.md` にある。
 
 - 目標は同時に約 1000 体、広いマップ。比較の基準は 1 年次作品 DataCenterOutbreak（GitHub の TaguchiRei/HDRPHookShot。敵は総数で最大 330 体、マップはおおむね 1000m 四方）
 - 敵 AI は「目的地（螺旋）／経路／移動（簡易物理）」の 3 層で考える。目的地は過去作 UnlimitedKnight の群衆風アルゴリズム（プレイヤー中心のアルキメデスの螺旋）を改良して使う
-- 経路の方式は比較中で、立体格子＋プレイヤーからの距離マップ（SDF で更新）が最有力。NavMeshAgent に移動を任せる方式は、足場が壊れたときに破綻するので使わない
-- 実装方式は「敵の状態を NativeArray＋Burst で持ち、まとめて描画し、近くの敵にだけ GameObject の体を貸す」案が有力。全面 ECS は見送り寄り
+- 経路は、縦の列ごとに立てる層を持つ格子＋プレイヤーからの距離マップ（4B で試作。SDF での更新と 2 段化は 4C）。NavMeshAgent に移動を任せる方式は、足場が壊れたときに破綻するので使わない
+- 実装方式は「敵の状態を NativeArray（`EnemyAgent`）＋Burst で持ち、`Graphics.RenderMeshInstanced` でまとめて描画し、近くの敵にだけ GameObject の体を貸す」（4B で確定）。全面 ECS は使わない
 - 切断は「スキルまでのつなぎ」で範囲を広げない。大量撃破は、ボクセルを壊した崩落に敵を巻き込む形で作る。巻き込まれた敵は切断もかけらも出さず、エネルギー（チャージ）を出す。演出は VFX Graph が有力
