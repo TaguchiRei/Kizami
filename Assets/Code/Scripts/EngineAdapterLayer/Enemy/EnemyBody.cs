@@ -194,7 +194,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 接続部の側のかけらの形を元の部位へ移して表示し直し、かけらはプールへ返す。
+        /// 接続部の側のかけらの形を元の部位へ移して表示し直し、かけらはプールへ返す。当たり判定は、部位の元のコライダーを残した形に合わせる。
         /// 子の部位のうち、切断面に対して接続部と反対側にあるものは失う。
         /// </summary>
         private void KeepJointSide(int index, MultiCutResult result, Plane plane, MeshCutObjectPool fragmentPool)
@@ -203,7 +203,8 @@ namespace Kizami.EngineAdapter
             var jointSide = plane.GetSide(cuttable.transform.position);
             var remaining = jointSide ? result.Front : result.Back;
 
-            cuttable.AdoptCutShape(remaining);
+            // 写した球コライダーは長い部位で隙間ができ、刃が隙間を通ると切り直せない為、元のコライダーを残した形に合わせる
+            cuttable.AdoptCutShape(remaining, AdoptColliderMode.FitOwnColliders);
             cuttable.gameObject.SetActive(true);
             fragmentPool.ReleaseObject(remaining);
 
