@@ -3,6 +3,8 @@
     "rootNamespace": "Kizami.EngineAdapter",
     "references": [
         "Kizami.BlackBoard.Runtime",
+        "UsefulToolkit.Framework.Runtime",
+        "UsefulToolkit.Utility",
         "UsefulToolkit.Framework.EngineAdapter.Runtime",
         "UsefulToolkit.Framework.BlackBoard.Runtime",
         "UsefulToolkit.Input.BlackBoard.Runtime",

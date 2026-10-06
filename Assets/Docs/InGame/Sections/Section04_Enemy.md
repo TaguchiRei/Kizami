@@ -42,7 +42,7 @@
 
 ## 計画書と今のコードの食い違い（着手時に確認）
 
-#1〜#6 は 2026-10-05、#7〜#9 は 2026-10-06（区間3の後のリファクタリングの後）に確認した。
+#1〜#6 は 2026-10-05、#7〜#9 は 2026-10-06（区間3の後のリファクタリングの後）、#11 はコミット 5 の着手時に確認した。
 
 | # | 内容 | 根拠 | 対応 |
 |---|---|---|---|
@@ -56,6 +56,7 @@
 | 8 | `CuttableObject` は `Awake` で球のコライダーを（無効の状態で）足す。元のパーツは自分のコライダーで当たり判定をしているので、残す側を短くしても当たり判定は元の大きさのまま | `CuttableObject.Awake`、`MeleeCutAdapter.CollectTargets` | #7 の操作で、かけらの球コライダーを写し、元のパーツのコライダーを無効にする（決定 15） |
 | 9 | 残す側を決める（決定 4）には切断面が要るが、`MeleeCutAdapter` は切断の結果だけを渡している | `MeleeCutAdapter.Initialize(Action<MultiCutResult[]>)` | `MeleeCutAdapter` が切断面（`Plane`）も渡す（決定 16） |
 | 10 | （コミット 4 の実装中に確認）`AdoptCutShape` で写したかけらの球コライダーは、長い部位では並びに隙間ができる。刃の範囲が隙間に入ると、体に残した部位を 2 回目に切れない。上の脚（残した長さ約 1.7m）で、約 0.7m の隙間があった | `CuttableObject.AdoptCutShape`（球コライダーを写し、元のコライダーを無効にする）、`MeleeCutAdapter.CollectTargets`（`OverlapBoxNonAlloc`） | UsefulToolkit 側で直してもらう（決定 25） |
+| 11 | 4-3「部位の役割」はコミット 3 の予定だったが、作られていない。`EnemyPart` は切断対象と接続部の距離だけを持つ | `EnemyPart` | 役割を読むのはコミット 5 の処理だけなので、コミット 5 で作る |
 
 ## 既存の資産
 
@@ -160,6 +161,14 @@
 | 24 | 攻撃部位の役割 | 4A では読む処理がないので作らない。区間9で、役割のクラスを足して作る。4A の `GunTurret` は役割なし（切られても体に何も起きない部位）にする |
 | 25 | 体に残した部位の当たり判定（食い違い #10） | UsefulToolkit.MeshCut 側で、`AdoptCutShape` で形を移した先の当たり判定に隙間ができないようにしてもらう（2026-10-06 ユーザーが決定）。要件は [Section04_MeshCutColliderRequirements.md](Section04_MeshCutColliderRequirements.md)。マージの後で参照を更新し、完了条件 5 を確かめる |
 
+### 決定（2026-10-06、コミット 5 の着手時）
+
+| # | 項目 | 決定 |
+|---|---|---|
+| 26 | ディゾルブのシェーダー | ローカルで Shader Graph で作る（URP の Lit に Alpha Clip、ノイズと float のプロパティ `_DissolveAmount`（0〜1）を比べて消す）。消えた割合は、コードが `MaterialPropertyBlock` で毎フレーム渡す（`Time.deltaTime` で進むので、スロー中は一緒に遅くなる） |
+| 27 | 見た目用の部位の作り方 | プレハブを作らない。`EnemySpawnAdapter` が初期化のときに、`MeshFilter` と `MeshRenderer` だけの物（`EnemyDebris`）を必要な数だけ作り、`RecycleBuffer` で使い回す。出すときに部位のメッシュを写す |
+| 28 | 親と一緒に落ちる子の部位が、すでに切られていたとき | 倒れたとき（決定 6）と同じ規則にする。切断済みならオーブ（チャージ）、切っていなければ見た目用の物でディゾルブ。切断の途中（非アクティブ）の部位は何も出さない（その表と裏のかけらがチャージになる為） |
+
 ### 決めること
 
 なし（2026-10-06 にすべて決定）。
@@ -195,13 +204,14 @@ sequenceDiagram
 |---|---|---|
 | `MeshDataCache.Register`、`CuttableObject` の切断回数と、形を移す・戻す操作（メソッドとフィールドの追加） | UsefulToolkit.MeshCut | `EnemyBody`（出すたびに登録し直す、接続部側を残す、全部位を戻す）、`MeleeCutAdapter` 経由の切断（上限に達したかけらを除く） |
 | `EnemyBody` | EngineAdapter | `EnemySpawnAdapter`。敵のプレハブに付ける。パーツと役割の一覧、接続部側を残す処理、子の部位を落とす処理、倒れる処理、全部位を戻す処理、仮の移動を持つ |
-| `EnemyPartRole`（抽象）と、`CorePartRole` / `MovePartRole` | EngineAdapter | `EnemyBody`。部位を失ったときの処理を役割ごとに持つ |
+| `EnemyPartRole`（抽象）と、`CorePartRole` / `MovePartRole` | EngineAdapter | `EnemyBody`。部位が壊れたときの処理を役割ごとに持つ |
 | `EnemySpawnAdapter` | EngineAdapter | `EnemyInitializer`（初期化）、`PlayerInitializer`（切断の結果を渡す）。体のプール、パーツから体を引く表、生成の間隔、見た目用の部位のプール（`RecycleBuffer`）と寿命、出ている敵の数（デバッグ表示用のプロパティ）を持つ |
 | `EnemySpawnSystem` / `EnemySpawnPoint` / `EnemyInitialSpawnArea` | EngineAdapter | `EnemySpawnAdapter`。ステージシーンに置く。親が上限と生成情報の一覧を持ち、子が実行中の生成位置と初期生成情報になる |
 | `EnemyInitializer` | Initialization | `InGameCompositor`。敵の Adapter を初期化し、出ている敵の数を `DebugGUI` に出す |
-| ディゾルブのシェーダーと、見た目用の部位のプレハブ | Level（Shader Graph） | `EnemySpawnAdapter` |
+| `EnemyDebris`（見た目用の部位 1 つ。`IRecyclable`） | EngineAdapter | `EnemySpawnAdapter` の `RecycleBuffer`（決定 27） |
+| ディゾルブのシェーダーとマテリアル | Level（Shader Graph） | `EnemySpawnAdapter`（決定 26） |
 
-拡張する型：`MeleeCutAdapter`（切断面も渡す）、`PlayerInitializer`（切断の結果を敵の Adapter にも渡す）、`FragmentOrbAdapter`（位置を渡すとオーブを出す操作）
+拡張する型：`MeleeCutAdapter`（切断面も渡す）、`PlayerInitializer`（切断の結果を敵の Adapter にも渡す）、`FragmentOrbAdapter`（位置を渡すとオーブを出す操作 `SpawnOrb`）、`EnemyInitializer`（`SpawnOrb` を `EnemySpawnAdapter` に渡す）
 
 作らないもの：敵の State・Board・Event、ステージシーンの Compositor と Initializer、敵の Service（Application）、攻撃部位の役割（区間9）、見た目用の部位だけを扱う Adapter（`EnemySpawnAdapter` に含める）、移動の仕組み（4B・4C）、攻撃（区間9）、失敗とリトライ（区間11）
 
@@ -222,7 +232,8 @@ sequenceDiagram
 | 3 | meshcut の参照の更新。敵の体のプレハブ、部位の役割、体のプール、生成システム、`EnemyInitializer`、デバッグ表示、仮の移動（4-2〜4-5、4-8 の前半、4-9）。`DummyEnemy` を削除 | 完了条件 2・3。敵を切るとかけらがチャージになる |
 | 4 | 切断の受け取り（4-6）。切断面を渡す、接続部側を残す、接続部の近くなら全体を落とす、子の部位を落とす | 完了条件 4・5。完了条件 5 のうち「上限まで切れる」は、当たり判定の修正（決定 25）の後に確かめる |
 | （UsefulToolkit 側） | 当たり判定の修正（決定 25。別の作業者） | [Section04_MeshCutColliderRequirements.md](Section04_MeshCutColliderRequirements.md) の「受け入れの確認」 |
-| 5 | 倒れる処理と再利用、移動部位で止まる処理（4-7、4-8 の後半）、見た目用の部位とディゾルブ | 完了条件 6・7・8 |
+| 5a | 部位の役割（4-3。食い違い #11）、倒れる処理と再利用、移動部位で止まる処理（4-7、4-8 の後半）、見た目用の部位（決定 27・28）。クラウドで作る | ローカルで 5b と一緒に確かめる |
+| 5b | ディゾルブの Shader Graph とマテリアル（決定 26）、`AttackerEnemy` の部位の役割（`Body` = 核、脚 8 つ = 移動）と `EnemySpawnAdapter` のマテリアルの設定。ローカルで作る | 完了条件 6・7・8 |
 | 6 | 区間計画書の「実装結果」と全体計画書の更新 | ― |
 
 コミット 0〜2 は MeshCut の拡張を待たずに進められる。コミット 3 は、UsefulToolkit 側のマージの後に始める。

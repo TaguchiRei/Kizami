@@ -18,6 +18,7 @@ Unity 6（6000.3.8f1）で作っている 3D アクションゲーム。UsefulTo
 
 - ローカルでは、commit と push はユーザーが行う。Claude は作業と検証まで済ませたら止めて、変更ファイルの一覧とコミットできる状態かを報告する。`git commit` と `git push` は、ユーザーがはっきり頼んだときだけ実行する
 - クラウドセッション（環境変数 `CLAUDE_CODE_REMOTE` が `true`）では、作業結果を push しないと持ち出せないので、`claude/` で始まる作業ブランチへの commit と push だけを Claude が行ってよい。`main` や `feature/` のブランチには push しない。PR の作成とマージは頼まれたときだけ
+- クラウドセッションの PR は、対応する `feature/` ブランチ（`claude/alpha/enemybody` なら `feature/alpha/enemybody`）にだけ出す。`main` などの統括ブランチには出さない。クラウドでは Unity を動かせず、確認の精度が落ちるため。コードだけのわずかな変更・修正、特に hotfix はこの限りではない
 - コミットメッセージは `[update]内容` の形式（既存の履歴に合わせる）
 
 ## クラウドセッションでの制約

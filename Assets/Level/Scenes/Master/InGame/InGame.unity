@@ -924,6 +924,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.EnemyInitializer
   _spawnAdapter: {fileID: 1539543158}
+  _fragmentOrbAdapter: {fileID: 1946405260}
 --- !u!114 &1539543158
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Kizami.EngineAdapter;
 using UnityEngine;
@@ -10,6 +11,7 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// 敵の生成と体のプール（EnemySpawnAdapter）を初期化し、出ている敵の数と生成位置の有効・無効を画面に出す配線役。インゲームのシーンへ置く。
+    /// 倒れた体に残っていた切断済みの部位は、FragmentOrbAdapter でオーブにする。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
     public sealed class EnemyInitializer : InitializerBase
@@ -17,12 +19,23 @@ namespace Kizami.Initialization
         private readonly StringBuilder _spawnPointText = new();
 
         [SerializeField] private EnemySpawnAdapter _spawnAdapter;
+        [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
+            Action<Vector3> spawnOrb = null;
+            if (_fragmentOrbAdapter != null)
+            {
+                spawnOrb = _fragmentOrbAdapter.SpawnOrb;
+            }
+            else
+            {
+                UsefulLogger.LogError("FragmentOrbAdapter が設定されていません。", this);
+            }
+
             if (_spawnAdapter != null)
             {
-                _spawnAdapter.Initialize();
+                _spawnAdapter.Initialize(spawnOrb);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 DebugGUI.ObserveVariable("Enemies", () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity}");
                 DebugGUI.ObserveVariable("Spawn Points", GetSpawnPointText);
