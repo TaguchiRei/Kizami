@@ -16,5 +16,11 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 向き（Y 軸まわりの角度、ラジアン）。0 で +Z を向く </summary>
         public float Yaw;
+
+        /// <summary> 上向きの速さ（m/s）。立っている間は 0 </summary>
+        public float VerticalSpeed;
+
+        /// <summary> 立てる層の上に立っているか。false の間は落ちている </summary>
+        public bool IsGrounded;
     }
 }

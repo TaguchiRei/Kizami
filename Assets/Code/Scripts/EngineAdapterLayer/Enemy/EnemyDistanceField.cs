@@ -9,21 +9,18 @@ using UnityEngine;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵の経路に使う格子と、プレイヤーからの距離マップ。
-    /// 格子は縦の列ごとに「立てる層」（敵が立てる床の高さ）を下から順に持ち、層 1 つを 1 つのノードとして距離を持つ。
+    /// 敵の経路の格子（EnemyNavigationGrid）を作って持ち、プレイヤーからの距離マップを計算する。
     /// </summary>
     /// <remarks>
     /// 立てる層は、作るときに列ごとに下向きのレイを撃って床の上面を集め、上に敵の背丈の分だけ物が重ならないものを残す。
     /// 頭上の判定をレイでなく箱の重なりで行うのは、レイが始まった位置のコライダーを検出せず、壁の中の地面を立てると判定してしまう為。
     /// 距離はプレイヤーのいるノードから逆向きに、ダイクストラ法（斜めは √2 倍）で Job で求める。
-    /// 敵がノード n から隣の列へ進むと、その列のうち「n の高さ＋登れる高さ」以下で最も高い層に乗る。登るのは登れる高さまでで、降りるのは高さに制限がない。
     /// 計算は 2 つの配列を入れ替えて行い、Job が終わるまで前の結果を読めるようにする。Job は複数のフレームにまたがってよい。
     /// </remarks>
     // TODO: 区間4C で、2 段の距離マップ、エディタでの事前の焼き付け、ボクセルが壊れた範囲の調べ直しを作る
     public sealed class EnemyDistanceField : IDisposable
     {
-        /// <summary> 1 つの列に持てる立てる層の数 </summary>
-        public const int MAX_LAYERS = 4;
+        private const int MAX_LAYERS = EnemyNavigationGrid.MAX_LAYERS;
 
         /// <summary> 下向きのレイ 1 本で集める床の数。重なった床と、その下の地面を拾えるよう、層の数より多くする </summary>
         private const int MAX_RAY_HITS = 8;
@@ -46,17 +43,7 @@ namespace Kizami.EngineAdapter
 
         private static readonly ProfilerMarker _marker = new(MARKER_NAME);
 
-        private readonly float3 _origin;
-        private readonly float _cellSize;
-        private readonly float _climbHeight;
-        private readonly int _width;
-        private readonly int _depth;
-
-        /// <summary> ノードごとの床の高さ。ノード番号は 列番号 × MAX_LAYERS ＋ 層の番号 </summary>
-        private NativeArray<float> _heights;
-
-        /// <summary> 列ごとの立てる層の数。列番号は z × 幅 ＋ x </summary>
-        private NativeArray<byte> _layerCounts;
+        private EnemyNavigationGrid _grid;
 
         /// <summary> 計算の済んだ、ノードごとのプレイヤーまでの距離（m）。たどり着けないノードは正の無限大 </summary>
         private NativeArray<float> _distances;
@@ -74,6 +61,12 @@ namespace Kizami.EngineAdapter
         private int _startNode = -1;
 
         private ProfilerRecorder _recorder;
+
+        /// <summary> 経路の格子 </summary>
+        public EnemyNavigationGrid Grid => _grid;
+
+        /// <summary> 計算の済んだ、ノードごとのプレイヤーまでの距離（m）。たどり着けないノードは正の無限大。次の Update までに読み終える </summary>
+        public NativeArray<float> Distances => _distances;
 
         /// <summary> 立てる層の総数 </summary>
         public int NodeCount { get; private set; }
@@ -97,15 +90,20 @@ namespace Kizami.EngineAdapter
         /// <param name="groundLayers">床と障害物のレイヤー</param>
         public EnemyDistanceField(Bounds bounds, float cellSize, float enemyHeight, float climbHeight, LayerMask groundLayers)
         {
-            _origin = bounds.min;
-            _cellSize = cellSize;
-            _climbHeight = climbHeight;
-            _width = math.max(1, (int)math.ceil(bounds.size.x / cellSize));
-            _depth = math.max(1, (int)math.ceil(bounds.size.z / cellSize));
+            var width = math.max(1, (int)math.ceil(bounds.size.x / cellSize));
+            var depth = math.max(1, (int)math.ceil(bounds.size.z / cellSize));
+            var nodeCount = width * depth * MAX_LAYERS;
 
-            var nodeCount = _width * _depth * MAX_LAYERS;
-            _heights = new NativeArray<float>(nodeCount, Allocator.Persistent);
-            _layerCounts = new NativeArray<byte>(_width * _depth, Allocator.Persistent);
+            _grid = new EnemyNavigationGrid
+            {
+                Heights = new NativeArray<float>(nodeCount, Allocator.Persistent),
+                LayerCounts = new NativeArray<byte>(width * depth, Allocator.Persistent),
+                Origin = bounds.min,
+                CellSize = cellSize,
+                ClimbHeight = climbHeight,
+                Width = width,
+                Depth = depth
+            };
             _distances = new NativeArray<float>(nodeCount, Allocator.Persistent);
             _workingDistances = new NativeArray<float>(nodeCount, Allocator.Persistent);
             for (var i = 0; i < nodeCount; i++) _distances[i] = float.PositiveInfinity;
@@ -134,17 +132,15 @@ namespace Kizami.EngineAdapter
                 _isRunning = false;
             }
 
-            if (!TryGetStandingNode(playerPosition, out var node) || node == _startNode) return;
+            if (!_grid.TryGetColumn(playerPosition, out var column)) return;
+
+            var node = _grid.GetHighestNodeBelow(column, playerPosition.y + STANDING_TOLERANCE);
+            if (node < 0 || node == _startNode) return;
 
             _jobHandle = new DistanceJob
             {
-                Heights = _heights,
-                LayerCounts = _layerCounts,
+                Grid = _grid,
                 Distances = _workingDistances,
-                Width = _width,
-                Depth = _depth,
-                CellSize = _cellSize,
-                ClimbHeight = _climbHeight,
                 StartNode = node,
                 Marker = _marker
             }.Schedule();
@@ -157,25 +153,26 @@ namespace Kizami.EngineAdapter
         /// </summary>
         public void DrawGizmos(Vector3 center, float radius)
         {
-            var size = new Vector3(_cellSize * CLEARANCE_HALF_WIDTH_RATE, 0.05f, _cellSize * CLEARANCE_HALF_WIDTH_RATE);
-            var minX = math.max(0, (int)((center.x - radius - _origin.x) / _cellSize));
-            var maxX = math.min(_width - 1, (int)((center.x + radius - _origin.x) / _cellSize));
-            var minZ = math.max(0, (int)((center.z - radius - _origin.z) / _cellSize));
-            var maxZ = math.min(_depth - 1, (int)((center.z + radius - _origin.z) / _cellSize));
+            var cellSize = _grid.CellSize;
+            var size = new Vector3(cellSize * CLEARANCE_HALF_WIDTH_RATE, 0.05f, cellSize * CLEARANCE_HALF_WIDTH_RATE);
+            var minX = math.max(0, (int)((center.x - radius - _grid.Origin.x) / cellSize));
+            var maxX = math.min(_grid.Width - 1, (int)((center.x + radius - _grid.Origin.x) / cellSize));
+            var minZ = math.max(0, (int)((center.z - radius - _grid.Origin.z) / cellSize));
+            var maxZ = math.min(_grid.Depth - 1, (int)((center.z + radius - _grid.Origin.z) / cellSize));
 
             for (var z = minZ; z <= maxZ; z++)
             {
                 for (var x = minX; x <= maxX; x++)
                 {
-                    var column = z * _width + x;
-                    for (var k = 0; k < _layerCounts[column]; k++)
+                    var column = z * _grid.Width + x;
+                    for (var k = 0; k < _grid.LayerCounts[column]; k++)
                     {
                         var node = column * MAX_LAYERS + k;
                         var distance = _distances[node];
                         Gizmos.color = float.IsPositiveInfinity(distance)
                             ? Color.gray
                             : Color.HSVToRGB(math.saturate(distance / (radius * 2f)) * 0.66f, 1f, 1f);
-                        Gizmos.DrawCube(GetCellCenter(x, z, _heights[node]), size);
+                        Gizmos.DrawCube(_grid.GetCellCenter(column, _grid.Heights[node]), size);
                     }
                 }
             }
@@ -185,37 +182,10 @@ namespace Kizami.EngineAdapter
         {
             _jobHandle.Complete();
             _recorder.Dispose();
-            if (_heights.IsCreated) _heights.Dispose();
-            if (_layerCounts.IsCreated) _layerCounts.Dispose();
+            if (_grid.Heights.IsCreated) _grid.Heights.Dispose();
+            if (_grid.LayerCounts.IsCreated) _grid.LayerCounts.Dispose();
             if (_distances.IsCreated) _distances.Dispose();
             if (_workingDistances.IsCreated) _workingDistances.Dispose();
-        }
-
-        private Vector3 GetCellCenter(int x, int z, float height)
-        {
-            return new Vector3(_origin.x + (x + 0.5f) * _cellSize, height, _origin.z + (z + 0.5f) * _cellSize);
-        }
-
-        /// <summary>
-        /// 位置の真下の列のうち、位置より少し上までにある最も高い層を返す。
-        /// </summary>
-        private bool TryGetStandingNode(float3 position, out int node)
-        {
-            node = -1;
-
-            var x = (int)math.floor((position.x - _origin.x) / _cellSize);
-            var z = (int)math.floor((position.z - _origin.z) / _cellSize);
-            if (x < 0 || x >= _width || z < 0 || z >= _depth) return false;
-
-            var column = z * _width + x;
-            for (var k = 0; k < _layerCounts[column]; k++)
-            {
-                if (_heights[column * MAX_LAYERS + k] > position.y + STANDING_TOLERANCE) break;
-
-                node = column * MAX_LAYERS + k;
-            }
-
-            return node >= 0;
         }
 
         /// <summary>
@@ -224,24 +194,23 @@ namespace Kizami.EngineAdapter
         private void Bake(Bounds bounds, float enemyHeight, LayerMask groundLayers)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            var columnCount = _width * _depth;
+            var columnCount = _grid.Width * _grid.Depth;
+            var heights = _grid.Heights;
+            var layerCounts = _grid.LayerCounts;
             var query = new QueryParameters(groundLayers, false, QueryTriggerInteraction.Ignore, false);
 
             var rays = new NativeArray<RaycastCommand>(columnCount, Allocator.TempJob);
             var rayHits = new NativeArray<RaycastHit>(columnCount * MAX_RAY_HITS, Allocator.TempJob);
-            for (var z = 0; z < _depth; z++)
+            for (var column = 0; column < columnCount; column++)
             {
-                for (var x = 0; x < _width; x++)
-                {
-                    var from = GetCellCenter(x, z, bounds.max.y);
-                    rays[z * _width + x] = new RaycastCommand(from, Vector3.down, query, bounds.size.y);
-                }
+                var from = _grid.GetCellCenter(column, bounds.max.y);
+                rays[column] = new RaycastCommand(from, Vector3.down, query, bounds.size.y);
             }
 
             RaycastCommand.ScheduleBatch(rays, rayHits, 64, MAX_RAY_HITS).Complete();
 
             // 床の候補を、列ごとに下から順に並べる。坂では箱の上り側の角が床にめり込むので、傾きの分だけ箱を浮かせる高さも持つ
-            var halfWidth = _cellSize * CLEARANCE_HALF_WIDTH_RATE;
+            var halfWidth = _grid.CellSize * CLEARANCE_HALF_WIDTH_RATE;
             var candidateHeights = new NativeArray<float>(columnCount * MAX_RAY_HITS, Allocator.TempJob);
             var candidateLifts = new NativeArray<float>(columnCount * MAX_RAY_HITS, Allocator.TempJob);
             var candidateCounts = new NativeArray<int>(columnCount, Allocator.TempJob);
@@ -283,8 +252,7 @@ namespace Kizami.EngineAdapter
                 {
                     var candidate = column * MAX_RAY_HITS + c;
                     var halfHeight = math.max(0.01f, (enemyHeight - candidateLifts[candidate]) * 0.5f);
-                    var center = GetCellCenter(column % _width, column / _width,
-                        candidateHeights[candidate] + candidateLifts[candidate] + halfHeight);
+                    var center = _grid.GetCellCenter(column, candidateHeights[candidate] + candidateLifts[candidate] + halfHeight);
                     boxes[boxIndex++] = new OverlapBoxCommand(center, new Vector3(halfWidth, halfHeight, halfWidth),
                         Quaternion.identity, query);
                 }
@@ -307,11 +275,11 @@ namespace Kizami.EngineAdapter
                         break;
                     }
 
-                    _heights[column * MAX_LAYERS + layerCount] = candidateHeights[column * MAX_RAY_HITS + c];
+                    heights[column * MAX_LAYERS + layerCount] = candidateHeights[column * MAX_RAY_HITS + c];
                     layerCount++;
                 }
 
-                _layerCounts[column] = (byte)layerCount;
+                layerCounts[column] = (byte)layerCount;
                 NodeCount += layerCount;
             }
 
@@ -332,13 +300,8 @@ namespace Kizami.EngineAdapter
         [BurstCompile]
         private struct DistanceJob : IJob
         {
-            [ReadOnly] public NativeArray<float> Heights;
-            [ReadOnly] public NativeArray<byte> LayerCounts;
+            public EnemyNavigationGrid Grid;
             public NativeArray<float> Distances;
-            public int Width;
-            public int Depth;
-            public float CellSize;
-            public float ClimbHeight;
             public int StartNode;
             public ProfilerMarker Marker;
 
@@ -358,8 +321,8 @@ namespace Kizami.EngineAdapter
                     if (item.Distance > Distances[item.Node]) continue;
 
                     var column = item.Node / MAX_LAYERS;
-                    var x = column % Width;
-                    var z = column / Width;
+                    var x = column % Grid.Width;
+                    var z = column / Grid.Width;
 
                     for (var dz = -1; dz <= 1; dz++)
                     {
@@ -369,21 +332,21 @@ namespace Kizami.EngineAdapter
 
                             var nx = x + dx;
                             var nz = z + dz;
-                            if (nx < 0 || nx >= Width || nz < 0 || nz >= Depth) continue;
+                            if (nx < 0 || nx >= Grid.Width || nz < 0 || nz >= Grid.Depth) continue;
 
                             var isDiagonal = dx != 0 && dz != 0;
-                            var cost = isDiagonal ? DIAGONAL_COST * CellSize : CellSize;
-                            var fromColumn = nz * Width + nx;
+                            var cost = isDiagonal ? DIAGONAL_COST * Grid.CellSize : Grid.CellSize;
+                            var fromColumn = nz * Grid.Width + nx;
 
                             // 隣の列 fromColumn の各層から、この列へ進んだときに乗る層がこのノードなら、そこからたどり着ける
-                            for (var k = 0; k < LayerCounts[fromColumn]; k++)
+                            for (var k = 0; k < Grid.LayerCounts[fromColumn]; k++)
                             {
                                 var from = fromColumn * MAX_LAYERS + k;
-                                var fromHeight = Heights[from];
-                                if (GetLandingNode(column, fromHeight) != item.Node) continue;
+                                var fromHeight = Grid.Heights[from];
+                                if (Grid.GetLandingNode(column, fromHeight) != item.Node) continue;
 
-                                // 斜めは、間の 2 つの列をまたげるときだけ進める（壁の角を抜けない為）
-                                if (isDiagonal && !(CanCross(z * Width + nx, fromHeight) && CanCross(nz * Width + x, fromHeight))) continue;
+                                if (isDiagonal && !(Grid.CanCross(z * Grid.Width + nx, fromHeight)
+                                                    && Grid.CanCross(nz * Grid.Width + x, fromHeight))) continue;
 
                                 var distance = item.Distance + cost;
                                 if (distance >= Distances[from]) continue;
@@ -396,31 +359,6 @@ namespace Kizami.EngineAdapter
                 }
 
                 heap.Dispose();
-            }
-
-            /// <summary>
-            /// 高さ fromHeight から列 column へ進んだときに乗る層（fromHeight ＋ 登れる高さ以下で最も高い層）。なければ -1。
-            /// </summary>
-            private int GetLandingNode(int column, float fromHeight)
-            {
-                var node = -1;
-                for (var k = 0; k < LayerCounts[column]; k++)
-                {
-                    if (Heights[column * MAX_LAYERS + k] > fromHeight + ClimbHeight) break;
-
-                    node = column * MAX_LAYERS + k;
-                }
-
-                return node;
-            }
-
-            /// <summary>
-            /// 高さ fromHeight から列 column へ進んだときに乗る層が、登れる高さの範囲で上下するだけか。
-            /// </summary>
-            private bool CanCross(int column, float fromHeight)
-            {
-                var node = GetLandingNode(column, fromHeight);
-                return node >= 0 && math.abs(Heights[node] - fromHeight) <= ClimbHeight;
             }
 
             private static void Push(ref NativeList<HeapItem> heap, HeapItem item)

@@ -134,7 +134,8 @@ sequenceDiagram
 | `EnemyCrowdRenderer`（普通のクラス） | EngineAdapter | `EnemySpawnAdapter`。体を貸していない敵の行列を Job で作り、部位ごとにまとめて描画する |
 | `EnemyDistanceField`（普通のクラス） | EngineAdapter | `EnemySpawnAdapter`（移動の Job が読む）。格子、立てる層、距離の配列を持ち、ダイクストラ法の Job を回す |
 | `EnemyShapeKeeper`（普通のクラス） | EngineAdapter | `EnemySpawnAdapter`。短くなった部位の形を預かる保管用の `CuttableObject` のプール（決定 2） |
-| 移動の Job、ダイクストラ法の Job、格子を作る Job（Burst の構造体） | EngineAdapter | 上の各クラス |
+| `EnemyNavigationGrid`（構造体。コミット 3 で追加） | EngineAdapter | ダイクストラ法の Job と `EnemyMoveJob`。格子の配列と、移動の規則（隣の列で乗る層、斜めに進めるか）を持ち、2 つの Job が同じ規則で読む |
+| `EnemyMoveJob`、ダイクストラ法の Job（Burst の構造体） | EngineAdapter | `EnemySpawnAdapter`、`EnemyDistanceField`。格子は Job でなく、物理のバッチのクエリ（`RaycastCommand`・`OverlapBoxCommand`）で作る |
 
 拡張する型：`EnemySpawnAdapter`（敵の状態の配列、体の貸し出しと返却、計測の時間）、`EnemyBody`（貸す・返す、`MoveToward` を消す）、`EnemyInitializer`（計測の時間をデバッグ表示に出す）
 
@@ -182,3 +183,5 @@ sequenceDiagram
 - （コミット 2）TestStage（200m 四方、1m のマス）の格子は、立てる層が 40180、1 つの列の層の数の上限（4）を超えた列は 0。作るのにかかった時間は 38〜47ms（エディタ、初期化のときに 1 回）
 - （コミット 2）距離の計算 1 回（ワーカースレッド、プレイヤーのいるノードが変わったときだけ）は、エディタで Burst の安全チェックありが約 9〜10ms、なしが約 5〜6ms、Burst を切ると約 40ms。Notion の見積もり（約 5 万マスで 1ms 前後）の 5 倍ほどかかる。辺の事前計算や、コストが 2 種類しかないことを使った待ち行列などで縮められる見込みで、コミット 6 の計測で、縮めるかを決める
 - （コミット 2）`ProfilerRecorder` は、Burst の Job の中の `ProfilerMarker` も、ワーカースレッドの分まで記録する
+- （コミット 3）1000 体が距離マップを下って歩き、プレイヤーから経路の長さ 6m で止まる。TestStage で、スロープを登って橋に上がる、橋の横から飛び降りる、1m と 0.8m の段を登る、長い壁を回り込む（引っかかる敵は 0）ことを確かめた。移動にかかるメインスレッドの時間（Job の完了待ちを含む）は 0.05〜0.18ms
+- （コミット 3）敵どうしを離す処理がないので、同じ所へ向かう敵は同じ経路をたどり、1 点に重なって 1 列で進む。グループと隊列（4C）で扱う

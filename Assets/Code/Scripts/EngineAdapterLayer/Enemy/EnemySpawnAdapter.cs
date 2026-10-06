@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Profiling;
 using UnityEngine;
@@ -16,12 +17,13 @@ namespace Kizami.EngineAdapter
     /// 敵の状態（EnemyAgent）の配列と体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出す Adapter。インゲームのシーンへ置く。
     /// 敵の状態の数は EnemySpawnSystem の同時に存在する数の上限で、出ている敵は EnemyCrowdRenderer でまとめて描画する。
     /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、距離マップはプレイヤーのいるノードが変わるたびに計算し直す。
+    /// 出ている敵は、毎フレーム EnemyMoveJob で距離マップを下って歩かせ、落とす。
     /// 近接切断の結果は、切られた部位を持つ体へ渡す。体から外れた切っていない部位は、見た目用の物（EnemyDebris）で散らばらせて消す。
     /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さず、見た目用の物に空きがなければ最も古い物を使い回す。
     /// </summary>
     /// <remarks>
     /// 敵を出すのは MeshDataCache のストアができてから。体を貸すときに部位を登録し直すのにストアが要る為。
-    /// 生成の間隔と見た目用の物の動きは Time.deltaTime で数え、スローモード中は一緒に遅くなる。
+    /// 生成の間隔、敵の移動、見た目用の物の動きは Time.deltaTime で数え、スローモード中は一緒に遅くなる。
     /// </remarks>
     // TODO: 区間4B のコミット 4 で、近くの敵に体を貸す
     public sealed class EnemySpawnAdapter : InitializableMonoBehaviour
@@ -30,9 +32,11 @@ namespace Kizami.EngineAdapter
         private const int TIMING_SAMPLE_COUNT = 30;
 
         private const string UPDATE_MARKER_NAME = "Kizami.Enemy.Update";
+        private const string MOVE_MARKER_NAME = "Kizami.Enemy.Move";
         private const string RENDER_MARKER_NAME = "Kizami.Enemy.Render";
 
         private static readonly ProfilerMarker _updateMarker = new(UPDATE_MARKER_NAME);
+        private static readonly ProfilerMarker _moveMarker = new(MOVE_MARKER_NAME);
         private static readonly ProfilerMarker _renderMarker = new(RENDER_MARKER_NAME);
 
         private readonly List<EnemyBody> _bodies = new();
@@ -82,6 +86,18 @@ namespace Kizami.EngineAdapter
         [Tooltip("距離マップをギズモで描く、プレイヤーからの半径（m）")]
         private float _distanceGizmoRadius = 25f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("敵が歩く速さ（m/s）")]
+        private float _moveSpeed = 3f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("敵が向きを変える速さ（度/秒）")]
+        private float _turnSpeed = 180f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("プレイヤーまでの経路の長さ（距離マップの値）がこの値（m）以下になったら止まる")]
+        private float _stopDistance = 6f;
+
         [SerializeField]
         [Tooltip("体から外れた切っていない部位を消すディゾルブのマテリアル。シェーダーは float のプロパティ _DissolveAmount（0〜1）で消える")]
         private Material _debrisMaterial;
@@ -115,6 +131,7 @@ namespace Kizami.EngineAdapter
         private EnemyDistanceField _distanceField;
 
         private ProfilerRecorder _updateRecorder;
+        private ProfilerRecorder _moveRecorder;
         private ProfilerRecorder _renderRecorder;
 
         /// <summary> 見た目用の部位。並びは _debrisBuffer の RecycleId と同じ </summary>
@@ -155,6 +172,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> まとめて描画の準備にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
         public double RenderMilliseconds => GetAverageMilliseconds(_renderRecorder);
+
+        /// <summary> 敵の移動（Job の完了待ちを含む）にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
+        public double MoveMilliseconds => GetAverageMilliseconds(_moveRecorder);
 
         /// <summary> 経路の格子と距離マップ。初期化の前は null </summary>
         public EnemyDistanceField DistanceField => _distanceField;
@@ -222,6 +242,7 @@ namespace Kizami.EngineAdapter
             _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
                 _groundLayers);
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
+            _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _renderRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, RENDER_MARKER_NAME, TIMING_SAMPLE_COUNT);
 
             for (var i = 0; i < _bodyCount; i++)
@@ -274,6 +295,11 @@ namespace Kizami.EngineAdapter
 
                 if (_target != null) _distanceField.Update(_target.position);
 
+                using (_moveMarker.Auto())
+                {
+                    MoveAgents();
+                }
+
                 using (_renderMarker.Auto())
                 {
                     _crowdRenderer.Render(_agents);
@@ -289,6 +315,7 @@ namespace Kizami.EngineAdapter
             _distanceField?.Dispose();
             if (_agents.IsCreated) _agents.Dispose();
             _updateRecorder.Dispose();
+            _moveRecorder.Dispose();
             _renderRecorder.Dispose();
         }
 
@@ -297,6 +324,21 @@ namespace Kizami.EngineAdapter
             if (!_drawDistanceField || _distanceField == null || _target == null) return;
 
             _distanceField.DrawGizmos(_target.position, _distanceGizmoRadius);
+        }
+
+        private void MoveAgents()
+        {
+            new EnemyMoveJob
+            {
+                Agents = _agents,
+                Grid = _distanceField.Grid,
+                Distances = _distanceField.Distances,
+                DeltaTime = Time.deltaTime,
+                MoveSpeed = _moveSpeed,
+                TurnSpeed = math.radians(_turnSpeed),
+                StopDistance = _stopDistance,
+                Gravity = -Physics.gravity.y
+            }.Schedule(_agents.Length, 64).Complete();
         }
 
         /// <summary>
