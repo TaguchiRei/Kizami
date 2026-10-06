@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>群衆アルゴリズムの動き</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--fg:#1d1d1f;--sub:#5c5c66;--line:#d8d8de;--acc:#2f6fdb;--acc2:#d9822b;--ok:#2e9b5f;--warn:#c94545;--soft:#eef3fc}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181b;--card:#202226;--fg:#ececf0;--sub:#a3a3ad;--line:#3a3c43;--acc:#6b9cf0;--acc2:#e9a25a;--ok:#5cc58b;--warn:#e77878;--soft:#1f2a3d}}
+:root[data-theme="dark"]{--bg:#17181b;--card:#202226;--fg:#ececf0;--sub:#a3a3ad;--line:#3a3c43;--acc:#6b9cf0;--acc2:#e9a25a;--ok:#5cc58b;--warn:#e77878;--soft:#1f2a3d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;line-height:1.75}
+main{max-width:960px;margin:0 auto;padding:32px 16px 80px}
+h1{font-size:1.7rem;margin:0 0 4px}
+h2{font-size:1.25rem;margin:48px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+h3{font-size:1.05rem;margin:24px 0 8px}
+.lead{color:var(--sub)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--soft);font-weight:600}
+td.s{width:32%}
+.tag{display:inline-block;font-size:.75rem;padding:1px 8px;border-radius:99px;background:var(--soft);color:var(--acc);margin-right:4px}
+svg{width:100%;height:auto;display:block}
+svg text{fill:var(--fg);font-size:13px;font-family:inherit}
+svg .sub{fill:var(--sub);font-size:11px}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.flow span{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:.9rem}
+.flow b{color:var(--sub)}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:10px 0;padding:4px 16px}
+summary{cursor:pointer;font-weight:600;padding:8px 0}
+.note{font-size:.88rem;color:var(--sub)}
+code{background:var(--soft);padding:0 4px;border-radius:4px;font-size:.9em}
+@media print{details{display:block}details>summary{list-style:none}body{background:#fff}}
+</style>
+</head>
+<body>
+<main>
+<h1>疑似群衆アルゴリズムの動き</h1>
+<p class="lead">ブランチ <code>feature/alpha/crowdai</code>（区間4C）で作った敵の群衆 AI を、「この状況では敵がこう判断し、ここへ向かう」という形でまとめた。既定値は <code>EnemyFormationSettings.Default</code> の仮の値。</p>
+
+<h2>1. 全体像</h2>
+<p>敵 1 体ずつが自分で考えるのではなく、<b>体を持たない仮想の隊長（アンカー）</b>が群れの行き先を決め、敵はその後ろの<b>隊列の位置</b>を追いかける。プレイヤーに十分近づいた敵だけが隊列を離れて<b>交戦</b>する。</p>
+<div class="card">
+<svg viewBox="0 0 900 300" role="img" aria-label="全体構成">
+ <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--sub)"/></marker></defs>
+ <g fill="var(--soft)" stroke="var(--line)">
+  <rect x="20" y="20" width="250" height="110" rx="10"/>
+  <rect x="325" y="20" width="250" height="110" rx="10"/>
+  <rect x="630" y="20" width="250" height="110" rx="10"/>
+  <rect x="20" y="170" width="250" height="110" rx="10"/>
+  <rect x="325" y="170" width="250" height="110" rx="10"/>
+  <rect x="630" y="170" width="250" height="110" rx="10"/>
+ </g>
+ <text x="35" y="48" font-weight="700">① 経路：距離マップ</text>
+ <text class="sub" x="35" y="72">格子の各マスに「プレイヤーまでの</text>
+ <text class="sub" x="35" y="90">歩ける道のりの長さ」を書いた地図。</text>
+ <text class="sub" x="35" y="108">値が下がる方へ進めば近づける。</text>
+ <text x="340" y="48" font-weight="700">② グループ：アンカー</text>
+ <text class="sub" x="340" y="72">最大12体の群れの仮想の隊長。</text>
+ <text class="sub" x="340" y="90">距離マップを下り、通った道筋を記録。</text>
+ <text class="sub" x="340" y="108">近づいたら包囲の螺旋の置き場へ。</text>
+ <text x="645" y="48" font-weight="700">③ 敵 1 体：移動</text>
+ <text class="sub" x="645" y="72">隊列の位置 / 交戦の置き場 / 距離マップ、</text>
+ <text class="sub" x="645" y="90">のどれかを目指して歩く。段差・落下・</text>
+ <text class="sub" x="645" y="108">着地は簡易物理で処理。</text>
+ <text x="35" y="198" font-weight="700">④ グループの整備</text>
+ <text class="sub" x="35" y="222">毎フレーム 1 グループずつ、</text>
+ <text class="sub" x="35" y="240">抜けた穴を詰める・小さい群れを合流・</text>
+ <text class="sub" x="35" y="258">プレイヤーに近い順に並べ替え。</text>
+ <text x="340" y="198" font-weight="700">⑤ 描画と体の貸し出し</text>
+ <text class="sub" x="340" y="222">全員はまとめて描画（GameObject なし）。</text>
+ <text class="sub" x="340" y="240">近くの敵にだけ切断できる体を貸す。</text>
+ <text class="sub" x="340" y="258">遠ざかったら返す。</text>
+ <text x="645" y="198" font-weight="700">⑥ 脚（体を貸した敵だけ）</text>
+ <text class="sub" x="645" y="222">足は地面に置いたまま、ずれが大きく</text>
+ <text class="sub" x="645" y="240">なった対角の 2 本ずつを交互に運ぶ。</text>
+ <text class="sub" x="645" y="258">2 本の骨の IK で膝を曲げる。</text>
+ <g stroke="var(--sub)" stroke-width="1.5" marker-end="url(#a)">
+  <line x1="272" y1="75" x2="322" y2="75"/><line x1="577" y1="75" x2="627" y2="75"/>
+  <line x1="755" y1="132" x2="755" y2="167"/>
+ </g>
+</svg>
+</div>
+<h3>1 フレームの流れ</h3>
+<div class="flow"><span>プレイヤーのマスが変わった / 地形が壊れた → 距離マップを作り直す</span><b>→</b><span>アンカーを動かす・交戦の置き場を割り当てる</span><b>→</b><span>敵を動かす</span><b>→</b><span>グループを 1 つ整える</span><b>→</b><span>体の貸し借り・脚・描画</span></div>
+
+<h2>2. 敵 1 体が「どこへ向かうか」の判断</h2>
+<p>毎フレーム、上から順に当てはまるものを選ぶ。</p>
+<div class="card">
+<svg viewBox="0 0 900 330" role="img" aria-label="判断の分岐">
+ <defs><marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--sub)"/></marker></defs>
+ <g stroke="var(--line)">
+  <rect x="20" y="20" width="270" height="44" rx="8" fill="var(--soft)"/>
+  <rect x="20" y="95" width="270" height="44" rx="8" fill="var(--soft)"/>
+  <rect x="20" y="170" width="270" height="44" rx="8" fill="var(--soft)"/>
+  <rect x="20" y="245" width="270" height="44" rx="8" fill="var(--soft)"/>
+  <rect x="380" y="20" width="500" height="44" rx="8" fill="var(--card)"/>
+  <rect x="380" y="95" width="500" height="44" rx="8" fill="var(--card)"/>
+  <rect x="380" y="170" width="500" height="44" rx="8" fill="var(--card)"/>
+  <rect x="380" y="245" width="500" height="44" rx="8" fill="var(--card)"/>
+ </g>
+ <text x="34" y="47">移動部位が壊れすぎている？</text>
+ <text x="34" y="122">交戦中？（道のり 12m 以内で入る）</text>
+ <text x="34" y="197">グループに入っている？</text>
+ <text x="34" y="272">どれでもない</text>
+ <text x="394" y="47">歩かない。その場に残る（足場が消えれば落ちる）</text>
+ <text x="394" y="122">プレイヤーを囲む螺旋の置き場へ。置き場が空くまではその場で待つ</text>
+ <text x="394" y="197">アンカーの後ろの、自分の隊列の位置へ</text>
+ <text x="394" y="272">距離マップの値が下がる隣のマスへ（単独でプレイヤーへ）</text>
+ <g stroke="var(--sub)" stroke-width="1.5" marker-end="url(#b)">
+  <line x1="292" y1="42" x2="377" y2="42"/><line x1="292" y1="117" x2="377" y2="117"/>
+  <line x1="292" y1="192" x2="377" y2="192"/><line x1="292" y1="267" x2="377" y2="267"/>
+  <line x1="155" y1="66" x2="155" y2="92"/><line x1="155" y1="141" x2="155" y2="167"/><line x1="155" y1="216" x2="155" y2="242"/>
+ </g>
+ <text class="sub" x="160" y="84">いいえ</text><text class="sub" x="160" y="159">いいえ</text><text class="sub" x="160" y="234">いいえ</text>
+ <text class="sub" x="300" y="36">はい</text><text class="sub" x="300" y="111">はい</text><text class="sub" x="300" y="186">はい</text>
+</svg>
+<p class="note">目指す位置へまっすぐ進めない（壁・登れない段差）ときは、「目指す位置に近づく隣のマス」→ それもなければ「距離マップの値が下がるマス」の順に逃がす。どれもなければそのフレームは進まない。</p>
+</div>
+
+<h2>3. 状況ごとの判断表</h2>
+
+<details open><summary>グループとアンカー（群れの行き先）</summary>
+<table>
+<tr><th>状況</th><th>判断と行き先</th></tr>
+<tr><td class="s">敵が湧いた</td><td>湧いた順に、いま作っているグループの隊列の最後へ入る。12 体に達したら次の敵から新しいグループ。新しいグループの道筋は「アンカーの後ろにまっすぐ」で埋めておくので、湧いた直後から並ぶ位置が決まる。</td></tr>
+<tr><td class="s">グループができた直後</td><td>まず<b>待つ</b>状態から始まり、少し後に進み始める。</td></tr>
+<tr><td class="s">平常時（プレイヤーまで道のり 40m より遠い）</td><td>アンカーは距離マップの値が下がるマスを数マス先までたどり、その方向へ進む（隣のマスだけだと 8 方向に限られ、隊列が直線的に見えるため）。速さは敵の 0.8 倍、加速度・旋回速度に上限があり、ゆったり曲がる。</td></tr>
+<tr><td class="s">進む / 待つ</td><td><b>4 秒進んで 2 秒止まる</b>を繰り返す（交互の前進）。グループごとに時間をずらすので、全部の群れが同時に動き出すことはない。</td></tr>
+<tr><td class="s">同じレーンの前で別グループが「待つ番」で止まっている</td><td>その後ろ（最後尾から 4m）で止まって待つ。ただし前が「着いて止まった」「詰まって止まった」「包囲中」のときは待たない（待ちが後ろへ連鎖して全体が固まるのを防ぐ）。前後は、プレイヤーまでの道のりが短い方が前。</td></tr>
+<tr><td class="s">道のり 12m に着いた / たどり着けない</td><td>アンカーは減速して止まる。</td></tr>
+<tr><td class="s">道のりが 40m 以内になった</td><td><b>包囲</b>に入る。プレイヤー中心の大きな螺旋（内側半径 15m、1 周で 12m 広がる、18m 間隔）の置き場のうち、空いていて自分に最も近いものを受け取り、そこへ向かう。先に来たグループが内側を取るので、群れは来た方向のまま内→外へ囲んでいく。</td></tr>
+<tr><td class="s">包囲の置き場に着いた</td><td>止まってプレイヤーの方を向く。置き場はプレイヤーと一緒に動くので、プレイヤーが動けばまた追う。</td></tr>
+<tr><td class="s">置き場まで直線で 30m より離れた（プレイヤーが走り去った等）</td><td>置き場を手放し、距離マップを下る平常の動きに戻る。</td></tr>
+</table>
+</details>
+
+<details open><summary>隊列（メンバーの並び方）</summary>
+<table>
+<tr><th>状況</th><th>判断と行き先</th></tr>
+<tr><td class="s">平常時</td><td>アンカーが通った<b>道筋</b>をたどって、「列番号 × 8m」後ろの点から、道筋の右へ「列内の位置 × 2.5m」ずらした点が自分の位置。曲がり角ではヘビのように道筋に沿って曲がる。</td></tr>
+<tr><td class="s">1 列に何体並ぶか</td><td>アンカーの左右に同じ高さの床がどれだけ続くかで決める（上限 4、包囲中は 6）。新しい数が 1 秒続いたら切り替えるので、ちらつかない。</td></tr>
+<tr><td class="s">横にずらした先で床が途切れる（通路・橋）</td><td>途切れる手前で止める。通路では隊列が細くなる。</td></tr>
+<tr><td class="s">包囲中</td><td>道筋ではなく、アンカーの向きのまっすぐ後ろに並ぶ。着いたアンカーはプレイヤーを向くので、<b>プレイヤーを向いた横隊</b>になる。</td></tr>
+<tr><td class="s">自分の位置に着いた</td><td>隊列の向きを向いて止まる。近づくほど減速するので、ぴたりと止まる。</td></tr>
+<tr><td class="s">歩く速さ</td><td>敵ごとに ±10% ずらす（全員同じ速さだと機械的に見えるため）。進む向きからずれている間はその分遅くなる。</td></tr>
+</table>
+</details>
+
+<details open><summary>交戦（隊列を離れてプレイヤーへ）</summary>
+<table>
+<tr><th>状況</th><th>判断と行き先</th></tr>
+<tr><td class="s">自分の道のりが 12m 以内になった</td><td>隊列から外れて<b>交戦</b>に入る。プレイヤー中心の小さな螺旋（内側半径 7m、1 周で 6m 広がる、2.5m 間隔。UnlimitedKnight の群衆の図）の置き場のうち、交戦距離より内側で、空いていて自分に最も近いものを割り当てられ、そこへ向かう。</td></tr>
+<tr><td class="s">置き場が空いていない</td><td>その場でプレイヤーを向いて待つ。</td></tr>
+<tr><td class="s">置き場に着いた</td><td>プレイヤーを向いて止まる。置き場はプレイヤーと一緒に動く。</td></tr>
+<tr><td class="s">道のりが 18m を超えた / たどり着けなくなった</td><td>交戦をやめて置き場を空け、隊列の位置へ戻る。入る 12m と抜ける 18m に差をつけて、出たり入ったりを防いでいる。</td></tr>
+</table>
+</details>
+
+<details open><summary>群れが崩れたとき（グループの整備）</summary>
+<p class="note">毎フレーム、使っているグループを 1 つずつ順番に見る。</p>
+<table>
+<tr><th>状況</th><th>判断</th></tr>
+<tr><td class="s">メンバーが倒れた・別グループへ移った</td><td>隊列から抜き、順番を保って前へ詰める（穴を後ろへずらす）。後ろのメンバーが前の位置へ繰り上がる。</td></tr>
+<tr><td class="s">メンバーが動けなくなった（移動部位を規定数壊された）</td><td>グループからも交戦からも外し、その場に置き去りにする。</td></tr>
+<tr><td class="s">メンバーが 4 体以下に減った</td><td>近く（一定距離以内）にあって、合わせても 12 体を超えないグループのうち、アンカーが最も近いものの隊列の最後へ全員移る（合流）。元のグループは空ける。</td></tr>
+<tr><td class="s">合流しなかった</td><td>メンバーの順番を、プレイヤーまでの道のりが短い順に並べ替える。前にいる者が前列に来るので、位置へ向かうときにメンバー同士が交差しにくい。</td></tr>
+<tr><td class="s">全員いなくなった</td><td>グループを空ける。</td></tr>
+</table>
+</details>
+
+<details open><summary>地形（段差・落下・破壊）</summary>
+<table>
+<tr><th>状況</th><th>判断</th></tr>
+<tr><td class="s">登れる高さの段差</td><td>その場で乗る。</td></tr>
+<tr><td class="s">少しの下り</td><td>床に合わせて下りる。それより低ければ落ちる。</td></tr>
+<tr><td class="s">降りられる高さを超える崖・壁</td><td>その方向へは進まない。距離マップもそこを通らない経路で作られるので、回り道をする。</td></tr>
+<tr><td class="s">足場が消えた（ボクセルが壊れた）</td><td>重力で落ちる。真下に立てる場所がなければ周りのマスを探して着地する（橋の下など頭上が低い所を抜け落ちないため）。格子の範囲より下まで落ちたらステージから消える。</td></tr>
+<tr><td class="s">ボクセルの形が変わった</td><td>変わった範囲の格子を、当たり判定の作り直しを待ってから調べ直し、距離マップを計算し直す。</td></tr>
+<tr><td class="s">プレイヤーへたどり着けない状態が続いた</td><td>一定時間を超え、カメラに映っていなければ、湧き場所へ戻して新しいグループにする。動けない敵と、体を貸している敵（プレイヤーの近くにいる）は戻さない。</td></tr>
+</table>
+</details>
+
+<details open><summary>体の貸し出しと脚</summary>
+<table>
+<tr><th>状況</th><th>判断</th></tr>
+<tr><td class="s">プレイヤーから貸す距離の中に入った</td><td>近い順に、切断できる体（GameObject）を貸す。それまでは見た目だけのまとめ描画。</td></tr>
+<tr><td class="s">体に空きがない</td><td>切断が届きうる近さの敵に限り、それより十分遠い敵のうち最も遠い敵から体を取り上げて貸す。</td></tr>
+<tr><td class="s">返す距離より離れた</td><td>体を返す（貸す距離より遠いので、境目で貸し借りを繰り返さない）。短くなった部位の形は預けておき、次に貸すときに戻す。</td></tr>
+<tr><td class="s">体を借りている敵が歩く</td><td>足は地面に置いたまま。体から見た基準位置とのずれが踏み出す距離を超えた組（対角の 2 本）から 1 組ずつ、少し先回りした位置へ持ち上げて運ぶ（トロット）。地面の高さは経路の格子から取る。切られて短くなった脚も、届く範囲で動かす。</td></tr>
+</table>
+</details>
+
+<h2>4. 群衆として見たときの動き</h2>
+<div class="card">
+<svg viewBox="0 0 900 360" role="img" aria-label="群衆の時間変化">
+ <g stroke="var(--line)" fill="none">
+  <circle cx="660" cy="190" r="40" stroke-dasharray="4 4"/>
+  <circle cx="660" cy="190" r="110" stroke-dasharray="4 4"/>
+  <circle cx="660" cy="190" r="170" stroke-dasharray="2 6"/>
+ </g>
+ <circle cx="660" cy="190" r="9" fill="var(--warn)"/>
+ <text x="674" y="186">プレイヤー</text>
+ <text class="sub" x="672" y="146">交戦の螺旋（〜12m）</text>
+ <text class="sub" x="560" y="74">包囲の螺旋（15m〜）</text>
+ <text class="sub" x="780" y="30">包囲を始める（道のり 40m）</text>
+ <g fill="var(--acc)">
+  <circle cx="60" cy="80" r="5"/><circle cx="75" cy="70" r="4"/><circle cx="85" cy="90" r="4"/><circle cx="50" cy="100" r="4"/><circle cx="68" cy="105" r="4"/><circle cx="95" cy="72" r="4"/>
+ </g>
+ <text x="30" y="40" font-weight="700">① 出現</text>
+ <text class="sub" x="30" y="58">12 体ずつ群れになる</text>
+ <path d="M100 95 C 200 120, 260 200, 380 210" stroke="var(--acc)" stroke-width="2" fill="none" stroke-dasharray="6 5"/>
+ <g fill="var(--acc)">
+  <circle cx="300" cy="190" r="4"/><circle cx="292" cy="198" r="4"/><circle cx="270" cy="170" r="4"/><circle cx="262" cy="180" r="4"/><circle cx="240" cy="150" r="4"/><circle cx="232" cy="160" r="4"/>
+ </g>
+ <rect x="310" y="183" width="10" height="10" fill="var(--acc2)"/>
+ <text x="200" y="250" font-weight="700">② 接近</text>
+ <text class="sub" x="200" y="268">アンカー（■）の道筋に沿った縦隊</text>
+ <text class="sub" x="200" y="286">4 秒進む・2 秒止まるを繰り返す</text>
+ <g fill="var(--acc)">
+  <rect x="545" y="180" width="10" height="10" fill="var(--acc2)"/>
+  <circle cx="530" cy="170" r="4"/><circle cx="530" cy="182" r="4"/><circle cx="530" cy="194" r="4"/><circle cx="530" cy="206" r="4"/>
+  <circle cx="512" cy="170" r="4"/><circle cx="512" cy="182" r="4"/><circle cx="512" cy="194" r="4"/><circle cx="512" cy="206" r="4"/>
+  <rect x="655" y="300" width="10" height="10" fill="var(--acc2)"/>
+  <circle cx="645" cy="318" r="4"/><circle cx="657" cy="318" r="4"/><circle cx="669" cy="318" r="4"/><circle cx="681" cy="318" r="4"/>
+ </g>
+ <text x="410" y="300" font-weight="700">③ 包囲</text>
+ <text class="sub" x="410" y="318">螺旋の置き場に着いて、プレイヤーを</text>
+ <text class="sub" x="410" y="336">向いた横隊（1 列 6 体）になる</text>
+ <g fill="var(--warn)"><circle cx="625" cy="175" r="4"/><circle cx="632" cy="205" r="4"/><circle cx="695" cy="215" r="4"/><circle cx="680" cy="158" r="4"/></g>
+ <text x="760" y="250" font-weight="700">④ 交戦</text>
+ <text class="sub" x="760" y="268">道のり 12m 以内の敵だけが</text>
+ <text class="sub" x="760" y="286">隊列を離れ、小さな螺旋へ</text>
+</svg>
+</div>
+<table>
+<tr><th>段階</th><th>見え方</th></tr>
+<tr><td class="s">① 出現</td><td>湧き場所から 12 体ずつの群れが、少しずつ時間差で動き出す。</td></tr>
+<tr><td class="s">② 接近</td><td>群れはアンカーの後ろに 1 列最大 4 体の縦隊で、地形に沿って曲がりながら迫る。進んでは止まるので、波のように押し寄せる。前の群れが止まれば後ろも詰まって止まる。通路では細く、広場では広がる。</td></tr>
+<tr><td class="s">③ 包囲</td><td>40m まで来た群れから内側の置き場を取り、プレイヤーを向いた横隊で周りに陣取る。遅れた群れほど外側。結果として、来た方角ごとに層をなしてプレイヤーを囲む。</td></tr>
+<tr><td class="s">④ 交戦</td><td>前列の、プレイヤーに 12m まで近い敵だけが飛び出し、プレイヤーを取り巻く小さな螺旋に詰める。プレイヤーが離れれば 18m で隊列へ戻る。</td></tr>
+<tr><td class="s">⑤ 崩れたとき</td><td>倒された分は後ろが繰り上がり、小さくなった群れは近くの群れに吸収される。脚を壊された敵はその場に取り残される。足場を壊すと群れは落ち、たどり着けなくなった敵は見えない所で湧き場所へ戻る。</td></tr>
+</table>
+
+<h2>5. 主な調整値と効き方</h2>
+<table>
+<tr><th>値（既定）</th><th>変えると</th></tr>
+<tr><td class="s">グループの人数（12）</td><td>大きいほど長い隊列。群れの数が減り、アンカーの計算が軽くなる。</td></tr>
+<tr><td class="s">進む 4 秒 / 待つ 2 秒</td><td>押し寄せる波の周期。待つを 0 にすると常に前進する。</td></tr>
+<tr><td class="s">列の間隔 8m / 横の間隔 2.5m</td><td>隊列の密度。四足の体が約 10.5m あるので、列の間隔を詰めすぎると重なる。</td></tr>
+<tr><td class="s">1 列の上限 4（包囲中 6）</td><td>隊列の幅。包囲中の値で横隊の広さが決まる。</td></tr>
+<tr><td class="s">合流する人数（4 以下）</td><td>大きいほど早めに群れがまとまる。</td></tr>
+<tr><td class="s">包囲の開始 40m / 手放す 30m</td><td>どれだけ遠くから陣取りを始めるか。</td></tr>
+<tr><td class="s">包囲の螺旋（内側 15m、1 周 +12m、間隔 18m）</td><td>包囲の輪の大きさと、群れどうしの間隔。</td></tr>
+<tr><td class="s">交戦 入る 12m / 抜ける 18m</td><td>同時にプレイヤーへ寄ってくる敵の量。差を縮めすぎると出入りを繰り返す。</td></tr>
+<tr><td class="s">交戦の螺旋（内側 7m、1 周 +6m、間隔 2.5m）</td><td>プレイヤーの周りの密度。置き場は 12m 以内だけ使うので、この値で同時に交戦する最大数が決まる。</td></tr>
+<tr><td class="s">アンカーの速さ（敵の 0.8 倍）</td><td>1 未満なので、メンバーは遅れても隊列の位置に追いつける。</td></tr>
+</table>
+<p class="note">「道のり」は直線距離ではなく、距離マップ上の歩ける経路の長さ。壁の向こうのプレイヤーには、近くても交戦に入らない。</p>
+</main>
+</body>
+</html>
