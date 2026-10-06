@@ -54,14 +54,14 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 距離マップの立てる層の数と、格子を作る時間・距離の計算 1 回の時間（ms）を並べる。
+        /// 距離マップの立てる層の数と、格子を作る時間・距離の計算 1 回の時間・形が変わった範囲を調べ直す時間（ms）を並べる。
         /// </summary>
         private string GetDistanceFieldText()
         {
             var field = _spawnAdapter.DistanceField;
             if (field == null) return "-";
 
-            return $"nodes {field.NodeCount} (overflow {field.OverflowColumnCount}) / bake {field.BakeMilliseconds:F1} / compute {field.ComputeMilliseconds:F2}";
+            return $"nodes {field.NodeCount} (overflow {field.OverflowColumnCount}) / bake {field.BakeMilliseconds:F1} / compute {field.ComputeMilliseconds:F2} / rebake {field.RebakeMilliseconds:F2}";
         }
 
         /// <summary>

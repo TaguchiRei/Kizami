@@ -37,7 +37,7 @@
 |---|---|
 | 区間4A の成果 | 敵の体、部位の役割、生成システム |
 | 区間4B の成果 | 敵の状態（`EnemyAgent` の NativeArray）、まとめて描画（`EnemyCrowdRenderer`）、格子と距離マップの試作（`EnemyNavigationGrid`、`EnemyDistanceField`。1 段、初期化のときに物理のクエリで作る）、移動（`EnemyMoveJob`。距離マップを下る、段差、落下、移動部位で止まる）、体の貸し出し・返却・取り上げ（`EnemySpawnAdapter`）、短くなった部位の保持（`EnemyShapeKeeper`）。計測の結果は [Section04B](Section04B_CrowdPrototype.md) の「計測の結果」 |
-| ボクセル | `VoxelPiece.RegisterOnShapeChanged`（形状が変わった範囲 `LocalBounds`）、`RegisterOnSplit`（切り離された塊）、`WorldBounds`。検証用の `VoxelDebugPrimitive`（解析的な形状を流し込む。UNITY_EDITOR の asmdef） |
+| ボクセル | `VoxelModelLoader` の通知（読み込み、ピースの形状変化 `LocalBounds`、切り離された塊、破棄）、`VoxelPiece.WorldBounds`・`PendingChunkCount`、`VoxelModelBaker`（エディタでのベイク） |
 
 ## 既存コードの確認結果（2026-10-07）
 
@@ -48,7 +48,7 @@
 | [EnemyMoveJob](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyMoveJob.cs) | 敵がそれぞれ距離マップを下る。重なりを避ける処理はない | 目的地（隊列の位置、交戦中の螺旋の点）へ向かう移動にし、たどり着けないときだけ距離マップを下る |
 | [EnemyAgent](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyAgent.cs) | グループを持たない | 所属グループ、グループの中の順番、行動の状態（隊列・合流・交戦）、戻れない状態の時間を足す |
 | [EnemySpawnAdapter](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnAdapter.cs) | 生成は敵の状態を 1 体ずつ作るだけ | 生成した敵をグループに入れる。グループの Job を移動の Job の前に回す |
-| [VoxelPiece](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs) | 作り直しの待ち（`_dirtyQueue`）を外から読めない | 作り直しが済んだかを返す `internal` のプロパティを足す（決定 1） |
+| [VoxelPiece](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs) | 作り直しを待っているチャンクの数を `PendingChunkCount` で読める（コミット 2 で確認） | 変更なし。0 になったら作り直しが済んだとみなす（決定 1） |
 | `TestStage.unity` | 200m 四方、段差・壁・橋（`CrowdTerrain`）。ボクセルはない | ボクセルの壁と床を置く（食い違い #1） |
 
 ## 作業一覧
@@ -119,7 +119,7 @@ sequenceDiagram
 | グループを更新する Job（Burst の構造体） | EngineAdapter | `EnemySpawnAdapter` |
 | 脚の IK（`EnemyBody` の拡張か、体のプレハブに付けるコンポーネント。コミット 6 の着手時に決める） | EngineAdapter | `EnemySpawnAdapter` |
 
-拡張する型：`EnemyAgent`（所属グループ、グループの中の順番、行動の状態、戻れない状態の時間）、`EnemyNavigationGrid`（辺、降りられる高さの上限）、`EnemyDistanceField`（辺の事前計算、バケットの待ち行列、変わった範囲の調べ直し）、`EnemyMoveJob`（目的地へ向かう移動）、`EnemySpawnAdapter`（グループへの所属、ボクセルの形状変化の購読、戻れない敵）、`VoxelPiece`（作り直しが済んだか）
+拡張する型：`EnemyAgent`（所属グループ、グループの中の順番、行動の状態、戻れない状態の時間）、`EnemyNavigationGrid`（辺、降りられる高さの上限）、`EnemyDistanceField`（辺の事前計算、バケットの待ち行列、変わった範囲の調べ直し）、`EnemyMoveJob`（目的地へ向かう移動）、`EnemySpawnAdapter`（グループへの所属、ボクセルの形状変化の購読、戻れない敵）
 
 作らないもの：2 段の距離マップと、エディタでの事前の焼き付け（決定 2）、プレイヤーの破壊攻撃（区間5）、崩落による撃破（区間5）、敵の攻撃（区間9）、遠い敵の VAT
 
@@ -154,9 +154,16 @@ sequenceDiagram
 ## 見つけた問題（今回は扱わない）
 
 - 【見た目】まとめて描画している遠い敵は、脚が動かないまま移動する。VAT（4C 以降）を作るまではこのまま
+- 【落下】落ちた敵が着地できるのは立てる層だけなので、真下の列に立てる層がない（橋の下など、頭上が背丈より低い）と、地面を抜けて格子の下まで落ち、ステージから消える。コミット 2 の確認で、橋を切って落ちた 105 体のうち 10 体がこうなった。「足場ごと落ちた」敵の撃破（区間5）と合わせて、着地の扱いを決める
 
 ## 実装中に確かめたこと
 
 - （コミット 1）距離の計算 1 回（ワーカースレッド、立てる層 40180）は、エディタで Burst の安全チェックありが 3.0〜4.3ms（4B は約 9〜10ms）、安全チェックと Jobs Debugger なしが 2.0〜3.1ms（4B は約 5〜7ms）。格子を作る時間は、辺の計算を含めて 63.7ms（4B は 38〜67ms）。斜めのコストを 1.414 から 1.4 にしたので、距離は最大で約 1% 短くなる
 - （コミット 1）降りられる高さ 2m で、橋の上（高さ 4.25m）から横の地面へは進めなくなり、橋の上の距離はスロープを回る値（74.4m。横の地面は 59.8m）になった。高さ 0.8m の段から 1m 下の段へは、これまでどおり降りられる。台地（4m、スロープなし）の上はたどり着けないノードになった
 - （コミット 1）1000 体が、たどり着けない敵 0 体でプレイヤーの近く（距離 8m 以内）まで来る。敵の処理（メインスレッド）は 0.9〜1.1ms（安全チェックなし。全員が近くに集まり、32 体に体を貸している状態なので、4B の計測とは状況が違う。距離の計算はワーカースレッドなので、この時間には入らない）
+- （コミット 2）TestStage に、ボクセルの壁（`CrowdVoxelTerrain/VoxelWall`。(0, 1.9, -30)、長さ 30m・高さ 6.2m・厚さ 1m）と、台地へ上がるスロープ付きの橋（`CrowdVoxelTerrain/VoxelBridge`。幅 6m、高さ 4m）を置いた。元の箱を `VoxelModelBaker` でまとめてベイクし（ボクセル 0.1m）、`VoxelModelLoader` で読み込む。実行時のボクセルは 0.2m（`VoxelQuality_Terrain`）。元の箱にはコライダーを付けない（読み込む前から障害物になる為）
+- （コミット 2）読み込んだボクセルは、作り直しが済んでから格子に入る（調べ直し 2.97ms、メインスレッドで 1 回）。壁の真ん中は立てる層がなくなり、壁の南北の距離は端を回る値（南 53.4m、北 28.0m）になった。台地はスロープと橋でたどり着けるようになった
+- （コミット 2）壁に幅 6m の穴を開けると、0.20ms で調べ直し、壁の北の距離が 38.6m から 17.0m に縮んだ。プレイヤーを壁の反対側へ移すと、1000 体すべてが穴を通り、壁の端を回った敵は 0 体だった
+- （コミット 2）橋の片側に穴を開けると、1000 体すべてが穴のない側を通って台地へ着いた（穴の側を通った敵は 0 体）。穴の下の地面は、頭上が空いたので立てる層になった
+- （コミット 2）197 体が橋の上にいるときに橋を幅いっぱいに切ると、105 体が落ち、99 体が橋の下の地面に着地した。台地側の切れ端は Rigidbody で落ち、止まってから高さ 0 の足場として格子に入った。台地はたどり着けないノードになった
+- （コミット 2）動いている Rigidbody（落ちている塊）のコライダーは、床にも障害物にも数えない。そのため、頭上の判定の箱は 1 つで最大 4 つのコライダーを集める（`MAX_BOX_HITS`）

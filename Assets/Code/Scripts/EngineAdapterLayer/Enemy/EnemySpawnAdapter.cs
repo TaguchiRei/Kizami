@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kizami.EngineAdapter.Voxel;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -16,7 +17,8 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 敵の状態（EnemyAgent）の配列と体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出す Adapter。インゲームのシーンへ置く。
     /// 敵の状態の数は EnemySpawnSystem の同時に存在する数の上限で、出ている敵は EnemyCrowdRenderer でまとめて描画する。
-    /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、距離マップはプレイヤーのいるノードが変わるたびに計算し直す。
+    /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、ステージのボクセルのモデルの形が変わったら、その範囲を調べ直す。
+    /// 距離マップは、プレイヤーのいるノードが変わるか、格子を調べ直すたびに計算し直す。
     /// 出ている敵は、毎フレーム EnemyMoveJob で距離マップを下って歩かせ、落とす。
     /// 切断できる体（EnemyBody）は、プレイヤーから貸す距離の中にいる敵へ近い順に貸し、返す距離より離れたら返す。返す距離は貸す距離より遠い。
     /// 体を返すときは、短くなった部位の形を EnemyShapeKeeper に預け、次に貸すときに戻す。預ける空きがなければ、その敵の体は返さない。
@@ -305,6 +307,11 @@ namespace Kizami.EngineAdapter
             _crowdRenderer = new EnemyCrowdRenderer(_bodyPrefab, _agents.Length);
             _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
                 _dropHeight, _groundLayers);
+            foreach (var loader in FindObjectsByType<VoxelModelLoader>(FindObjectsSortMode.None))
+            {
+                _distanceField.Watch(loader);
+            }
+
             _shapeKeeper = new EnemyShapeKeeper(transform, _shapeKeeperCapacity, _agents.Length, _bodyPrefab.Parts.Count);
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);
