@@ -14,13 +14,19 @@ namespace Kizami.EngineAdapter
     /// <remarks>
     /// 立てる層は、作るときに列ごとに下向きのレイを撃って床の上面を集め、上に敵の背丈の分だけ物が重ならないものを残す。
     /// 頭上の判定をレイでなく箱の重なりで行うのは、レイが始まった位置のコライダーを検出せず、壁の中の地面を立てると判定してしまう為。
-    /// 距離はプレイヤーのいるノードから逆向きに、ダイクストラ法（斜めは √2 倍）で Job で求める。
+    /// 隣のノードからたどり着けるかは、格子を作るときに辺（ノードごとに、そこへ進めるノードを表すビット）として求めておく。
+    /// 距離はプレイヤーのいるノードから辺を逆向きにたどって Job で求める。コストは縦横 10・斜め 14 の整数にし、
+    /// コストの値ごとのバケットに分けて小さい順に確定させる（Dial 法）。辺のコストの最大が 14 なので、バケットは 15 個を使い回せる。
     /// 計算は 2 つの配列を入れ替えて行い、Job が終わるまで前の結果を読めるようにする。Job は複数のフレームにまたがってよい。
     /// </remarks>
-    // TODO: 区間4C で、2 段の距離マップ、エディタでの事前の焼き付け、ボクセルが壊れた範囲の調べ直しを作る
+    // TODO: 区間14で、2 段の距離マップと、エディタでの事前の焼き付けを作る
     public sealed class EnemyDistanceField : IDisposable
     {
         private const int MAX_LAYERS = EnemyNavigationGrid.MAX_LAYERS;
+
+        private const int STRAIGHT_COST = 10;
+        private const int DIAGONAL_COST = 14;
+        private const int BUCKET_COUNT = DIAGONAL_COST + 1;
 
         /// <summary> 下向きのレイ 1 本で集める床の数。重なった床と、その下の地面を拾えるよう、層の数より多くする </summary>
         private const int MAX_RAY_HITS = 8;
@@ -37,8 +43,6 @@ namespace Kizami.EngineAdapter
         /// <summary> プレイヤーの足元とみなす、プレイヤーの位置より上の高さ（m） </summary>
         private const float STANDING_TOLERANCE = 0.5f;
 
-        private const float DIAGONAL_COST = 1.41421356f;
-
         private const string MARKER_NAME = "Kizami.Enemy.DistanceField";
 
         private static readonly ProfilerMarker _marker = new(MARKER_NAME);
@@ -50,6 +54,18 @@ namespace Kizami.EngineAdapter
 
         /// <summary> Job が書き込む側の距離の配列 </summary>
         private NativeArray<float> _workingDistances;
+
+        /// <summary> ノードごとの、そこへ進めるノード。ビット（向きの番号 × MAX_LAYERS ＋ 隣の列の層の番号）で表し、8 向き × 4 層が uint に収まる </summary>
+        private NativeArray<uint> _incomingEdges;
+
+        /// <summary> 距離の Job の作業用の、ノードごとの整数のコスト </summary>
+        private NativeArray<int> _costs;
+
+        /// <summary> 距離の Job の作業用の、同じバケットの前のノード </summary>
+        private NativeArray<int> _previousInBucket;
+
+        /// <summary> 距離の Job の作業用の、同じバケットの次のノード </summary>
+        private NativeArray<int> _nextInBucket;
 
         private JobHandle _jobHandle;
         private bool _isRunning;
@@ -87,8 +103,10 @@ namespace Kizami.EngineAdapter
         /// <param name="cellSize">マスの一辺（m）</param>
         /// <param name="enemyHeight">床の上に空いている必要がある高さ（m）</param>
         /// <param name="climbHeight">登れる段差の高さ（m）</param>
+        /// <param name="dropHeight">歩いて降りられる段差の高さ（m）</param>
         /// <param name="groundLayers">床と障害物のレイヤー</param>
-        public EnemyDistanceField(Bounds bounds, float cellSize, float enemyHeight, float climbHeight, LayerMask groundLayers)
+        public EnemyDistanceField(Bounds bounds, float cellSize, float enemyHeight, float climbHeight, float dropHeight,
+            LayerMask groundLayers)
         {
             var width = math.max(1, (int)math.ceil(bounds.size.x / cellSize));
             var depth = math.max(1, (int)math.ceil(bounds.size.z / cellSize));
@@ -101,11 +119,16 @@ namespace Kizami.EngineAdapter
                 Origin = bounds.min,
                 CellSize = cellSize,
                 ClimbHeight = climbHeight,
+                DropHeight = dropHeight,
                 Width = width,
                 Depth = depth
             };
             _distances = new NativeArray<float>(nodeCount, Allocator.Persistent);
             _workingDistances = new NativeArray<float>(nodeCount, Allocator.Persistent);
+            _incomingEdges = new NativeArray<uint>(nodeCount, Allocator.Persistent);
+            _costs = new NativeArray<int>(nodeCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            _previousInBucket = new NativeArray<int>(nodeCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+            _nextInBucket = new NativeArray<int>(nodeCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
             for (var i = 0; i < nodeCount; i++) _distances[i] = float.PositiveInfinity;
 
             Bake(bounds, enemyHeight, groundLayers);
@@ -139,8 +162,13 @@ namespace Kizami.EngineAdapter
 
             _jobHandle = new DistanceJob
             {
-                Grid = _grid,
+                IncomingEdges = _incomingEdges,
+                Width = _grid.Width,
+                MetersPerCost = _grid.CellSize / STRAIGHT_COST,
                 Distances = _workingDistances,
+                Costs = _costs,
+                PreviousInBucket = _previousInBucket,
+                NextInBucket = _nextInBucket,
                 StartNode = node,
                 Marker = _marker
             }.Schedule();
@@ -186,10 +214,14 @@ namespace Kizami.EngineAdapter
             if (_grid.LayerCounts.IsCreated) _grid.LayerCounts.Dispose();
             if (_distances.IsCreated) _distances.Dispose();
             if (_workingDistances.IsCreated) _workingDistances.Dispose();
+            if (_incomingEdges.IsCreated) _incomingEdges.Dispose();
+            if (_costs.IsCreated) _costs.Dispose();
+            if (_previousInBucket.IsCreated) _previousInBucket.Dispose();
+            if (_nextInBucket.IsCreated) _nextInBucket.Dispose();
         }
 
         /// <summary>
-        /// 列ごとに下向きのレイで床の上面を集め、頭上が空いているものを、下から順に立てる層として残す。
+        /// 列ごとに下向きのレイで床の上面を集め、頭上が空いているものを、下から順に立てる層として残す。残した層から辺を求める。
         /// </summary>
         private void Bake(Bounds bounds, float enemyHeight, LayerMask groundLayers)
         {
@@ -291,17 +323,86 @@ namespace Kizami.EngineAdapter
             boxes.Dispose();
             boxHits.Dispose();
 
+            new EdgeJob
+            {
+                Grid = _grid,
+                IncomingEdges = _incomingEdges
+            }.Schedule(columnCount, 64).Complete();
+
             BakeMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
         }
 
         /// <summary>
+        /// 列ごとに、各層のノードへ隣の列のどの層から進めるかを、移動の規則（EnemyNavigationGrid）で求めて辺のビットにする。
+        /// 自分の列のノードだけを書き換える。
+        /// </summary>
+        [BurstCompile]
+        private struct EdgeJob : IJobParallelFor
+        {
+            public EnemyNavigationGrid Grid;
+
+            [NativeDisableParallelForRestriction]
+            public NativeArray<uint> IncomingEdges;
+
+            public void Execute(int column)
+            {
+                var x = column % Grid.Width;
+                var z = column / Grid.Width;
+
+                for (var k = 0; k < MAX_LAYERS; k++)
+                {
+                    var node = column * MAX_LAYERS + k;
+                    IncomingEdges[node] = k < Grid.LayerCounts[column] ? GetIncomingEdges(column, x, z, node) : 0u;
+                }
+            }
+
+            private uint GetIncomingEdges(int column, int x, int z, int node)
+            {
+                var edges = 0u;
+
+                for (var direction = 0; direction < 8; direction++)
+                {
+                    var offset = EnemyNavigationGrid.GetNeighborOffset(direction);
+                    var nx = x + offset.x;
+                    var nz = z + offset.y;
+                    if (nx < 0 || nx >= Grid.Width || nz < 0 || nz >= Grid.Depth) continue;
+
+                    var isDiagonal = offset.x != 0 && offset.y != 0;
+                    var fromColumn = nz * Grid.Width + nx;
+
+                    for (var k = 0; k < Grid.LayerCounts[fromColumn]; k++)
+                    {
+                        var fromHeight = Grid.Heights[fromColumn * MAX_LAYERS + k];
+                        if (Grid.GetLandingNode(column, fromHeight) != node) continue;
+
+                        if (isDiagonal && !(Grid.CanCross(z * Grid.Width + nx, fromHeight)
+                                            && Grid.CanCross(nz * Grid.Width + x, fromHeight))) continue;
+
+                        edges |= 1u << (direction * MAX_LAYERS + k);
+                    }
+                }
+
+                return edges;
+            }
+        }
+
+        /// <summary>
         /// 始点のノードから、各ノードがそこへたどり着くまでの距離を求める。
+        /// 未確定のノードは、コストを BUCKET_COUNT で割った余りのバケット（双方向の連結リスト）に 1 つだけ入れ、コストが下がったら入れ替える。
         /// </summary>
         [BurstCompile]
         private struct DistanceJob : IJob
         {
-            public EnemyNavigationGrid Grid;
+            [ReadOnly] public NativeArray<uint> IncomingEdges;
+            public int Width;
+
+            /// <summary> 整数のコスト 1 あたりの距離（m） </summary>
+            public float MetersPerCost;
+
             public NativeArray<float> Distances;
+            public NativeArray<int> Costs;
+            public NativeArray<int> PreviousInBucket;
+            public NativeArray<int> NextInBucket;
             public int StartNode;
             public ProfilerMarker Marker;
 
@@ -309,103 +410,96 @@ namespace Kizami.EngineAdapter
             {
                 using var scope = Marker.Auto();
 
-                for (var i = 0; i < Distances.Length; i++) Distances[i] = float.PositiveInfinity;
-
-                var heap = new NativeList<HeapItem>(1024, Allocator.Temp);
-                Distances[StartNode] = 0f;
-                Push(ref heap, new HeapItem { Distance = 0f, Node = StartNode });
-
-                while (heap.Length > 0)
+                for (var i = 0; i < Distances.Length; i++)
                 {
-                    var item = Pop(ref heap);
-                    if (item.Distance > Distances[item.Node]) continue;
+                    Distances[i] = float.PositiveInfinity;
+                    Costs[i] = int.MaxValue;
+                }
 
-                    var column = item.Node / MAX_LAYERS;
-                    var x = column % Grid.Width;
-                    var z = column / Grid.Width;
+                var heads = new NativeArray<int>(BUCKET_COUNT, Allocator.Temp);
+                for (var b = 0; b < BUCKET_COUNT; b++) heads[b] = -1;
 
-                    for (var dz = -1; dz <= 1; dz++)
+                Costs[StartNode] = 0;
+                Insert(ref heads, StartNode, 0);
+                var queuedCount = 1;
+
+                for (var cost = 0; queuedCount > 0; cost++)
+                {
+                    var bucket = cost % BUCKET_COUNT;
+                    while (heads[bucket] >= 0)
                     {
-                        for (var dx = -1; dx <= 1; dx++)
-                        {
-                            if (dx == 0 && dz == 0) continue;
+                        var node = heads[bucket];
+                        Remove(ref heads, node, bucket);
+                        queuedCount--;
 
-                            var nx = x + dx;
-                            var nz = z + dz;
-                            if (nx < 0 || nx >= Grid.Width || nz < 0 || nz >= Grid.Depth) continue;
-
-                            var isDiagonal = dx != 0 && dz != 0;
-                            var cost = isDiagonal ? DIAGONAL_COST * Grid.CellSize : Grid.CellSize;
-                            var fromColumn = nz * Grid.Width + nx;
-
-                            // 隣の列 fromColumn の各層から、この列へ進んだときに乗る層がこのノードなら、そこからたどり着ける
-                            for (var k = 0; k < Grid.LayerCounts[fromColumn]; k++)
-                            {
-                                var from = fromColumn * MAX_LAYERS + k;
-                                var fromHeight = Grid.Heights[from];
-                                if (Grid.GetLandingNode(column, fromHeight) != item.Node) continue;
-
-                                if (isDiagonal && !(Grid.CanCross(z * Grid.Width + nx, fromHeight)
-                                                    && Grid.CanCross(nz * Grid.Width + x, fromHeight))) continue;
-
-                                var distance = item.Distance + cost;
-                                if (distance >= Distances[from]) continue;
-
-                                Distances[from] = distance;
-                                Push(ref heap, new HeapItem { Distance = distance, Node = from });
-                            }
-                        }
+                        Distances[node] = cost * MetersPerCost;
+                        Relax(ref heads, node, cost, ref queuedCount);
                     }
                 }
 
-                heap.Dispose();
+                heads.Dispose();
             }
 
-            private static void Push(ref NativeList<HeapItem> heap, HeapItem item)
+            /// <summary>
+            /// 確定したノードへ進める隣のノードのコストを、cost ＋ 辺のコストまで下げる。
+            /// 辺のコストは 10 以上なので、確定したノードのコストが下がることはない。
+            /// </summary>
+            private void Relax(ref NativeArray<int> heads, int node, int cost, ref int queuedCount)
             {
-                heap.Add(item);
-                var index = heap.Length - 1;
-                while (index > 0)
-                {
-                    var parent = (index - 1) / 2;
-                    if (heap[parent].Distance <= item.Distance) break;
+                var column = node / MAX_LAYERS;
+                var x = column % Width;
+                var z = column / Width;
+                var edges = IncomingEdges[node];
 
-                    heap[index] = heap[parent];
-                    index = parent;
+                while (edges != 0u)
+                {
+                    var bit = math.tzcnt(edges);
+                    edges &= edges - 1u;
+
+                    var offset = EnemyNavigationGrid.GetNeighborOffset(bit / MAX_LAYERS);
+                    var from = ((z + offset.y) * Width + x + offset.x) * MAX_LAYERS + bit % MAX_LAYERS;
+                    var newCost = cost + (offset.x != 0 && offset.y != 0 ? DIAGONAL_COST : STRAIGHT_COST);
+                    if (newCost >= Costs[from]) continue;
+
+                    if (Costs[from] == int.MaxValue)
+                    {
+                        queuedCount++;
+                    }
+                    else
+                    {
+                        Remove(ref heads, from, Costs[from] % BUCKET_COUNT);
+                    }
+
+                    Costs[from] = newCost;
+                    Insert(ref heads, from, newCost % BUCKET_COUNT);
+                }
+            }
+
+            private void Insert(ref NativeArray<int> heads, int node, int bucket)
+            {
+                var head = heads[bucket];
+                PreviousInBucket[node] = -1;
+                NextInBucket[node] = head;
+                if (head >= 0) PreviousInBucket[head] = node;
+
+                heads[bucket] = node;
+            }
+
+            private void Remove(ref NativeArray<int> heads, int node, int bucket)
+            {
+                var previous = PreviousInBucket[node];
+                var next = NextInBucket[node];
+                if (previous >= 0)
+                {
+                    NextInBucket[previous] = next;
+                }
+                else
+                {
+                    heads[bucket] = next;
                 }
 
-                heap[index] = item;
+                if (next >= 0) PreviousInBucket[next] = previous;
             }
-
-            private static HeapItem Pop(ref NativeList<HeapItem> heap)
-            {
-                var top = heap[0];
-                var last = heap[heap.Length - 1];
-                heap.RemoveAt(heap.Length - 1);
-                if (heap.Length == 0) return top;
-
-                var index = 0;
-                while (true)
-                {
-                    var child = index * 2 + 1;
-                    if (child >= heap.Length) break;
-
-                    if (child + 1 < heap.Length && heap[child + 1].Distance < heap[child].Distance) child++;
-                    if (heap[child].Distance >= last.Distance) break;
-
-                    heap[index] = heap[child];
-                    index = child;
-                }
-
-                heap[index] = last;
-                return top;
-            }
-        }
-
-        private struct HeapItem
-        {
-            public float Distance;
-            public int Node;
         }
     }
 }

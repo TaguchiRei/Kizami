@@ -98,6 +98,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("敵が登れる段差の高さ（m）")]
         private float _climbHeight = 1f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("敵が歩いて降りられる段差の高さ（m）。これより高い所からは降りない。足場が壊れて落ちるのは、この高さによらない")]
+        private float _dropHeight = 2f;
+
         [SerializeField]
         [Tooltip("経路の格子を作るときに、床と障害物として扱うレイヤー")]
         private LayerMask _groundLayers = 1;
@@ -300,7 +304,7 @@ namespace Kizami.EngineAdapter
             _agents = new NativeArray<EnemyAgent>(_spawnSystem.MaxAliveCount, Allocator.Persistent);
             _crowdRenderer = new EnemyCrowdRenderer(_bodyPrefab, _agents.Length);
             _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
-                _groundLayers);
+                _dropHeight, _groundLayers);
             _shapeKeeper = new EnemyShapeKeeper(transform, _shapeKeeperCapacity, _agents.Length, _bodyPrefab.Parts.Count);
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);

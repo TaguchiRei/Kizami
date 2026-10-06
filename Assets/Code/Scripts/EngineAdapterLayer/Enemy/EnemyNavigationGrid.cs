@@ -8,7 +8,7 @@ namespace Kizami.EngineAdapter
     /// Burst の Job へ渡して読むための値で、配列の持ち主は EnemyDistanceField。
     /// </summary>
     /// <remarks>
-    /// 敵が高さ h から隣の列へ進むと、その列のうち「h ＋ 登れる高さ」以下で最も高い層に乗る。登るのは登れる高さまでで、降りるのは高さに制限がない。
+    /// 敵が高さ h から隣の列へ進むと、その列のうち「h ＋ 登れる高さ」以下で最も高い層に乗る。その層が「h − 降りられる高さ」より低ければ進めない。
     /// 列番号は z × 幅 ＋ x、ノード番号は 列番号 × MAX_LAYERS ＋ 層の番号。
     /// </remarks>
     public struct EnemyNavigationGrid
@@ -31,11 +31,23 @@ namespace Kizami.EngineAdapter
         /// <summary> 登れる段差の高さ（m） </summary>
         public float ClimbHeight;
 
+        /// <summary> 歩いて降りられる段差の高さ（m）。足場が壊れて落ちるのは、この高さによらない </summary>
+        public float DropHeight;
+
         /// <summary> x 方向の列の数 </summary>
         public int Width;
 
         /// <summary> z 方向の列の数 </summary>
         public int Depth;
+
+        /// <summary>
+        /// 隣の 8 列への向きの番号から、列のずれを返す。番号は z、x の順に -1〜1 を並べ、ずれのない中央を飛ばしたもの。
+        /// </summary>
+        public static int2 GetNeighborOffset(int direction)
+        {
+            var cell = direction < 4 ? direction : direction + 1;
+            return new int2(cell % 3 - 1, cell / 3 - 1);
+        }
 
         /// <summary>
         /// 位置の真下の列を返す。格子の範囲の外なら false。
@@ -73,11 +85,13 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 高さ fromHeight から列 column へ進んだときに乗る層（fromHeight ＋ 登れる高さ以下で最も高い層）。なければ -1。
+        /// 高さ fromHeight から列 column へ進んだときに乗る層（fromHeight ＋ 登れる高さ以下で最も高い層）。
+        /// なければ、またはその層が降りられる高さより低ければ -1。
         /// </summary>
         public int GetLandingNode(int column, float fromHeight)
         {
-            return GetHighestNodeBelow(column, fromHeight + ClimbHeight);
+            var node = GetHighestNodeBelow(column, fromHeight + ClimbHeight);
+            return node >= 0 && Heights[node] >= fromHeight - DropHeight ? node : -1;
         }
 
         /// <summary>
