@@ -120,6 +120,25 @@ namespace Kizami.EngineAdapter
             }
         }
 
+        /// <summary>
+        /// 位置を指定してオーブを 1 つ出す。かけら 1 個と同じく、吸収されるとチャージが 1 増える。
+        /// オーブが上限の数だけあるときは、その場で吸収したものとして渡す。
+        /// </summary>
+        public void SpawnOrb(Vector3 position)
+        {
+            if (!Initialized) return;
+
+            if (_orbs.Count >= _maxOrbCount || _orbPrefab == null)
+            {
+                _onAbsorbed?.Invoke(1);
+                return;
+            }
+
+            var orb = _orbPool.Get();
+            orb.position = position;
+            _orbs.Add(orb);
+        }
+
         private void Update()
         {
             if (!Initialized) return;
@@ -187,7 +206,6 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// かけらを管理から外してプールへ返し、その位置にオーブを出す。
         /// 管理から外すのは返す前に行う。返すときにも ReuseAction が呼ばれる為。
-        /// オーブが上限の数だけあるときは、その場で吸収したものとして渡す。
         /// </summary>
         private void ConvertToOrb(CuttableObject fragment)
         {
@@ -196,15 +214,7 @@ namespace Kizami.EngineAdapter
             _fragments.Remove(fragment);
             if (_fragmentPool != null) _fragmentPool.ReleaseObject(fragment);
 
-            if (_orbs.Count >= _maxOrbCount || _orbPrefab == null)
-            {
-                _onAbsorbed?.Invoke(1);
-                return;
-            }
-
-            var orb = _orbPool.Get();
-            orb.position = position;
-            _orbs.Add(orb);
+            SpawnOrb(position);
         }
 
         /// <summary>

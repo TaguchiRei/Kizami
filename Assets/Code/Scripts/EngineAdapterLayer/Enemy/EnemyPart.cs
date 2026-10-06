@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UsefulToolkit.Attributes;
 using UsefulToolkit.MeshCut;
 
 namespace Kizami.EngineAdapter
@@ -18,10 +19,17 @@ namespace Kizami.EngineAdapter
         [Tooltip("切断面と基準点の距離がこの値（m）以下なら、接続部の近くを切ったとみなし、部位全体を落とす")]
         private float _jointDistance = 0.3f;
 
+        [SerializeReference, SubclassSelector]
+        [Tooltip("部位が壊れたときの処理。空なら、壊れても体に何も起きない")]
+        private EnemyPartRole _role;
+
         /// <summary> 部位の切断対象 </summary>
         public CuttableObject Cuttable => _cuttable;
 
         /// <summary> 接続部の近くを切ったとみなす、切断面と基準点の距離（m） </summary>
         public float JointDistance => _jointDistance;
+
+        /// <summary> 部位の役割。Inspector で空にした部位では null </summary>
+        public EnemyPartRole Role => _role;
     }
 }
