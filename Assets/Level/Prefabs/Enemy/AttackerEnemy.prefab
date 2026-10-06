@@ -241,8 +241,6 @@ MonoBehaviour:
     _jointDistance: 0.3
     _role:
       rid: -2
-  _moveSpeed: 1.5
-  _stopDistance: 6
   _brokenMovePartLimit: 4
   references:
     version: 2

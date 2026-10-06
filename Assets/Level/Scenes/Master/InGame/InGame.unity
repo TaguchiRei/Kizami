@@ -938,8 +938,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemySpawnAdapter
   _bodyPrefab: {fileID: 1602327258362906900, guid: abba11fae2f3aaa4a8b4ecdfe95fc600, type: 3}
+  _bodyCount: 32
   _fragmentPool: {fileID: 608286024}
   _target: {fileID: 903436366}
+  _cellSize: 1
+  _enemyHeight: 4
+  _climbHeight: 1
+  _groundLayers:
+    serializedVersion: 2
+    m_Bits: 513
+  _drawDistanceField: 0
+  _distanceGizmoRadius: 25
   _debrisMaterial: {fileID: 2100000, guid: 5cfc7be965929784eb5db215773505a4, type: 2}
   _debrisCapacity: 32
   _debrisLifetime: 1

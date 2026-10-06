@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Generic;
+using Unity.Collections;
+using Unity.Jobs;
+using Unity.Mathematics;
+using Unity.Profiling;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
@@ -10,34 +14,113 @@ using Random = UnityEngine.Random;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵の体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出し、仮の移動をさせる Adapter。インゲームのシーンへ置く。
-    /// 近接切断の結果は、切られた部位を持つ体へ渡す。体から外れた切っていない部位は、見た目用の物（EnemyDebris）で散らばらせて消す。
-    /// 体と見た目用の物は初期化のときに作り、実行中は作らない。体に空きがなければ出さず、見た目用の物に空きがなければ最も古い物を使い回す。
+    /// 敵の状態（EnemyAgent）の配列と体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出す Adapter。インゲームのシーンへ置く。
+    /// 敵の状態の数は EnemySpawnSystem の同時に存在する数の上限で、出ている敵は EnemyCrowdRenderer でまとめて描画する。
+    /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、距離マップはプレイヤーのいるノードが変わるたびに計算し直す。
+    /// 出ている敵は、毎フレーム EnemyMoveJob で距離マップを下って歩かせ、落とす。
+    /// 切断できる体（EnemyBody）は、プレイヤーから貸す距離の中にいる敵へ近い順に貸し、返す距離より離れたら返す。返す距離は貸す距離より遠い。
+    /// 体を返すときは、短くなった部位の形を EnemyShapeKeeper に預け、次に貸すときに戻す。預ける空きがなければ、その敵の体は返さない。
+    /// 体に空きがないときは、切断の届きうる近さ（取り上げる距離）の敵を優先し、その敵より一定以上遠い敵のうち最も遠い敵から体を取り上げる。
+    /// 近接切断の結果は、切られた部位を持つ体へ渡し、体の部位の状態を敵の状態へ書き戻す。体から外れた切っていない部位は、見た目用の物（EnemyDebris）で散らばらせて消す。
+    /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さず、見た目用の物に空きがなければ最も古い物を使い回す。
     /// </summary>
     /// <remarks>
-    /// 敵を出すのは MeshDataCache のストアができてから。部位を登録し直すのにストアが要る為。
-    /// 生成の間隔、仮の移動、見た目用の物の動きは Time.deltaTime で数え、スローモード中は一緒に遅くなる。
+    /// 敵を出すのは MeshDataCache のストアができてから。体を貸すときに部位を登録し直すのにストアが要る為。
+    /// 生成の間隔、敵の移動、見た目用の物の動きは Time.deltaTime で数え、スローモード中は一緒に遅くなる。
     /// </remarks>
     public sealed class EnemySpawnAdapter : InitializableMonoBehaviour
     {
+        /// <summary> かかった時間を平均するフレームの数 </summary>
+        private const int TIMING_SAMPLE_COUNT = 30;
+
+        private const string UPDATE_MARKER_NAME = "Kizami.Enemy.Update";
+        private const string MOVE_MARKER_NAME = "Kizami.Enemy.Move";
+        private const string BODY_MARKER_NAME = "Kizami.Enemy.Body";
+        private const string RENDER_MARKER_NAME = "Kizami.Enemy.Render";
+
+        private static readonly ProfilerMarker _updateMarker = new(UPDATE_MARKER_NAME);
+        private static readonly ProfilerMarker _moveMarker = new(MOVE_MARKER_NAME);
+        private static readonly ProfilerMarker _bodyMarker = new(BODY_MARKER_NAME);
+        private static readonly ProfilerMarker _renderMarker = new(RENDER_MARKER_NAME);
+
         private readonly List<EnemyBody> _bodies = new();
         private readonly List<EnemySpawnPoint> _spawnPoints = new();
         private readonly List<EnemyInitialSpawnArea> _initialSpawnAreas = new();
 
-        /// <summary> 部位から、その部位を持つ体を引く表 </summary>
-        private readonly Dictionary<CuttableObject, EnemyBody> _partOwners = new();
+        /// <summary> 部位から、その部位を持つ体の _bodies での番号を引く表 </summary>
+        private readonly Dictionary<CuttableObject, int> _partOwners = new();
 
         [SerializeField]
-        [Tooltip("敵の体のプレハブ")]
+        [Tooltip("敵の体のプレハブ。まとめて描画する部位のメッシュ・マテリアル・位置もここから読む")]
         private EnemyBody _bodyPrefab;
+
+        [SerializeField, Min(0)]
+        [Tooltip("体の数。近くの敵に貸す切断できる体で、初期化のときにこの数だけ作る")]
+        private int _bodyCount = 32;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("プレイヤーとの距離がこの値（m）以下の敵に、体を貸す")]
+        private float _lendDistance = 12f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("プレイヤーとの距離がこの値（m）より離れた敵から、体を返す。貸す距離より遠くする")]
+        private float _returnDistance = 18f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("体の空きがないとき、プレイヤーとの距離がこの値（m）以下の体を持たない敵には、より遠い敵から体を取り上げて貸す。切断の届く距離と、敵の体の根から部位の端までの長さを足した値より大きくする")]
+        private float _reclaimDistance = 9f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("体を取り上げる相手は、貸す敵よりこの値（m）以上遠い敵に限る。近い 2 体の間で体が行き来しないようにする")]
+        private float _reclaimMargin = 3f;
+
+        [SerializeField, Min(0)]
+        [Tooltip("体を返した敵の、短くなった部位の形を預かれる数。初期化のときにこの数だけ保管用の物を作る")]
+        private int _shapeKeeperCapacity = 64;
 
         [SerializeField]
         [Tooltip("かけらのプール。体に残す側のかけらを返す先")]
         private MeshCutObjectPool _fragmentPool;
 
         [SerializeField]
-        [Tooltip("仮の移動で近づく先（プレイヤー）")]
+        [Tooltip("敵が向かう先（プレイヤー）。距離マップはここからの距離を持つ")]
         private Transform _target;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("経路の格子のマスの一辺（m）")]
+        private float _cellSize = 1f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("敵の背丈（m）。床の上にこの高さだけ物がなければ、立てる層にする")]
+        private float _enemyHeight = 4f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("敵が登れる段差の高さ（m）")]
+        private float _climbHeight = 1f;
+
+        [SerializeField]
+        [Tooltip("経路の格子を作るときに、床と障害物として扱うレイヤー")]
+        private LayerMask _groundLayers = 1;
+
+        [SerializeField]
+        [Tooltip("実行中に、プレイヤーの周りの距離マップをギズモで描く")]
+        private bool _drawDistanceField;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("距離マップをギズモで描く、プレイヤーからの半径（m）")]
+        private float _distanceGizmoRadius = 25f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("敵が歩く速さ（m/s）")]
+        private float _moveSpeed = 3f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("敵が向きを変える速さ（度/秒）")]
+        private float _turnSpeed = 180f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("プレイヤーまでの経路の長さ（距離マップの値）がこの値（m）以下になったら止まる")]
+        private float _stopDistance = 6f;
 
         [SerializeField]
         [Tooltip("体から外れた切っていない部位を消すディゾルブのマテリアル。シェーダーは float のプロパティ _DissolveAmount（0〜1）で消える")]
@@ -65,6 +148,28 @@ namespace Kizami.EngineAdapter
 
         private EnemySpawnSystem _spawnSystem;
 
+        private NativeArray<EnemyAgent> _agents;
+
+        private EnemyCrowdRenderer _crowdRenderer;
+
+        private EnemyDistanceField _distanceField;
+
+        private EnemyShapeKeeper _shapeKeeper;
+
+        private ProfilerRecorder _updateRecorder;
+        private ProfilerRecorder _moveRecorder;
+        private ProfilerRecorder _bodyRecorder;
+        private ProfilerRecorder _renderRecorder;
+
+        /// <summary> 体ごとの、貸している敵の _agents での番号。貸していなければ -1。並びは _bodies と同じ </summary>
+        private int[] _bodyAgents;
+
+        /// <summary> 体を貸す候補の敵の、プレイヤーとの距離の 2 乗。並べ替えに使う作業用の配列 </summary>
+        private float[] _lendCandidateDistances;
+
+        /// <summary> 体を貸す候補の敵の _agents での番号。並びは _lendCandidateDistances と同じ </summary>
+        private int[] _lendCandidates;
+
         /// <summary> 見た目用の部位。並びは _debrisBuffer の RecycleId と同じ </summary>
         private EnemyDebris[] _debris;
 
@@ -83,24 +188,78 @@ namespace Kizami.EngineAdapter
         {
             get
             {
+                if (!_agents.IsCreated) return 0;
+
                 var count = 0;
-                foreach (var body in _bodies)
+                foreach (var agent in _agents)
                 {
-                    if (body.IsSpawned) count++;
+                    if (agent.IsAlive) count++;
                 }
 
                 return count;
             }
         }
 
-        /// <summary> プールにある体の数（同時に存在する数の上限） </summary>
-        public int Capacity => _bodies.Count;
+        /// <summary> 敵の状態の数（同時に存在する数の上限） </summary>
+        public int Capacity => _agents.IsCreated ? _agents.Length : 0;
+
+        /// <summary> 敵に貸している体の数 </summary>
+        public int LentBodyCount
+        {
+            get
+            {
+                var count = 0;
+                foreach (var body in _bodies)
+                {
+                    if (body.IsLent) count++;
+                }
+
+                return count;
+            }
+        }
+
+        /// <summary> 体の数 </summary>
+        public int BodyCount => _bodies.Count;
+
+        /// <summary> 体を返した敵から預かっている、短くなった部位の数 </summary>
+        public int KeptShapeCount => _shapeKeeper?.KeptCount ?? 0;
+
+        /// <summary> Update 全体にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
+        public double UpdateMilliseconds => GetAverageMilliseconds(_updateRecorder);
+
+        /// <summary> まとめて描画の準備にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
+        public double RenderMilliseconds => GetAverageMilliseconds(_renderRecorder);
+
+        /// <summary> 敵の移動（Job の完了待ちを含む）にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
+        public double MoveMilliseconds => GetAverageMilliseconds(_moveRecorder);
+
+        /// <summary> 体の貸し出し・返却と位置の同期にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
+        public double BodyMilliseconds => GetAverageMilliseconds(_bodyRecorder);
+
+        /// <summary> 経路の格子と距離マップ。初期化の前は null </summary>
+        public EnemyDistanceField DistanceField => _distanceField;
 
         /// <summary> ステージシーンの実行中の生成位置 </summary>
         public IReadOnlyList<EnemySpawnPoint> SpawnPoints => _spawnPoints;
 
         /// <summary>
-        /// EnemyInitializer から呼ばれる。ステージシーンの EnemySpawnSystem を探し、上限の数だけ体と、見た目用の部位を作る。
+        /// ProfilerRecorder に残っている直近のフレームの時間（ns）を平均し、ms で返す。
+        /// </summary>
+        private static double GetAverageMilliseconds(ProfilerRecorder recorder)
+        {
+            if (!recorder.Valid || recorder.Count == 0) return 0d;
+
+            var total = 0L;
+            for (var i = 0; i < recorder.Count; i++)
+            {
+                total += recorder.GetSample(i).Value;
+            }
+
+            return total / (double)recorder.Count * 1e-6;
+        }
+
+        /// <summary>
+        /// EnemyInitializer から呼ばれる。ステージシーンの EnemySpawnSystem を探し、上限の数だけ敵の状態と、体と、見た目用の部位を作る。
         /// 見つからないときは Update を止めたままにする。
         /// </summary>
         /// <param name="spawnOrb">倒れた体に残っていた切断済みの部位を、オーブにする関数。引数はオーブを出す位置</param>
@@ -138,16 +297,30 @@ namespace Kizami.EngineAdapter
                 _debrisBuffer = new RecycleBuffer<EnemyDebris>(_debris);
             }
 
-            for (var i = 0; i < _spawnSystem.MaxAliveCount; i++)
+            _agents = new NativeArray<EnemyAgent>(_spawnSystem.MaxAliveCount, Allocator.Persistent);
+            _crowdRenderer = new EnemyCrowdRenderer(_bodyPrefab, _agents.Length);
+            _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
+                _groundLayers);
+            _shapeKeeper = new EnemyShapeKeeper(transform, _shapeKeeperCapacity, _agents.Length, _bodyPrefab.Parts.Count);
+            _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
+            _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);
+            _bodyRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, BODY_MARKER_NAME, TIMING_SAMPLE_COUNT);
+            _lendCandidateDistances = new float[_agents.Length];
+            _lendCandidates = new int[_agents.Length];
+            _bodyAgents = new int[_bodyCount];
+            _renderRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, RENDER_MARKER_NAME, TIMING_SAMPLE_COUNT);
+
+            for (var i = 0; i < _bodyCount; i++)
             {
                 var body = Instantiate(_bodyPrefab, transform);
                 body.gameObject.SetActive(false);
                 body.Initialize(spawnOrb, SpawnDebris);
                 _bodies.Add(body);
+                _bodyAgents[i] = -1;
 
                 foreach (var part in body.Parts)
                 {
-                    if (part.Cuttable != null) _partOwners.Add(part.Cuttable, body);
+                    if (part.Cuttable != null) _partOwners.Add(part.Cuttable, i);
                 }
             }
 
@@ -155,7 +328,8 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 切断の結果のうち、敵の部位を元の対象とするものを、その部位を持つ体へ渡す。
+        /// 切断の結果のうち、敵の部位を元の対象とするものを、その部位を持つ体へ渡し、体の部位の状態を敵の状態へ書き戻す。
+        /// 体が倒れたら、敵をステージから消して体を空ける。
         /// </summary>
         /// <param name="results">MultiCutBlade.ExecuteCut の結果</param>
         /// <param name="plane">振ったときの切断面。法線は表のかけらの側を向く</param>
@@ -165,9 +339,23 @@ namespace Kizami.EngineAdapter
 
             foreach (var result in results)
             {
-                if (result.Original == null || !_partOwners.TryGetValue(result.Original, out var body)) continue;
+                if (result.Original == null || !_partOwners.TryGetValue(result.Original, out var bodyIndex)) continue;
 
+                var agentIndex = _bodyAgents[bodyIndex];
+                if (agentIndex < 0) continue;
+
+                var body = _bodies[bodyIndex];
                 body.ReceiveCut(result, plane, _fragmentPool);
+
+                var agent = _agents[agentIndex];
+                body.WriteState(ref agent);
+                if (!agent.IsAlive)
+                {
+                    agent.BodyIndex = -1;
+                    _bodyAgents[bodyIndex] = -1;
+                }
+
+                _agents[agentIndex] = agent;
             }
         }
 
@@ -176,27 +364,232 @@ namespace Kizami.EngineAdapter
             var cache = MeshDataCache.Instance;
             if (cache == null || cache.Store == null) return;
 
-            if (!_hasSpawnedInitial)
+            using (_updateMarker.Auto())
             {
-                SpawnInitial(cache);
-                _hasSpawnedInitial = true;
+                if (!_hasSpawnedInitial)
+                {
+                    SpawnInitial();
+                    _hasSpawnedInitial = true;
+                }
+
+                SpawnByInterval();
+
+                if (_target != null) _distanceField.Update(_target.position);
+
+                using (_moveMarker.Auto())
+                {
+                    MoveAgents();
+                }
+
+                if (_target != null)
+                {
+                    using (_bodyMarker.Auto())
+                    {
+                        ReturnBodies();
+                        LendBodies(cache);
+                        SyncBodyTransforms();
+                    }
+                }
+
+                using (_renderMarker.Auto())
+                {
+                    _crowdRenderer.Render(_agents);
+                }
+
+                UpdateDebris();
+            }
+        }
+
+        private void OnDestroy()
+        {
+            _crowdRenderer?.Dispose();
+            _distanceField?.Dispose();
+            if (_agents.IsCreated) _agents.Dispose();
+            _updateRecorder.Dispose();
+            _moveRecorder.Dispose();
+            _bodyRecorder.Dispose();
+            _renderRecorder.Dispose();
+        }
+
+        private void OnDrawGizmos()
+        {
+            if (!_drawDistanceField || _distanceField == null || _target == null) return;
+
+            _distanceField.DrawGizmos(_target.position, _distanceGizmoRadius);
+        }
+
+        private void MoveAgents()
+        {
+            new EnemyMoveJob
+            {
+                Agents = _agents,
+                Grid = _distanceField.Grid,
+                Distances = _distanceField.Distances,
+                DeltaTime = Time.deltaTime,
+                MoveSpeed = _moveSpeed,
+                TurnSpeed = math.radians(_turnSpeed),
+                StopDistance = _stopDistance,
+                Gravity = -Physics.gravity.y,
+                BrokenMovePartLimit = _bodyPrefab.BrokenMovePartLimit
+            }.Schedule(_agents.Length, 64).Complete();
+        }
+
+        /// <summary>
+        /// 返す距離より離れた敵と、落ちてステージから消えた敵から、体を返す。
+        /// </summary>
+        private void ReturnBodies()
+        {
+            var target = (float3)_target.position;
+            var returnDistanceSq = _returnDistance * _returnDistance;
+
+            for (var bodyIndex = 0; bodyIndex < _bodies.Count; bodyIndex++)
+            {
+                var agentIndex = _bodyAgents[bodyIndex];
+                if (agentIndex < 0) continue;
+
+                var agent = _agents[agentIndex];
+                if (agent.IsAlive && math.distancesq(agent.Position, target) <= returnDistanceSq) continue;
+
+                TryReturnBody(bodyIndex);
+            }
+        }
+
+        /// <summary>
+        /// 貸す距離の中にいる、体を貸していない敵へ、近い順に空いている体を貸す。
+        /// 空きがなければ、取り上げる距離の中の敵に限り、その敵より取り上げの差以上遠い敵のうち最も遠い敵から体を返させて貸す。
+        /// </summary>
+        private void LendBodies(MeshDataCache cache)
+        {
+            var target = (float3)_target.position;
+            var lendDistanceSq = _lendDistance * _lendDistance;
+            var reclaimDistanceSq = _reclaimDistance * _reclaimDistance;
+            var candidateCount = 0;
+
+            for (var i = 0; i < _agents.Length; i++)
+            {
+                var agent = _agents[i];
+                if (!agent.IsAlive || agent.BodyIndex >= 0) continue;
+
+                var distanceSq = math.distancesq(agent.Position, target);
+                if (distanceSq > lendDistanceSq) continue;
+
+                _lendCandidateDistances[candidateCount] = distanceSq;
+                _lendCandidates[candidateCount] = i;
+                candidateCount++;
             }
 
-            SpawnByInterval(cache);
-            MoveBodies();
-            UpdateDebris();
+            if (candidateCount == 0) return;
+
+            Array.Sort(_lendCandidateDistances, _lendCandidates, 0, candidateCount);
+
+            var nextBody = 0;
+            for (var c = 0; c < candidateCount; c++)
+            {
+                while (nextBody < _bodyAgents.Length && _bodyAgents[nextBody] >= 0) nextBody++;
+
+                var bodyIndex = nextBody;
+                if (bodyIndex == _bodyAgents.Length)
+                {
+                    if (_lendCandidateDistances[c] > reclaimDistanceSq) return;
+
+                    var minDistance = math.sqrt(_lendCandidateDistances[c]) + _reclaimMargin;
+                    bodyIndex = FindFarthestLentBody(target, minDistance * minDistance);
+                    if (bodyIndex < 0 || !TryReturnBody(bodyIndex)) return;
+                }
+
+                LendBody(bodyIndex, _lendCandidates[c], cache);
+            }
+        }
+
+        /// <summary>
+        /// 貸している体のうち、敵がプレイヤーから距離の 2 乗 minDistanceSq より遠く、最も遠いものを返す。なければ -1。
+        /// </summary>
+        private int FindFarthestLentBody(float3 target, float minDistanceSq)
+        {
+            var farthest = -1;
+            var farthestDistanceSq = minDistanceSq;
+
+            for (var bodyIndex = 0; bodyIndex < _bodies.Count; bodyIndex++)
+            {
+                var agentIndex = _bodyAgents[bodyIndex];
+                if (agentIndex < 0) continue;
+
+                var distanceSq = math.distancesq(_agents[agentIndex].Position, target);
+                if (distanceSq <= farthestDistanceSq) continue;
+
+                farthest = bodyIndex;
+                farthestDistanceSq = distanceSq;
+            }
+
+            return farthest;
+        }
+
+        /// <summary>
+        /// 体を敵から返す。生きている敵なら、部位の状態を敵の状態へ書き戻し、短くなった部位の形を預けてから返す。
+        /// 預ける空きがなければ返さず false を返す。
+        /// </summary>
+        private bool TryReturnBody(int bodyIndex)
+        {
+            var agentIndex = _bodyAgents[bodyIndex];
+            var agent = _agents[agentIndex];
+            var body = _bodies[bodyIndex];
+
+            if (agent.IsAlive)
+            {
+                if (!_shapeKeeper.CanKeep(body)) return false;
+
+                body.WriteState(ref agent);
+                _shapeKeeper.Keep(agentIndex, body);
+            }
+
+            body.Return();
+
+            agent.BodyIndex = -1;
+            _agents[agentIndex] = agent;
+            _bodyAgents[bodyIndex] = -1;
+            return true;
+        }
+
+        /// <summary>
+        /// 空いている体を敵に貸し、預けていた短くなった部位の形を戻す。
+        /// </summary>
+        private void LendBody(int bodyIndex, int agentIndex, MeshDataCache cache)
+        {
+            var agent = _agents[agentIndex];
+            _bodies[bodyIndex].Lend(agent, cache);
+            _shapeKeeper.Restore(agentIndex, _bodies[bodyIndex]);
+
+            agent.BodyIndex = bodyIndex;
+            _agents[agentIndex] = agent;
+            _bodyAgents[bodyIndex] = agentIndex;
+        }
+
+        /// <summary>
+        /// 貸している体の位置と向きを、敵の状態に合わせる。
+        /// </summary>
+        private void SyncBodyTransforms()
+        {
+            for (var bodyIndex = 0; bodyIndex < _bodies.Count; bodyIndex++)
+            {
+                var agentIndex = _bodyAgents[bodyIndex];
+                if (agentIndex < 0) continue;
+
+                var agent = _agents[agentIndex];
+                _bodies[bodyIndex].transform.SetPositionAndRotation(agent.Position,
+                    Quaternion.Euler(0f, math.degrees(agent.Yaw), 0f));
+            }
         }
 
         /// <summary>
         /// 初期生成情報の範囲に、決まった数の敵を置く。
         /// </summary>
-        private void SpawnInitial(MeshDataCache cache)
+        private void SpawnInitial()
         {
             foreach (var area in _initialSpawnAreas)
             {
                 for (var i = 0; i < area.Count; i++)
                 {
-                    if (!TrySpawn(area.GetSpawnPosition(), cache)) return;
+                    if (!TrySpawn(area.GetSpawnPosition())) return;
                 }
             }
         }
@@ -204,7 +597,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 生成情報ごとに間隔を数え、間隔が来たら次の有効な生成位置から、一度に出す数の上限まで出す。
         /// </summary>
-        private void SpawnByInterval(MeshDataCache cache)
+        private void SpawnByInterval()
         {
             var spawnInfos = _spawnSystem.SpawnInfos;
 
@@ -219,7 +612,7 @@ namespace Kizami.EngineAdapter
 
                 for (var n = 0; n < info.MaxCountPerSpawn; n++)
                 {
-                    if (!TrySpawn(point.GetSpawnPosition(), cache)) break;
+                    if (!TrySpawn(point.GetSpawnPosition())) break;
                 }
             }
         }
@@ -245,41 +638,34 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// プールの空いている体を、目標の方を向けて出す。空きがなければ出さない。
+        /// 空いている敵の状態を使い、目標の方を向けて出す。空きがなければ出さない。
         /// </summary>
-        private bool TrySpawn(Vector3 position, MeshDataCache cache)
+        private bool TrySpawn(Vector3 position)
         {
-            foreach (var body in _bodies)
+            for (var i = 0; i < _agents.Length; i++)
             {
-                if (body.IsSpawned) continue;
+                if (_agents[i].IsAlive) continue;
 
-                body.Spawn(position, GetRotationToTarget(position), cache);
+                _shapeKeeper.Discard(i);
+                _agents[i] = new EnemyAgent
+                {
+                    IsAlive = true,
+                    Position = position,
+                    Yaw = GetYawToTarget(position),
+                    BodyIndex = -1
+                };
                 return true;
             }
 
             return false;
         }
 
-        private Quaternion GetRotationToTarget(Vector3 position)
+        private float GetYawToTarget(Vector3 position)
         {
-            if (_target == null) return Quaternion.identity;
+            if (_target == null) return 0f;
 
             var direction = _target.position - position;
-            direction.y = 0f;
-            return direction.sqrMagnitude > 0f ? Quaternion.LookRotation(direction) : Quaternion.identity;
-        }
-
-        private void MoveBodies()
-        {
-            if (_target == null) return;
-
-            var target = _target.position;
-            var deltaTime = Time.deltaTime;
-
-            foreach (var body in _bodies)
-            {
-                if (body.IsSpawned) body.MoveToward(target, deltaTime);
-            }
+            return direction.x == 0f && direction.z == 0f ? 0f : math.atan2(direction.x, direction.z);
         }
 
         /// <summary>
