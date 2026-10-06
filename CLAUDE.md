@@ -18,6 +18,7 @@ Unity 6（6000.3.8f1）で作っている 3D アクションゲーム。UsefulTo
 
 - ローカルでは、commit と push はユーザーが行う。Claude は作業と検証まで済ませたら止めて、変更ファイルの一覧とコミットできる状態かを報告する。`git commit` と `git push` は、ユーザーがはっきり頼んだときだけ実行する
 - クラウドセッション（環境変数 `CLAUDE_CODE_REMOTE` が `true`）では、作業結果を push しないと持ち出せないので、`claude/` で始まる作業ブランチへの commit と push だけを Claude が行ってよい。`main` や `feature/` のブランチには push しない。PR の作成とマージは頼まれたときだけ
+- クラウドセッションの PR は、対応する `feature/` ブランチ（`claude/alpha/enemybody` なら `feature/alpha/enemybody`）にだけ出す。`main` などの統括ブランチには出さない。クラウドでは Unity を動かせず、確認の精度が落ちるため。コードだけのわずかな変更・修正、特に hotfix はこの限りではない
 - コミットメッセージは `[update]内容` の形式（既存の履歴に合わせる）
 
 ## クラウドセッションでの制約
@@ -91,7 +92,7 @@ PC（マウスとキーボード）を先に作り、そのあとスマホと VR
 
 - 敵のメッシュ切断は、マルチスレッド / Burst / Job で並列化と非同期化が済んでいる（UsefulToolkit.MeshCut）
 - 敵とボスは SkinnedMeshRenderer を使わず、パーツごとに分かれた軽量なメッシュを、パーツ単位で FK / IK で動かす。そのため、ボクセルのスキニング（`Assets/Docs/Voxel/Skinning/SkinningPlan.md`）はボスには要らない
-- 敵の仮モデルは四足歩行の AttakkerEnemy（`Assets/Art/Models/AttakkerEnemy.fbx`。綴りは Attakker、三角形は合計 4308）。敵の体は最初にすべてプールに用意し、実行中は Instantiate しない
+- 敵の仮モデルは四足歩行の AttackerEnemy（`Assets/Art/Models/AttackerEnemy.fbx`、体のプレハブは `Assets/Level/Prefabs/Enemy/AttackerEnemy.prefab`。三角形は合計 4310）。綴りが Attakker の旧 FBX とプレハブは旧構成のもの。敵の体は最初にすべてプールに用意し、実行中は Instantiate しない
 - ボクセルでできた物は、仕様上メッシュ切断できない。切断攻撃に破壊属性を付けたときは、切断方向と同じ向きに、厚みゼロの平面でボクセルを分ける処理を走らせる
 - スローモードは未実装。設計案は Notion のシステムリスト「時間制御（スローモード）」（https://app.notion.com/p/3ea1ea2aa7fa8183bbfac10bfafd4d70）を正とする。世界全体が遅くなり、プレイヤーのアニメーション・視点操作・UI だけ等速。倍率の正本は TimeScale State で、`Time.timeScale` と `Time.fixedDeltaTime` への反映は EngineAdapterLayer の 1 か所だけ
 

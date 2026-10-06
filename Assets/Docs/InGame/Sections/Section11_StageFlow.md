@@ -63,6 +63,8 @@
 - ポーズを `timeScale = 0` で作るか。その場合、倍率の変更は区間0の `ITimeScaleController` を通し、UnscaledTime の Animator を `Animator.speed = 0` で止める
 - ポーズに `PauseBoard` / `IPausable` を使うか（止める対象を `IPausable` で揃えるか）
 - アウトゲームとの受け渡しの形と、セーブデータ（アウトゲーム側の作業と調整する）
+- 出す敵の総数の持たせ方（有限にするか、生成情報ごとに選べるようにするか。Notion「敵の出現」の検討中。区間4A では総数の制限なし）
+- スコアに使う「倒した敵の数」の数え方（区間4A の `EnemyBody.Defeat` では数えていない）
 
 ## 他プラットフォームへの対応
 

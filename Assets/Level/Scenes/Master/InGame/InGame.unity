@@ -924,6 +924,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.EnemyInitializer
   _spawnAdapter: {fileID: 1539543158}
+  _fragmentOrbAdapter: {fileID: 1946405260}
 --- !u!114 &1539543158
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -939,6 +940,12 @@ MonoBehaviour:
   _bodyPrefab: {fileID: 1602327258362906900, guid: abba11fae2f3aaa4a8b4ecdfe95fc600, type: 3}
   _fragmentPool: {fileID: 608286024}
   _target: {fileID: 903436366}
+  _debrisMaterial: {fileID: 2100000, guid: 5cfc7be965929784eb5db215773505a4, type: 2}
+  _debrisCapacity: 32
+  _debrisLifetime: 1
+  _debrisOutwardSpeed: 3
+  _debrisUpwardSpeed: 3
+  _debrisAngularSpeed: 360
 --- !u!4 &1539543159
 Transform:
   m_ObjectHideFlags: 0

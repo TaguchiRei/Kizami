@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手（着手前にこの計画を見直す） |
+| 状態 | 着手（2026-10-06） |
 | 目安の時期 | 2026/10/20〜11/02（最速の推定 10/10〜10/13） |
 | 前提となる区間 | 4A |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -25,26 +25,55 @@ Notion の「敵の群衆 AI」「敵の大量描画と体の貸し出し」の�
 - 敵の状態は、後から ECS のコンポーネントへ移せる形（構造体の NativeArray）で持つ
 - 体を返すときも、部位の状態（失った部位、切られて短くなった部位）は敵の状態に持ち続ける。移動の仕組みと、区間9の固有のアクションが使う為（2026-10-05 決定）
 - 体を返す距離は、貸す距離より遠くする（2026-10-05 決定）。遠くの敵をわざわざ見ることは少ないので、部位が欠けた敵の形がまとめて描画する側で表せなくても目立たない
+- グループ、隊列、2 段の距離マップ、地形の変化への追従、脚の IK は 4C で作る
+
+## 計画書と今のコードの食い違い（着手時に確認）
+
+2026-10-06 に確認した。
+
+| # | 内容 | 根拠 | 対応 |
+|---|---|---|---|
+| 1 | 4B-7 の 2 つの確認のうち、`SampleDistance` が `ApplyEdit` の直後に新しい値を返すことは、コードで確かめられる。`ApplyEdit` は CSG の Job を `Complete` してから戻る | [VoxelVolume.cs](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs) の `ApplyEdit` | 確認済みとする |
+| 2 | ボクセルの SDF は Burst の Job から読める見込み。距離の配列 `Samples` は `internal` の NativeArray で、補間の `VoxelSampling.Trilinear` は NativeArray を受け取る static 関数。ただし `internal` なので、読めるのは EngineAdapter の asmdef の中だけ。切り分け（`ExtractComponent`）ではボリュームが作り直されるので、Job が古い配列を持ち続けないようにする必要がある | `VoxelVolume.Samples`、`VoxelSampling.Trilinear` | Burst でコンパイルできるかを、コミット 6 で小さな Job を書いて確かめる |
+| 3 | 議論メモと Notion の「1 体 7 パーツ」は旧モデルの数。`AttackerEnemy` は 11 部位、三角形は合計 4310。1000 体では 11000 個のインスタンスと約 431 万の三角形を描く | 区間4A の実装結果、`AttackerEnemy.prefab` | 描画の計測はこの数で行う。Notion の表の数字を直すことを、区間の終わりに提案する |
+| 4 | GPU Resident Drawer は、PC とスマホの両方の RP アセットで無効。PC のレンダラーは Forward+、スマホのレンダラーは Forward | `PC_RPAsset.asset` と `Mobile_RPAsset.asset` の `m_GPUResidentDrawerMode: 0`、`PC_Renderer.asset` の `m_RenderingMode: 2`、`Mobile_Renderer.asset` の `m_RenderingMode: 0` | 決定 3 のとおり、比べる対象から外す |
+| 5 | `EnemySpawnSystem.MaxAliveCount` が、同時に存在する敵の数と、体のプールの大きさを兼ねている | `EnemySpawnAdapter.Initialize` が `MaxAliveCount` の数だけ体を作る | 同時に存在する敵の数（敵の状態の数）と、体の数を分ける（決定 9） |
+| 6 | 4B-3「直進」は、距離マップ（4B-4）ができたら捨てるコードになる | ― | 距離マップを下る移動にする（決定 8） |
 
 ## 既存の資産
 
 | 資産 | 内容 |
 |---|---|
-| 区間4A の成果 | 敵の体（`EnemyBody`）とプール、部位の役割、切断の受け取り、生成システム |
+| 区間4A の成果 | 敵の体（`EnemyBody`）とプール、部位の役割、切断の受け取り、生成システム。体は `EnemySpawnAdapter` が初期化のときに上限の数だけ作り、`Spawn` のたびに全部位を `RestoreInitialShape` で戻して `MeshDataCache.Register` で登録し直す。部位の状態（失った部位、切られた形、切断回数）は `EnemyBody` の中にだけ持つので、貸し直すときに切られた形を戻すには、形を敵の状態の側にも持つ必要がある。仮の移動は `EnemyBody.MoveToward`（4B で置き換える） |
+| 区間4A で拡張した MeshCut | `MeshDataCache.Register`、`CuttableObject` の切断回数（`MaxCutCount` / `CutCount`）、`AdoptCutShape`（`AdoptColliderMode.FitOwnColliders`）、`RestoreInitialShape` |
 | メッシュ切断 | 計算の中心は Burst の Job とネイティブのデータ。Unity のオブジェクトに依存するのは、入口（`Physics.OverlapBox`、`CuttableObject`）と出口（かけらのコライダー、速度、MeshFilter）だけ |
 | ボクセル | `VoxelShapeChange.LocalBounds`（形状が変わった範囲）、`SampleDistance`（SDF） |
+| パッケージ | Burst 1.8.27、Collections 2.6.2、Mathematics 1.3.3（MeshCut の依存として入っている）。EngineAdapter の asmdef は `Unity.Burst`・`Unity.Collections`・`Unity.Mathematics` を参照済み |
+
+## 既存コードの確認結果（2026-10-06）
+
+| 対象 | 状態 | 対応 |
+|---|---|---|
+| [EnemySpawnAdapter](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnAdapter.cs) | 体のプール、生成、仮の移動（`MoveBodies`）、切断の結果の振り分け（部位から体を引く表）、見た目用の部位を持つ | 敵の状態の配列を持ち、生成は敵の状態を作るだけにする。体は近い敵に貸す。移動は Job にする |
+| [EnemyBody](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyBody.cs) | `Spawn` で全部位を戻して登録し直す。`MoveToward` で仮の移動。失った部位・壊れた部位・壊れた移動部位の数を自分で持つ | `Spawn` を「貸す（部位の状態を受け取って反映する）」と「返す（部位の状態を書き出す）」に分ける。`MoveToward` を消す |
+| [EnemySpawnSystem](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnSystem.cs) | `MaxAliveCount` = 10 | 敵の状態の数の上限として使い、TestStage では 1000 にする |
+| `TestStage.unity` | 地面は 100m 四方。壁 3 枚と `StageBounds`。初期生成は 2 体、生成位置は 3 か所 | 地面を 200m 四方に広げ、段差・壁・橋を置く（決定 7） |
+| `MeleeCutAdapter` | 切断の範囲は、カメラから前方 3m（`_reach`）、幅 2m | 変更なし。貸す距離（決定 1）の根拠にする |
+| `CuttableObject.AdoptCutShape` | 形（メッシュの持ち主、マテリアル、切断回数、切れるかどうか）を移し、移した先を `MeshDataCache.RegisterUser` に登録する。移した元は切れなくなる | 形を預かる保管用の物との受け渡しに使う（決定 2） |
+| `MeshDataCache.Rebuild` | 切れる状態で生きている利用者のメッシュだけを残す | 預かっている間も、保管用の物が利用者として残るので、形のデータは消えない |
+| `GraphicsSettings` | `m_BrgStripping: 0` | BRG を使うことになったら、ビルドで DOTS Instancing のバリアントが残るかを確かめる |
 
 ## 作業一覧
 
 | # | 作業 | 内容 |
 |---|---|---|
-| 4B-1 | 敵の状態 | 位置、速度、所属グループ、部位の状態を、構造体の NativeArray に持つ |
-| 4B-2 | まとめて描画 | 1000 体 × 部位を、Job で計算した行列でまとめて描画する（BRG ／ GPU Resident Drawer ／ `Graphics.RenderMeshInstanced` を比べる） |
-| 4B-3 | 仮の移動 | 直進と簡易物理（重力・接地）だけで、1000 体を動かす |
-| 4B-4 | 距離マップの試作 | 縦の列ごとに「立てる層」の一覧を持つ格子と、プレイヤーからの距離（ダイクストラ法、Burst） |
+| 4B-1 | 敵の状態 | 位置、速度、向き、部位の状態などを、構造体の NativeArray に持つ。所属グループは 4C で足す |
+| 4B-2 | まとめて描画 | 1000 体 × 部位を、Job で計算した行列でまとめて描画する（決定 3） |
+| 4B-3 | 仮の移動 | 距離マップを下る移動と、簡易物理（重力・接地・落下）で、1000 体を動かす（決定 8） |
+| 4B-4 | 距離マップの試作 | 縦の列ごとに「立てる層」の一覧を持つ格子と、プレイヤーからの距離（ダイクストラ法、Burst）。1 段だけで作る |
 | 4B-5 | 体の貸し出しと返却 | 近くの敵に 4A の体を貸し、遠ざかったら返す。返す距離は貸す距離より遠い。部位の状態は敵の状態に持ち続け、もう一度貸すときに体へ反映する |
-| 4B-6 | 貸した体の切断 | 4A の切断の受け取りを、貸した体でも動かす。切断の結果を敵の状態へ書き戻す |
-| 4B-7 | 確認 | ボクセルの SDF を Burst の Job から読めるか。`SampleDistance` が `ApplyEdit` の直後に新しい値を返すか |
+| 4B-6 | 貸した体の切断 | 4A の切断の受け取りを、貸した体でも動かす。切断の結果を敵の状態へ書き戻す。短くなった部位の形を預かり、貸し直すときに戻す |
+| 4B-7 | 確認 | ボクセルの SDF を Burst の Job から読めるか（食い違い #1・#2） |
 | 4B-8 | 計測 | 描画、AI、距離マップ、体の受け渡しにかかる時間を計測し、結果をこの計画書に書く |
 
 ## 完了条件
@@ -52,14 +81,94 @@ Notion の「敵の群衆 AI」「敵の大量描画と体の貸し出し」の�
 - 約 1000 体が動き、近くの敵を切れる。体を返して貸し直した敵も、失った部位が欠けたまま表示される
 - 計測の結果が記録されていて、方式（描画の方法、距離マップの持ち方、体を貸す距離と数）が決まっている
 
-## 詳細仕様で決めること
+## 詳細仕様
 
-- 体を貸す距離・返す距離と、貸す数の上限
-- 切られて短くなった部位を、体を貸し直すときにどう戻すか（切断後のメッシュを敵の状態に持たせる、など）
-- まとめて描画する方法と、遠い敵の表現（VAT にするか）
-- 格子のマスの大きさ（敵の大きさ、登れる高さとの関係）
-- 敵の状態と生成・部位のルールを、どの層に置くか（4A では EngineAdapter に置いた）
+### 決定（2026-10-06）
+
+| # | 項目 | 決定 |
+|---|---|---|
+| 1 | 体を貸す距離・返す距離・数の上限 | 仮に、貸す距離 12m、返す距離 18m、体の数 32。近い敵から順に、空いている体を貸す。体を返すのは返す距離を超えたときだけで、より近い敵のために貸している体を取り上げることはしない。値は計測（コミット 6）で見直す。根拠は、切断の範囲（カメラから前方 3m）と、4A の仮の移動の止まる距離（6m） |
+| 2 | 短くなった部位を、貸し直すときにどう戻すか | 形を預かる保管用の `CuttableObject` のプールを、初期化のときに作る。体を返すとき、切られた部位の形を保管用の物が `AdoptCutShape` で受け取り、体の部位は `RestoreInitialShape` で戻す。貸し直すときは、体の部位が保管用の物から `AdoptCutShape(…, FitOwnColliders)` で形を戻す。今の MeshCut の API だけで足りる。保管用の物が足りないときは、その敵の体を返さない。体を返している間、まとめて描画する側では、短くなった部位も元の長さで描き、失った部位は描かない |
+| 3 | まとめて描画する方法 | `Graphics.RenderMeshInstanced` から始め、計測で合格ライン（決定 6）に届かなければ BatchRendererGroup を試作して比べる。GPU Resident Drawer は比べる対象から外す（部位ごとに MeshRenderer の GameObject が要るので「中くらいの距離の敵は GameObject を持たない」方針と合わない、スマホの Forward では動かない、の 2 つの為）。遠い敵の VAT は、動き（4C の脚の IK）ができてから決めるので、4C 以降に持ち越す |
+| 4 | 格子のマスの大きさ | 仮に 1m。敵の背丈と登れる高さは、コミット 2 でプレハブの大きさを実測して決める |
+| 5 | 敵の状態とルールを置く層 | EngineAdapter（4A と同じ）。Burst と Collections を参照しているのは EngineAdapter の asmdef だけで、SDF の `Samples` も EngineAdapter の中からしか読めない為。BlackBoard の State にするのは、スキルなどプレイヤー側から敵の状態を読む必要が出たとき（4C 以降）に決める |
+| 6 | 計測の合格ライン | 1000 体で、敵の処理（AI、描画の準備、体の受け渡し）のメインスレッドの時間が合計 4ms 以下で、PC で 60fps を保つこと。計測はエディタで行う（Burst の安全チェックを切る）。区間の終わりに、ユーザーが PC の Development Build で 1 回確かめる |
+| 7 | 計測に使うステージ | TestStage を広げる。地面を 200m 四方にし、段差・壁・橋を少し置く。シーングループ（`InGameGroup`）は変えない |
+| 8 | 仮の移動 | 敵がそれぞれ、距離マップの値が下がる方へ進む。グループと隊列は 4C で作る |
+| 9 | 生成と体の数 | `EnemySpawnSystem.MaxAliveCount` は、同時に存在する敵（敵の状態）の数の上限にする。体の数は `EnemySpawnAdapter` の Inspector に別に持つ。生成は敵の状態を作るだけで、体は貸すときに `MeshDataCache` へ登録する |
+| 10 | 格子の作り方（試作） | 実行の開始時に、縦の列ごとに `RaycastCommand` で下向きにレイを撃ち、「立てる層」を記録する。エディタで事前に焼く仕組みと、ボクセルが壊れた範囲を SDF で調べ直す処理は、4C-1 で作る |
+
+### 決めること
+
+なし（2026-10-06 にすべて決定）。
+
+## 作業計画
+
+### 処理の流れ
+
+```mermaid
+sequenceDiagram
+    participant S as EnemySpawnAdapter
+    participant D as EnemyDistanceField
+    participant J as 移動の Job
+    participant R as EnemyCrowdRenderer
+    participant B as EnemyBody（プール）
+    participant K as EnemyShapeKeeper
+    S->>S: 生成で敵の状態を作る（体は貸さない）
+    S->>D: プレイヤーのいるマスが変わったら、距離を計算し直す（Job）
+    S->>J: 敵の状態を更新する（距離マップを下る、重力・接地・落下）
+    S->>B: 貸す距離に入った敵へ、近い順に空いている体を貸す
+    K->>B: 短くなった部位の形を戻す
+    S->>B: 体の位置と向きを、敵の状態に合わせる
+    S->>R: 体を貸していない敵の、残っている部位を描く
+    S->>B: 返す距離を超えた敵の体を返す
+    B->>K: 短くなった部位の形を預ける
+    B->>S: 部位の状態（失った部位、壊れた移動部位の数）を書き出す
+```
+
+### 新しく作る型と、区間4B での利用者
+
+| 型 | 層 | 区間4B での利用者 |
+|---|---|---|
+| `EnemyAgent`（構造体） | EngineAdapter | 移動の Job、`EnemySpawnAdapter`、`EnemyCrowdRenderer`。位置、速度、向き、生きているか、接地しているか、貸している体の番号、失った部位と短くなった部位（部位ごとのビット）、壊れた移動部位の数を持つ |
+| `EnemyCrowdRenderer`（普通のクラス） | EngineAdapter | `EnemySpawnAdapter`。体を貸していない敵の行列を Job で作り、部位ごとにまとめて描画する |
+| `EnemyDistanceField`（普通のクラス） | EngineAdapter | `EnemySpawnAdapter`（移動の Job が読む）。格子、立てる層、距離の配列を持ち、ダイクストラ法の Job を回す |
+| `EnemyShapeKeeper`（普通のクラス） | EngineAdapter | `EnemySpawnAdapter`。短くなった部位の形を預かる保管用の `CuttableObject` のプール（決定 2） |
+| 移動の Job、ダイクストラ法の Job、格子を作る Job（Burst の構造体） | EngineAdapter | 上の各クラス |
+
+拡張する型：`EnemySpawnAdapter`（敵の状態の配列、体の貸し出しと返却、計測の時間）、`EnemyBody`（貸す・返す、`MoveToward` を消す）、`EnemyInitializer`（計測の時間をデバッグ表示に出す）
+
+作らないもの：敵の State・Board・Event、グループとアンカー、隊列（4C）、2 段の距離マップと、地形の変化への追従（4C）、脚の IK（4C）、BRG による描画（決定 3。計測で要るときだけ）、VAT（4C 以降）、崩落による撃破（区間5）
+
+基準の当てはめで見直した点（2026-10-06）
+
+- 基準1：新しいクラスの利用者はどれも `EnemySpawnAdapter` だけだが、ネイティブメモリの確保と Dispose をそれぞれの中で閉じる為と、描画方式を計測で差し替える単位にする為に分ける。描画方式は 3 つすべてを作らず、`RenderMeshInstanced` で足りなければ BRG を作る（決定 3）。VAT と 2 段の距離マップは持ち越す
+- 基準2：敵の状態を BlackBoard の State にせず、EngineAdapter に置く（決定 5）。今は読む利用者が EngineAdapter の中だけで、State にすると BlackBoard に Burst と Collections の参照を足すことになる為
+- 基準4：描画の負荷は、一般論ではなく、実測した三角形の数（1000 体で約 431 万）を前提に計る（食い違い #3）。計測の時間は Unity の `ProfilerMarker` と `ProfilerRecorder` で取り、DebugGUI に出す
+
+### コミットの分け方
+
+| # | 内容 | 確かめ方 |
+|---|---|---|
+| 0 | 区間計画書の更新 | ― |
+| 1 | 敵の状態と、まとめて描画（4B-1、4B-2）。生成で敵の状態を作り、TestStage の上限を 1000 にする。計測の時間をデバッグ表示に出す | 1000 体が描かれ、かかる時間が表示される。コミット 1〜3 では体を貸さないので、敵を切れない |
+| 2 | 格子と距離マップ（4B-4、決定 4・10）。TestStage を広げる（決定 7）。プレイヤーのいるマスが変わったら計算し直す。格子と距離をギズモで表示する | 段差と壁を避けた距離になっている。計算にかかる時間 |
+| 3 | 移動（4B-3、決定 8）。距離マップを下る、重力、接地（格子の層の高さ）、落下 | 1000 体がプレイヤーへ迫り、段差を降りる。かかる時間 |
+| 4 | 体の貸し出しと返却（4B-5、決定 1・9）。失った部位を、まとめて描画する側でも描かない。部位の状態を書き戻す | 近くの敵を切れる。離れて戻ってきても、失った部位が欠けたまま表示される |
+| 5 | 短くなった部位の保持と貸し直し（4B-6、決定 2）。倒れたら敵の状態を消す。移動部位が壊れて止まった敵は、移動の Job でも止まる | 短くなった部位が、貸し直したあとも短く、上限まで切れる。核を切ると倒れる |
+| 6 | 計測と方式の決定（4B-7、4B-8）。SDF を Burst の Job で読む確認、必要なら BRG の比較、結果の記録、「実装結果」と全体計画書の更新 | 計測の結果が記録され、方式が決まっている |
+
+## 次の区間へ持ち越すこと（計画の時点）
+
+- 4C：グループとアンカー、隊列、2 段の距離マップ、格子の事前の焼き付けと、ボクセルが壊れた範囲の調べ直し、脚の IK
+- 4C 以降：遠い敵の VAT（決定 3）。敵の状態を BlackBoard の State にするか（決定 5）
 
 ## 他プラットフォームへの対応
 
 - BRG と GPU Resident Drawer がスマホと VR で動く条件を確認する（PC のレンダラーは Forward+、スマホのレンダラーは Forward。GPU Resident Drawer は Forward+ が必要）
+- `Graphics.RenderMeshInstanced` は Forward でも動き、マテリアルの GPU インスタンシングを有効にすれば使える
+- スマホでは、同時に存在する敵の数と、体の数を別の値にする可能性がある（生成システムと `EnemySpawnAdapter` の Inspector の値）
+
+## 見つけた問題（今回は扱わない）
+
+なし（2026-10-06 時点）。

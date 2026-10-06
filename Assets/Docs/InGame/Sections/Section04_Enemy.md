@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 着手（2026-10-06。詳細仕様は確定済み） |
+| 状態 | 完了（2026-10-06） |
 | 目安の時期 | 2026/10/06〜10/19（最速の推定 10/06〜10/09） |
 | 前提となる区間 | 1, 3 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -42,7 +42,7 @@
 
 ## 計画書と今のコードの食い違い（着手時に確認）
 
-#1〜#6 は 2026-10-05、#7〜#9 は 2026-10-06（区間3の後のリファクタリングの後）に確認した。
+#1〜#6 は 2026-10-05、#7〜#9 は 2026-10-06（区間3の後のリファクタリングの後）、#11 はコミット 5 の着手時に確認した。
 
 | # | 内容 | 根拠 | 対応 |
 |---|---|---|---|
@@ -56,6 +56,7 @@
 | 8 | `CuttableObject` は `Awake` で球のコライダーを（無効の状態で）足す。元のパーツは自分のコライダーで当たり判定をしているので、残す側を短くしても当たり判定は元の大きさのまま | `CuttableObject.Awake`、`MeleeCutAdapter.CollectTargets` | #7 の操作で、かけらの球コライダーを写し、元のパーツのコライダーを無効にする（決定 15） |
 | 9 | 残す側を決める（決定 4）には切断面が要るが、`MeleeCutAdapter` は切断の結果だけを渡している | `MeleeCutAdapter.Initialize(Action<MultiCutResult[]>)` | `MeleeCutAdapter` が切断面（`Plane`）も渡す（決定 16） |
 | 10 | （コミット 4 の実装中に確認）`AdoptCutShape` で写したかけらの球コライダーは、長い部位では並びに隙間ができる。刃の範囲が隙間に入ると、体に残した部位を 2 回目に切れない。上の脚（残した長さ約 1.7m）で、約 0.7m の隙間があった | `CuttableObject.AdoptCutShape`（球コライダーを写し、元のコライダーを無効にする）、`MeleeCutAdapter.CollectTargets`（`OverlapBoxNonAlloc`） | UsefulToolkit 側で直してもらう（決定 25） |
+| 11 | 4-3「部位の役割」はコミット 3 の予定だったが、作られていない。`EnemyPart` は切断対象と接続部の距離だけを持つ | `EnemyPart` | 役割を読むのはコミット 5 の処理だけなので、コミット 5 で作る |
 
 ## 既存の資産
 
@@ -160,6 +161,14 @@
 | 24 | 攻撃部位の役割 | 4A では読む処理がないので作らない。区間9で、役割のクラスを足して作る。4A の `GunTurret` は役割なし（切られても体に何も起きない部位）にする |
 | 25 | 体に残した部位の当たり判定（食い違い #10） | UsefulToolkit.MeshCut 側で、`AdoptCutShape` で形を移した先の当たり判定に隙間ができないようにしてもらう（2026-10-06 ユーザーが決定）。要件は [Section04_MeshCutColliderRequirements.md](Section04_MeshCutColliderRequirements.md)。マージの後で参照を更新し、完了条件 5 を確かめる |
 
+### 決定（2026-10-06、コミット 5 の着手時）
+
+| # | 項目 | 決定 |
+|---|---|---|
+| 26 | ディゾルブのシェーダー | URP 用の HLSL のシェーダー `Kizami/EnemyDissolve`（`Assets/Code/Shader/Dissolution/EnemyDissolve.shader`）で作る。オブジェクト空間の位置から作ったノイズと float のプロパティ `_DissolveAmount`（0〜1）を比べて `clip` で消し、消える縁を光らせる。Shader Graph のアセットはスクリプトで作るのが難しく壊れやすい為、HLSL にした（2026-10-06 ユーザーが決定。当初は Shader Graph の予定）。消えた割合は、コードが `MaterialPropertyBlock` で毎フレーム渡す（`Time.deltaTime` で進むので、スロー中は一緒に遅くなる） |
+| 27 | 見た目用の部位の作り方 | プレハブを作らない。`EnemySpawnAdapter` が初期化のときに、`MeshFilter` と `MeshRenderer` だけの物（`EnemyDebris`）を必要な数だけ作り、`RecycleBuffer` で使い回す。出すときに部位のメッシュを写す |
+| 28 | 親と一緒に落ちる子の部位が、すでに切られていたとき | 倒れたとき（決定 6）と同じ規則にする。切断済みならオーブ（チャージ）、切っていなければ見た目用の物でディゾルブ。切断の途中（非アクティブ）の部位は何も出さない（その表と裏のかけらがチャージになる為） |
+
 ### 決めること
 
 なし（2026-10-06 にすべて決定）。
@@ -195,13 +204,14 @@ sequenceDiagram
 |---|---|---|
 | `MeshDataCache.Register`、`CuttableObject` の切断回数と、形を移す・戻す操作（メソッドとフィールドの追加） | UsefulToolkit.MeshCut | `EnemyBody`（出すたびに登録し直す、接続部側を残す、全部位を戻す）、`MeleeCutAdapter` 経由の切断（上限に達したかけらを除く） |
 | `EnemyBody` | EngineAdapter | `EnemySpawnAdapter`。敵のプレハブに付ける。パーツと役割の一覧、接続部側を残す処理、子の部位を落とす処理、倒れる処理、全部位を戻す処理、仮の移動を持つ |
-| `EnemyPartRole`（抽象）と、`CorePartRole` / `MovePartRole` | EngineAdapter | `EnemyBody`。部位を失ったときの処理を役割ごとに持つ |
+| `EnemyPartRole`（抽象）と、`CorePartRole` / `MovePartRole` | EngineAdapter | `EnemyBody`。部位が壊れたときの処理を役割ごとに持つ |
 | `EnemySpawnAdapter` | EngineAdapter | `EnemyInitializer`（初期化）、`PlayerInitializer`（切断の結果を渡す）。体のプール、パーツから体を引く表、生成の間隔、見た目用の部位のプール（`RecycleBuffer`）と寿命、出ている敵の数（デバッグ表示用のプロパティ）を持つ |
 | `EnemySpawnSystem` / `EnemySpawnPoint` / `EnemyInitialSpawnArea` | EngineAdapter | `EnemySpawnAdapter`。ステージシーンに置く。親が上限と生成情報の一覧を持ち、子が実行中の生成位置と初期生成情報になる |
 | `EnemyInitializer` | Initialization | `InGameCompositor`。敵の Adapter を初期化し、出ている敵の数を `DebugGUI` に出す |
-| ディゾルブのシェーダーと、見た目用の部位のプレハブ | Level（Shader Graph） | `EnemySpawnAdapter` |
+| `EnemyDebris`（見た目用の部位 1 つ。`IRecyclable`） | EngineAdapter | `EnemySpawnAdapter` の `RecycleBuffer`（決定 27） |
+| ディゾルブのシェーダーとマテリアル | Level（HLSL） | `EnemySpawnAdapter`（決定 26） |
 
-拡張する型：`MeleeCutAdapter`（切断面も渡す）、`PlayerInitializer`（切断の結果を敵の Adapter にも渡す）、`FragmentOrbAdapter`（位置を渡すとオーブを出す操作）
+拡張する型：`MeleeCutAdapter`（切断面も渡す）、`PlayerInitializer`（切断の結果を敵の Adapter にも渡す）、`FragmentOrbAdapter`（位置を渡すとオーブを出す操作 `SpawnOrb`）、`EnemyInitializer`（`SpawnOrb` を `EnemySpawnAdapter` に渡す）
 
 作らないもの：敵の State・Board・Event、ステージシーンの Compositor と Initializer、敵の Service（Application）、攻撃部位の役割（区間9）、見た目用の部位だけを扱う Adapter（`EnemySpawnAdapter` に含める）、移動の仕組み（4B・4C）、攻撃（区間9）、失敗とリトライ（区間11）
 
@@ -222,7 +232,8 @@ sequenceDiagram
 | 3 | meshcut の参照の更新。敵の体のプレハブ、部位の役割、体のプール、生成システム、`EnemyInitializer`、デバッグ表示、仮の移動（4-2〜4-5、4-8 の前半、4-9）。`DummyEnemy` を削除 | 完了条件 2・3。敵を切るとかけらがチャージになる |
 | 4 | 切断の受け取り（4-6）。切断面を渡す、接続部側を残す、接続部の近くなら全体を落とす、子の部位を落とす | 完了条件 4・5。完了条件 5 のうち「上限まで切れる」は、当たり判定の修正（決定 25）の後に確かめる |
 | （UsefulToolkit 側） | 当たり判定の修正（決定 25。別の作業者） | [Section04_MeshCutColliderRequirements.md](Section04_MeshCutColliderRequirements.md) の「受け入れの確認」 |
-| 5 | 倒れる処理と再利用、移動部位で止まる処理（4-7、4-8 の後半）、見た目用の部位とディゾルブ | 完了条件 6・7・8 |
+| 5a | 部位の役割（4-3。食い違い #11）、倒れる処理と再利用、移動部位で止まる処理（4-7、4-8 の後半）、見た目用の部位（決定 27・28）。クラウドで作る | ローカルで 5b と一緒に確かめる |
+| 5b | ディゾルブのシェーダーとマテリアル（決定 26）、`AttackerEnemy` の部位の役割（`Body` = 核、脚 8 つ = 移動）と `EnemySpawnAdapter` のマテリアルの設定、`EnemyBody` で当たり判定の修正（`AdoptColliderMode.FitOwnColliders`）を使う。ローカルで作る | 完了条件 5（上限まで切れる）・6・7・8 |
 | 6 | 区間計画書の「実装結果」と全体計画書の更新 | ― |
 
 コミット 0〜2 は MeshCut の拡張を待たずに進められる。コミット 3 は、UsefulToolkit 側のマージの後に始める。
@@ -241,6 +252,93 @@ sequenceDiagram
 
 ## 見つけた問題（今回は扱わない）
 
-- 【UsefulToolkit.MeshCut】README の「重要な制約」に「切断対象は必ず `MeshDataCache` の子に配置」とあるが、`Start` の時点で非アクティブな子は登録されないことが書かれていない（`MeshDataCache.Initialize`）。要件定義の D1 として、MeshCut の拡張と一緒に書き足してもらう
-- 【UsefulToolkit.MeshCut】Read/Write が無効なメッシュを `Register` すると、原因の分かりにくい `ArgumentException` になる（コミット 3 で発生。FBX の Read/Write を有効にして解消）。当たり判定の要件定義に、任意の要件 F5 として入れた
-- 【区間3からの挙動】かけらそのものの球コライダーにも、長い形では隙間があり、隙間を通る刃では切り直せない。当たり判定の要件定義に、任意の要件 F4 として入れた
+- 【UsefulToolkit.MeshCut】README の「重要な制約」に「切断対象は必ず `MeshDataCache` の子に配置」とあるが、`Start` の時点で非アクティブな子は登録されないことが書かれていない（`MeshDataCache.Initialize`）。要件定義の D1 として、MeshCut の拡張と一緒に書き足してもらった
+- 【UsefulToolkit.MeshCut】Read/Write が無効なメッシュを `Register` すると、原因の分かりにくい `ArgumentException` になる（コミット 3 で発生。FBX の Read/Write を有効にして解消）。当たり判定の要件定義に、任意の要件 F5 として入れ、UsefulToolkit 側で対応された（`Register` が原因を書いたエラーログを出して false を返す）
+- 【区間3からの挙動】かけらそのものの球コライダーにも、長い形では隙間があり、隙間を通る刃では切り直せない。当たり判定の要件定義に任意の要件 F4 として入れたが、UsefulToolkit 側では直さず、README の制約に書かれた。敵の体に残した部位は `FitOwnColliders` で隙間がない。かけらの切り直しでこの隙間が問題になったら、`MeleeCutAdapter` の対象の集め方か、ライブラリ側で扱う
+- 【見た目用の部位】`EnemyDebris` はコライダーを持たず、重力で地面をすり抜けて落ちる。既定の値（上へ 3m/s、寿命 1 秒）ではほとんど空中で消えるが、低い位置では床の下へ沈みながら消える。区間5で VFX Graph への置き換えを決めるときに一緒に扱う
+- 【旧構成】旧 FBX `AttakkerEnemy.fbx` は残してある。旧構成のプレハブ `Assets/Level/Prefabs/Enemy/AttakkerEnemy.prefab`（Legacy の `CuttableEnemy`）と、開発用のシーン `VoxelModelTest.unity`・`ShaderTest.unity` が参照している為。消すかどうかは未定
+
+## 実装中に確かめたこと
+
+| 内容 | 結果 |
+|---|---|
+| 仮モデルの blend と FBX（コミット 1） | Unity の `AttakkerEnemy.fbx`（2026-02 書き出し）より、`AttakkerEnemy.blend`（2026-05 保存）の方が新しかった。blend では後ろ脚の名前と左右、ライトの削除が既に直っていて、後ろ脚は前脚と対称の位置に寄せてあった。一方で、部位の親子関係は外れていた。blend を正とした |
+| FBX の Read/Write（コミット 3） | 新しく書き出した FBX は Read/Write が無効で、プレイ中に頂点を読めず、`MeshDataCache.Register` が `ArgumentException` になった。旧 FBX と同じく有効にして解消した |
+| 切断面の向き（コミット 4） | 刃の法線（`MultiCutBlade` の `transform.up`）の側が表のかけら。`Plane(bladeRotation * Vector3.up, カメラの位置)` の `GetSide` が true の側が表になる |
+| 体に残した部位の当たり判定（コミット 4） | 球コライダーを写す方法（`AdoptColliderMode.Spheres`）では、残した長さ約 1.7m の上の脚に約 0.7m の隙間があり、2 回目に切れなかった。`FitOwnColliders` にしたあとは、箱が残った長さ（1.69m → 1.19m）に合い、2 回目も切れた |
+| 体の動きと切断面のずれ | 切断面は振ったときのワールド座標なので、切断が終わるまでに体が動いた分だけ、残す側の判定がずれる。仮の移動の速さ（1.5m/s）では数 cm で、確認の中で問題は出なかった |
+
+## 実装結果（2026-10-06）
+
+### 決めたこと
+
+上の「詳細仕様」のとおりに作った。実装中に決めたこと、変えたことは次のとおり。
+
+| # | 項目 | 結果 |
+|---|---|---|
+| 1 | コミットの分け方 | 0（計画書・要件定義）、1（`Assets/Art` と仮モデル）、2（ステージシーン）、3（プレハブ・プール・生成）、4（切断の受け取り）、5a（役割・倒れる処理・見た目用の部位。クラウド）、5b（シェーダー・役割の設定・当たり判定の修正の適用。ローカル）、6（計画書）。部位の役割は、読む処理があるコミット 5 で作った（食い違い #11） |
+| 2 | 仮モデル | `AttackerEnemy.blend`（元の blend とは別名で保存）から `Assets/Art/Models/AttackerEnemy.fbx` を書き出した。上の脚 → 下の脚、`GunTurret` → `Gun` の親子関係を付け直し、`GunTurret` の基準点を底面（胴体との接合部）へ移し、マテリアルを `AttackerEnemy` 1 つにそろえ、メッシュのデータ名をオブジェクト名に合わせた。取り込み設定は Read/Write を有効、ライトとカメラを読まない。旧 FBX は、旧構成のプレハブと開発用のシーンが参照している為、残した |
+| 3 | 敵の体のプレハブ | `Assets/Level/Prefabs/Enemy/AttackerEnemy.prefab`（FBX のプレハブバリアント）。各部位に、メッシュの bounds に合わせた `BoxCollider` と `CuttableObject`（`CanMultiCut` 有効、切断回数の上限 2、断面は `CutFace`）を付け、Enemy レイヤーにした。体の根に Rigidbody は付けていない |
+| 4 | MeshCut の拡張 | 別の作業者が 2 回に分けて作った。1 回目（[Section04_MeshCutRequirements.md](Section04_MeshCutRequirements.md)）で `Register`・切断回数・`AdoptCutShape`・`RestoreInitialShape`、2 回目（[Section04_MeshCutColliderRequirements.md](Section04_MeshCutColliderRequirements.md)）で `AdoptColliderMode.FitOwnColliders` と、Read/Write が無効なメッシュのエラーログ |
+| 5 | 切断の結果の配り方 | `PlayerInitializer.DistributeCutResults` が、敵の Adapter、かけらの Adapter の順に渡す。敵の Adapter が体に残す側のかけらをプールへ返して非アクティブにするので、かけらの Adapter はそれを管理に加えない |
+| 6 | 核の接続部の距離 | 核には接続部がないので 0 にした。ほかの部位は 0.3m |
+| 7 | ディゾルブ | Shader Graph ではなく HLSL のシェーダーにした（決定 26） |
+| 8 | 初期生成の位置 | 初期生成情報の範囲から置く敵の数を、`EnemyInitialSpawnArea` の Inspector（数）で持つ |
+
+パラメータの仮の値
+
+| 置き場所 | 値 |
+|---|---|
+| `EnemySpawnSystem`（TestStage） | 同時に存在する数の上限 10。生成情報 1 件（一度に 1 体、3 秒ごと）。初期生成情報 1 つ（中心 (15, -1, 15)、半径 3m、2 体）。生成位置 A (-25, -1, 25)・B (25, -1, 25)・C (0, -1, -30)、半径 2m |
+| `EnemyBody`（`AttackerEnemy.prefab`） | 仮の移動の速さ 1.5m/s、止まる距離 6m、動けなくなる移動部位の数 4 |
+| `EnemyPart`（同） | 接続部の近くとみなす距離 0.3m（`Body` だけ 0）。役割は `Body` = 核、脚 8 つ = 移動、`GunTurret`・`Gun` = なし |
+| `EnemySpawnAdapter`（InGame の `Enemy`） | 見た目用の部位 32 個、寿命 1 秒、外へ 3m/s、上へ 3m/s、回転 360°/秒 |
+| `EnemyDissolve.mat` | ノイズの細かさ 4、縁の幅 0.05、縁の色 (2, 0.8, 0.2)（HDR）、色は敵のマテリアルと同じ |
+
+### 作った主なもの
+
+| 層 | ファイル |
+|---|---|
+| EngineAdapterLayer | `EnemyBody`（部位の登録し直し、接続部側を残す、子の部位を失う、役割の呼び出し、倒れる処理、仮の移動）、`EnemyPart`、`EnemyPartRole` / `CorePartRole` / `MovePartRole`、`EnemySpawnAdapter`（体のプール、部位から体を引く表、生成、切断の結果の受け取り、見た目用の部位のプール）、`EnemyDebris`、`EnemySpawnSystem` / `EnemySpawnInfo` / `EnemySpawnPoint` / `EnemyInitialSpawnArea`。`MeleeCutAdapter` は切断面も渡す形に、`FragmentOrbAdapter` は `SpawnOrb` を足した。asmdef に `UsefulToolkit.Framework.Runtime`（`SubclassSelector`）と `UsefulToolkit.Utility`（`RecycleBuffer`）の参照を足した |
+| Initialization | `EnemyInitializer`（敵の Adapter の初期化、`SpawnOrb` の受け渡し、`Enemies` と `Spawn Points` の表示）。`PlayerInitializer` は切断の結果を敵とかけらへ配る。`InGameCompositor` は作り直した |
+| Level | ステージシーン `Assets/Level/Scenes/Stage/TestStage/TestStage.unity`（ライト・地面・`TestWalls`・`EnemySpawnSystem`）。`InGameGroup` を `[TestStage, InGame]` にし、Build Settings に足した。InGame に `Enemy` を置き、`DummyEnemy` を削除した。`AttackerEnemy.prefab`。シェーダー `Kizami/EnemyDissolve`（`Assets/Code/Shader/Dissolution/`）とマテリアル |
+| Art | `Assets/Art/` を git の対象にした。`AttackerEnemy.fbx` を足した |
+
+### 完了条件の確認結果
+
+確認は、常駐シーンから再生してインゲームに入り、uloop で入力を擬似的に入れたり、テスト用のコードから `MeleeCutAdapter.Swing` を呼んだりして行った。アウトゲームの OnGUI のボタンは擬似入力で押せないので、ボタンと同じ `GoToInGameAsync` を呼んで遷移させた。
+
+| # | 条件 | 結果 |
+|---|---|---|
+| 1 | ステージシーンを分けたあとも、区間3までの操作が動く | 確認済み。TestStage がアクティブになり、ライティングの値が分ける前と同じ。W で前進して接地したまま、左クリックで切れ、かけらがチャージになった。アウトゲームとの行き来で TestStage も一緒に外れて読み直された。**ジャンプと、かけらが外へ落ちないことは、操作の速さが足りず確かめていない。レビューで確かめる** |
+| 2 | 初期生成情報の場所に出て、実行中は生成位置から出る。上限を超えない。無効の生成位置からは出ず、動かした生成位置は動かした先で出る | 確認済み。初期範囲に 2 体、そのあと 3 秒ごとに 1 体。10 体で止まった。B を無効にし C を (35, -1, -5) へ動かすと、A と動かした先の C から交互に出た |
+| 3 | 実行中に体の Instantiate が呼ばれない | 確認済み。体の数は、出し入れを繰り返しても 10 のまま |
+| 4 | 接続部側が残り、遠い側がチャージ。接続部の近くなら部位全体が落ちる。上の部位を切ると子の部位も落ちてディゾルブで消える | 確認済み。上の脚を付け根から 1.5m で切ると、付け根側が残り、遠い側の 2 つでチャージ +2、下の脚は失った。後ろの上の脚は付け根から 0.155m で切られて部位ごと落ち、子の下の脚も失った。切っていない部位は見た目用の物になり、ノイズの模様で縁を光らせて消えた（スクリーンショットで確認） |
+| 5 | 系統ごとに上限を超えて切れない。核は何度でも切れる | 確認済み。同じ上の脚を 2 回切れ（切断回数 2）、3 回目は切れずチャージも増えなかった。脚を切ったあとの核は、自分の系統の回数 0 で切れた |
+| 6 | 核以外では倒れず、核で倒れる。切断済みはチャージ、切っていない部位はディゾルブ | 確認済み。脚を何度切っても倒れなかった。核を切ると倒れ、チャージが期待どおり +10（胴体と砲塔の遠い側と残った側、前の上の脚 2 本のオーブ、後ろの上の脚 2 本のかけら 4）、見た目用の物が 3 つ（後ろの下の脚 2 本と銃） |
+| 7 | 移動部位が N 個壊れると移動しない | 確認済み。上の脚 2 本を切り、下の脚 2 本を失った時点で `CanMove` が false になり、25m 先に置いても動かなかった。壊していない敵は近づいて 6m 手前で止まった |
+| 8 | 倒れた体はすぐプールに戻り、次は全部位がそろい、切断回数も 0 | 確認済み。倒した体が生成位置 A から出し直され、11 部位がそろい、切断回数 0、すべて切れる状態、当たり判定の箱も元の大きさだった |
+
+### 次の区間へ持ち越すこと
+
+- 4B：敵の状態を NativeArray に持ち、体を近くの敵にだけ貸す。今の体は、部位の状態（失った部位、切られて短くなった部位）を `EnemyBody` の中にだけ持ち、出すたびに `RestoreInitialShape` で戻す。貸し直すときに切られた形を戻すには、形（メッシュ）を敵の状態の側にも持つ必要がある
+- 4B：敵の状態と、生成・部位・倒れるルールを置く層（4A では EngineAdapter）
+- 4B：見た目用の部位の扱いが、寿命で消す以上に大きくなったら（物理や VFX を持つなど）、`EnemySpawnAdapter` から分ける
+- 区間5：崩落による撃破。エネルギーの演出を VFX Graph で作るときに、散らばる部位の見た目（決定 17）を置き換えるか、地面をすり抜けることをどう扱うかを決める
+- 区間9：攻撃部位の役割（決定 24）、特殊部位と固有のアクション（攻撃を含む）。攻撃部位を失った敵は攻撃しない。敵の種類ごとの体のプレハブと、生成情報に敵の種類を持たせること（`EnemySpawnInfo` の TODO）
+- 区間11：失敗とリトライ。スコアに使う「倒した敵の数」（今は数えていない）。出す敵の総数の持たせ方（Notion「敵の出現」の検討中）
+
+### 使い方
+
+ステージに敵を出す
+
+1. ステージシーンに空の GameObject を置き、`EnemySpawnSystem` を付ける。同時に存在する数の上限と、生成情報（一度に出す数、間隔）を設定する
+2. その子に `EnemyInitialSpawnArea`（開始時に置く範囲と数）と `EnemySpawnPoint`（実行中に出す位置と半径）を置く。範囲はシーンビューに Gizmo で表示される
+3. 生成位置は、実行中に `Enable()` / `Disable()` で有効・無効を切り替えられる。Transform を動かすと、出す位置も変わる
+
+敵の体のプレハブを作る
+
+1. 部位ごとに分かれたモデルの FBX は、Read/Write を有効にする（MeshCut が頂点を読む為）。部位の基準点を、親の部位や胴体との接続部に置く
+2. 各部位に、メッシュに合わせたコライダー（`BoxCollider` など）と `CuttableObject`（`CanMultiCut` と切断回数の上限）を付け、Enemy レイヤーにする
+3. 根に `EnemyBody` を付け、部位の一覧に各部位を並べ、役割（`SubclassSelector`）と接続部の距離を設定する。核を 1 つ以上置く（核がないと切断では倒れない）
+4. インゲームの `Enemy` の `EnemySpawnAdapter` に、体のプレハブとして設定する
