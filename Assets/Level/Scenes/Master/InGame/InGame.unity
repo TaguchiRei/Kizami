@@ -316,6 +316,7 @@ MonoBehaviour:
   _meleeCutPreviewAdapter: {fileID: 1379823854}
   _meleeCutAdapter: {fileID: 1212232924}
   _fragmentOrbAdapter: {fileID: 1946405260}
+  _enemySpawnAdapter: {fileID: 1539543158}
 --- !u!136 &903436363
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -936,6 +937,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemySpawnAdapter
   _bodyPrefab: {fileID: 1602327258362906900, guid: abba11fae2f3aaa4a8b4ecdfe95fc600, type: 3}
+  _fragmentPool: {fileID: 608286024}
   _target: {fileID: 903436366}
 --- !u!4 &1539543159
 Transform:

@@ -6,11 +6,13 @@ using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
+using UsefulToolkit.MeshCut;
 
 namespace Kizami.Initialization
 {
     /// <summary>
     /// プレイヤーの移動・視点・HP・近接切断・チャージまわり（Service / State / Adapter）を生成して繋ぐ配線役。インゲームのシーンへ置く。
+    /// 近接切断の結果は、敵の Adapter とかけらの Adapter の両方へ配る。
     /// 操作系ごとの視点の回転のさせ方の違いは、シーンへ置く PlayerMovementAdapterBase の派生が吸収する。
     /// </summary>
     public sealed class PlayerInitializer : InitializerBase
@@ -26,6 +28,7 @@ namespace Kizami.Initialization
         [SerializeField] private MeleeCutPreviewAdapter _meleeCutPreviewAdapter;
         [SerializeField] private MeleeCutAdapter _meleeCutAdapter;
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
+        [SerializeField] private EnemySpawnAdapter _enemySpawnAdapter;
 
         private PlayerMovementService _movementService;
         private PlayerLookService _lookService;
@@ -55,9 +58,14 @@ namespace Kizami.Initialization
                 UsefulLogger.LogError("FragmentOrbAdapter が設定されていません。", this);
             }
 
+            if (_enemySpawnAdapter == null)
+            {
+                UsefulLogger.LogError("EnemySpawnAdapter が設定されていません。", this);
+            }
+
             if (_meleeCutAdapter != null)
             {
-                _meleeCutAdapter.Initialize(_fragmentOrbAdapter != null ? _fragmentOrbAdapter.ReceiveCutResults : null);
+                _meleeCutAdapter.Initialize(DistributeCutResults);
             }
             else
             {
@@ -96,6 +104,16 @@ namespace Kizami.Initialization
             }
 
             base.Initialize(blackBoard);
+        }
+
+        /// <summary>
+        /// 切断の結果を、敵の Adapter、かけらの Adapter の順に渡す。
+        /// 敵の Adapter は体に残す側のかけらをプールへ返して非アクティブにするので、かけらの Adapter はそれを管理に加えない。
+        /// </summary>
+        private void DistributeCutResults(MultiCutResult[] results, Plane plane)
+        {
+            if (_enemySpawnAdapter != null) _enemySpawnAdapter.ReceiveCutResults(results, plane);
+            if (_fragmentOrbAdapter != null) _fragmentOrbAdapter.ReceiveCutResults(results);
         }
 
         private void Awake()

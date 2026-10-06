@@ -40,8 +40,8 @@ namespace Kizami.EngineAdapter
         [Tooltip("切断の対象を探すレイヤー")]
         private LayerMask _targetLayers = ~0;
 
-        /// <summary> 切断の結果を渡す先 </summary>
-        private Action<MultiCutResult[]> _onCut;
+        /// <summary> 切断の結果と、振ったときの切断面（ワールド座標）を渡す先 </summary>
+        private Action<MultiCutResult[], Plane> _onCut;
 
         /// <summary> 切断を実行中か。実行中の振りは無視する </summary>
         private bool _isCutting;
@@ -66,8 +66,8 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// PlayerInitializer から呼ばれる。
         /// </summary>
-        /// <param name="onCut">切断が終わったときに、切断の結果を渡す関数</param>
-        public void Initialize(Action<MultiCutResult[]> onCut)
+        /// <param name="onCut">切断が終わったときに、切断の結果と切断面を渡す関数。切断面の法線は表のかけらの側を向く</param>
+        public void Initialize(Action<MultiCutResult[], Plane> onCut)
         {
             _onCut = onCut;
 
@@ -110,7 +110,7 @@ namespace Kizami.EngineAdapter
             if (_targets.Count == 0) return;
 
             _blade.transform.SetPositionAndRotation(origin, bladeRotation);
-            CutAsync(_targets.ToArray()).Forget();
+            CutAsync(_targets.ToArray(), new Plane(bladeRotation * Vector3.up, origin)).Forget();
         }
 
         /// <summary>
@@ -141,16 +141,16 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 対象を切断し、終わったら結果を渡す。
+        /// 対象を切断し、終わったら結果と切断面を渡す。
         /// </summary>
-        private async UniTaskVoid CutAsync(CuttableObject[] targets)
+        private async UniTaskVoid CutAsync(CuttableObject[] targets, Plane plane)
         {
             _isCutting = true;
 
             try
             {
                 var results = await _blade.ExecuteCut(targets);
-                _onCut?.Invoke(results);
+                _onCut?.Invoke(results, plane);
             }
             finally
             {

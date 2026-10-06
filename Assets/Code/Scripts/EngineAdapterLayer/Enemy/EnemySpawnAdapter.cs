@@ -8,6 +8,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 敵の体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出し、仮の移動をさせる Adapter。インゲームのシーンへ置く。
+    /// 近接切断の結果は、切られた部位を持つ体へ渡す。
     /// 体は初期化のときに同時に存在する数の上限だけ作り、実行中は Instantiate しない。空きがなければ出さない。
     /// </summary>
     /// <remarks>
@@ -20,9 +21,16 @@ namespace Kizami.EngineAdapter
         private readonly List<EnemySpawnPoint> _spawnPoints = new();
         private readonly List<EnemyInitialSpawnArea> _initialSpawnAreas = new();
 
+        /// <summary> 部位から、その部位を持つ体を引く表 </summary>
+        private readonly Dictionary<CuttableObject, EnemyBody> _partOwners = new();
+
         [SerializeField]
         [Tooltip("敵の体のプレハブ")]
         private EnemyBody _bodyPrefab;
+
+        [SerializeField]
+        [Tooltip("かけらのプール。体に残す側のかけらを返す先")]
+        private MeshCutObjectPool _fragmentPool;
 
         [SerializeField]
         [Tooltip("仮の移動で近づく先（プレイヤー）")]
@@ -65,9 +73,9 @@ namespace Kizami.EngineAdapter
         /// </summary>
         public override void Initialize()
         {
-            if (_bodyPrefab == null)
+            if (_bodyPrefab == null || _fragmentPool == null)
             {
-                UsefulLogger.LogError("敵の体のプレハブが設定されていません。", this);
+                UsefulLogger.LogError("敵の体のプレハブか、かけらのプールが設定されていません。", this);
                 return;
             }
 
@@ -87,9 +95,31 @@ namespace Kizami.EngineAdapter
                 var body = Instantiate(_bodyPrefab, transform);
                 body.gameObject.SetActive(false);
                 _bodies.Add(body);
+
+                foreach (var part in body.Parts)
+                {
+                    if (part.Cuttable != null) _partOwners.Add(part.Cuttable, body);
+                }
             }
 
             base.Initialize();
+        }
+
+        /// <summary>
+        /// 切断の結果のうち、敵の部位を元の対象とするものを、その部位を持つ体へ渡す。
+        /// </summary>
+        /// <param name="results">MultiCutBlade.ExecuteCut の結果</param>
+        /// <param name="plane">振ったときの切断面。法線は表のかけらの側を向く</param>
+        public void ReceiveCutResults(MultiCutResult[] results, Plane plane)
+        {
+            if (!Initialized || results == null) return;
+
+            foreach (var result in results)
+            {
+                if (result.Original == null || !_partOwners.TryGetValue(result.Original, out var body)) continue;
+
+                body.ReceiveCut(result, plane, _fragmentPool);
+            }
         }
 
         private void Update()

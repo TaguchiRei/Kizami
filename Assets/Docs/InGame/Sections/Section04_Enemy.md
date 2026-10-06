@@ -55,6 +55,7 @@
 | 7 | かけらのメッシュは、かけら自身が持ち主になっている。メッシュを元のパーツに写してからかけらをプールへ返すと、そのかけらが次に使われたときに古いメッシュが Destroy され、体に残した部位が見えなくなる | `CuttableObject.SetCutMesh` は前に持っていたメッシュを Destroy する。`MultiCutBlade.ApplyResult` が毎回呼ぶ | MeshCut の拡張（4-1）に、かけらの形（メッシュの持ち主、マテリアル、当たり判定、切断回数）を別の `CuttableObject` へ移す操作と、切断前の形に戻す操作を足す（決定 15） |
 | 8 | `CuttableObject` は `Awake` で球のコライダーを（無効の状態で）足す。元のパーツは自分のコライダーで当たり判定をしているので、残す側を短くしても当たり判定は元の大きさのまま | `CuttableObject.Awake`、`MeleeCutAdapter.CollectTargets` | #7 の操作で、かけらの球コライダーを写し、元のパーツのコライダーを無効にする（決定 15） |
 | 9 | 残す側を決める（決定 4）には切断面が要るが、`MeleeCutAdapter` は切断の結果だけを渡している | `MeleeCutAdapter.Initialize(Action<MultiCutResult[]>)` | `MeleeCutAdapter` が切断面（`Plane`）も渡す（決定 16） |
+| 10 | （コミット 4 の実装中に確認）`AdoptCutShape` で写したかけらの球コライダーは、長い部位では並びに隙間ができる。刃の範囲が隙間に入ると、体に残した部位を 2 回目に切れない。上の脚（残した長さ約 1.7m）で、約 0.7m の隙間があった | `CuttableObject.AdoptCutShape`（球コライダーを写し、元のコライダーを無効にする）、`MeleeCutAdapter.CollectTargets`（`OverlapBoxNonAlloc`） | UsefulToolkit 側で直してもらう（決定 25） |
 
 ## 既存の資産
 
@@ -157,6 +158,7 @@
 | 22 | `Assets/Art/` の扱い | `.gitignore` から外し、git の対象にする |
 | 23 | 仮モデルの直し | Blender で直して書き出し直す。ライトを書き出さない、後ろ脚の名前を複製名から付け直して左右を正す、マテリアルをそろえる、ファイル名の綴りを `AttackerEnemy` に直す |
 | 24 | 攻撃部位の役割 | 4A では読む処理がないので作らない。区間9で、役割のクラスを足して作る。4A の `GunTurret` は役割なし（切られても体に何も起きない部位）にする |
+| 25 | 体に残した部位の当たり判定（食い違い #10） | UsefulToolkit.MeshCut 側で、`AdoptCutShape` で形を移した先の当たり判定に隙間ができないようにしてもらう（2026-10-06 ユーザーが決定）。要件は [Section04_MeshCutColliderRequirements.md](Section04_MeshCutColliderRequirements.md)。マージの後で参照を更新し、完了条件 5 を確かめる |
 
 ### 決めること
 
@@ -218,7 +220,8 @@ sequenceDiagram
 | 2 | ステージシーンの分離（4-0） | 常駐シーンから再生してインゲームに入り、区間3までの操作が動き、見た目（ライティング）が変わっていない。ステージシーンがアクティブになっている |
 | （UsefulToolkit 側） | MeshCut の拡張（4-1。別の作業者） | 要件定義の「受け入れの確認」 |
 | 3 | meshcut の参照の更新。敵の体のプレハブ、部位の役割、体のプール、生成システム、`EnemyInitializer`、デバッグ表示、仮の移動（4-2〜4-5、4-8 の前半、4-9）。`DummyEnemy` を削除 | 完了条件 2・3。敵を切るとかけらがチャージになる |
-| 4 | 切断の受け取り（4-6）。切断面を渡す、接続部側を残す、接続部の近くなら全体を落とす、子の部位を落とす | 完了条件 4・5 |
+| 4 | 切断の受け取り（4-6）。切断面を渡す、接続部側を残す、接続部の近くなら全体を落とす、子の部位を落とす | 完了条件 4・5。完了条件 5 のうち「上限まで切れる」は、当たり判定の修正（決定 25）の後に確かめる |
+| （UsefulToolkit 側） | 当たり判定の修正（決定 25。別の作業者） | [Section04_MeshCutColliderRequirements.md](Section04_MeshCutColliderRequirements.md) の「受け入れの確認」 |
 | 5 | 倒れる処理と再利用、移動部位で止まる処理（4-7、4-8 の後半）、見た目用の部位とディゾルブ | 完了条件 6・7・8 |
 | 6 | 区間計画書の「実装結果」と全体計画書の更新 | ― |
 
@@ -239,3 +242,5 @@ sequenceDiagram
 ## 見つけた問題（今回は扱わない）
 
 - 【UsefulToolkit.MeshCut】README の「重要な制約」に「切断対象は必ず `MeshDataCache` の子に配置」とあるが、`Start` の時点で非アクティブな子は登録されないことが書かれていない（`MeshDataCache.Initialize`）。要件定義の D1 として、MeshCut の拡張と一緒に書き足してもらう
+- 【UsefulToolkit.MeshCut】Read/Write が無効なメッシュを `Register` すると、原因の分かりにくい `ArgumentException` になる（コミット 3 で発生。FBX の Read/Write を有効にして解消）。当たり判定の要件定義に、任意の要件 F5 として入れた
+- 【区間3からの挙動】かけらそのものの球コライダーにも、長い形では隙間があり、隙間を通る刃では切り直せない。当たり判定の要件定義に、任意の要件 F4 として入れた

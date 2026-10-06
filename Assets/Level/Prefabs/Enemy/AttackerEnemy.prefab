@@ -198,16 +198,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyBody
   _parts:
   - _cuttable: {fileID: 4276884584166637834}
+    _jointDistance: 0.3
   - _cuttable: {fileID: 2809557936706671616}
+    _jointDistance: 0.3
   - _cuttable: {fileID: 2195112773157030558}
+    _jointDistance: 0.3
   - _cuttable: {fileID: 429418932810833592}
+    _jointDistance: 0.3
   - _cuttable: {fileID: 8595465916919686587}
+    _jointDistance: 0
   - _cuttable: {fileID: 7486529459491993296}
+    _jointDistance: 0.3
   - _cuttable: {fileID: 24662961443034679}
+    _jointDistance: 0.3
   - _cuttable: {fileID: 6223184954038695183}
+    _jointDistance: 0.3
   - _cuttable: {fileID: 6052654112854228297}
+    _jointDistance: 0.3
   - _cuttable: {fileID: 6170856892598330292}
+    _jointDistance: 0.3
   - _cuttable: {fileID: 5505983852874233367}
+    _jointDistance: 0.3
   _moveSpeed: 1.5
   _stopDistance: 6
 --- !u!1 &1450252475275653236 stripped
