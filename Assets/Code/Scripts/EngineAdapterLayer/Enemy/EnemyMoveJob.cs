@@ -14,8 +14,9 @@ namespace Kizami.EngineAdapter
     /// 向きは進む先へ回る速さの上限つきで回し、向いている方へ進む。進む先から外れている間は、そのずれの分だけ遅くなる。
     /// 進んだ先の列に乗る層がなければ（壁など）、そのフレームは進まない。
     /// 段差は、登れる高さまでならその場で乗り、少しの下りは床に合わせ、それより低ければ落ちる。
+    /// 壊れた移動部位が上限に達した敵は歩かないが、足場がなくなれば落ちる。
     /// </remarks>
-    // TODO: 区間4C で、グループと隊列、移動部位を失った敵の扱いを入れる
+    // TODO: 区間4C で、グループと隊列、移動部位を失って止まった敵の隊列での扱いを入れる
     [BurstCompile]
     public struct EnemyMoveJob : IJobParallelFor
     {
@@ -42,12 +43,15 @@ namespace Kizami.EngineAdapter
         /// <summary> 重力の加速度の大きさ（m/s²） </summary>
         public float Gravity;
 
+        /// <summary> 壊れた移動部位がこの数に達した敵は歩かない </summary>
+        public int BrokenMovePartLimit;
+
         public void Execute(int index)
         {
             var agent = Agents[index];
             if (!agent.IsAlive) return;
 
-            if (agent.IsGrounded) Walk(ref agent);
+            if (agent.IsGrounded && agent.BrokenMovePartCount < BrokenMovePartLimit) Walk(ref agent);
             UpdateVertical(ref agent);
 
             Agents[index] = agent;

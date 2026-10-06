@@ -19,6 +19,7 @@ namespace Kizami.EngineAdapter
     /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、距離マップはプレイヤーのいるノードが変わるたびに計算し直す。
     /// 出ている敵は、毎フレーム EnemyMoveJob で距離マップを下って歩かせ、落とす。
     /// 切断できる体（EnemyBody）は、プレイヤーから貸す距離の中にいる敵へ近い順に貸し、返す距離より離れたら返す。返す距離は貸す距離より遠い。
+    /// 体を返すときは、短くなった部位の形を EnemyShapeKeeper に預け、次に貸すときに戻す。預ける空きがなければ、その敵の体は返さない。
     /// 近接切断の結果は、切られた部位を持つ体へ渡し、体の部位の状態を敵の状態へ書き戻す。体から外れた切っていない部位は、見た目用の物（EnemyDebris）で散らばらせて消す。
     /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さず、見た目用の物に空きがなければ最も古い物を使い回す。
     /// </summary>
@@ -63,6 +64,10 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0f)]
         [Tooltip("プレイヤーとの距離がこの値（m）より離れた敵から、体を返す。貸す距離より遠くする")]
         private float _returnDistance = 18f;
+
+        [SerializeField, Min(0)]
+        [Tooltip("体を返した敵の、短くなった部位の形を預かれる数。初期化のときにこの数だけ保管用の物を作る")]
+        private int _shapeKeeperCapacity = 64;
 
         [SerializeField]
         [Tooltip("かけらのプール。体に残す側のかけらを返す先")]
@@ -140,6 +145,8 @@ namespace Kizami.EngineAdapter
 
         private EnemyDistanceField _distanceField;
 
+        private EnemyShapeKeeper _shapeKeeper;
+
         private ProfilerRecorder _updateRecorder;
         private ProfilerRecorder _moveRecorder;
         private ProfilerRecorder _bodyRecorder;
@@ -204,6 +211,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 体の数 </summary>
         public int BodyCount => _bodies.Count;
+
+        /// <summary> 体を返した敵から預かっている、短くなった部位の数 </summary>
+        public int KeptShapeCount => _shapeKeeper?.KeptCount ?? 0;
 
         /// <summary> Update 全体にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
         public double UpdateMilliseconds => GetAverageMilliseconds(_updateRecorder);
@@ -282,6 +292,7 @@ namespace Kizami.EngineAdapter
             _crowdRenderer = new EnemyCrowdRenderer(_bodyPrefab, _agents.Length);
             _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
                 _groundLayers);
+            _shapeKeeper = new EnemyShapeKeeper(transform, _shapeKeeperCapacity, _agents.Length, _bodyPrefab.Parts.Count);
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _bodyRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, BODY_MARKER_NAME, TIMING_SAMPLE_COUNT);
@@ -409,12 +420,14 @@ namespace Kizami.EngineAdapter
                 MoveSpeed = _moveSpeed,
                 TurnSpeed = math.radians(_turnSpeed),
                 StopDistance = _stopDistance,
-                Gravity = -Physics.gravity.y
+                Gravity = -Physics.gravity.y,
+                BrokenMovePartLimit = _bodyPrefab.BrokenMovePartLimit
             }.Schedule(_agents.Length, 64).Complete();
         }
 
         /// <summary>
-        /// 返す距離より離れた敵と、落ちてステージから消えた敵から、体を返す。部位の状態は敵の状態へ書き戻してから返す。
+        /// 返す距離より離れた敵と、落ちてステージから消えた敵から、体を返す。
+        /// 生きている敵の体は、部位の状態を敵の状態へ書き戻し、短くなった部位の形を預けてから返す。預ける空きがなければ返さない。
         /// </summary>
         private void ReturnBodies()
         {
@@ -430,7 +443,14 @@ namespace Kizami.EngineAdapter
                 if (agent.IsAlive && math.distancesq(agent.Position, target) <= returnDistanceSq) continue;
 
                 var body = _bodies[bodyIndex];
-                if (agent.IsAlive) body.WriteState(ref agent);
+                if (agent.IsAlive)
+                {
+                    if (!_shapeKeeper.CanKeep(body)) continue;
+
+                    body.WriteState(ref agent);
+                    _shapeKeeper.Keep(agentIndex, body);
+                }
+
                 body.Return();
 
                 agent.BodyIndex = -1;
@@ -440,7 +460,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 貸す距離の中にいる、体を貸していない敵へ、近い順に空いている体を貸す。
+        /// 貸す距離の中にいる、体を貸していない敵へ、近い順に空いている体を貸し、預けていた短くなった部位の形を戻す。
         /// </summary>
         private void LendBodies(MeshDataCache cache)
         {
@@ -482,6 +502,7 @@ namespace Kizami.EngineAdapter
                 var agentIndex = _lendCandidates[c];
                 var agent = _agents[agentIndex];
                 _bodies[nextBody].Lend(agent, cache);
+                _shapeKeeper.Restore(agentIndex, _bodies[nextBody]);
 
                 agent.BodyIndex = nextBody;
                 _agents[agentIndex] = agent;
@@ -571,6 +592,7 @@ namespace Kizami.EngineAdapter
             {
                 if (_agents[i].IsAlive) continue;
 
+                _shapeKeeper.Discard(i);
                 _agents[i] = new EnemyAgent
                 {
                     IsAlive = true,

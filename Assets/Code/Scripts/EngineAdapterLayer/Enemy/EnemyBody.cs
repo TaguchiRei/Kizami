@@ -49,8 +49,8 @@ namespace Kizami.EngineAdapter
         /// <summary> 敵に貸しているか。倒れるか返すと false になる </summary>
         public bool IsLent => gameObject.activeSelf;
 
-        /// <summary> 壊れた移動部位の数が上限より少ないか </summary>
-        public bool CanMove => _brokenMovePartCount < _brokenMovePartLimit;
+        /// <summary> 壊れた移動部位がこの数に達すると、移動しなくなる </summary>
+        public int BrokenMovePartLimit => _brokenMovePartLimit;
 
         /// <summary> 体を作る部位 </summary>
         public IReadOnlyList<EnemyPart> Parts => _parts;
@@ -108,9 +108,9 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 体を敵から返す。全部位を切断前の形に戻し、非アクティブにしてプールへ戻す。部位の状態は、先に WriteState で敵へ書き戻しておく。
+        /// 体を敵から返す。全部位を切断前の形に戻し、非アクティブにしてプールへ戻す。
+        /// 部位の状態は先に WriteState で敵へ書き戻し、短くなった部位の形は先に EnemyShapeKeeper へ預けておく。
         /// </summary>
-        // TODO: 区間4B のコミット 5 で、短くなった部位の形を預けてから戻す
         public void Return()
         {
             foreach (var part in _parts)
