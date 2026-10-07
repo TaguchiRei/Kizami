@@ -10,7 +10,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// プレイヤーの移動と視点を Transform / Rigidbody へ反映する Adapter の基底。
     /// 水平移動の反映と、触れている物（PlayerContactState）の判定・書き込みはここで行い、
-    /// 視点入力を回転へ変換する方法だけを操作系ごとの派生が決める。
+    /// 視線の向きの取り方と、視点入力を回転へ変換する方法だけを操作系ごとの派生が決める。
     /// </summary>
     public abstract class PlayerMovementAdapterBase : InitializableMonoBehaviour
     {
@@ -75,10 +75,12 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 視点操作の入力値が変化した際に呼ばれる。
+        /// 視点操作の入力値が変化した際に呼ばれる。視点の回転をカメラ側で反映する操作系では何もしない。
         /// </summary>
         /// <param name="lookInput">感度適用済みの入力値。x が右向き、y が上向きを正とする</param>
-        protected abstract void OnLookInputChanged(Vector2 lookInput);
+        protected virtual void OnLookInputChanged(Vector2 lookInput)
+        {
+        }
 
         /// <summary>
         /// ワールド空間の視線の向きを返す。既定ではこの Transform の前方を返す。

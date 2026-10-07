@@ -7,7 +7,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 視点操作の上下方向をカメラへ反映する Adapter の基底。左右方向（体の向き）は PlayerMovementAdapterBase が担当する。
+    /// 視点操作をカメラへ反映する Adapter の基底。どの方向をカメラで回すかは操作系ごとの派生が決める。
     /// </summary>
     public abstract class PlayerCameraAdapterBase : InitializableMonoBehaviour
     {

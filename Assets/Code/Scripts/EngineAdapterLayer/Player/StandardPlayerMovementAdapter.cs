@@ -4,9 +4,9 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// PC / スマホ用の移動・視点（左右方向）反映。
-    /// 移動方向が体の向きに従うので、体には水平方向（Yaw）だけを反映し、上下方向（Pitch）は StandardPlayerCameraAdapter が反映する。
-    /// 視点入力はそのフレーム分の移動量なので、経過時間で割らずに届いたその場で回転へ加算する。
+    /// PC / スマホ用の移動反映。移動の向きはカメラの前方から決める。
+    /// 視点の回転は上下・左右とも StandardPlayerCameraAdapter がカメラ側で反映し、体は回さない。
+    /// 補間を有効にした Rigidbody の向きを Transform から書き換えると、物理の姿勢の書き戻しで元の向きへ引き戻されることがある為。
     /// </summary>
     public sealed class StandardPlayerMovementAdapter : PlayerMovementAdapterBase
     {
@@ -14,12 +14,6 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("視線の向きの取得元。CinemachineCamera。体の子である必要がある。")]
         private Transform _cameraTransform;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("感度倍率 1.0 のときの、入力 1 単位あたりの回転角（度）")]
-        private float _degreesPerInput = 0.1f;
-
-        private float _yaw;
 
         public override void Initialize()
         {
@@ -37,14 +31,6 @@ namespace Kizami.EngineAdapter
         protected override Vector3 GetViewDirection()
         {
             return _cameraTransform != null ? _cameraTransform.forward : transform.forward;
-        }
-
-        protected override void OnLookInputChanged(Vector2 lookInput)
-        {
-            if (lookInput.x == 0f) return;
-
-            _yaw = Mathf.Repeat(_yaw + lookInput.x * _degreesPerInput, 360f);
-            transform.localRotation = Quaternion.Euler(0f, _yaw, 0f);
         }
     }
 }

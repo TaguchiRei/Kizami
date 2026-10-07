@@ -296,7 +296,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 1
-  m_Constraints: 80
+  m_Constraints: 112
   m_CollisionDetection: 2
 --- !u!114 &903436362
 MonoBehaviour:
@@ -440,7 +440,6 @@ MonoBehaviour:
   _airAcceleration: 10
   _airDeceleration: 10
   _cameraTransform: {fileID: 1307013810}
-  _degreesPerInput: 0.1
 --- !u!114 &903436368
 MonoBehaviour:
   m_ObjectHideFlags: 0
