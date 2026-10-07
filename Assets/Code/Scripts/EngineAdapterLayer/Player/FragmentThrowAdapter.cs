@@ -308,7 +308,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 飛んでいるかけらがぶつかったときにプールへ返す。
         /// </summary>
-        private void OnFragmentTouched(CuttableObject fragment)
+        private void OnFragmentTouched(CuttableObject fragment, Collider other)
         {
             if (!_flyingFragments.ContainsKey(fragment)) return;
 

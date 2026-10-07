@@ -10,7 +10,8 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 切断で生まれたかけらを管理し、オーブに変えてプレイヤーに吸収させる Adapter。
-    /// かけらは生まれてから猶予時間が過ぎた後に何かにぶつかるか、寿命が来るとオーブになり、オーブは MainCamera の位置へ向かって吸収される。
+    /// かけらは、無視するレイヤー以外の何かにぶつかるか、寿命が来るとオーブになり、オーブは MainCamera の位置へ向かって吸収される。
+    /// 切った直後のかけらは敵の残りの部位に触れているので、敵のレイヤーとの接触は無視する。
     /// </summary>
     /// <remarks>
     /// 切り直されている途中のかけらは ExecuteCut が先に非アクティブにし、切断の結果が届くまで管理に残るので、
@@ -39,9 +40,9 @@ namespace Kizami.EngineAdapter
         [Tooltip("オーブのプレハブ")]
         private GameObject _orbPrefab;
 
-        [SerializeField, Min(0f)]
-        [Tooltip("かけらが生まれてから、ぶつかってもオーブにならない時間（秒）。0 で無効")]
-        private float _contactGraceTime = 0.2f;
+        [SerializeField]
+        [Tooltip("ぶつかってもオーブにならない相手のレイヤー。切った直後のかけらが敵の残りの部位に触れるので、Enemy を入れる")]
+        private LayerMask _ignoredContactLayers;
 
         [SerializeField, Min(0f)]
         [Tooltip("何にもぶつからないかけらがオーブになるまでの時間（秒）")]
@@ -189,13 +190,13 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 管理中のかけらが、猶予時間を過ぎてからぶつかったときにオーブにする。
+        /// 管理中のかけらが、無視するレイヤー以外の相手にぶつかったときにオーブにする。
         /// </summary>
-        private void OnFragmentTouched(CuttableObject fragment)
+        private void OnFragmentTouched(CuttableObject fragment, Collider other)
         {
-            if (!_fragments.TryGetValue(fragment, out var spawnTime)) return;
+            if (!_fragments.ContainsKey(fragment)) return;
             if (!fragment.gameObject.activeSelf) return;
-            if (Time.time - spawnTime < _contactGraceTime) return;
+            if ((_ignoredContactLayers.value & (1 << other.gameObject.layer)) != 0) return;
 
             ConvertToOrb(fragment);
         }
