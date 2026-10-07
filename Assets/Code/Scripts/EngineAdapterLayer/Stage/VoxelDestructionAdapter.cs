@@ -6,8 +6,8 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// MainCamera の中心から撃ったレイが当たった所を中心に、球の範囲にあるボクセルのピースをまとめて削る Adapter。
-    /// 範囲が複数のピースにまたがるときも、当たったピースだけでなく範囲内のすべてのピースを削る。
+    /// MainCamera を基準にした形（狙った所の球、視線の向きへ伸びるカプセル）の範囲にあるボクセルのピースを、同じ形でまとめて削る Adapter。
+    /// 範囲が複数のピースにまたがるときも、範囲内のすべてのピースを削る。
     /// </summary>
     public sealed class VoxelDestructionAdapter : MonoBehaviour
     {
@@ -30,35 +30,61 @@ namespace Kizami.EngineAdapter
         private LayerMask _targetLayers = ~0;
 
         /// <summary>
-        /// 狙った所を削る。狙える距離に何もなければ削らない。
+        /// 狙った所を球で削る。狙える距離に何もなければ削らない。
         /// </summary>
         public void CarveAtAim()
         {
-            var cameraMain = Camera.main;
-            if (cameraMain == null)
-            {
-                UsefulLogger.LogError("MainCamera が見つからない為、削れません。", this);
-                return;
-            }
+            if (!TryGetCameraTransform(out var cameraTransform)) return;
 
-            var cameraTransform = cameraMain.transform;
             if (!Physics.Raycast(cameraTransform.position, cameraTransform.forward, out var hit, _maxDistance,
                     _targetLayers, QueryTriggerInteraction.Ignore))
             {
                 return;
             }
 
-            Carve(hit.point);
+            var hitCount = Physics.OverlapSphereNonAlloc(hit.point, _radius, _hitBuffer, _targetLayers,
+                QueryTriggerInteraction.Ignore);
+            Carve(new SphereShape(hit.point, _radius), hitCount);
         }
 
         /// <summary>
-        /// 中心から半径の範囲にコライダーを持つピースを集め、同じ球で削る。
+        /// カメラの位置から視線の向きへ伸びるカプセルで削る。途中の壁を貫通する。
         /// </summary>
-        private void Carve(Vector3 center)
+        /// <param name="length">カプセルの長さ（m）</param>
+        /// <param name="radius">カプセルの半径（m）</param>
+        public void CarveBeam(float length, float radius)
         {
-            var hitCount = Physics.OverlapSphereNonAlloc(center, _radius, _hitBuffer, _targetLayers,
-                QueryTriggerInteraction.Ignore);
+            if (!TryGetCameraTransform(out var cameraTransform)) return;
 
+            var start = cameraTransform.position;
+            var end = start + cameraTransform.forward * length;
+            var hitCount = Physics.OverlapCapsuleNonAlloc(start, end, radius, _hitBuffer, _targetLayers,
+                QueryTriggerInteraction.Ignore);
+            Carve(new CapsuleShape(start, end, radius), hitCount);
+        }
+
+        private bool TryGetCameraTransform(out Transform cameraTransform)
+        {
+            var cameraMain = Camera.main;
+            if (cameraMain == null)
+            {
+                UsefulLogger.LogError("MainCamera が見つからない為、削れません。", this);
+                cameraTransform = null;
+                return false;
+            }
+
+            cameraTransform = cameraMain.transform;
+            return true;
+        }
+
+        /// <summary>
+        /// 範囲の問い合わせで集めたコライダーからピースを集め、ワールド空間の形で削る。
+        /// </summary>
+        /// <param name="shape">削る形（ワールド空間）</param>
+        /// <param name="hitCount">_hitBuffer に集めたコライダーの数</param>
+        private void Carve<TShape>(in TShape shape, int hitCount)
+            where TShape : struct, ITransformableVoxelShape<TShape>
+        {
             if (hitCount == _hitBuffer.Length)
             {
                 UsefulLogger.LogWarning($"削る範囲内のコライダーが上限（{MAX_HIT_COUNT}）に達しました。", this);
@@ -71,7 +97,6 @@ namespace Kizami.EngineAdapter
                 if (piece != null) _pieces.Add(piece);
             }
 
-            var shape = new SphereShape(center, _radius);
             foreach (var piece in _pieces)
             {
                 piece.ApplyEdit(shape, VoxelCsgOperation.Subtract, Space.World);

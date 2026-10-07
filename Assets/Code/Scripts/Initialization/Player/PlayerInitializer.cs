@@ -11,7 +11,7 @@ using UsefulToolkit.MeshCut;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// プレイヤーの移動・視点・HP・近接切断・チャージまわり（Service / State / Adapter）を生成して繋ぐ配線役。インゲームのシーンへ置く。
+    /// プレイヤーの移動・視点・HP・近接切断・チャージ・スキルまわり（Service / State / Adapter）を生成して繋ぐ配線役。インゲームのシーンへ置く。
     /// 近接切断の結果は、敵の Adapter とかけらの Adapter の両方へ配る。
     /// チャージには、かけらの Adapter から吸収したかけらの数を、エネルギーの Adapter から崩落で倒した敵の数を受け取る。
     /// 操作系ごとの視点の回転のさせ方の違いは、シーンへ置く PlayerMovementAdapterBase の派生が吸収する。
@@ -31,11 +31,18 @@ namespace Kizami.Initialization
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
         [SerializeField] private EnemyEnergyAdapter _enemyEnergyAdapter;
         [SerializeField] private EnemySpawnAdapter _enemySpawnAdapter;
+        [SerializeField] private VoxelDestructionAdapter _voxelDestructionAdapter;
+
+        // TODO: アウトゲームで装備したスキルを受け取る
+        [SerializeField]
+        [Tooltip("スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
+        private SkillData[] _equippedSkills = new SkillData[SkillService.SLOT_COUNT];
 
         private PlayerMovementService _movementService;
         private PlayerLookService _lookService;
         private MeleeCutService _meleeCutService;
         private ChargeService _chargeService;
+        private SkillService _skillService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -85,6 +92,14 @@ namespace Kizami.Initialization
 
             _meleeCutService = new MeleeCutService(blackBoard, _parameters,
                 _meleeCutAdapter != null ? _meleeCutAdapter.Swing : null, sceneId);
+
+            if (_voxelDestructionAdapter == null)
+            {
+                UsefulLogger.LogError("VoxelDestructionAdapter が設定されていません。", this);
+            }
+
+            _skillService = new SkillService(blackBoard, _equippedSkills, _chargeService,
+                _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveBeam : null);
 
             // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
             _healthService.Initialize(blackBoard, _parameters, sceneId);
@@ -137,6 +152,7 @@ namespace Kizami.Initialization
             _movementService?.Dispose();
             _lookService?.Dispose();
             _meleeCutService?.Dispose();
+            _skillService?.Dispose();
         }
     }
 }

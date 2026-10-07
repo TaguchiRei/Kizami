@@ -6,7 +6,7 @@ namespace Kizami.Application
 {
     /// <summary>
     /// チャージ量を管理するユースケース。
-    /// 吸収したかけらの数と、崩落で倒した敵の数に、それぞれ 1 つあたりのチャージ量を掛けて加える。
+    /// 吸収したかけらの数と、崩落で倒した敵の数に、それぞれ 1 つあたりのチャージ量を掛けて加え、スキルの発動で消費する。
     /// </summary>
     public sealed class ChargeService
     {
@@ -48,6 +48,19 @@ namespace Kizami.Application
             if (count <= 0) return;
 
             _state.SetCurrent(_state.Current + count * _chargePerCollapsedEnemy);
+        }
+
+        /// <summary>
+        /// 今のチャージ量が足りていれば、その分を消費する。
+        /// </summary>
+        /// <param name="amount">消費するチャージ量</param>
+        /// <returns>消費できたら true、足りなければ false</returns>
+        public bool TryConsume(int amount)
+        {
+            if (_state.Current < amount) return false;
+
+            _state.SetCurrent(_state.Current - amount);
+            return true;
         }
     }
 }
