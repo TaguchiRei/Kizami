@@ -64,7 +64,8 @@ namespace Kizami.Initialization
 
             if (blackBoard.TryGetSceneState<PlayerBoard, ISlowModeState>(out var slowModeState, this))
             {
-                DebugGUI.ObserveVariable("SlowMode", () => slowModeState.IsActive ? "On" : "Off");
+                DebugGUI.ObserveVariable("SlowMode",
+                    () => slowModeState.IsActive ? $"On (cuts left: {slowModeState.RemainingCuts})" : "Off");
             }
 
             if (_fragmentOrbAdapter != null)

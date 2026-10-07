@@ -15,6 +15,7 @@ namespace Kizami.Application
     /// スローモードの入力を受けて、チャージを消費して時間の倍率を下げ、続けている間もチャージを消費するユースケース。
     /// 入力でもう一度切り替えるか、チャージが 0 になると終わる。
     /// 継続中の消費は実時間で数える。
+    /// スローモード中に近接切断を振れる回数を数え、上限に達したらスローモードが終わるまで振らせない。
     /// </summary>
     public sealed class SlowModeService : IDisposable
     {
@@ -48,6 +49,19 @@ namespace Kizami.Application
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.SlowMode, OnSlowMode));
         }
 
+        /// <summary>
+        /// 近接切断を 1 回振ってよいかを判定し、スローモード中なら残りの回数を 1 減らす。
+        /// </summary>
+        /// <returns>スローモード外か、スローモード中で残りの回数があれば true</returns>
+        public bool TryUseCut()
+        {
+            if (!_state.IsActive) return true;
+            if (_state.RemainingCuts <= 0) return false;
+
+            _state.SetRemainingCuts(_state.RemainingCuts - 1);
+            return true;
+        }
+
         private void OnSlowMode(InputContext<float> context)
         {
             if (context.Phase != InputPhase.Performed) return;
@@ -71,6 +85,7 @@ namespace Kizami.Application
             if (!_chargeService.TryConsume(_parameters.SlowModeActivationCost)) return;
 
             _state.SetActive(true);
+            _state.SetRemainingCuts(_parameters.SlowModeCutLimit);
             _timeScaleController.SetScale(_parameters.SlowModeTimeScale);
 
             if (_parameters.SlowModeDrainPerSecond <= 0f) return;
@@ -89,6 +104,7 @@ namespace Kizami.Application
             _drainCancellation = null;
 
             _state.SetActive(false);
+            _state.SetRemainingCuts(0);
             _timeScaleController?.ResetScale();
         }
 

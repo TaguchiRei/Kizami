@@ -21,6 +21,7 @@ namespace Kizami.Application
         private readonly IOperationSettingState _settingState;
         private readonly PlayerParameterData _parameters;
         private readonly Action<float> _onSwing;
+        private readonly Func<bool> _tryUseCut;
         private readonly List<IDisposable> _subscriptions = new();
 
         /// <summary> 前回振った時刻（unscaled の秒） </summary>
@@ -29,12 +30,14 @@ namespace Kizami.Application
         /// <param name="blackBoard">MeleeCutState の登録先と、入力・回転角度の設定の取得元</param>
         /// <param name="parameters">攻撃間隔の取得元</param>
         /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）</param>
+        /// <param name="tryUseCut">振る直前に呼び、振れる回数を 1 回使う関数。false なら振らない</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public MeleeCutService(IBlackBoard blackBoard, PlayerParameterData parameters, Action<float> onSwing,
-            int sceneId)
+            Func<bool> tryUseCut, int sceneId)
         {
             _parameters = parameters;
             _onSwing = onSwing;
+            _tryUseCut = tryUseCut;
 
             if (!blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this) ||
                 !blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this) ||
@@ -58,7 +61,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 前回振ってから攻撃間隔が経っていれば、今の角度で振ったときの関数を呼ぶ。間隔内の入力は捨てる。
+        /// 前回振ってから攻撃間隔が経っていて、振れる回数が残っていれば、今の角度で振ったときの関数を呼ぶ。それ以外の入力は捨てる。
         /// </summary>
         private void OnAttack(InputContext<float> context)
         {
@@ -67,6 +70,7 @@ namespace Kizami.Application
             // スローモード中も攻撃間隔は実時間で数える
             var now = Time.unscaledTimeAsDouble;
             if (now - _lastSwingTime < _parameters.MeleeAttackInterval) return;
+            if (_tryUseCut != null && !_tryUseCut()) return;
 
             _lastSwingTime = now;
             _onSwing?.Invoke(_state.Angle);

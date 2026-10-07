@@ -104,6 +104,10 @@ namespace Kizami.External
         [Tooltip("スローモードを続けている間に、実時間 1 秒あたりに消費するチャージ量。0 で消費しない")]
         private float _slowModeDrainPerSecond = 5f;
 
+        [SerializeField, Min(0)]
+        [Tooltip("1 回のスローモードの間に近接切断を振れる回数")]
+        private int _slowModeCutLimit = 5;
+
         /// <summary> 歩行の速度（m/s） </summary>
         public float WalkSpeed => _walkSpeed;
 
@@ -169,5 +173,8 @@ namespace Kizami.External
 
         /// <summary> スローモードを続けている間に、実時間 1 秒あたりに消費するチャージ量 </summary>
         public float SlowModeDrainPerSecond => _slowModeDrainPerSecond;
+
+        /// <summary> 1 回のスローモードの間に近接切断を振れる回数 </summary>
+        public int SlowModeCutLimit => _slowModeCutLimit;
     }
 }

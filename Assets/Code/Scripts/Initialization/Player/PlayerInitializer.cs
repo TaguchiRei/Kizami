@@ -93,8 +93,16 @@ namespace Kizami.Initialization
                 UsefulLogger.LogError("MeleeCutAdapter が設定されていません。", this);
             }
 
+            if (_timeScaleController == null)
+            {
+                UsefulLogger.LogError("ITimeScaleController を受け取れなかった為、スローモードを使えません。", this);
+            }
+
+            // SlowModeService は ChargeState を取得する為、ChargeService の生成より後に生成する
+            _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
+
             _meleeCutService = new MeleeCutService(blackBoard, _parameters,
-                _meleeCutAdapter != null ? _meleeCutAdapter.Swing : null, sceneId);
+                _meleeCutAdapter != null ? _meleeCutAdapter.Swing : null, _slowModeService.TryUseCut, sceneId);
 
             if (_voxelDestructionAdapter == null)
             {
@@ -104,14 +112,6 @@ namespace Kizami.Initialization
             _skillService = new SkillService(blackBoard, _equippedSkills, _chargeService,
                 _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveBeam : null,
                 _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveExplosion : null, sceneId);
-
-            if (_timeScaleController == null)
-            {
-                UsefulLogger.LogError("ITimeScaleController を受け取れなかった為、スローモードを使えません。", this);
-            }
-
-            // SlowModeService は ChargeState を取得する為、ChargeService の生成より後に生成する
-            _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
 
             // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
             _healthService.Initialize(blackBoard, _parameters, sceneId);
