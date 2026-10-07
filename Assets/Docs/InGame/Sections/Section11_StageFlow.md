@@ -32,6 +32,8 @@
 | ステージシーン | 区間4A で、ライト・地面・生成システムなどをステージシーン（`TestStage`）に分けた。`InGameGroup` は「ステージシーン（アクティブ）＋ InGame」 |
 | `IPlayerHealthState` / `PlayerHealthService` | 区間1で作った HP の State と Service。HUD の HP 表示はこの State を読む。State は InGame の SceneState なので、インゲームに入るたびに満タンに戻る。合計被ダメージを数える処理はまだない |
 | `PauseBoard` / `IPausable` | UsefulToolkit.ProgramTools のポーズ用の Board とインターフェース（`IsPaused` / `Pause` / `Resume`）。Board は常駐シーンに登録済みだが、中身はまだない |
+| 仮の HUD | 区間6の `PlayerHudAdapter`（InGame の `PlayerHud`、OnGUI）。画面の下端に HP、その上にチャージのゲージを出し、減ると中央へ縮む。チャージのゲージに、装備したスキルの消費量の位置の線を引く（`ISkillSlotState`）。この区間の HUD で置き換える |
+| スキルの装備 | 区間6では、`PlayerInitializer` の Inspector の `_equippedSkills`（`SkillData` の 3 枠）に仮で置いている（TODO）。`SkillService` が受け取り、`SkillSlotState` に消費量を書く |
 
 ## 前提の変化（2026-10-07、区間5 の完了時）
 

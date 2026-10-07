@@ -27,8 +27,8 @@ HP を回復するスキルを作る（2026-10-05 追加。HP の回復は基本
 
 | 資産 | 内容 |
 |---|---|
-| 区間5の成果 | ダメージタイプを複数持てるダメージのデータと、対象ごとの判定の窓口 |
-| 区間6の成果 | スキルの定義データと発動 |
+| 区間7の成果 | ダメージタイプを複数持てるダメージのデータと、対象ごとの判定の窓口（区間5・6から区間7へ持ち越した。区間6の決定 7） |
+| 区間6の成果 | スキルの定義データ `SkillData`（効果の種類 `SkillEffect` は Beam / Explosion。強化型を分けるデータはまだない）、発動の `SkillService`（効果の種類で分岐して、`PlayerInitializer` から渡された関数を呼ぶ）、チャージの消費 `ChargeService.TryConsume`、装備枠の消費量の `SkillSlotState`、仮の HUD `PlayerHudAdapter`（消費量の位置に線を引く） |
 | [VoxelPiece.Slice](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs) | ワールド空間の平面（点と法線）でピースを 2 つに切り分ける。体積は減らない。平面はピースの端から端まで無限に広いものとして扱う。体積の多い側をこのピースに残し、もう一方を、つながった塊ごとに新しいピース（Rigidbody 付き）として切り離す。分離しない設定のピースでは何もしない。説明は [Piece.md](../../Voxel/Detailed/Piece.md) |
 
 ## 作業一覧

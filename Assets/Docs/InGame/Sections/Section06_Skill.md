@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 着手（2026-10-07） |
+| 状態 | 完了（2026-10-08） |
 | 目安の時期 | 2026/12/08〜12/14（最速の推定 10/24〜10/25） |
 | 前提となる区間 | 3, 5 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -132,9 +132,55 @@
 - （コミット 2）爆発の `SkillData` を `Assets/Level/Data/Player/Skill_Explosion.asset`（消費 50、半径 4）に作り、装備の 1 番に割り当てた。`VoxelDestructionAdapter.CarveExplosion` は、カメラの位置を中心にした球で削る
 - （コミット 2）プレイヤーを門 B の右の柱の脇（-14, 0, 10）に置いて確かめた。チャージ 0 と 30 では 2 キーで何も起きなかった。チャージ 80 ではチャージが 30 になり、右の柱が 36.2%、土台が 80.5% になった。空きの 3 番（3 キー）では何も起きなかった。敵は 10 体のままで、エラーと警告は 0 件
 - （コミット 2）右の柱は根元が削れ、上の部分が宙に浮いたまま残った。区間5で記録済みの、支えの判定がない件（最も大きい塊が残る）で、区間14で扱う
-
 - （コミット 3）`SkillService` が、装備した枠の消費量を `SkillSlotState` に書いて `PlayerBoard` に登録する。InGame に `PlayerHud`（`PlayerHudAdapter`）を置き、`PlayerInitializer` が HP の State の登録より後に初期化する。HUD の大きさと色は `PlayerHudAdapter` の Inspector にある
 - （コミット 3）プレイモードで、チャージ 40・HP 70 にして見た。下端に HP のゲージ（70%）、その上にチャージのゲージ（40%）が中央から左右に伸びて出た。ビーム（消費 30）の線は白く、爆発（消費 50）の線は薄く、ゲージの左右に 1 本ずつ出た。DebugGUI のパネルとは重ならない。エラーと警告は 0 件
+- （コミット 4）ユーザーが通しで遊び、チェックリスト（溜める、HUD、スキル 1〜3、足りないときの挙動、敵に当たらないこと、クリアまで）をすべて確かめた。uloop でも、敵を 4 回切るごとにチャージが 8〜13 増えることを確かめた。値（ビーム 30・半径 1・長さ 30、爆発 50・半径 4）は変えていない
+- （コミット 4）長く遊んでいると FPS が 7〜8 まで落ちた。Profiler では、1 フレーム約 130ms のほとんどが GPU 待ち（`GfxDeviceD3D12.WaitForLastPresentation.WaitForGPU`）で、スクリプトは数 ms だった。描画は三角形 12 万・バッチ 100 で、時間とともに増える物（メッシュ・ボクセルのピース・かけら）もなかった。GPU（RTX 4060 Laptop）は 89°C で、熱による減速（`nvidia-smi` の `clocks_event_reasons` が 0x20）のため、クロックが 210MHz（最大 3105MHz）まで落ちていた。PC のファンが静音モードだったのが原因で、ゲームの処理の問題ではない。エディタのプレイは FPS の上限がないので、長く遊ぶときは Game ビューの VSync を有効にすると発熱を抑えられる
+
+## 実装結果（2026-10-08）
+
+### 決めたこと
+
+- スキルは前方ビーム（消費 30、カプセル、半径 1m・長さ 30m、壁を貫通）と自分中心の爆発（消費 50、カメラの位置を中心にした半径 4m の球）。クールタイムはなく、チャージが足りなければ発動も消費もしない（決定 1〜4・6）
+- 融解やビームの見た目の演出は使わない（決定 5）。ダメージのデータと判定の窓口は区間7へ、ダメージ量は区間8へ持ち越した（決定 7・8）。デバッグの破壊攻撃は変えていない（決定 9）
+- 仮の HUD は、画面の下端に HP、その上にチャージのゲージ。減ると中央へ縮み、チャージのゲージにスキルを発動できるようになる線を引く（決定 10）
+- テストプレイ用に、TestStage の敵を 10 体に減らせる設定を足した（コミット 1.5）
+
+### 作った主なもの
+
+| 種類 | もの |
+|---|---|
+| スキル | `SkillData`（External の ScriptableObject）と `SkillEffect`（Beam / Explosion）、`SkillService`（Application）、`ChargeService.TryConsume` |
+| 削る処理 | `VoxelDestructionAdapter` の `CarveBeam`・`CarveExplosion`（削る処理を形を問わない `Carve<TShape>` にまとめた） |
+| 装備枠と HUD | `SkillSlotState` / `ISkillSlotState`（枠ごとの消費量）、`PlayerHudAdapter`（InGame の `PlayerHud`） |
+| 配線 | `PlayerInitializer` の `_voxelDestructionAdapter`・`_equippedSkills`・`_hudAdapter` |
+| アセット | `Assets/Level/Data/Player/Skill_Beam.asset`、`Skill_Explosion.asset` |
+| ステージ | TestStage の `EnemySpawnSystem_Crowd`（1000 体、無効）と `EnemySpawnSystem_Few`（10 体、有効） |
+
+### 完了条件の確認結果
+
+| 完了条件 | 結果 |
+|---|---|
+| スキルを発動するとチャージが減り、破壊対象とマップが削れる | 確認済み（エディタ）。ビームでチャージが 30 減り、門の柱を貫通して削った（コミット 1）。爆発でチャージが 50 減り、柱と土台が削れた（コミット 2）。ユーザーも通しで確かめた |
+| スキルは敵に当たらない | 確認済み（エディタ）。削る相手を探すときに Enemy のレイヤーを除いている。スキルを撃ったあとも敵の数は変わらなかった（コミット 1・2）。ユーザーも通しで確かめた |
+| 雑魚敵を切ってチャージを溜め、スキルで破壊対象を削ってクリアするまでが一通り遊べる（マイルストーンB） | 確認済み（エディタ）。ユーザーが通しで遊び、「STAGE CLEAR」まで進んだ（コミット 4） |
+
+### 次の区間へ持ち越すこと
+
+- 区間7：ダメージのデータと判定の窓口（決定 7）
+- 区間8：ダメージ量と、装甲の耐久値との対応（決定 8）
+- 区間10：攻撃型と強化型の種類分け（食い違い #3）。`SkillEffect` に効果を足し、`SkillService` の分岐を広げる
+- 区間11：装備をアウトゲームから受け取る（決定 11。`PlayerInitializer._equippedSkills` の TODO）、仮の HUD（`PlayerHudAdapter`）の置き換え（決定 10）
+- 区間13：ビームと爆発の見た目の演出、融解を使うか（決定 5）、クールタイムが要るか（決定 2）、消費量と大きさの調整
+- 区間14：支えの判定（爆発で柱の根元を削ると、上が宙に浮いたまま残る）
+- 仕様書：決定 1〜6・10 を Notion のスキルの仕様に反映するか（この区間の計画は Notion を読まずに立てた）
+- 確かめていないこと：ボクセルの橋の上で爆発を使ったときに足場が削れて落ちること（決定 6）
+
+### 使い方
+
+- 1 キーでビーム、2 キーで爆発、3 キーは空き。装備は InGame の `PlayerInitializer` の `Equipped Skills` で入れ替える。スキルの値は `Assets/Level/Data/Player/Skill_*.asset` にある
+- HUD の大きさと色は InGame の `PlayerHud` の `PlayerHudAdapter` にある
+- TestStage の敵の数は、`EnemySpawnSystem_Few`（10 体）と `EnemySpawnSystem_Crowd`（1000 体）のどちらを有効にするかで切り替える。群衆の挙動や負荷を見るときは `_Crowd` を有効にする
 
 ## 次の区間へ持ち越すこと（計画の時点）
 
