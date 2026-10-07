@@ -80,7 +80,7 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-07 時点。区間4C の完了まで）
+## 3. 現状（2026-10-07 時点。区間5 の完了まで）
 
 | 分野 | 状態 |
 |---|---|
@@ -92,14 +92,17 @@
 | 入力（PC の Player マップ） | 区間0で、切断面の回転、ワープ、スローモード、投擲、ランチャー、スキル 1〜3 のアクションを追加済み。Smartphone と VRControllers のマップは未対応 |
 | スマホの視点操作 | `TouchLookInputSource` は、タッチ領域の UI に付けて EventSystem のドラッグ通知で動く形になっている。どのシーンにも置かれておらず、InGame には EventSystem もない |
 | VR の操作系 | `VrPlayerMovementAdapter` / `VrPlayerInputRouteInitializer` はあるが、どのシーンにも置かれていない。スティックのデッドゾーンは InputActionAsset の `StickDeadzone` が受け持つ。外部入力スロット `VrMove` / `VrLook` は、Player マップのどの Action にもバインドされていない |
-| ボクセル（ベイク、削る・盛る、塊の分離、平面での切り分け、融解） | あり。敵の距離マップが形状の変化に追従する（区間4C）。破壊対象やクリアなど、ゲームのルールとはまだつながっていない。プレイ中に壊す操作はない（区間5） |
+| ボクセル（ベイク、削る・盛る、塊の分離、平面での切り分け、融解） | あり。敵の距離マップが形状の変化に追従する（区間4C）。プレイ中は、デバッグの破壊攻撃（G キー、`VoxelDestructionAdapter`）で壊せる（区間5）。ベイクは、大きな三角形のメッシュだと中身が空になるので、面を 0.25m 程度に分けたメッシュで、最大距離 0.6m・余白 6 にする（区間5の「見つけた問題」）。支えの判定はなく、分かれたら最も大きい塊が残り、ほかが Rigidbody で落ちる |
 | 近接切断（メッシュ切断） | あり（区間2）。左クリックで、ホイールで回した角度の刃（カメラの位置を通る）で範囲内を切る。InGame に `MeshCut System` と、切断を実行する `MeleeCutAdapter`、切れるダミーの敵がある。攻撃は `PlayerInitializer` が `MeleeCutService` から `MeleeCutAdapter.Swing` へ直接配線している（区間2の `PlayerEventBoard` / `MeleeCutEvents` は区間3で廃止）。切断の結果（元の対象とかけら）と切断面は、`PlayerInitializer.DistributeCutResults` が、敵の `EnemySpawnAdapter`、`FragmentOrbAdapter` の順に直接渡している（区間4A）。ダミーの敵は区間4A で削除した |
 | かけら・オーブ・チャージ | あり（区間3）。InGame の `FragmentOrbAdapter` が、かけらを管理し、ぶつかるか寿命が来たらオーブにして、`Camera.main` へ引き寄せて吸収する。吸収した数は `ChargeService.AddFragments` で `IChargeState`（`PlayerBoard`、InGame の SceneState）に加える。消費の操作はまだない（区間6）。かけらは Shard レイヤーで、Shard 同士は衝突しない。テスト用のステージは `TestWalls/StageBounds` で囲ってある |
 | 画面空間の擬似破壊シェーダー（`Shader/Boolean`、`Shader/Embedded`） | コードは残してあるが、Renderer Feature は Renderer から外してある。ボクセルとメッシュ切断で足りているため使っていない |
 | ステージシーン | あり（区間4A）。`Assets/Level/Scenes/Stage/TestStage/TestStage.unity` にライト・地面・`TestWalls`（`StageBounds`）・`EnemySpawnSystem` を置き、`InGameGroup` は `[TestStage（アクティブ）, InGame]`。TestStage は 200m 四方で、段差・壁・橋（`CrowdTerrain`）と、ボクセルの壁とスロープ付きの橋（`CrowdVoxelTerrain`）を置き、東西南北の 4 か所から 250 体ずつ出す（区間4B・4C） |
 | 敵の体と切断 | あり（区間4A・4B）。InGame の `Enemy`（`EnemyInitializer`、`EnemySpawnAdapter`）が、敵の状態（`EnemyAgent` の NativeArray。ステージシーンの `EnemySpawnSystem` の上限の数）、生成、体のプール（Inspector の数、既定 32）、近くの敵への体の貸し出しと返却、切断の受け取り、見た目用の部位（`EnemyDebris`、ディゾルブ `Kizami/EnemyDissolve`）を持つ。`EnemyBody` は、接続部側を残す、子の部位を失う、役割（核で倒れる・移動部位 4 つで止まる）、倒れたら切断済みはオーブ・切っていない部位は見た目用の物、を行う。部位の状態は体を返しても `EnemyAgent` に持ち続け、短くなった部位の形は `EnemyShapeKeeper` が預かる。攻撃はない |
 | 敵の群衆 | あり（区間4B・4C）。1000 体を `EnemyCrowdRenderer`（`RenderMeshInstanced`）でまとめて描画する。経路は格子と距離マップ（`EnemyDistanceField`。初期化のときに物理のクエリで作り、ボクセルの形が変わったら作り直しのあとで変わった列だけ調べ直す。距離は Dial 法の Job）。敵は 12 体のグループ（`EnemyGroups`、`EnemyGroupJob`）で、アンカーの道筋に沿って 1〜4 列の隊列を組み、交互に進み、プレイヤーを螺旋の置き場で囲む。近づいた敵は交戦の螺旋の置き場へ向かい、離れると隊列に戻る（`EnemyMoveJob`）。撃破の穴詰めと合流、動けない敵、戻れない敵の扱いもある。体を貸した敵は `EnemyLegs`（脚の IK）で歩く。体を貸していない敵は休みの姿勢のまま描く。設定は `EnemySpawnAdapter` の Inspector の「Formation」 |
-| スキル、スローモード、装甲、クリア判定、HUD | なし |
+| 破壊対象とクリア | あり（区間5）。ステージシーンの `DestructionTarget`（`VoxelModelLoader` と同じ GameObject）が、重要パーツ（`PartPath`）が 1 つずつ必要な割合まで削れたら破壊済みにする。InGame の `Stage`（`StageInitializer`、`StageClearAdapter`）が、すべて破壊済みになったらクリアにして、仮の「STAGE CLEAR」を出す。クリアの State はまだない（区間11）。TestStage に門の形の破壊対象を 2 つ置いた |
+| 崩落による撃破とエネルギー | あり（区間5）。足場ごと 3m 以上落ちた敵（`EnemyMoveJob`）と、落ちてくるボクセルの塊に潰された敵（`EnemyCollapseDetector`）を倒す。かけらは出さない。倒した敵の位置は `EnemyEnergyAdapter`（InGame の `EnemyEnergy`）が GraphicsBuffer で VFX Graph（`EnemyEnergy.vfx`）へ渡し、粒をカメラへ吸い込ませる。チャージは倒したときに `ChargeService.AddCollapsedEnemies` で足す。Enemy と Default のレイヤーは衝突しない（落ちてくる塊が体をすり抜ける為）。TestStage に崩す張り出し（`CrowdVoxelTerrain/Overhang`）を置いた |
+| ダメージタイプと判定の窓口 | なし（区間6） |
+| スキル、スローモード、装甲、HUD | なし |
 | 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブ（`Enemy/AttakkerEnemy.prefab` など。区間4A で作った `Enemy/AttackerEnemy.prefab` は除く）は旧構成のもの。旧 FBX `Assets/Art/Models/AttakkerEnemy.fbx` は、旧構成のプレハブと開発用のシーンが参照している為に残してある。`Assets/Art/` は区間4A から git の対象。`Test/InGame.unity` は Build Settings から外してあり、`BuildScenes.InGame` は新しい `Master/InGame` を指す |
 
 ## 4. 進め方
@@ -123,7 +126,7 @@
 | 4B | 群衆 AI の試作と計測 | 敵の状態（NativeArray）、まとめて描画、距離マップの試作、体の貸し出しと返却、貸した体の切断、計測と方式の決定 | 4A | 10/20〜11/02 | 10/10〜10/13 | 完了（2026-10-06） | [Section04B](Sections/Section04B_CrowdPrototype.md) |
 | 4C | 群衆 AI の本実装 | 距離マップ（速くする、ボクセルへの追従）、グループとアンカー、隊列、交戦と合流、簡易物理、戻れない敵、脚の IK | 4B | 11/03〜11/16 | 10/14〜10/17 | 完了（2026-10-07） | [Section04C](Sections/Section04C_CrowdAI.md) |
 | A | マイルストーンA | 群れで迫る敵を切って溜める | | 11/16 | 10/17 | | |
-| 5 | ダメージ基盤・破壊対象・崩落・クリア判定 | ダメージタイプと対象ごとの判定、ボクセルの破壊対象、重要パーツの体積割合、マップオブジェクト、崩落による撃破、エネルギーの演出（VFX Graph）、クリア判定 | 4C | 11/17〜12/07 | 10/18〜10/23 | 未着手 | [Section05](Sections/Section05_DestructionTarget.md) |
+| 5 | 破壊対象・崩落・クリア判定 | ボクセルの破壊対象、重要パーツの体積割合、マップオブジェクト、崩落による撃破、エネルギーの演出（VFX Graph）、クリア判定。ダメージタイプと対象ごとの判定は区間6へ持ち越す（区間5の決定 1） | 4C | 11/17〜12/07 | 10/18〜10/23 | 完了（2026-10-07） | [Section05](Sections/Section05_DestructionTarget.md) |
 | 6 | スキル基盤・攻撃型スキル | スキルの定義データ、装備枠 3、チャージ消費、攻撃型スキル 2 種 | 3, 5 | 12/08〜12/14 | 10/24〜10/25 | 未着手 | [Section06](Sections/Section06_Skill.md) |
 | B | マイルストーンB | 1 ステージが最初から最後まで遊べる | | 12/14 | 10/25 | | |
 | 7 | スローモード・つかみ・投擲・ランチャー | TimeScale の倍率操作、ゲージ消費、スロー中の切断回数の上限、かけらのつかみ・投擲・ランチャー、粉砕ダメージ | 3, 5 | 12/15〜12/28 | 10/26〜10/29 | 未着手 | [Section07](Sections/Section07_SlowMode.md) |
@@ -149,7 +152,7 @@ flowchart LR
     S1 --> S4A[4A 敵の体と切断]
     S3 --> S4A
     S4A --> S4B[4B 群衆 AI の試作] --> S4C[4C 群衆 AI]
-    S4C --> MA((A)) --> S5[5 ダメージ・破壊対象・崩落・クリア] --> S6[6 スキル] --> MB((B))
+    S4C --> MA((A)) --> S5[5 破壊対象・崩落・クリア] --> S6[6 スキル] --> MB((B))
     S3 --> S6
     MB --> S11[11 ステージ制・HUD]
     S3 --> S7[7 スロー・投擲]
@@ -186,8 +189,9 @@ flowchart LR
 | ポーズ | 常駐の `PauseBoard` と `IPausable`（UsefulToolkit.ProgramTools。中身はまだほぼない） |
 | プレイヤーの物理 | Rigidbody（補間、ContinuousDynamic）、摩擦ゼロの PhysicsMaterial、`Physics.SphereCast`（接地）、`Physics.OverlapCapsuleNonAlloc` と `Collider.ClosestPoint`（壁） |
 | カメラ | Cinemachine |
-| エフェクト | VFX Graph（崩落で撃破した敵のエネルギーも、VFX Graph で作る方向。区間5） |
-| 破壊対象・マップ | 既存のボクセル（`VoxelModelLoader` / `VoxelPiece` / `IVoxelShape`） |
+| エフェクト | VFX Graph。崩落で倒した敵のエネルギーは、位置を GraphicsBuffer で渡し、イベントを 1 フレームに 1 回送る（区間5の `EnemyEnergyAdapter`）。グラフはエディタで手で組む（スクリプトから組む公開の方法がない為。組み方は `Sections/Section05_EnergyVfxGraph.md`） |
+| 破壊対象・マップ | 既存のボクセル（`VoxelModelLoader` / `VoxelPiece` / `IVoxelShape`）。重要パーツの削れた割合は、パーツの `RelativeVolume`（切り離した塊を含まない）から求める（区間5） |
+| Unity CLI Loop（uloop） | `Packages/manifest.json` で v3.13.0 のタグに固定した（区間5）。タグなしだと main の最新を取り、未公開の project runner を指すことがある為。上げるときはタグを書き換える |
 | 破壊属性の切断 | `VoxelPiece.Slice`（厚みゼロの平面で切り分ける） |
 | 破壊スキルの演出 | 既存のボクセルの融解（Thermal / Melt） |
 
@@ -203,13 +207,13 @@ flowchart LR
 | 4B | 体を貸す距離・返す距離と数、短くなった部位を貸し直すときの戻し方、まとめて描画する方法、格子のマスの大きさ、敵の状態とルールを置く層 |
 | 4C | 1 グループの人数と隊形、交戦に入る・抜ける距離、動けない敵の隊列での扱い、距離マップの半径と頻度、歩き方 |
 | 5 | 重要パーツの指定方法、本体から分離した塊を破壊済みに数えるか、クリアに必要な割合をどの単位で持つか、ダメージの判定を置く層、崩落で撃破になる条件、崩落で撃破した敵 1 体あたりのチャージ量と足すタイミング |
-| 6 | 最初に作る攻撃型スキル、消費量 |
+| 6 | 最初に作る攻撃型スキル、消費量、ダメージのデータと判定の窓口を置く層、破壊ダメージの量と削る形状の大きさの対応（区間5から持ち越し） |
 | 7 | スローの倍率、初回消費と継続消費、スロー中の切断回数の上限と、部位ごとの切断回数の上限との関係、サウンドのスロー表現 |
 | 8 | 装甲の作り方（メッシュかボクセルか）、耐久値、遮断の判定方法 |
 | 10 | 強化型スキルの一覧、平面で切り分ける範囲、切り分けた側の扱い、回復スキルの中身と分類 |
-| 11 | ステージごとの失敗条件、失敗したあとの表示、スコアの計算式と表示項目、リトライの方法（UsefulToolkit にシーンを読み直す経路を足す）、ポーズを `timeScale = 0` で実装するか |
+| 11 | ステージごとの失敗条件、失敗したあとの表示、スコアの計算式と表示項目、リトライの方法（UsefulToolkit にシーンを読み直す経路を足す）、ポーズを `timeScale = 0` で実装するか、クリアを Application の Service と State に移す（区間5から持ち越し） |
 | 9 | 雑魚 3 種のパラメータと固有のアクション、特殊部位の種類 |
-| 14 | ギミック戦闘ステージのギミック、チュートリアルの進め方、各ステージの破壊対象・マップ・敵の配置 |
+| 14 | ギミック戦闘ステージのギミック、チュートリアルの進め方、各ステージの破壊対象・マップ・敵の配置、ボクセルの支えの判定、崩落で倒す値の調整（区間5から持ち越し） |
 | 12 | ボスの形、行動、重要パーツ |
 | 13 | 目標のフレームレートと、対象の PC スペック |
 

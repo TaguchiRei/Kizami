@@ -197,6 +197,7 @@ MonoBehaviour:
   _standardPlayerInputRouteInitializer: {fileID: 903436368}
   _enemyInitializer: {fileID: 1539543157}
   _playerInitializer: {fileID: 903436362}
+  _stageInitializer: {fileID: 1452220891}
   _playerDebugInitializer: {fileID: 903436369}
 --- !u!4 &653370830
 Transform:
@@ -296,7 +297,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 1
-  m_Constraints: 80
+  m_Constraints: 112
   m_CollisionDetection: 2
 --- !u!114 &903436362
 MonoBehaviour:
@@ -316,6 +317,7 @@ MonoBehaviour:
   _meleeCutPreviewAdapter: {fileID: 1379823854}
   _meleeCutAdapter: {fileID: 1212232924}
   _fragmentOrbAdapter: {fileID: 1946405260}
+  _enemyEnergyAdapter: {fileID: 1579939516}
   _enemySpawnAdapter: {fileID: 1539543158}
 --- !u!136 &903436363
 CapsuleCollider:
@@ -440,7 +442,6 @@ MonoBehaviour:
   _airAcceleration: 10
   _airDeceleration: 10
   _cameraTransform: {fileID: 1307013810}
-  _degreesPerInput: 0.1
 --- !u!114 &903436368
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -475,6 +476,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.PlayerDebugInitializer
   _damageAmount: 10
   _fragmentOrbAdapter: {fileID: 1946405260}
+  _voxelDestructionAdapter: {fileID: 1734900002}
+  _destructionInterval: 0.1
 --- !u!1 &909869846
 GameObject:
   m_ObjectHideFlags: 0
@@ -893,6 +896,64 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!1 &1452220890
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1452220893}
+  - component: {fileID: 1452220892}
+  - component: {fileID: 1452220891}
+  m_Layer: 0
+  m_Name: Stage
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1452220891
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452220890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1008d6ad67603cd40930bf1e0bacee86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.StageInitializer
+  _stageClearAdapter: {fileID: 1452220892}
+--- !u!114 &1452220892
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452220890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e6c206ed488ac649a8faae70d0517ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageClearAdapter
+--- !u!4 &1452220893
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452220890}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1539543156
 GameObject:
   m_ObjectHideFlags: 0
@@ -925,6 +986,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.EnemyInitializer
   _spawnAdapter: {fileID: 1539543158}
   _fragmentOrbAdapter: {fileID: 1946405260}
+  _energyAdapter: {fileID: 1579939516}
 --- !u!114 &1539543158
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -939,16 +1001,57 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemySpawnAdapter
   _bodyPrefab: {fileID: 1602327258362906900, guid: abba11fae2f3aaa4a8b4ecdfe95fc600, type: 3}
   _bodyCount: 32
+  _lendDistance: 12
+  _returnDistance: 18
+  _reclaimDistance: 9
+  _reclaimMargin: 3
+  _shapeKeeperCapacity: 64
   _fragmentPool: {fileID: 608286024}
   _target: {fileID: 903436366}
   _cellSize: 1
   _enemyHeight: 4
   _climbHeight: 1
+  _dropHeight: 2
   _groundLayers:
     serializedVersion: 2
     m_Bits: 513
   _drawDistanceField: 0
   _distanceGizmoRadius: 25
+  _moveSpeed: 3
+  _turnSpeed: 180
+  _stopDistance: 6
+  _formation:
+    _groupSize: 12
+    _anchorSpeedRate: 0.8
+    _anchorAcceleration: 1.5
+    _anchorTurnSpeed: 90
+    _anchorStopDistance: 12
+    _advanceDuration: 4
+    _holdDuration: 2
+    _groupSpacing: 4
+    _rowSpacing: 8
+    _lateralSpacing: 2.5
+    _maxColumns: 4
+    _columnChangeDelay: 1
+    _mergeSize: 4
+    _encircleDistance: 40
+    _encircleLeaveDistance: 30
+    _encircleInnerRadius: 15
+    _encircleLoopSpacing: 12
+    _encircleSlotSpacing: 18
+    _encircleColumns: 6
+    _engageEnterDistance: 12
+    _engageExitDistance: 18
+    _spiralInnerRadius: 7
+    _spiralLoopSpacing: 6
+    _spiralSlotSpacing: 2.5
+  _groupSpawnRadius: 4
+  _unreachableReturnDelay: 10
+  _fallDefeatHeight: 3
+  _crushMinFallSpeed: 3
+  _crushMinVolume: 0.5
+  _crushBodyCenterHeight: 1.5
+  _crushSurfaceMargin: 0.3
   _debrisMaterial: {fileID: 2100000, guid: 5cfc7be965929784eb5db215773505a4, type: 2}
   _debrisCapacity: 32
   _debrisLifetime: 1
@@ -962,6 +1065,140 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1539543156}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1579939515
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1579939519}
+  - component: {fileID: 1579939518}
+  - component: {fileID: 1579939517}
+  - component: {fileID: 1579939516}
+  m_Layer: 0
+  m_Name: EnemyEnergy
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1579939516
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1579939515}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8718669f52d3c414fb79b233890113ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyEnergyAdapter
+  _effect: {fileID: 1579939518}
+  _maxPositionsPerFrame: 256
+  _particlesPerEnemy: 8
+--- !u!73398921 &1579939517
+VFXRenderer:
+  serializedVersion: 1
+  m_ObjectHideFlags: 2
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1579939515}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 0
+  m_LightProbeUsage: 0
+  m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+--- !u!2083052967 &1579939518
+VisualEffect:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1579939515}
+  m_Enabled: 1
+  m_Asset: {fileID: 8926484042661614526, guid: c4084c36990053a41a1dbbeb71ffaaea, type: 3}
+  m_InitialEventName: OnPlay
+  m_InitialEventNameOverriden: 0
+  m_StartSeed: 0
+  m_ResetSeedOnPlay: 1
+  m_AllowInstancing: 1
+  m_ResourceVersion: 1
+  m_PropertySheet:
+    m_Float:
+      m_Array: []
+    m_Vector2f:
+      m_Array: []
+    m_Vector3f:
+      m_Array: []
+    m_Vector4f:
+      m_Array: []
+    m_Uint:
+      m_Array: []
+    m_Int:
+      m_Array: []
+    m_Matrix4x4f:
+      m_Array: []
+    m_AnimationCurve:
+      m_Array: []
+    m_Gradient:
+      m_Array: []
+    m_NamedObject:
+      m_Array: []
+    m_Bool:
+      m_Array: []
+--- !u!4 &1579939519
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1579939515}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -1140,6 +1377,55 @@ MonoBehaviour:
       m_PostInfinity: 2
       m_RotationOrder: 4
   CustomBlends: {fileID: 0}
+--- !u!1 &1734900001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1734900003}
+  - component: {fileID: 1734900002}
+  m_Layer: 0
+  m_Name: VoxelDestruction
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1734900002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1734900001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ffe1232630ff42b898712502c1cb6a8a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelDestructionAdapter
+  _maxDistance: 50
+  _radius: 1.5
+  _targetLayers:
+    serializedVersion: 2
+    m_Bits: 4294966835
+--- !u!4 &1734900003
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1734900001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1879736535
 GameObject:
   m_ObjectHideFlags: 0
@@ -1248,3 +1534,6 @@ SceneRoots:
   - {fileID: 1379823857}
   - {fileID: 1946405261}
   - {fileID: 1539543159}
+  - {fileID: 1734900003}
+  - {fileID: 1452220893}
+  - {fileID: 1579939519}

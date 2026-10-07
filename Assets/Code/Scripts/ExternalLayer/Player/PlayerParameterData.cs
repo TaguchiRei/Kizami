@@ -83,6 +83,10 @@ namespace Kizami.External
         [Tooltip("かけら 1 個を吸収したときに増えるチャージ量")]
         private int _chargePerFragment = 1;
 
+        [SerializeField, Min(0)]
+        [Tooltip("崩落で敵を 1 体倒したときに増えるチャージ量")]
+        private int _chargePerCollapsedEnemy = 1;
+
         [SerializeField, Min(1)]
         [Tooltip("チャージ量の上限")]
         private int _maxCharge = 100;
@@ -137,6 +141,9 @@ namespace Kizami.External
 
         /// <summary> かけら 1 個を吸収したときに増えるチャージ量 </summary>
         public int ChargePerFragment => _chargePerFragment;
+
+        /// <summary> 崩落で敵を 1 体倒したときに増えるチャージ量 </summary>
+        public int ChargePerCollapsedEnemy => _chargePerCollapsedEnemy;
 
         /// <summary> チャージ量の上限 </summary>
         public int MaxCharge => _maxCharge;

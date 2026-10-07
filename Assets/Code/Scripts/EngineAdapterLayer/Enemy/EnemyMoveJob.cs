@@ -83,12 +83,21 @@ namespace Kizami.EngineAdapter
         /// <summary> 壊れた移動部位がこの数に達した敵は歩かない </summary>
         public int BrokenMovePartLimit;
 
+        /// <summary> この高さ（m）以上落ちて着地した敵は、崩落で倒されたとする </summary>
+        public float FallDefeatHeight;
+
         /// <summary>
         /// 敵の番号から決まる 0〜1 の値。
         /// </summary>
         private static float GetAgentRandom(int index)
         {
             return (math.hash(new uint2((uint)index, 0x85EBCA6Bu)) & 0xFFFFu) / 65535f;
+        }
+
+        private static void DefeatByCollapse(ref EnemyAgent agent)
+        {
+            agent.IsAlive = false;
+            agent.IsDefeatedByCollapse = true;
         }
 
         public void Execute(int index)
@@ -339,7 +348,8 @@ namespace Kizami.EngineAdapter
         /// 立っている敵は床の高さに合わせ、床が下がりすぎていれば落とす。落ちている敵は重力で落とし、床に着いたら立たせる。
         /// 真下の列に着地できる層がなければ、周りの列のうち最も近い列の層に着地し、位置をその列の中へずらす。
         /// 橋の下のように頭上が背丈より低い所は立てる層にならないので、真下だけを見ると地面を抜けて落ち続ける為。
-        /// 格子の範囲より下まで落ちた敵は、ステージから消す。
+        /// 落ち始めた高さから一定以上落ちて着地した敵と、格子の範囲より下まで落ちた敵は、崩落で倒されたとしてステージから消す。
+        /// 敵が自分で降りるのは降りられる高さまでなので、それより高く落ちるのは足場が壊れたときになる。
         /// </summary>
         private void UpdateVertical(ref EnemyAgent agent)
         {
@@ -356,6 +366,7 @@ namespace Kizami.EngineAdapter
 
                 agent.IsGrounded = false;
                 agent.VerticalSpeed = 0f;
+                agent.FallStartHeight = agent.Position.y;
             }
 
             var previousY = agent.Position.y;
@@ -377,10 +388,11 @@ namespace Kizami.EngineAdapter
                 agent.Position.y = Grid.Heights[landing];
                 agent.VerticalSpeed = 0f;
                 agent.IsGrounded = true;
+                if (agent.FallStartHeight - agent.Position.y >= FallDefeatHeight) DefeatByCollapse(ref agent);
                 return;
             }
 
-            if (agent.Position.y < Grid.Origin.y) agent.IsAlive = false;
+            if (agent.Position.y < Grid.Origin.y) DefeatByCollapse(ref agent);
         }
 
         /// <summary>

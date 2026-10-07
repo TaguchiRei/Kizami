@@ -173,7 +173,7 @@
     },
     "com.unity.nuget.mono-cecil": {
       "version": "1.11.6",
-      "depth": 2,
+      "depth": 1,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"
@@ -372,15 +372,15 @@
       "url": "https://packages.unity.com"
     },
     "io.github.hatayama.uloopmcp": {
-      "version": "https://github.com/hatayama/unity-cli-loop.git?path=/Packages/src",
+      "version": "https://github.com/hatayama/unity-cli-loop.git?path=/Packages/src#v3.13.0",
       "depth": 0,
       "source": "git",
       "dependencies": {
-        "com.unity.modules.physics": "1.0.0",
         "com.unity.ugui": "1.0.0",
-        "com.unity.nuget.newtonsoft-json": "3.2.1"
+        "com.unity.nuget.newtonsoft-json": "3.2.1",
+        "com.unity.nuget.mono-cecil": "1.11.6"
       },
-      "hash": "928cb14a773ec769cee855720b630b55d6eeee90"
+      "hash": "db40769c37f5bd45acffd5ad25dcf1c0462b9979"
     },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",

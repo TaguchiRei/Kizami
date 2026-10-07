@@ -20,6 +20,7 @@ namespace Kizami.EngineAdapter
     /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、ステージのボクセルのモデルの形が変わったら、その範囲を調べ直す。
     /// 距離マップは、プレイヤーのいるノードが変わるか、格子を調べ直すたびに計算し直す。
     /// プレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ生成位置へ戻す。
+    /// 足場ごと一定の高さ以上落ちた敵と、ボクセルから切り離されて落ちてくる塊に潰された敵は、崩落で倒す。体を貸していれば返し、かけらは出さない。
     /// 生成した敵は出した順にグループ（EnemyGroups）へ入れ、毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
     /// 切断できる体（EnemyBody）は、プレイヤーから貸す距離の中にいる敵へ近い順に貸し、返す距離より離れたら返す。返す距離は貸す距離より遠い。貸している体の脚は EnemyLegs で歩かせる。
     /// 体を返すときは、短くなった部位の形を EnemyShapeKeeper に預け、次に貸すときに戻す。預ける空きがなければ、その敵の体は返さない。
@@ -150,6 +151,26 @@ namespace Kizami.EngineAdapter
         [Tooltip("プレイヤーへたどり着けない状態がこの時間（秒）続いた敵は、カメラに映っていなければ生成位置へ戻す。動けない敵と、体を貸している敵は戻さない")]
         private float _unreachableReturnDelay = 10f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("この高さ（m）以上落ちて着地した敵を、崩落で倒す。歩いて降りられる高さより高くする")]
+        private float _fallDefeatHeight = 3f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ボクセルから切り離されて落ちてくる塊のうち、下向きの速さがこの値（m/s）以上のものに入った敵を潰す")]
+        private float _crushMinFallSpeed = 3f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ボクセルから切り離されて落ちてくる塊のうち、体積がこの値（m³）以上のものに入った敵を潰す")]
+        private float _crushMinVolume = 0.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("潰されたかを調べる体の中心の、体の根からの高さ（m）")]
+        private float _crushBodyCenterHeight = 1.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("体の中心が塊の表面からこの距離（m）以内なら、潰されたとする")]
+        private float _crushSurfaceMargin = 0.3f;
+
         [SerializeField]
         [Tooltip("体から外れた切っていない部位を消すディゾルブのマテリアル。シェーダーは float のプロパティ _DissolveAmount（0〜1）で消える")]
         private Material _debrisMaterial;
@@ -185,6 +206,11 @@ namespace Kizami.EngineAdapter
         private EnemyShapeKeeper _shapeKeeper;
 
         private EnemyGroups _groups;
+
+        private EnemyCollapseDetector _collapseDetector;
+
+        /// <summary> 崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置 </summary>
+        private Action<Vector3> _emitEnergy;
 
         private ProfilerRecorder _updateRecorder;
         private ProfilerRecorder _moveRecorder;
@@ -232,6 +258,12 @@ namespace Kizami.EngineAdapter
                 return count;
             }
         }
+
+        /// <summary> 崩落（足場ごとの落下と、落ちてくる塊）で倒した敵の数の累計 </summary>
+        public int CollapseDefeatCount { get; private set; }
+
+        /// <summary> 崩落で倒した敵のうち、落ちてくる塊に潰された敵の数の累計 </summary>
+        public int CrushDefeatCount { get; private set; }
 
         /// <summary> 敵の状態の数（同時に存在する数の上限） </summary>
         public int Capacity => _agents.IsCreated ? _agents.Length : 0;
@@ -299,8 +331,11 @@ namespace Kizami.EngineAdapter
         /// 見つからないときは Update を止めたままにする。
         /// </summary>
         /// <param name="spawnOrb">倒れた体に残っていた切断済みの部位を、オーブにする関数。引数はオーブを出す位置</param>
-        public void Initialize(Action<Vector3> spawnOrb)
+        /// <param name="emitEnergy">崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置</param>
+        public void Initialize(Action<Vector3> spawnOrb, Action<Vector3> emitEnergy)
         {
+            _emitEnergy = emitEnergy;
+
             if (_bodyPrefab == null || _fragmentPool == null)
             {
                 UsefulLogger.LogError("敵の体のプレハブか、かけらのプールが設定されていません。", this);
@@ -337,9 +372,12 @@ namespace Kizami.EngineAdapter
             _crowdRenderer = new EnemyCrowdRenderer(_bodyPrefab, _agents.Length);
             _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
                 _dropHeight, _groundLayers);
+            _collapseDetector = new EnemyCollapseDetector(_crushMinFallSpeed, _crushMinVolume, _crushBodyCenterHeight,
+                _crushSurfaceMargin);
             foreach (var loader in FindObjectsByType<VoxelModelLoader>(FindObjectsSortMode.None))
             {
                 _distanceField.Watch(loader);
+                _collapseDetector.Watch(loader);
             }
 
             _shapeKeeper = new EnemyShapeKeeper(transform, _shapeKeeperCapacity, _agents.Length, _bodyPrefab.Parts.Count);
@@ -424,6 +462,8 @@ namespace Kizami.EngineAdapter
                 {
                     MoveAgents();
                     ReturnUnreachableAgents();
+                    CrushDefeatCount += _collapseDetector.Detect(_agents);
+                    CountCollapseDefeats();
                 }
 
                 if (_target != null)
@@ -449,6 +489,7 @@ namespace Kizami.EngineAdapter
         {
             _crowdRenderer?.Dispose();
             _distanceField?.Dispose();
+            _collapseDetector?.Dispose();
             _groups?.Dispose();
             if (_agents.IsCreated) _agents.Dispose();
             _updateRecorder.Dispose();
@@ -489,11 +530,29 @@ namespace Kizami.EngineAdapter
                 TurnSpeed = math.radians(_turnSpeed),
                 StopDistance = _stopDistance,
                 Gravity = -Physics.gravity.y,
-                BrokenMovePartLimit = _bodyPrefab.BrokenMovePartLimit
+                BrokenMovePartLimit = _bodyPrefab.BrokenMovePartLimit,
+                FallDefeatHeight = _fallDefeatHeight
             }.Schedule(_agents.Length, 64, groupHandle).Complete();
 
             _groups.MaintainNext(_agents, _distanceField.Grid, _distanceField.Distances, _formation,
                 _bodyPrefab.BrokenMovePartLimit);
+        }
+
+        /// <summary>
+        /// 崩落で倒されたことが記録された敵を数えて体の中心からエネルギーを出し、記録を消す。倒された敵の体は、次の ReturnBodies で返す。
+        /// </summary>
+        private void CountCollapseDefeats()
+        {
+            for (var i = 0; i < _agents.Length; i++)
+            {
+                var agent = _agents[i];
+                if (!agent.IsDefeatedByCollapse) continue;
+
+                agent.IsDefeatedByCollapse = false;
+                _agents[i] = agent;
+                CollapseDefeatCount++;
+                _emitEnergy?.Invoke((Vector3)agent.Position + Vector3.up * _crushBodyCenterHeight);
+            }
         }
 
         /// <summary>
@@ -532,6 +591,7 @@ namespace Kizami.EngineAdapter
                 agent.Yaw = GetYawToTarget(position);
                 agent.IsGrounded = false;
                 agent.VerticalSpeed = 0f;
+                agent.FallStartHeight = position.y;
                 agent.UnreachableTime = 0f;
                 _groups.TryAdd(i, ref agent, point.transform.position, GetYawToTarget(point.transform.position),
                     Random.Range(0f, _formation.HoldDuration), _formation);
@@ -777,6 +837,7 @@ namespace Kizami.EngineAdapter
                 {
                     IsAlive = true,
                     Position = position,
+                    FallStartHeight = position.y,
                     Yaw = GetYawToTarget(position),
                     BodyIndex = -1,
                     GroupIndex = -1

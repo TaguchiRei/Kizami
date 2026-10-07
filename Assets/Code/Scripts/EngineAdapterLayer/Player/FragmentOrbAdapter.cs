@@ -90,7 +90,11 @@ namespace Kizami.EngineAdapter
                 () => Instantiate(_orbPrefab, transform).transform,
                 orb => orb.gameObject.SetActive(true),
                 orb => orb.gameObject.SetActive(false),
-                orb => Destroy(orb.gameObject),
+                orb =>
+                {
+                    // プレイ終了時は PoolManager がシーン破棄後にプールを Clear するので、破棄済みのオーブが来る
+                    if (orb != null) Destroy(orb.gameObject);
+                },
                 collectionCheck: false,
                 defaultCapacity: _maxOrbCount,
                 maxSize: _maxOrbCount);

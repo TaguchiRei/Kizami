@@ -33,6 +33,11 @@
 | `IPlayerHealthState` / `PlayerHealthService` | 区間1で作った HP の State と Service。HUD の HP 表示はこの State を読む。State は InGame の SceneState なので、インゲームに入るたびに満タンに戻る。合計被ダメージを数える処理はまだない |
 | `PauseBoard` / `IPausable` | UsefulToolkit.ProgramTools のポーズ用の Board とインターフェース（`IsPaused` / `Pause` / `Resume`）。Board は常駐シーンに登録済みだが、中身はまだない |
 
+## 前提の変化（2026-10-07、区間5 の完了時）
+
+- 区間5で、クリアの判定を EngineAdapter の `StageClearAdapter` に置き、仮の「STAGE CLEAR」を画面に出す形にした（区間5の決定 5。読むのが仮の表示だけだった為）。リザルトとリトライがクリアを読むので、この区間で Application の Service と BlackBoard の State に移し、仮の表示を置き換える
+- 破壊対象は、ステージシーンの `DestructionTarget` が持つ（重要パーツのパスと必要な割合）。ステージデータに破壊対象の情報を持たせるかを決める
+
 ## 作業一覧
 
 | # | 作業 | 層 | 内容 |

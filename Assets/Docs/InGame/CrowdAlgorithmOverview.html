@@ -5,259 +5,380 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>群衆アルゴリズムの動き</title>
 <style>
-:root{--bg:#f7f7f5;--card:#fff;--fg:#1d1d1f;--sub:#5c5c66;--line:#d8d8de;--acc:#2f6fdb;--acc2:#d9822b;--ok:#2e9b5f;--warn:#c94545;--soft:#eef3fc}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181b;--card:#202226;--fg:#ececf0;--sub:#a3a3ad;--line:#3a3c43;--acc:#6b9cf0;--acc2:#e9a25a;--ok:#5cc58b;--warn:#e77878;--soft:#1f2a3d}}
-:root[data-theme="dark"]{--bg:#17181b;--card:#202226;--fg:#ececf0;--sub:#a3a3ad;--line:#3a3c43;--acc:#6b9cf0;--acc2:#e9a25a;--ok:#5cc58b;--warn:#e77878;--soft:#1f2a3d}
+:root{--bg:#f6f6f3;--card:#fff;--fg:#1d1d1f;--sub:#62626c;--line:#dcdce2;--soft:#eef2f9;
+--form:#3b78e7;--enc:#d9822b;--eng:#d64545;--imm:#8a8a94;--anc:#1d1d1f;--ok:#2e9b5f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16171a;--card:#202226;--fg:#ececf0;--sub:#a3a3ad;--line:#3a3c43;--soft:#1f2735;
+--form:#6b9cf0;--enc:#eba25c;--eng:#ef7474;--imm:#777782;--anc:#f2f2f2;--ok:#5cc58b}}
+:root[data-theme="dark"]{--bg:#16171a;--card:#202226;--fg:#ececf0;--sub:#a3a3ad;--line:#3a3c43;--soft:#1f2735;
+--form:#6b9cf0;--enc:#eba25c;--eng:#ef7474;--imm:#777782;--anc:#f2f2f2;--ok:#5cc58b}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;line-height:1.75}
-main{max-width:960px;margin:0 auto;padding:32px 16px 80px}
-h1{font-size:1.7rem;margin:0 0 4px}
-h2{font-size:1.25rem;margin:48px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--line)}
-h3{font-size:1.05rem;margin:24px 0 8px}
-.lead{color:var(--sub)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:12px 0}
-table{width:100%;border-collapse:collapse;font-size:.92rem}
-th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
-th{background:var(--soft);font-weight:600}
-td.s{width:32%}
-.tag{display:inline-block;font-size:.75rem;padding:1px 8px;border-radius:99px;background:var(--soft);color:var(--acc);margin-right:4px}
-svg{width:100%;height:auto;display:block}
-svg text{fill:var(--fg);font-size:13px;font-family:inherit}
-svg .sub{fill:var(--sub);font-size:11px}
-.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.flow span{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:.9rem}
-.flow b{color:var(--sub)}
-details{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:10px 0;padding:4px 16px}
-summary{cursor:pointer;font-weight:600;padding:8px 0}
-.note{font-size:.88rem;color:var(--sub)}
-code{background:var(--soft);padding:0 4px;border-radius:4px;font-size:.9em}
-@media print{details{display:block}details>summary{list-style:none}body{background:#fff}}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;line-height:1.7}
+main{max-width:1040px;margin:0 auto;padding:28px 16px 80px}
+h1{font-size:1.65rem;margin:0 0 4px}
+h2{font-size:1.25rem;margin:44px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+.lead,.note{color:var(--sub)}.note{font-size:.86rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0}
+#sim{width:100%;aspect-ratio:16/10;display:block;border-radius:8px;background:var(--bg);touch-action:none;cursor:crosshair}
+.bar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:10px 0 2px;font-size:.88rem}
+button{font:inherit;font-size:.85rem;padding:5px 12px;border-radius:8px;border:1px solid var(--line);background:var(--soft);color:var(--fg);cursor:pointer}
+button.on{outline:2px solid var(--form)}
+label{white-space:nowrap;cursor:pointer}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.85rem;margin-top:6px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.stats{font-size:.82rem;color:var(--sub);font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.vc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.vc h3{font-size:.98rem;margin:0 0 6px}
+.vc svg{width:100%;height:auto;display:block}
+.vc p{margin:6px 0 0;font-size:.86rem;color:var(--sub)}
+svg text{fill:var(--fg);font-family:inherit;font-size:11px}
+svg .s{fill:var(--sub);font-size:10px}
+.f{fill:var(--form)}.e{fill:var(--enc)}.g{fill:var(--eng)}.i{fill:var(--imm)}.a{fill:var(--anc)}
+.ln{stroke:var(--sub);stroke-width:1.2;fill:none}
+.dash{stroke:var(--line);stroke-dasharray:3 3;fill:none}
+.arrow{stroke:var(--sub);stroke-width:1.4;fill:none;marker-end:url(#ar)}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{border-bottom:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--soft)}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch}
+.step{flex:1 1 150px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:8px 10px;font-size:.86rem}
+.step b{display:block;font-size:.92rem}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute"><defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--sub)"/></marker></defs></svg>
 <main>
 <h1>疑似群衆アルゴリズムの動き</h1>
-<p class="lead">ブランチ <code>feature/alpha/crowdai</code>（区間4C）で作った敵の群衆 AI を、「この状況では敵がこう判断し、ここへ向かう」という形でまとめた。既定値は <code>EnemyFormationSettings.Default</code> の仮の値。</p>
+<p class="lead">ブランチ <code>feature/alpha/crowdai</code>（区間4C）の敵の群衆 AI を、動く図と状況ごとの図で解説する。値は <code>EnemyFormationSettings.Default</code> の仮の値。</p>
 
-<h2>1. 全体像</h2>
-<p>敵 1 体ずつが自分で考えるのではなく、<b>体を持たない仮想の隊長（アンカー）</b>が群れの行き先を決め、敵はその後ろの<b>隊列の位置</b>を追いかける。プレイヤーに十分近づいた敵だけが隊列を離れて<b>交戦</b>する。</p>
+<h2>1. 触って見る</h2>
 <div class="card">
-<svg viewBox="0 0 900 300" role="img" aria-label="全体構成">
- <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--sub)"/></marker></defs>
- <g fill="var(--soft)" stroke="var(--line)">
-  <rect x="20" y="20" width="250" height="110" rx="10"/>
-  <rect x="325" y="20" width="250" height="110" rx="10"/>
-  <rect x="630" y="20" width="250" height="110" rx="10"/>
-  <rect x="20" y="170" width="250" height="110" rx="10"/>
-  <rect x="325" y="170" width="250" height="110" rx="10"/>
-  <rect x="630" y="170" width="250" height="110" rx="10"/>
- </g>
- <text x="35" y="48" font-weight="700">① 経路：距離マップ</text>
- <text class="sub" x="35" y="72">格子の各マスに「プレイヤーまでの</text>
- <text class="sub" x="35" y="90">歩ける道のりの長さ」を書いた地図。</text>
- <text class="sub" x="35" y="108">値が下がる方へ進めば近づける。</text>
- <text x="340" y="48" font-weight="700">② グループ：アンカー</text>
- <text class="sub" x="340" y="72">最大12体の群れの仮想の隊長。</text>
- <text class="sub" x="340" y="90">距離マップを下り、通った道筋を記録。</text>
- <text class="sub" x="340" y="108">近づいたら包囲の螺旋の置き場へ。</text>
- <text x="645" y="48" font-weight="700">③ 敵 1 体：移動</text>
- <text class="sub" x="645" y="72">隊列の位置 / 交戦の置き場 / 距離マップ、</text>
- <text class="sub" x="645" y="90">のどれかを目指して歩く。段差・落下・</text>
- <text class="sub" x="645" y="108">着地は簡易物理で処理。</text>
- <text x="35" y="198" font-weight="700">④ グループの整備</text>
- <text class="sub" x="35" y="222">毎フレーム 1 グループずつ、</text>
- <text class="sub" x="35" y="240">抜けた穴を詰める・小さい群れを合流・</text>
- <text class="sub" x="35" y="258">プレイヤーに近い順に並べ替え。</text>
- <text x="340" y="198" font-weight="700">⑤ 描画と体の貸し出し</text>
- <text class="sub" x="340" y="222">全員はまとめて描画（GameObject なし）。</text>
- <text class="sub" x="340" y="240">近くの敵にだけ切断できる体を貸す。</text>
- <text class="sub" x="340" y="258">遠ざかったら返す。</text>
- <text x="645" y="198" font-weight="700">⑥ 脚（体を貸した敵だけ）</text>
- <text class="sub" x="645" y="222">足は地面に置いたまま、ずれが大きく</text>
- <text class="sub" x="645" y="240">なった対角の 2 本ずつを交互に運ぶ。</text>
- <text class="sub" x="645" y="258">2 本の骨の IK で膝を曲げる。</text>
- <g stroke="var(--sub)" stroke-width="1.5" marker-end="url(#a)">
-  <line x1="272" y1="75" x2="322" y2="75"/><line x1="577" y1="75" x2="627" y2="75"/>
-  <line x1="755" y1="132" x2="755" y2="167"/>
- </g>
-</svg>
+<canvas id="sim"></canvas>
+<div class="bar">
+ <button id="bPause">一時停止</button>
+ <span>速度 <button data-sp="1" class="on">×1</button> <button data-sp="2">×2</button> <button data-sp="4">×4</button></span>
+ <button id="bKill">ランダムに 10 体倒す</button>
+ <button id="bImm">1 体を動けなくする</button>
+ <button id="bReset">最初から</button>
 </div>
-<h3>1 フレームの流れ</h3>
-<div class="flow"><span>プレイヤーのマスが変わった / 地形が壊れた → 距離マップを作り直す</span><b>→</b><span>アンカーを動かす・交戦の置き場を割り当てる</span><b>→</b><span>敵を動かす</span><b>→</b><span>グループを 1 つ整える</span><b>→</b><span>体の貸し借り・脚・描画</span></div>
-
-<h2>2. 敵 1 体が「どこへ向かうか」の判断</h2>
-<p>毎フレーム、上から順に当てはまるものを選ぶ。</p>
-<div class="card">
-<svg viewBox="0 0 900 330" role="img" aria-label="判断の分岐">
- <defs><marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="var(--sub)"/></marker></defs>
- <g stroke="var(--line)">
-  <rect x="20" y="20" width="270" height="44" rx="8" fill="var(--soft)"/>
-  <rect x="20" y="95" width="270" height="44" rx="8" fill="var(--soft)"/>
-  <rect x="20" y="170" width="270" height="44" rx="8" fill="var(--soft)"/>
-  <rect x="20" y="245" width="270" height="44" rx="8" fill="var(--soft)"/>
-  <rect x="380" y="20" width="500" height="44" rx="8" fill="var(--card)"/>
-  <rect x="380" y="95" width="500" height="44" rx="8" fill="var(--card)"/>
-  <rect x="380" y="170" width="500" height="44" rx="8" fill="var(--card)"/>
-  <rect x="380" y="245" width="500" height="44" rx="8" fill="var(--card)"/>
- </g>
- <text x="34" y="47">移動部位が壊れすぎている？</text>
- <text x="34" y="122">交戦中？（道のり 12m 以内で入る）</text>
- <text x="34" y="197">グループに入っている？</text>
- <text x="34" y="272">どれでもない</text>
- <text x="394" y="47">歩かない。その場に残る（足場が消えれば落ちる）</text>
- <text x="394" y="122">プレイヤーを囲む螺旋の置き場へ。置き場が空くまではその場で待つ</text>
- <text x="394" y="197">アンカーの後ろの、自分の隊列の位置へ</text>
- <text x="394" y="272">距離マップの値が下がる隣のマスへ（単独でプレイヤーへ）</text>
- <g stroke="var(--sub)" stroke-width="1.5" marker-end="url(#b)">
-  <line x1="292" y1="42" x2="377" y2="42"/><line x1="292" y1="117" x2="377" y2="117"/>
-  <line x1="292" y1="192" x2="377" y2="192"/><line x1="292" y1="267" x2="377" y2="267"/>
-  <line x1="155" y1="66" x2="155" y2="92"/><line x1="155" y1="141" x2="155" y2="167"/><line x1="155" y1="216" x2="155" y2="242"/>
- </g>
- <text class="sub" x="160" y="84">いいえ</text><text class="sub" x="160" y="159">いいえ</text><text class="sub" x="160" y="234">いいえ</text>
- <text class="sub" x="300" y="36">はい</text><text class="sub" x="300" y="111">はい</text><text class="sub" x="300" y="186">はい</text>
-</svg>
-<p class="note">目指す位置へまっすぐ進めない（壁・登れない段差）ときは、「目指す位置に近づく隣のマス」→ それもなければ「距離マップの値が下がるマス」の順に逃がす。どれもなければそのフレームは進まない。</p>
+<div class="bar">
+ <label><input type="checkbox" id="cPath" checked> アンカーと道筋</label>
+ <label><input type="checkbox" id="cSlot" checked> 螺旋の置き場</label>
+ <label><input type="checkbox" id="cRing" checked> 距離の輪</label>
+ <label><input type="checkbox" id="cTarget"> 敵の目指す位置</label>
+</div>
+<div class="legend">
+ <span><i class="dot" style="background:var(--form)"></i>隊列（道筋に沿う）</span>
+ <span><i class="dot" style="background:var(--enc)"></i>包囲中の隊列（横隊）</span>
+ <span><i class="dot" style="background:var(--eng)"></i>交戦</span>
+ <span><i class="dot" style="background:var(--imm)"></i>動けない</span>
+ <span>◆ アンカー（白抜き＝待つ番）</span>
+</div>
+<p class="note">操作：ドラッグでプレイヤー（赤い ◎）を動かす。敵をクリックで倒す。Shift＋クリックで動けなくする。<br>
+簡易版の注意：壁・段差・落下は省き、「道のり」を直線距離で代用している。体の貸し出しと脚は描いていない。</p>
+<div class="stats" id="stats"></div>
 </div>
 
-<h2>3. 状況ごとの判断表</h2>
-
-<details open><summary>グループとアンカー（群れの行き先）</summary>
-<table>
-<tr><th>状況</th><th>判断と行き先</th></tr>
-<tr><td class="s">敵が湧いた</td><td>湧いた順に、いま作っているグループの隊列の最後へ入る。12 体に達したら次の敵から新しいグループ。新しいグループの道筋は「アンカーの後ろにまっすぐ」で埋めておくので、湧いた直後から並ぶ位置が決まる。</td></tr>
-<tr><td class="s">グループができた直後</td><td>まず<b>待つ</b>状態から始まり、少し後に進み始める。</td></tr>
-<tr><td class="s">平常時（プレイヤーまで道のり 40m より遠い）</td><td>アンカーは距離マップの値が下がるマスを数マス先までたどり、その方向へ進む（隣のマスだけだと 8 方向に限られ、隊列が直線的に見えるため）。速さは敵の 0.8 倍、加速度・旋回速度に上限があり、ゆったり曲がる。</td></tr>
-<tr><td class="s">進む / 待つ</td><td><b>4 秒進んで 2 秒止まる</b>を繰り返す（交互の前進）。グループごとに時間をずらすので、全部の群れが同時に動き出すことはない。</td></tr>
-<tr><td class="s">同じレーンの前で別グループが「待つ番」で止まっている</td><td>その後ろ（最後尾から 4m）で止まって待つ。ただし前が「着いて止まった」「詰まって止まった」「包囲中」のときは待たない（待ちが後ろへ連鎖して全体が固まるのを防ぐ）。前後は、プレイヤーまでの道のりが短い方が前。</td></tr>
-<tr><td class="s">道のり 12m に着いた / たどり着けない</td><td>アンカーは減速して止まる。</td></tr>
-<tr><td class="s">道のりが 40m 以内になった</td><td><b>包囲</b>に入る。プレイヤー中心の大きな螺旋（内側半径 15m、1 周で 12m 広がる、18m 間隔）の置き場のうち、空いていて自分に最も近いものを受け取り、そこへ向かう。先に来たグループが内側を取るので、群れは来た方向のまま内→外へ囲んでいく。</td></tr>
-<tr><td class="s">包囲の置き場に着いた</td><td>止まってプレイヤーの方を向く。置き場はプレイヤーと一緒に動くので、プレイヤーが動けばまた追う。</td></tr>
-<tr><td class="s">置き場まで直線で 30m より離れた（プレイヤーが走り去った等）</td><td>置き場を手放し、距離マップを下る平常の動きに戻る。</td></tr>
-</table>
-</details>
-
-<details open><summary>隊列（メンバーの並び方）</summary>
-<table>
-<tr><th>状況</th><th>判断と行き先</th></tr>
-<tr><td class="s">平常時</td><td>アンカーが通った<b>道筋</b>をたどって、「列番号 × 8m」後ろの点から、道筋の右へ「列内の位置 × 2.5m」ずらした点が自分の位置。曲がり角ではヘビのように道筋に沿って曲がる。</td></tr>
-<tr><td class="s">1 列に何体並ぶか</td><td>アンカーの左右に同じ高さの床がどれだけ続くかで決める（上限 4、包囲中は 6）。新しい数が 1 秒続いたら切り替えるので、ちらつかない。</td></tr>
-<tr><td class="s">横にずらした先で床が途切れる（通路・橋）</td><td>途切れる手前で止める。通路では隊列が細くなる。</td></tr>
-<tr><td class="s">包囲中</td><td>道筋ではなく、アンカーの向きのまっすぐ後ろに並ぶ。着いたアンカーはプレイヤーを向くので、<b>プレイヤーを向いた横隊</b>になる。</td></tr>
-<tr><td class="s">自分の位置に着いた</td><td>隊列の向きを向いて止まる。近づくほど減速するので、ぴたりと止まる。</td></tr>
-<tr><td class="s">歩く速さ</td><td>敵ごとに ±10% ずらす（全員同じ速さだと機械的に見えるため）。進む向きからずれている間はその分遅くなる。</td></tr>
-</table>
-</details>
-
-<details open><summary>交戦（隊列を離れてプレイヤーへ）</summary>
-<table>
-<tr><th>状況</th><th>判断と行き先</th></tr>
-<tr><td class="s">自分の道のりが 12m 以内になった</td><td>隊列から外れて<b>交戦</b>に入る。プレイヤー中心の小さな螺旋（内側半径 7m、1 周で 6m 広がる、2.5m 間隔。UnlimitedKnight の群衆の図）の置き場のうち、交戦距離より内側で、空いていて自分に最も近いものを割り当てられ、そこへ向かう。</td></tr>
-<tr><td class="s">置き場が空いていない</td><td>その場でプレイヤーを向いて待つ。</td></tr>
-<tr><td class="s">置き場に着いた</td><td>プレイヤーを向いて止まる。置き場はプレイヤーと一緒に動く。</td></tr>
-<tr><td class="s">道のりが 18m を超えた / たどり着けなくなった</td><td>交戦をやめて置き場を空け、隊列の位置へ戻る。入る 12m と抜ける 18m に差をつけて、出たり入ったりを防いでいる。</td></tr>
-</table>
-</details>
-
-<details open><summary>群れが崩れたとき（グループの整備）</summary>
-<p class="note">毎フレーム、使っているグループを 1 つずつ順番に見る。</p>
-<table>
-<tr><th>状況</th><th>判断</th></tr>
-<tr><td class="s">メンバーが倒れた・別グループへ移った</td><td>隊列から抜き、順番を保って前へ詰める（穴を後ろへずらす）。後ろのメンバーが前の位置へ繰り上がる。</td></tr>
-<tr><td class="s">メンバーが動けなくなった（移動部位を規定数壊された）</td><td>グループからも交戦からも外し、その場に置き去りにする。</td></tr>
-<tr><td class="s">メンバーが 4 体以下に減った</td><td>近く（一定距離以内）にあって、合わせても 12 体を超えないグループのうち、アンカーが最も近いものの隊列の最後へ全員移る（合流）。元のグループは空ける。</td></tr>
-<tr><td class="s">合流しなかった</td><td>メンバーの順番を、プレイヤーまでの道のりが短い順に並べ替える。前にいる者が前列に来るので、位置へ向かうときにメンバー同士が交差しにくい。</td></tr>
-<tr><td class="s">全員いなくなった</td><td>グループを空ける。</td></tr>
-</table>
-</details>
-
-<details open><summary>地形（段差・落下・破壊）</summary>
-<table>
-<tr><th>状況</th><th>判断</th></tr>
-<tr><td class="s">登れる高さの段差</td><td>その場で乗る。</td></tr>
-<tr><td class="s">少しの下り</td><td>床に合わせて下りる。それより低ければ落ちる。</td></tr>
-<tr><td class="s">降りられる高さを超える崖・壁</td><td>その方向へは進まない。距離マップもそこを通らない経路で作られるので、回り道をする。</td></tr>
-<tr><td class="s">足場が消えた（ボクセルが壊れた）</td><td>重力で落ちる。真下に立てる場所がなければ周りのマスを探して着地する（橋の下など頭上が低い所を抜け落ちないため）。格子の範囲より下まで落ちたらステージから消える。</td></tr>
-<tr><td class="s">ボクセルの形が変わった</td><td>変わった範囲の格子を、当たり判定の作り直しを待ってから調べ直し、距離マップを計算し直す。</td></tr>
-<tr><td class="s">プレイヤーへたどり着けない状態が続いた</td><td>一定時間を超え、カメラに映っていなければ、湧き場所へ戻して新しいグループにする。動けない敵と、体を貸している敵（プレイヤーの近くにいる）は戻さない。</td></tr>
-</table>
-</details>
-
-<details open><summary>体の貸し出しと脚</summary>
-<table>
-<tr><th>状況</th><th>判断</th></tr>
-<tr><td class="s">プレイヤーから貸す距離の中に入った</td><td>近い順に、切断できる体（GameObject）を貸す。それまでは見た目だけのまとめ描画。</td></tr>
-<tr><td class="s">体に空きがない</td><td>切断が届きうる近さの敵に限り、それより十分遠い敵のうち最も遠い敵から体を取り上げて貸す。</td></tr>
-<tr><td class="s">返す距離より離れた</td><td>体を返す（貸す距離より遠いので、境目で貸し借りを繰り返さない）。短くなった部位の形は預けておき、次に貸すときに戻す。</td></tr>
-<tr><td class="s">体を借りている敵が歩く</td><td>足は地面に置いたまま。体から見た基準位置とのずれが踏み出す距離を超えた組（対角の 2 本）から 1 組ずつ、少し先回りした位置へ持ち上げて運ぶ（トロット）。地面の高さは経路の格子から取る。切られて短くなった脚も、届く範囲で動かす。</td></tr>
-</table>
-</details>
-
-<h2>4. 群衆として見たときの動き</h2>
-<div class="card">
-<svg viewBox="0 0 900 360" role="img" aria-label="群衆の時間変化">
- <g stroke="var(--line)" fill="none">
-  <circle cx="660" cy="190" r="40" stroke-dasharray="4 4"/>
-  <circle cx="660" cy="190" r="110" stroke-dasharray="4 4"/>
-  <circle cx="660" cy="190" r="170" stroke-dasharray="2 6"/>
- </g>
- <circle cx="660" cy="190" r="9" fill="var(--warn)"/>
- <text x="674" y="186">プレイヤー</text>
- <text class="sub" x="672" y="146">交戦の螺旋（〜12m）</text>
- <text class="sub" x="560" y="74">包囲の螺旋（15m〜）</text>
- <text class="sub" x="780" y="30">包囲を始める（道のり 40m）</text>
- <g fill="var(--acc)">
-  <circle cx="60" cy="80" r="5"/><circle cx="75" cy="70" r="4"/><circle cx="85" cy="90" r="4"/><circle cx="50" cy="100" r="4"/><circle cx="68" cy="105" r="4"/><circle cx="95" cy="72" r="4"/>
- </g>
- <text x="30" y="40" font-weight="700">① 出現</text>
- <text class="sub" x="30" y="58">12 体ずつ群れになる</text>
- <path d="M100 95 C 200 120, 260 200, 380 210" stroke="var(--acc)" stroke-width="2" fill="none" stroke-dasharray="6 5"/>
- <g fill="var(--acc)">
-  <circle cx="300" cy="190" r="4"/><circle cx="292" cy="198" r="4"/><circle cx="270" cy="170" r="4"/><circle cx="262" cy="180" r="4"/><circle cx="240" cy="150" r="4"/><circle cx="232" cy="160" r="4"/>
- </g>
- <rect x="310" y="183" width="10" height="10" fill="var(--acc2)"/>
- <text x="200" y="250" font-weight="700">② 接近</text>
- <text class="sub" x="200" y="268">アンカー（■）の道筋に沿った縦隊</text>
- <text class="sub" x="200" y="286">4 秒進む・2 秒止まるを繰り返す</text>
- <g fill="var(--acc)">
-  <rect x="545" y="180" width="10" height="10" fill="var(--acc2)"/>
-  <circle cx="530" cy="170" r="4"/><circle cx="530" cy="182" r="4"/><circle cx="530" cy="194" r="4"/><circle cx="530" cy="206" r="4"/>
-  <circle cx="512" cy="170" r="4"/><circle cx="512" cy="182" r="4"/><circle cx="512" cy="194" r="4"/><circle cx="512" cy="206" r="4"/>
-  <rect x="655" y="300" width="10" height="10" fill="var(--acc2)"/>
-  <circle cx="645" cy="318" r="4"/><circle cx="657" cy="318" r="4"/><circle cx="669" cy="318" r="4"/><circle cx="681" cy="318" r="4"/>
- </g>
- <text x="410" y="300" font-weight="700">③ 包囲</text>
- <text class="sub" x="410" y="318">螺旋の置き場に着いて、プレイヤーを</text>
- <text class="sub" x="410" y="336">向いた横隊（1 列 6 体）になる</text>
- <g fill="var(--warn)"><circle cx="625" cy="175" r="4"/><circle cx="632" cy="205" r="4"/><circle cx="695" cy="215" r="4"/><circle cx="680" cy="158" r="4"/></g>
- <text x="760" y="250" font-weight="700">④ 交戦</text>
- <text class="sub" x="760" y="268">道のり 12m 以内の敵だけが</text>
- <text class="sub" x="760" y="286">隊列を離れ、小さな螺旋へ</text>
-</svg>
+<h2>2. 一体の敵が行き先を選ぶ順番</h2>
+<div class="flow">
+ <div class="step" style="--c:var(--imm)"><b>① 動けない？</b>移動部位を規定数壊された → 歩かない。その場に残る</div>
+ <div class="step" style="--c:var(--eng)"><b>② 交戦中？</b>道のり 12m 以内で入る、18m 超で抜ける → 小さな螺旋の置き場へ</div>
+ <div class="step" style="--c:var(--form)"><b>③ グループに入っている？</b>→ アンカーの後ろの自分の隊列の位置へ</div>
+ <div class="step" style="--c:var(--line)"><b>④ どれでもない</b>→ 距離マップを下ってプレイヤーへ</div>
 </div>
-<table>
-<tr><th>段階</th><th>見え方</th></tr>
-<tr><td class="s">① 出現</td><td>湧き場所から 12 体ずつの群れが、少しずつ時間差で動き出す。</td></tr>
-<tr><td class="s">② 接近</td><td>群れはアンカーの後ろに 1 列最大 4 体の縦隊で、地形に沿って曲がりながら迫る。進んでは止まるので、波のように押し寄せる。前の群れが止まれば後ろも詰まって止まる。通路では細く、広場では広がる。</td></tr>
-<tr><td class="s">③ 包囲</td><td>40m まで来た群れから内側の置き場を取り、プレイヤーを向いた横隊で周りに陣取る。遅れた群れほど外側。結果として、来た方角ごとに層をなしてプレイヤーを囲む。</td></tr>
-<tr><td class="s">④ 交戦</td><td>前列の、プレイヤーに 12m まで近い敵だけが飛び出し、プレイヤーを取り巻く小さな螺旋に詰める。プレイヤーが離れれば 18m で隊列へ戻る。</td></tr>
-<tr><td class="s">⑤ 崩れたとき</td><td>倒された分は後ろが繰り上がり、小さくなった群れは近くの群れに吸収される。脚を壊された敵はその場に取り残される。足場を壊すと群れは落ち、たどり着けなくなった敵は見えない所で湧き場所へ戻る。</td></tr>
-</table>
+<p class="note">まっすぐ進めないときは「目指す位置に近づく隣のマス」→「距離マップが下がるマス」の順に逃がす。</p>
 
-<h2>5. 主な調整値と効き方</h2>
+<h2>3. 群れの一生</h2>
+<div class="grid">
+
+<div class="vc"><h3>① 出現：12 体ずつ群れになる</h3>
+<svg viewBox="0 0 300 120">
+ <circle cx="40" cy="60" r="20" class="dash"/><text x="20" y="100" class="s">湧き場所</text>
+ <g class="f"><circle cx="35" cy="55" r="3"/><circle cx="45" cy="62" r="3"/><circle cx="38" cy="68" r="3"/></g>
+ <path d="M70 60H110" class="arrow"/>
+ <path d="M140 60 H270" class="dash"/>
+ <rect x="266" y="56" width="8" height="8" class="a" transform="rotate(45 270 60)"/>
+ <g class="f"><circle cx="250" cy="50" r="3"/><circle cx="250" cy="57" r="3"/><circle cx="250" cy="64" r="3"/><circle cx="250" cy="71" r="3"/>
+ <circle cx="220" cy="50" r="3"/><circle cx="220" cy="57" r="3"/><circle cx="220" cy="64" r="3"/><circle cx="220" cy="71" r="3"/>
+ <circle cx="190" cy="50" r="3"/><circle cx="190" cy="57" r="3"/><circle cx="190" cy="64" r="3"/><circle cx="190" cy="71" r="3"/></g>
+ <text x="150" y="100" class="s">道筋はアンカーの後ろへ伸ばして埋めておく</text>
+</svg>
+<p>湧いた順に隊列の最後へ入る。12 体で次のグループ。最初は「待つ番」から始まる。</p></div>
+
+<div class="vc"><h3>② 接近：道筋に沿った縦隊</h3>
+<svg viewBox="0 0 300 120">
+ <path d="M20 100 C 90 100, 120 30, 280 30" class="ln" stroke-dasharray="4 3"/>
+ <rect x="276" y="26" width="8" height="8" class="a" transform="rotate(45 280 30)"/>
+ <g class="f"><circle cx="250" cy="25" r="3"/><circle cx="250" cy="35" r="3"/>
+ <circle cx="205" cy="27" r="3"/><circle cx="207" cy="38" r="3"/>
+ <circle cx="160" cy="40" r="3"/><circle cx="166" cy="49" r="3"/>
+ <circle cx="125" cy="62" r="3"/><circle cx="133" cy="70" r="3"/>
+ <circle cx="95" cy="86" r="3"/><circle cx="101" cy="95" r="3"/></g>
+ <text x="20" y="20" class="s">列の間隔 8m・横 2.5m・1 列最大 4 体</text>
+</svg>
+<p>アンカーは距離マップを数マス先まで見て進み、通った点を記録。メンバーは「道筋を 列×8m 戻った点の右へずらした位置」を追う。角ではヘビのように曲がる。</p></div>
+
+<div class="vc"><h3>③ 進む 4 秒・待つ 2 秒</h3>
+<svg viewBox="0 0 300 120">
+ <g font-size="10">
+ <text x="10" y="30">群れA</text><text x="10" y="60">群れB</text><text x="10" y="90">群れC</text></g>
+ <g fill="var(--form)" opacity=".85">
+  <rect x="50" y="20" width="80" height="14" rx="3"/><rect x="170" y="20" width="80" height="14" rx="3"/>
+  <rect x="75" y="50" width="80" height="14" rx="3"/><rect x="195" y="50" width="80" height="14" rx="3"/>
+  <rect x="50" y="80" width="40" height="14" rx="3"/><rect x="130" y="80" width="80" height="14" rx="3"/><rect x="250" y="80" width="40" height="14" rx="3"/>
+ </g>
+ <text x="50" y="112" class="s">■ 進む　空白＝止まって待つ（群れごとに時刻をずらす）</text>
+</svg>
+<p>全部の群れが同時には動かず、波のように押し寄せる。</p></div>
+
+<div class="vc"><h3>④ 同じレーンなら前の群れの後ろで待つ</h3>
+<svg viewBox="0 0 300 120">
+ <rect x="226" y="46" width="8" height="8" fill="none" stroke="var(--anc)" transform="rotate(45 230 50)"/>
+ <g class="f"><circle cx="210" cy="45" r="3"/><circle cx="210" cy="55" r="3"/><circle cx="190" cy="45" r="3"/><circle cx="190" cy="55" r="3"/><circle cx="170" cy="45" r="3"/><circle cx="170" cy="55" r="3"/></g>
+ <text x="175" y="30" class="s">前：待つ番で停止</text>
+ <path d="M155 50H135" class="ln"/><text x="128" y="75" class="s">4m</text>
+ <rect x="126" y="46" width="8" height="8" class="a" transform="rotate(45 130 50)"/>
+ <g class="f" opacity=".7"><circle cx="110" cy="45" r="3"/><circle cx="110" cy="55" r="3"/><circle cx="90" cy="45" r="3"/><circle cx="90" cy="55" r="3"/></g>
+ <text x="70" y="30" class="s">後ろ：止まる</text>
+ <text x="10" y="105" class="s">前が「着いた」「詰まった」「包囲中」のときは待たない（連鎖して全体が固まるのを防ぐ）</text>
+</svg>
+<p>前後は、プレイヤーまでの道のりが短い方が前。</p></div>
+
+<div class="vc"><h3>⑤ 包囲：大きな螺旋に陣取る</h3>
+<svg viewBox="0 0 300 160" id="svgEnc"></svg>
+<p>道のり 40m 以内で、空いていて最も近い置き場を受け取る。先着が内側。着いたらプレイヤーを向き、メンバーは<b>真後ろに 1 列 6 体の横隊</b>。置き場まで 30m 以上離れたら手放す。</p></div>
+
+<div class="vc"><h3>⑥ 交戦：小さな螺旋へ飛び出す</h3>
+<svg viewBox="0 0 300 160" id="svgEng"></svg>
+<p>道のり 12m 以内の敵だけ隊列を離れ、内側半径 7m・間隔 2.5m の螺旋の置き場へ。空きがなければその場で待つ。18m を超えたら隊列へ戻る（12m と 18m の差で出入りのちらつきを防ぐ）。</p></div>
+
+<div class="vc"><h3>⑦ 穴詰め：後ろが繰り上がる</h3>
+<svg viewBox="0 0 300 120">
+ <text x="10" y="16" class="s">Before</text><text x="160" y="16" class="s">After</text>
+ <g transform="translate(0,10)">
+ <rect x="126" y="36" width="8" height="8" class="a" transform="rotate(45 130 40)"/>
+ <g class="f"><circle cx="110" cy="30" r="3"/><circle cx="110" cy="40" r="3"/><circle cx="110" cy="50" r="3"/>
+ <circle cx="80" cy="30" r="3"/><circle cx="80" cy="50" r="3"/>
+ <circle cx="50" cy="30" r="3"/><circle cx="50" cy="40" r="3"/></g>
+ <text x="76" y="44" font-size="11" fill="var(--eng)">×</text>
+ <rect x="276" y="36" width="8" height="8" class="a" transform="rotate(45 280 40)"/>
+ <g class="f"><circle cx="260" cy="30" r="3"/><circle cx="260" cy="40" r="3"/><circle cx="260" cy="50" r="3"/>
+ <circle cx="230" cy="30" r="3"/><circle cx="230" cy="40" r="3"/><circle cx="230" cy="50" r="3"/>
+ <circle cx="200" cy="30" r="3"/></g>
+ <path d="M140 40H155" class="arrow"/></g>
+ <text x="10" y="105" class="s">倒れた・移った・動けなくなった敵を抜き、順番を保って前へ詰める</text>
+</svg>
+<p>毎フレーム 1 グループずつ順番に整える。詰めたあと、プレイヤーに近い順に並べ替える（向かう途中で交差しにくい）。</p></div>
+
+<div class="vc"><h3>⑧ 合流：小さくなった群れは吸収される</h3>
+<svg viewBox="0 0 300 120">
+ <rect x="226" y="36" width="8" height="8" class="a" transform="rotate(45 230 40)"/>
+ <g class="f"><circle cx="210" cy="30" r="3"/><circle cx="210" cy="40" r="3"/><circle cx="210" cy="50" r="3"/><circle cx="185" cy="30" r="3"/><circle cx="185" cy="40" r="3"/><circle cx="185" cy="50" r="3"/></g>
+ <rect x="96" y="86" width="8" height="8" fill="none" stroke="var(--anc)" transform="rotate(45 100 90)"/>
+ <g class="f" opacity=".6"><circle cx="85" cy="85" r="3"/><circle cx="85" cy="95" r="3"/><circle cx="65" cy="90" r="3"/></g>
+ <path d="M110 82 C 140 70, 150 50, 165 45" class="arrow"/>
+ <text x="20" y="70" class="s">4 体以下</text>
+ <text x="150" y="80" class="s">近くて、足しても 12 体以内の</text>
+ <text x="150" y="93" class="s">いちばん近い群れの最後尾へ</text>
+</svg>
+<p>元の群れは空になる。</p></div>
+
+<div class="vc"><h3>⑨ 通路では隊列が細くなる</h3>
+<svg viewBox="0 0 300 120">
+ <rect x="0" y="10" width="300" height="22" fill="var(--imm)" opacity=".35"/><rect x="0" y="88" width="300" height="22" fill="var(--imm)" opacity=".35"/>
+ <rect x="140" y="32" width="60" height="18" fill="var(--imm)" opacity=".35"/><rect x="140" y="70" width="60" height="18" fill="var(--imm)" opacity=".35"/>
+ <rect x="276" y="56" width="8" height="8" class="a" transform="rotate(45 280 60)"/>
+ <g class="f"><circle cx="250" cy="45" r="3"/><circle cx="250" cy="55" r="3"/><circle cx="250" cy="65" r="3"/><circle cx="250" cy="75" r="3"/>
+ <circle cx="180" cy="55" r="3"/><circle cx="180" cy="65" r="3"/>
+ <circle cx="110" cy="45" r="3"/><circle cx="110" cy="55" r="3"/><circle cx="110" cy="65" r="3"/><circle cx="110" cy="75" r="3"/></g>
+</svg>
+<p>アンカーの左右の床の幅で 1 列の数を決める（新しい数が 1 秒続いたら変える）。横にずらす途中で床が切れたらその手前で止まる。</p></div>
+
+<div class="vc"><h3>⑩ 足場が壊れたら落ちる</h3>
+<svg viewBox="0 0 300 120">
+ <rect x="10" y="40" width="90" height="10" fill="var(--imm)" opacity=".5"/><rect x="200" y="40" width="90" height="10" fill="var(--imm)" opacity=".5"/>
+ <rect x="100" y="40" width="100" height="10" fill="none" stroke="var(--eng)" stroke-dasharray="3 3"/>
+ <rect x="10" y="100" width="280" height="10" fill="var(--imm)" opacity=".5"/>
+ <g class="f"><circle cx="130" cy="34" r="4" opacity=".35"/><circle cx="130" cy="92" r="4"/>
+ <circle cx="165" cy="34" r="4" opacity=".35"/><circle cx="165" cy="92" r="4"/></g>
+ <path d="M130 40V84M165 40V84" class="arrow"/>
+ <text x="40" y="25" class="s">ボクセルの橋が壊れる → 重力で落ち、下の床に着地</text>
+</svg>
+<p>真下に立てる所がなければ周りのマスに着地。たどり着けない状態が続いた敵は、カメラに映っていなければ湧き場所へ戻る。</p></div>
+
+<div class="vc"><h3>⑪ 近くの敵にだけ体を貸す</h3>
+<svg viewBox="0 0 300 120">
+ <circle cx="150" cy="60" r="30" class="dash"/><circle cx="150" cy="60" r="48" class="dash"/>
+ <circle cx="150" cy="60" r="5" fill="var(--eng)"/>
+ <g class="f"><rect x="160" y="40" width="10" height="7" rx="2"/><rect x="128" y="70" width="10" height="7" rx="2"/></g>
+ <g class="f" opacity=".5"><circle cx="210" cy="30" r="3"/><circle cx="230" cy="80" r="3"/><circle cx="70" cy="40" r="3"/><circle cx="80" cy="95" r="3"/></g>
+ <text x="190" y="110" class="s">内側：貸す距離　外側：返す距離</text>
+ <text x="5" y="15" class="s">■ 切断できる体（GameObject）　● まとめ描画だけ</text>
+</svg>
+<p>近い順に貸し、返す距離より離れたら返す。短くなった部位の形は預けて次に戻す。</p></div>
+
+<div class="vc"><h3>⑫ 脚：対角の 2 本ずつ交互に運ぶ</h3>
+<svg viewBox="0 0 300 120">
+ <rect x="110" y="45" width="80" height="30" rx="8" fill="var(--form)" opacity=".3"/>
+ <g fill="var(--fg)"><circle cx="100" cy="35" r="4"/><circle cx="182" cy="87" r="4"/></g>
+ <g fill="none" stroke="var(--eng)" stroke-width="1.5"><circle cx="205" cy="35" r="5"/><circle cx="120" cy="87" r="5"/></g>
+ <path d="M185 35H198M100 87H113" class="arrow"/>
+ <text x="10" y="112" class="s">● 地面に置いたまま　○ 基準からずれすぎた組を少し先へ運ぶ</text>
+</svg>
+<p>足の高さは経路の格子から取る（レイは撃たない）。切られて短くなった脚も届く範囲で動く。</p></div>
+</div>
+
+<h2>4. 調整値と効き方</h2>
 <table>
 <tr><th>値（既定）</th><th>変えると</th></tr>
-<tr><td class="s">グループの人数（12）</td><td>大きいほど長い隊列。群れの数が減り、アンカーの計算が軽くなる。</td></tr>
-<tr><td class="s">進む 4 秒 / 待つ 2 秒</td><td>押し寄せる波の周期。待つを 0 にすると常に前進する。</td></tr>
-<tr><td class="s">列の間隔 8m / 横の間隔 2.5m</td><td>隊列の密度。四足の体が約 10.5m あるので、列の間隔を詰めすぎると重なる。</td></tr>
-<tr><td class="s">1 列の上限 4（包囲中 6）</td><td>隊列の幅。包囲中の値で横隊の広さが決まる。</td></tr>
-<tr><td class="s">合流する人数（4 以下）</td><td>大きいほど早めに群れがまとまる。</td></tr>
-<tr><td class="s">包囲の開始 40m / 手放す 30m</td><td>どれだけ遠くから陣取りを始めるか。</td></tr>
-<tr><td class="s">包囲の螺旋（内側 15m、1 周 +12m、間隔 18m）</td><td>包囲の輪の大きさと、群れどうしの間隔。</td></tr>
-<tr><td class="s">交戦 入る 12m / 抜ける 18m</td><td>同時にプレイヤーへ寄ってくる敵の量。差を縮めすぎると出入りを繰り返す。</td></tr>
-<tr><td class="s">交戦の螺旋（内側 7m、1 周 +6m、間隔 2.5m）</td><td>プレイヤーの周りの密度。置き場は 12m 以内だけ使うので、この値で同時に交戦する最大数が決まる。</td></tr>
-<tr><td class="s">アンカーの速さ（敵の 0.8 倍）</td><td>1 未満なので、メンバーは遅れても隊列の位置に追いつける。</td></tr>
+<tr><td>グループの人数（12）</td><td>大きいほど長い隊列・群れが少ない</td></tr>
+<tr><td>進む 4 秒 / 待つ 2 秒</td><td>押し寄せる波の周期</td></tr>
+<tr><td>列の間隔 8m / 横 2.5m / 1 列 4（包囲中 6）</td><td>隊列の密度と幅（体の前後は約 10.5m）</td></tr>
+<tr><td>合流する人数（4 以下）</td><td>大きいほど早めにまとまる</td></tr>
+<tr><td>包囲 開始 40m / 手放す 30m、螺旋 内側 15m・1 周 +12m・間隔 18m</td><td>陣取りを始める距離と、包囲の輪の大きさ</td></tr>
+<tr><td>交戦 入る 12m / 抜ける 18m、螺旋 内側 7m・1 周 +6m・間隔 2.5m</td><td>同時にプレイヤーへ寄る数（12m 以内の置き場の数が上限）</td></tr>
+<tr><td>アンカーの速さ（敵の 0.8 倍）</td><td>1 未満なので遅れたメンバーが追いつける</td></tr>
 </table>
-<p class="note">「道のり」は直線距離ではなく、距離マップ上の歩ける経路の長さ。壁の向こうのプレイヤーには、近くても交戦に入らない。</p>
+<p class="note">「道のり」は距離マップ上の歩ける経路の長さ。壁の向こうのプレイヤーには、直線で近くても交戦に入らない。</p>
 </main>
+
+<script>
+(()=>{
+const F={size:12,anchorRate:.8,acc:1.5,turn:90*Math.PI/180,stop:12,adv:4,hold:2,gap:4,row:8,lat:2.5,cols:4,encCols:6,merge:4,
+ encDist:40,encLeave:30,encIn:15,encLoop:12,encSp:18,engIn:12,engOut:18,spIn:7,spLoop:6,spSp:2.5};
+const SPEED=5,PATH_SP=2,MAX=144,ENC_SLOTS=40,ENG_SLOTS=60,MERGE_DIST=30;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function spiral(i,inn,loop,sp){const s=i*sp,r=Math.sqrt(inn*inn+loop*s/Math.PI),th=(r-inn)*2*Math.PI/loop;return{x:Math.sin(th)*r,y:Math.cos(th)*r,r};}
+const encS=[...Array(ENC_SLOTS)].map((_,i)=>spiral(i,F.encIn,F.encLoop,F.encSp));
+const engS=[...Array(ENG_SLOTS)].map((_,i)=>spiral(i,F.spIn,F.spLoop,F.spSp)).filter(p=>p.r<=F.engIn);
+
+// static spirals in cards
+function drawSpiralSvg(id,slots,scale,extra){const el=document.getElementById(id);let h='';const cx=150,cy=80;
+ h+=`<circle cx="${cx}" cy="${cy}" r="5" fill="var(--eng)"/>`;
+ let d='';for(let t=0;t<=1;t+=.01){const p=slots.length;}
+ slots.forEach((p,i)=>{h+=`<circle cx="${cx+p.x*scale}" cy="${cy-p.y*scale}" r="2.2" fill="none" stroke="var(--sub)"/>`;if(i<6)h+=`<text x="${cx+p.x*scale+4}" y="${cy-p.y*scale-3}" class="s">${i}</text>`;});
+ h+=extra(cx,cy,scale);el.innerHTML=h;}
+drawSpiralSvg('svgEnc',encS.slice(0,10),2.2,(cx,cy,s)=>{let h=`<circle cx="${cx}" cy="${cy}" r="${40*s}" class="dash"/><text x="${cx+40*s*.7+4}" y="${cy+40*s*.7}" class="s">40m</text>`;
+ const p=encS[0];const ax=cx+p.x*s,ay=cy-p.y*s;h+=`<rect x="${ax-4}" y="${ay-4}" width="8" height="8" class="a" transform="rotate(45 ${ax} ${ay})"/>`;
+ for(let r=1;r<3;r++)for(let c=0;c<6;c++)h+=`<circle cx="${ax+(c-2.5)*2.5*s*.5}" cy="${ay-r*8*s*.5}" r="2.4" class="e"/>`;return h;});
+drawSpiralSvg('svgEng',engS,5,(cx,cy,s)=>{let h=`<circle cx="${cx}" cy="${cy}" r="${12*s}" class="dash"/><text x="${cx+12*s+3}" y="${cy}" class="s">12m</text>`;
+ engS.slice(0,7).forEach(p=>h+=`<circle cx="${cx+p.x*s}" cy="${cy-p.y*s}" r="2.6" class="g"/>`);return h;});
+
+// simulation
+const cv=document.getElementById('sim'),ctx=cv.getContext('2d');
+let W,H,S,player,ptarget,agents,groups,spawnT,spawnI,curGroup,maintI,paused=false,speed=1,time=0;
+const SP=[{x:-110,y:-60},{x:110,y:-60},{x:-110,y:60},{x:110,y:55},{x:0,y:-68}];
+function resize(){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;cv.width=r.width*d;cv.height=r.height*d;ctx.setTransform(d,0,0,d,0,0);W=r.width;H=r.height;S=W/240;}
+addEventListener('resize',resize);
+function reset(){player={x:0,y:0};ptarget=null;agents=[];groups=[];spawnT=0;spawnI=0;curGroup=-1;maintI=0;time=0;}
+const hash=i=>{let x=Math.sin(i*127.1+11.7)*43758.5453;return x-Math.floor(x);};
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const angTo=(dx,dy)=>Math.atan2(dx,dy);
+const wrap=a=>{while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a;};
+
+function newGroup(pos){const yaw=angTo(player.x-pos.x,player.y-pos.y);const g={live:true,x:pos.x,y:pos.y,yaw,v:0,adv:false,timer:1+hash(groups.length)*2,slot:-1,arrived:false,members:[],path:[],d:0,phase:(hash(groups.length+7)-.5)*.6};
+ for(let i=0;i<40;i++)g.path.push({x:pos.x-Math.sin(yaw)*i*PATH_SP,y:pos.y-Math.cos(yaw)*i*PATH_SP});groups.push(g);return groups.length-1;}
+function spawn(){if(agents.filter(a=>a.alive).length>=MAX)return;
+ const sp=SP[spawnI%SP.length];if(curGroup<0||groups[curGroup].members.length>=F.size||!groups[curGroup].live){spawnI++;curGroup=newGroup(SP[spawnI%SP.length]);}
+ const g=groups[curGroup];const a={x:g.x+(Math.random()-.5)*6,y:g.y+(Math.random()-.5)*6,yaw:g.yaw,alive:true,imm:false,group:curGroup,eng:false,eslot:-1,mul:1+(hash(agents.length+3)-.5)*.2,tx:0,ty:0};
+ agents.push(a);g.members.push(agents.length-1);}
+
+function samplePath(g,back){let acc=0,prev={x:g.x,y:g.y};for(const p of g.path){const l=dist(prev,p);if(acc+l>=back&&l>0){const t=(back-acc)/l;return{x:prev.x+(p.x-prev.x)*t,y:prev.y+(p.y-prev.y)*t,dx:(prev.x-p.x)/l,dy:(prev.y-p.y)/l};}acc+=l;prev=p;}
+ const n=g.path.length,a=g.path[n-2],b=g.path[n-1],l=dist(a,b)||1;return{x:b.x,y:b.y,dx:(a.x-b.x)/l,dy:(a.y-b.y)/l};}
+function formationPos(a){const g=groups[a.group];const i=g.members.indexOf(agents.indexOf(a));const cols=g.slot>=0?F.encCols:F.cols;const row=Math.floor(i/cols),col=i%cols,lat=(col-(cols-1)/2)*F.lat;
+ if(g.slot>=0){const fx=Math.sin(g.yaw),fy=Math.cos(g.yaw);const back=row*F.row+4;return{x:g.x-fx*back+fy*lat,y:g.y-fy*back-fx*lat,yaw:g.yaw};}
+ const p=samplePath(g,row*F.row+4);return{x:p.x+p.dy*lat,y:p.y-p.dx*lat,yaw:angTo(p.dx,p.dy)};}
+function tailLen(g){return Math.ceil(g.members.length/F.cols)*F.row;}
+
+function updateGroups(dt){
+ const used=new Set(groups.filter(g=>g.live&&g.slot>=0).map(g=>g.slot));
+ groups.forEach((g,gi)=>{if(!g.live)return;g.d=dist(g,player);
+  g.timer-=dt;if(g.timer<=0){g.adv=!g.adv;g.timer=(g.adv?F.adv:F.hold)*(1+g.phase);}
+  if(g.slot>=0){const s=encS[g.slot];if(Math.hypot(player.x+s.x-g.x,player.y+s.y-g.y)>F.encLeave){used.delete(g.slot);g.slot=-1;g.arrived=false;}}
+  if(g.slot<0&&g.d<=F.encDist){let best=-1,bd=1e9;encS.forEach((s,i)=>{if(used.has(i))return;const d=Math.hypot(player.x+s.x-g.x,player.y+s.y-g.y);if(d<bd){bd=d;best=i;}});if(best>=0){g.slot=best;used.add(best);}}
+  let tx,ty,want=SPEED*F.anchorRate;
+  if(g.slot>=0){const s=encS[g.slot];tx=player.x+s.x;ty=player.y+s.y;const d=Math.hypot(tx-g.x,ty-g.y);g.arrived=d<1.5;if(d<6)want*=d/6;}
+  else{tx=player.x;ty=player.y;g.arrived=false;if(g.d<=F.stop)want=0;
+   for(const h of groups){if(h===g||!h.live||h.adv||h.slot>=0||h.v>.3||h.d>=g.d)continue;
+    const fx=Math.sin(g.yaw),fy=Math.cos(g.yaw),dx=h.x-g.x,dy=h.y-g.y,fw=dx*fx+dy*fy,sd=Math.abs(dx*fy-dy*fx);
+    if(fw>0&&fw-tailLen(h)<F.gap&&sd<F.cols*F.lat){want=0;g.waiting=true;break;}}}
+  if(!g.adv)want=0;
+  if(g.arrived){want=0;g.yaw+=Math.max(-F.turn*dt,Math.min(F.turn*dt,wrap(angTo(player.x-g.x,player.y-g.y)-g.yaw)));}
+  else{const dy=wrap(angTo(tx-g.x,ty-g.y)-g.yaw);g.yaw+=Math.max(-F.turn*dt,Math.min(F.turn*dt,dy));}
+  g.v+=Math.max(-F.acc*dt,Math.min(F.acc*dt,want-g.v));
+  g.x+=Math.sin(g.yaw)*g.v*dt;g.y+=Math.cos(g.yaw)*g.v*dt;
+  if(dist(g,g.path[0])>=PATH_SP){g.path.unshift({x:g.x,y:g.y});if(g.path.length>80)g.path.pop();}
+ });
+ // engagement slots
+ const taken=new Set();agents.forEach(a=>{if(a.alive&&a.eng&&a.eslot>=0)taken.add(a.eslot);});
+ agents.forEach(a=>{if(!a.alive||!a.eng||a.eslot>=0)return;let best=-1,bd=1e9;engS.forEach((s,i)=>{if(taken.has(i))return;const d=Math.hypot(player.x+s.x-a.x,player.y+s.y-a.y);if(d<bd){bd=d;best=i;}});if(best>=0){a.eslot=best;taken.add(best);}});
+}
+function updateAgents(dt){
+ agents.forEach(a=>{if(!a.alive||a.imm)return;const d=dist(a,player);
+  if(!a.eng&&d<=F.engIn)a.eng=true;else if(a.eng&&d>F.engOut){a.eng=false;a.eslot=-1;}
+  let t,yaw;
+  if(a.eng){if(a.eslot<0){a.tx=a.x;a.ty=a.y;a.yaw+=wrap(angTo(player.x-a.x,player.y-a.y)-a.yaw)*Math.min(1,dt*4);return;}
+   const s=engS[a.eslot];t={x:player.x+s.x,y:player.y+s.y};yaw=angTo(player.x-t.x,player.y-t.y);}
+  else if(a.group>=0&&groups[a.group].live){t=formationPos(a);yaw=t.yaw;}
+  else{t={x:player.x,y:player.y};yaw=0;}
+  a.tx=t.x;a.ty=t.y;const dx=t.x-a.x,dy=t.y-a.y,l=Math.hypot(dx,dy);
+  if(l<.4){a.yaw+=wrap(yaw-a.yaw)*Math.min(1,dt*4);return;}
+  const dyaw=wrap(angTo(dx,dy)-a.yaw);a.yaw+=Math.max(-4*dt,Math.min(4*dt,dyaw));
+  let v=SPEED*a.mul*Math.max(0,Math.cos(dyaw));if(l<3)v*=l/3;const step=Math.min(v*dt,l);
+  a.x+=Math.sin(a.yaw)*step;a.y+=Math.cos(a.yaw)*step;});
+}
+function maintain(){const live=groups.map((g,i)=>i).filter(i=>groups[i].live);if(!live.length)return;const gi=live[maintI++%live.length],g=groups[gi];
+ g.members=g.members.filter(i=>{const a=agents[i];if(!a.alive||a.group!==gi)return false;if(a.imm){a.group=-1;a.eng=false;a.eslot=-1;return false;}return true;});
+ if(!g.members.length){g.live=false;return;}
+ if(g.members.length<=F.merge&&gi!==curGroup){let best=-1,bd=MERGE_DIST;groups.forEach((h,hi)=>{if(hi===gi||!h.live||h.members.length+g.members.length>F.size)return;const d=dist(g,h);if(d<bd){bd=d;best=hi;}});
+  if(best>=0){g.members.forEach(i=>{agents[i].group=best;groups[best].members.push(i);});g.members=[];g.live=false;if(g.slot>=0)g.slot=-1;return;}}
+ g.members.sort((i,j)=>dist(agents[i],player)-dist(agents[j],player));}
+
+function step(dt){time+=dt;
+ if(ptarget){const dx=ptarget.x-player.x,dy=ptarget.y-player.y,l=Math.hypot(dx,dy),m=Math.min(l,14*dt);if(l>.01){player.x+=dx/l*m;player.y+=dy/l*m;}}
+ spawnT-=dt;if(spawnT<=0){spawn();spawnT=.25;}
+ updateGroups(dt);updateAgents(dt);maintain();}
+
+const toS=p=>({x:W/2+p.x*S,y:H/2-p.y*S});const toW=(x,y)=>({x:(x-W/2)/S,y:-(y-H/2)/S});
+function draw(){const C={form:css('--form'),enc:css('--enc'),eng:css('--eng'),imm:css('--imm'),anc:css('--anc'),line:css('--line'),sub:css('--sub'),fg:css('--fg'),card:css('--card')};
+ ctx.clearRect(0,0,W,H);ctx.fillStyle=C.card;ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle=C.line;ctx.lineWidth=1;for(let x=-120;x<=120;x+=10){const a=toS({x,y:0});ctx.globalAlpha=.35;ctx.beginPath();ctx.moveTo(a.x,0);ctx.lineTo(a.x,H);ctx.stroke();}
+ for(let y=-80;y<=80;y+=10){const a=toS({x:0,y});ctx.beginPath();ctx.moveTo(0,a.y);ctx.lineTo(W,a.y);ctx.stroke();}ctx.globalAlpha=1;
+ const P=toS(player);
+ SP.forEach(s=>{const p=toS(s);ctx.setLineDash([3,3]);ctx.strokeStyle=C.sub;ctx.beginPath();ctx.arc(p.x,p.y,4*S,0,7);ctx.stroke();ctx.setLineDash([]);});
+ if(cRing.checked){[[F.engIn,'交戦 12m'],[F.engOut,'戻る 18m'],[F.encDist,'包囲 40m']].forEach(([r,t])=>{ctx.setLineDash([5,5]);ctx.strokeStyle=C.sub;ctx.globalAlpha=.6;ctx.beginPath();ctx.arc(P.x,P.y,r*S,0,7);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;ctx.fillStyle=C.sub;ctx.font='11px sans-serif';ctx.fillText(t,P.x+r*S*.71+3,P.y-r*S*.71);});}
+ if(cSlot.checked){const used=new Set(groups.filter(g=>g.live&&g.slot>=0).map(g=>g.slot));
+  encS.forEach((s,i)=>{const p=toS({x:player.x+s.x,y:player.y+s.y});ctx.strokeStyle=C.enc;ctx.globalAlpha=used.has(i)?.9:.35;ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(p.x,p.y,4,0,7);ctx.stroke();});
+  engS.forEach(s=>{const p=toS({x:player.x+s.x,y:player.y+s.y});ctx.strokeStyle=C.eng;ctx.globalAlpha=.35;ctx.beginPath();ctx.arc(p.x,p.y,2.2,0,7);ctx.stroke();});ctx.globalAlpha=1;}
+ if(cPath.checked)groups.forEach(g=>{if(!g.live)return;ctx.strokeStyle=C.sub;ctx.globalAlpha=.45;ctx.setLineDash([2,3]);ctx.beginPath();const n=Math.min(g.path.length,Math.ceil(tailLen(g)/PATH_SP)+4);
+  for(let i=0;i<n;i++){const p=toS(g.path[i]);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);}ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;});
+ if(cTarget.checked)agents.forEach(a=>{if(!a.alive||a.imm)return;const p=toS(a),t=toS({x:a.tx,y:a.ty});ctx.strokeStyle=C.sub;ctx.globalAlpha=.4;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(t.x,t.y);ctx.stroke();ctx.globalAlpha=1;});
+ agents.forEach(a=>{if(!a.alive)return;const g=a.group>=0?groups[a.group]:null;const col=a.imm?C.imm:a.eng?C.eng:(g&&g.slot>=0?C.enc:C.form);
+  const p=toS(a),fx=Math.sin(a.yaw),fy=-Math.cos(a.yaw),r=Math.max(2.5,1.1*S);
+  ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(p.x+fx*r*1.8,p.y+fy*r*1.8);ctx.lineTo(p.x-fx*r+fy*r,p.y-fy*r-fx*r);ctx.lineTo(p.x-fx*r-fy*r,p.y-fy*r+fx*r);ctx.closePath();ctx.fill();});
+ if(cPath.checked)groups.forEach(g=>{if(!g.live)return;const p=toS(g),r=5;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(Math.PI/4);ctx.strokeStyle=C.anc;ctx.fillStyle=C.anc;ctx.lineWidth=1.5;
+  g.adv&&!g.arrived?ctx.fillRect(-r,-r,2*r,2*r):ctx.strokeRect(-r,-r,2*r,2*r);ctx.restore();});
+ ctx.strokeStyle=C.eng;ctx.lineWidth=2;ctx.beginPath();ctx.arc(P.x,P.y,7,0,7);ctx.stroke();ctx.fillStyle=C.eng;ctx.beginPath();ctx.arc(P.x,P.y,3,0,7);ctx.fill();
+ const al=agents.filter(a=>a.alive);
+ document.getElementById('stats').textContent=`敵 ${al.length} 体 ｜ グループ ${groups.filter(g=>g.live).length} ｜ 包囲中のグループ ${groups.filter(g=>g.live&&g.slot>=0).length} ｜ 交戦 ${al.filter(a=>a.eng).length} 体 ｜ 動けない ${al.filter(a=>a.imm).length} 体`;}
+
+let last=performance.now();function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(!paused)for(let i=0;i<speed;i++)step(dt);draw();requestAnimationFrame(loop);}
+
+let dragging=false;
+function hit(w){let best=null,bd=2.5;agents.forEach(a=>{if(!a.alive)return;const d=dist(a,w);if(d<bd){bd=d;best=a;}});return best;}
+cv.addEventListener('pointerdown',e=>{const r=cv.getBoundingClientRect(),w=toW(e.clientX-r.left,e.clientY-r.top);const a=hit(w);
+ if(a){if(e.shiftKey)a.imm=true;else{a.alive=false;a.eslot=-1;}return;}dragging=true;cv.setPointerCapture(e.pointerId);ptarget=w;});
+cv.addEventListener('pointermove',e=>{if(!dragging)return;const r=cv.getBoundingClientRect();ptarget=toW(e.clientX-r.left,e.clientY-r.top);});
+cv.addEventListener('pointerup',()=>dragging=false);
+const $=id=>document.getElementById(id);const cRing=$('cRing'),cSlot=$('cSlot'),cPath=$('cPath'),cTarget=$('cTarget');
+$('bPause').onclick=e=>{paused=!paused;e.target.textContent=paused?'再生':'一時停止';};
+document.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{speed=+b.dataset.sp;document.querySelectorAll('[data-sp]').forEach(x=>x.classList.toggle('on',x===b));});
+$('bKill').onclick=()=>{const al=agents.filter(a=>a.alive);for(let i=0;i<10&&al.length;i++){const a=al.splice(Math.floor(Math.random()*al.length),1)[0];a.alive=false;}};
+$('bImm').onclick=()=>{const al=agents.filter(a=>a.alive&&!a.imm&&a.group>=0);if(al.length)al[Math.floor(Math.random()*al.length)].imm=true;};
+$('bReset').onclick=reset;
+resize();reset();requestAnimationFrame(loop);
+})();
+</script>
 </body>
 </html>
