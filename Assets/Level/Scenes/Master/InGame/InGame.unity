@@ -319,6 +319,11 @@ MonoBehaviour:
   _fragmentOrbAdapter: {fileID: 1946405260}
   _enemyEnergyAdapter: {fileID: 1579939516}
   _enemySpawnAdapter: {fileID: 1539543158}
+  _voxelDestructionAdapter: {fileID: 1734900002}
+  _equippedSkills:
+  - {fileID: 11400000, guid: 3c8d0496d6baf774494d30e32f8f5cda, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
 --- !u!136 &903436363
 CapsuleCollider:
   m_ObjectHideFlags: 0
