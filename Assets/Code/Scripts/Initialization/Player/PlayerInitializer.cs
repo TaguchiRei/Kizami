@@ -13,6 +13,7 @@ namespace Kizami.Initialization
     /// <summary>
     /// プレイヤーの移動・視点・HP・近接切断・チャージまわり（Service / State / Adapter）を生成して繋ぐ配線役。インゲームのシーンへ置く。
     /// 近接切断の結果は、敵の Adapter とかけらの Adapter の両方へ配る。
+    /// チャージには、かけらの Adapter から吸収したかけらの数を、エネルギーの Adapter から崩落で倒した敵の数を受け取る。
     /// 操作系ごとの視点の回転のさせ方の違いは、シーンへ置く PlayerMovementAdapterBase の派生が吸収する。
     /// </summary>
     public sealed class PlayerInitializer : InitializerBase
@@ -28,6 +29,7 @@ namespace Kizami.Initialization
         [SerializeField] private MeleeCutPreviewAdapter _meleeCutPreviewAdapter;
         [SerializeField] private MeleeCutAdapter _meleeCutAdapter;
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
+        [SerializeField] private EnemyEnergyAdapter _enemyEnergyAdapter;
         [SerializeField] private EnemySpawnAdapter _enemySpawnAdapter;
 
         private PlayerMovementService _movementService;
@@ -56,6 +58,15 @@ namespace Kizami.Initialization
             else
             {
                 UsefulLogger.LogError("FragmentOrbAdapter が設定されていません。", this);
+            }
+
+            if (_enemyEnergyAdapter != null)
+            {
+                _enemyEnergyAdapter.Initialize(_chargeService.AddCollapsedEnemies);
+            }
+            else
+            {
+                UsefulLogger.LogError("EnemyEnergyAdapter が設定されていません。", this);
             }
 
             if (_enemySpawnAdapter == null)

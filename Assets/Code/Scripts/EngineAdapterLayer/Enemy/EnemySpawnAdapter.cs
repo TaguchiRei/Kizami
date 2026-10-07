@@ -209,6 +209,9 @@ namespace Kizami.EngineAdapter
 
         private EnemyCollapseDetector _collapseDetector;
 
+        /// <summary> 崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置 </summary>
+        private Action<Vector3> _emitEnergy;
+
         private ProfilerRecorder _updateRecorder;
         private ProfilerRecorder _moveRecorder;
         private ProfilerRecorder _bodyRecorder;
@@ -328,8 +331,11 @@ namespace Kizami.EngineAdapter
         /// 見つからないときは Update を止めたままにする。
         /// </summary>
         /// <param name="spawnOrb">倒れた体に残っていた切断済みの部位を、オーブにする関数。引数はオーブを出す位置</param>
-        public void Initialize(Action<Vector3> spawnOrb)
+        /// <param name="emitEnergy">崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置</param>
+        public void Initialize(Action<Vector3> spawnOrb, Action<Vector3> emitEnergy)
         {
+            _emitEnergy = emitEnergy;
+
             if (_bodyPrefab == null || _fragmentPool == null)
             {
                 UsefulLogger.LogError("敵の体のプレハブか、かけらのプールが設定されていません。", this);
@@ -533,7 +539,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 崩落で倒されたことが記録された敵を数え、記録を消す。倒された敵の体は、次の ReturnBodies で返す。
+        /// 崩落で倒されたことが記録された敵を数えて体の中心からエネルギーを出し、記録を消す。倒された敵の体は、次の ReturnBodies で返す。
         /// </summary>
         private void CountCollapseDefeats()
         {
@@ -545,6 +551,7 @@ namespace Kizami.EngineAdapter
                 agent.IsDefeatedByCollapse = false;
                 _agents[i] = agent;
                 CollapseDefeatCount++;
+                _emitEnergy?.Invoke((Vector3)agent.Position + Vector3.up * _crushBodyCenterHeight);
             }
         }
 
