@@ -143,6 +143,18 @@ namespace Kizami.EngineAdapter
             _orbs.Add(orb);
         }
 
+        /// <summary>
+        /// 管理中のかけらを管理から外す。外したかけらはオーブにならず、チャージにもならない。
+        /// </summary>
+        /// <param name="fragment">外すかけら</param>
+        /// <returns>管理中で、切り直しの途中でない（アクティブな）かけらを外せたら true</returns>
+        public bool TryTake(CuttableObject fragment)
+        {
+            if (!Initialized || fragment == null || !fragment.gameObject.activeSelf) return false;
+
+            return _fragments.Remove(fragment);
+        }
+
         private void Update()
         {
             if (!Initialized) return;

@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Kizami.External
 {
     /// <summary>
-    /// プレイヤーの移動・HP・近接切断・チャージ・スローモードに関わる、遊びのルールのパラメータ。
+    /// プレイヤーの移動・HP・近接切断・チャージ・スローモード・投擲に関わる、遊びのルールのパラメータ。
     /// </summary>
     [CreateAssetMenu(fileName = "PlayerParameterData", menuName = "Kizami/Player/PlayerParameterData")]
     public sealed class PlayerParameterData : ScriptableObject
@@ -108,6 +108,19 @@ namespace Kizami.External
         [Tooltip("1 回のスローモードの間に近接切断を振れる回数")]
         private int _slowModeCutLimit = 5;
 
+        [Header("つかむ・投げる")]
+        [SerializeField, Min(0f)]
+        [Tooltip("かけらをつかめる、カメラからの距離（m）")]
+        private float _grabRange = 6f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("かけらを探す球の半径（m）")]
+        private float _grabRadius = 0.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("投げたかけらの初速（m/s）")]
+        private float _throwSpeed = 25f;
+
         /// <summary> 歩行の速度（m/s） </summary>
         public float WalkSpeed => _walkSpeed;
 
@@ -176,5 +189,14 @@ namespace Kizami.External
 
         /// <summary> 1 回のスローモードの間に近接切断を振れる回数 </summary>
         public int SlowModeCutLimit => _slowModeCutLimit;
+
+        /// <summary> かけらをつかめる、カメラからの距離（m） </summary>
+        public float GrabRange => _grabRange;
+
+        /// <summary> かけらを探す球の半径（m） </summary>
+        public float GrabRadius => _grabRadius;
+
+        /// <summary> 投げたかけらの初速（m/s） </summary>
+        public float ThrowSpeed => _throwSpeed;
     }
 }

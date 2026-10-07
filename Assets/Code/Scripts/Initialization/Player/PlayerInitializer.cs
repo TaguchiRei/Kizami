@@ -11,9 +11,10 @@ using UsefulToolkit.MeshCut;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// プレイヤーの移動・視点・HP・近接切断・チャージ・スキル・スローモードまわり（Service / State / Adapter）を生成して繋ぐ配線役。インゲームのシーンへ置く。
+    /// プレイヤーの移動・視点・HP・近接切断・チャージ・スキル・スローモード・投擲まわり（Service / State / Adapter）を生成して繋ぐ配線役。インゲームのシーンへ置く。
     /// 近接切断の結果は、敵の Adapter とかけらの Adapter の両方へ配る。
     /// チャージには、かけらの Adapter から吸収したかけらの数を、エネルギーの Adapter から崩落で倒した敵の数を受け取る。
+    /// 投擲の Adapter は、かけらの Adapter の管理から外せたかけらだけをつかむ。
     /// 操作系ごとの視点の回転のさせ方の違いは、シーンへ置く PlayerMovementAdapterBase の派生が吸収する。
     /// </summary>
     public sealed class PlayerInitializer : InitializerBase, IInjectable<ITimeScaleController>
@@ -33,6 +34,7 @@ namespace Kizami.Initialization
         [SerializeField] private EnemySpawnAdapter _enemySpawnAdapter;
         [SerializeField] private VoxelDestructionAdapter _voxelDestructionAdapter;
         [SerializeField] private PlayerHudAdapter _hudAdapter;
+        [SerializeField] private FragmentThrowAdapter _fragmentThrowAdapter;
 
         // TODO: アウトゲームで装備したスキルを受け取る
         [SerializeField]
@@ -45,6 +47,7 @@ namespace Kizami.Initialization
         private ChargeService _chargeService;
         private SkillService _skillService;
         private SlowModeService _slowModeService;
+        private FragmentThrowService _fragmentThrowService;
         private ITimeScaleController _timeScaleController;
 
         public override void Initialize(IBlackBoard blackBoard)
@@ -113,6 +116,20 @@ namespace Kizami.Initialization
                 _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveBeam : null,
                 _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveExplosion : null, sceneId);
 
+            if (_fragmentThrowAdapter != null)
+            {
+                _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter != null ? _fragmentOrbAdapter.TryTake : null);
+            }
+            else
+            {
+                UsefulLogger.LogError("FragmentThrowAdapter が設定されていません。", this);
+            }
+
+            // FragmentThrowService は SlowModeState を取得する為、SlowModeService の生成より後に生成する
+            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters,
+                _fragmentThrowAdapter != null ? _fragmentThrowAdapter.TryGrab : null,
+                _fragmentThrowAdapter != null ? _fragmentThrowAdapter.Throw : null);
+
             // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
             _healthService.Initialize(blackBoard, _parameters, sceneId);
 
@@ -175,6 +192,7 @@ namespace Kizami.Initialization
             _meleeCutService?.Dispose();
             _skillService?.Dispose();
             _slowModeService?.Dispose();
+            _fragmentThrowService?.Dispose();
         }
 
         public void Inject(ITimeScaleController instance)
