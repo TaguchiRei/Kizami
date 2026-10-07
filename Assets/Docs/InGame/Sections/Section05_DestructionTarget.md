@@ -107,7 +107,9 @@
 
 ### 決めること
 
-なし（2026-10-07 にすべて決定）。
+| # | 項目 | 案 |
+|---|---|---|
+| 13 | デバッグの破壊攻撃で、敵が通れる穴を開けやすくするか（コミット 1 の確認で発見。「実装中に確かめたこと」） | 案A：Inspector で削る球の半径を 2.5m くらいに上げる（コードは変えない）。案B：球の中心を、レイの向きに半径の半分だけ奥へずらす（深く掘れるが、コードを変える） |
 
 ## 作業計画
 
@@ -117,7 +119,8 @@
 |---|---|---|
 | `VoxelDestructionAdapter`（狙った所のボクセルを球で削る） | EngineAdapter、InGame | `PlayerDebugInitializer`（区間6でスキルも使う） |
 | `DestructionTarget`（重要パーツの指定と、削れた割合） | EngineAdapter、ステージシーン | `StageClearAdapter` |
-| `StageClearAdapter`（破壊対象を探して数え、仮のクリア表示を出す） | EngineAdapter、InGame | 初期化する Initializer。既存の Initializer に入れられるなら新しく作らない |
+| `StageClearAdapter`（破壊対象を探して数え、仮のクリア表示を出す） | EngineAdapter、InGame | `StageInitializer` |
+| `StageInitializer`（`StageClearAdapter` の初期化と、破壊対象のデバッグ表示） | Initialization、InGame | `InGameCompositor`。既存の Initializer はプレイヤーと敵のもので、ステージ全体のものを置く所がない為に作った（コミット 2） |
 | `EnemyCollapseDetector`（落ちてくる塊に潰されたかの判定） | EngineAdapter のプレーンなクラス | `EnemySpawnAdapter`（`EnemyGroups` と同じく持ち主になる） |
 | エネルギーの VFX Graph のアセットと、撃破位置を GraphicsBuffer で渡すコンポーネント | EngineAdapter、InGame | `EnemySpawnAdapter` |
 
@@ -153,3 +156,17 @@
 
 - 【ステージ】区間4C で記録済みの、生成位置 C がボクセルの壁（`CrowdVoxelTerrain/VoxelWall`）の中にある件（[Section04C](Section04C_CrowdAI.md) の「見つけた問題」）
 - 【アセット】`Assets/Art/Particles/EnemyDead.vfx` は、旧構成の `Test/InGame.unity` だけが使っている。エネルギーの演出には使わず、新しく作る
+- 【ボクセル】`VoxelModelBaker`（VFX Graph の `MeshToSDFBaker`）は、大きな三角形でできたメッシュの内側を外側と判定することがある。Unity の Cube を拡大したメッシュを 0.1m でベイクすると、2m・1.5m・3m の立方体は中身がほぼ空（2m で 8m³ のうち 0.58m³）になり、細長い箱（8×1×3、1.5×5×1.5）は一部だけ欠けた。面を 0.25m の格子に分けたメッシュなら正しく埋まる（0.5m の格子では 4.40m³）。符号を決める回数（`SignPassCount`）を 4 にしても直らない。区間5の破壊対象は、分けたメッシュで作って避けた（コミット 2）。今後ボクセルにする物（区間12・14）で同じことが起きる。ベイクの側で面を細かく分けるか、元のメッシュの側で分けるかは未定。TestStage の壁と橋は、厚みが 1m 以下で、体積が想定どおりなので影響はない
+
+## 実装中に確かめたこと
+
+- （コミット 1）`VoxelDestructionAdapter` は InGame の `VoxelDestruction` に置き、`PlayerDebugInitializer` が G キーを押している間、0.1 秒ごとに呼ぶ。狙うレイは Player・Shard・Enemy・Blade・Ignore Raycast のレイヤーを無視する。削るのは、当たった所を中心とする半径 1.5m の球の範囲にコライダーを持つすべてのピース
+- （コミット 1）G キーで TestStage の壁が削れた（体積が 100% から 88% まで減った）。橋の床も削れることを、ユーザーが確かめた。地面や敵を狙っても何も起きず、エラーも出ない
+- （コミット 1）剣では、壁まで 2.78m（剣の届く 3m 以内）で 3 回振っても、壁の体積もかけらの数も変わらなかった（食い違い #1）
+- （コミット 1）削ると距離マップが調べ直され、穴の列に立てる層ができて距離の値が付いた。区間4C と同じく `VoxelModelLoader` の通知を通る
+- （コミット 1）半径 1.5m では、敵が通れる穴を開けにくい。球の中心が当たった面の上にあり、半分が空中に出るので、1 回で掘れる深さは 1.5m までで、厚さ 1m の壁の裏面では穴の幅が 1〜2m しかない。敵が通るには、幅 1m（`_cellSize`）× 高さ 4m（`_enemyHeight`）の空きが壁の奥まで続く必要がある。裏面まで抜けたあとはレイが穴を通り抜けるので、同じ所を削り続けても穴は広がらない。エディタでの確認では、敵が穴を通るところまでは確かめられなかった（決めること #13）
+- （コミット 1 の確認で発見、修正）視点を左右に回すと、ときどき再生を始めたときの向きへ引き戻された。体（PlayerRoot）の左右の向きを `transform.localRotation` に直接書いていて、補間を有効にした Rigidbody の姿勢が Transform へ書き戻されると、Rigidbody に取り込まれなかった向きが元に戻る為（狙った向き 60° に対して、体と Rigidbody が 0° のままのフレームが続いた）。区間1のコードの不具合で、区間5とは別のコミットで直した。左右の向きも上下と同じく `CinemachinePanTilt` の Pan の軸に書き（`StandardPlayerCameraAdapter`）、体の Rigidbody は回転をすべて固定した。移動の向きは、もともとカメラの前方から決めている。直したあと、60° 回して止めても 60° のままで、W で進む向きも 60° だった
+- （コミット 2）破壊対象の仮のモデルは門の形（`Assets/Level/Prefabs/Stage/DestructionGate.prefab`）。土台（8×1×3m）、柱 2 本（1.5×5×1.5m）、それぞれの柱の上の核 2 つ（2m の立方体、赤いマテリアル `DestructionCore`）。重要パーツは核 2 つ（`CoreLeft`、`CoreRight`）で、必要な割合は 0.7。パーツごとにベイクする（`CombineHierarchy` なし、ボクセル 0.1m。実行時は `VoxelQuality_Terrain` の 0.2m）ので、拡大率で大きさを変えた箱は使えない（ボクセルが縦横で違う大きさになる為）。実寸の箱のメッシュ（面を 0.25m の格子に分けたもの。「見つけた問題」）を `Assets/Art/Models/Stage/` にアセットとして置いた。TestStage の `DestructionTargets` の下に、(20, -1, -10) と (-20, -1, 10) の 2 か所に置いた
+- （コミット 2）InGame の `Stage` に `StageInitializer` と `StageClearAdapter` を置き、`InGameCompositor` を作り直した。DebugGUI の「Destruction」に、破壊済みの数と、破壊対象ごとの重要パーツの削れた割合と必要な割合を出す
+- （コミット 2）エディタで `ApplyEdit` を呼んで確かめた。土台と柱を削っても核の割合は 0 のまま。片方の核だけ 99% 削っても破壊済みにならず、両方が 0.7 を超えたら破壊済みになった（1 / 2）。核の中を半径 1m の球でくり抜くと 0.528（球の体積 4.19m³ / 8m³）。核の真ん中を厚さ 0.4m の板で切ると、上の半分（2.4m³）が切り離されて落ち、割合は 0.500 になった（切り離した分も削れた分に数える。決定 3）。2 つ目の門も破壊済みになると、クリアになり、画面の中央に「STAGE CLEAR」が出た。エラーは 0 件
+- （コミット 2）読み込んだ直後、体積を測る前のパーツは `RelativeVolume` が 0 になる（削れた割合が 1 に見える）ので、`InitialSampleCount` が 0 の間は破壊済みにしない

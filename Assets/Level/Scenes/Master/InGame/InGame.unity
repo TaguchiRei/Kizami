@@ -197,6 +197,7 @@ MonoBehaviour:
   _standardPlayerInputRouteInitializer: {fileID: 903436368}
   _enemyInitializer: {fileID: 1539543157}
   _playerInitializer: {fileID: 903436362}
+  _stageInitializer: {fileID: 1452220891}
   _playerDebugInitializer: {fileID: 903436369}
 --- !u!4 &653370830
 Transform:
@@ -894,6 +895,64 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!1 &1452220890
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1452220893}
+  - component: {fileID: 1452220892}
+  - component: {fileID: 1452220891}
+  m_Layer: 0
+  m_Name: Stage
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1452220891
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452220890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1008d6ad67603cd40930bf1e0bacee86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.StageInitializer
+  _stageClearAdapter: {fileID: 1452220892}
+--- !u!114 &1452220892
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452220890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e6c206ed488ac649a8faae70d0517ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageClearAdapter
+--- !u!4 &1452220893
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452220890}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1539543156
 GameObject:
   m_ObjectHideFlags: 0
@@ -940,16 +999,52 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemySpawnAdapter
   _bodyPrefab: {fileID: 1602327258362906900, guid: abba11fae2f3aaa4a8b4ecdfe95fc600, type: 3}
   _bodyCount: 32
+  _lendDistance: 12
+  _returnDistance: 18
+  _reclaimDistance: 9
+  _reclaimMargin: 3
+  _shapeKeeperCapacity: 64
   _fragmentPool: {fileID: 608286024}
   _target: {fileID: 903436366}
   _cellSize: 1
   _enemyHeight: 4
   _climbHeight: 1
+  _dropHeight: 2
   _groundLayers:
     serializedVersion: 2
     m_Bits: 513
   _drawDistanceField: 0
   _distanceGizmoRadius: 25
+  _moveSpeed: 3
+  _turnSpeed: 180
+  _stopDistance: 6
+  _formation:
+    _groupSize: 12
+    _anchorSpeedRate: 0.8
+    _anchorAcceleration: 1.5
+    _anchorTurnSpeed: 90
+    _anchorStopDistance: 12
+    _advanceDuration: 4
+    _holdDuration: 2
+    _groupSpacing: 4
+    _rowSpacing: 8
+    _lateralSpacing: 2.5
+    _maxColumns: 4
+    _columnChangeDelay: 1
+    _mergeSize: 4
+    _encircleDistance: 40
+    _encircleLeaveDistance: 30
+    _encircleInnerRadius: 15
+    _encircleLoopSpacing: 12
+    _encircleSlotSpacing: 18
+    _encircleColumns: 6
+    _engageEnterDistance: 12
+    _engageExitDistance: 18
+    _spiralInnerRadius: 7
+    _spiralLoopSpacing: 6
+    _spiralSlotSpacing: 2.5
+  _groupSpawnRadius: 4
+  _unreachableReturnDelay: 10
   _debrisMaterial: {fileID: 2100000, guid: 5cfc7be965929784eb5db215773505a4, type: 2}
   _debrisCapacity: 32
   _debrisLifetime: 1
@@ -1141,6 +1236,55 @@ MonoBehaviour:
       m_PostInfinity: 2
       m_RotationOrder: 4
   CustomBlends: {fileID: 0}
+--- !u!1 &1734900001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1734900003}
+  - component: {fileID: 1734900002}
+  m_Layer: 0
+  m_Name: VoxelDestruction
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1734900002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1734900001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ffe1232630ff42b898712502c1cb6a8a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelDestructionAdapter
+  _maxDistance: 50
+  _radius: 1.5
+  _targetLayers:
+    serializedVersion: 2
+    m_Bits: 4294966835
+--- !u!4 &1734900003
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1734900001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1879736535
 GameObject:
   m_ObjectHideFlags: 0
@@ -1237,55 +1381,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1734900001
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1734900003}
-  - component: {fileID: 1734900002}
-  m_Layer: 0
-  m_Name: VoxelDestruction
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1734900002
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1734900001}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ffe1232630ff42b898712502c1cb6a8a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelDestructionAdapter
-  _maxDistance: 50
-  _radius: 1.5
-  _targetLayers:
-    serializedVersion: 2
-    m_Bits: 4294966835
---- !u!4 &1734900003
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1734900001}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1299,3 +1394,4 @@ SceneRoots:
   - {fileID: 1946405261}
   - {fileID: 1539543159}
   - {fileID: 1734900003}
+  - {fileID: 1452220893}
