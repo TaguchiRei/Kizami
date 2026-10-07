@@ -39,8 +39,8 @@ Blackboard の「+」から次を足し、すべて Exposed にする。
 | ブロック | 設定 |
 |---|---|
 | Set Position | Position に、下の「倒した位置」の出力をつなぐ |
-| Set Position (Shape: Sphere) | Composition を Add、Radius 0.8。倒した位置のまわりに散らす |
-| Set Velocity Random | A (-3, 2, -3)、B (3, 6, 3)。最初に周りへはじける |
+| Set Position Shape Sphere | Composition Position を Add、Radius 0.8。倒した位置のまわりに散らす。Add にするとブロックの表示名は Add Position Shape Sphere になる |
+| Set Velocity Random Per Component | A (-3, 2, -3)、B (3, 6, 3)。最初に周りへはじける。Random Uniform は 3 成分を同じ乱数で補間し、すべての粒が A と B を結ぶ 1 本の線の上の向きに飛ぶので使わない |
 | Set Lifetime | 3 |
 | Set Size | 0.15 |
 | Set Color | 好みの色（例：HDR の水色） |
@@ -55,8 +55,10 @@ Blackboard の「+」から次を足し、すべて Exposed にする。
 
 | ブロック | 設定 |
 |---|---|
-| Conform to Sphere | Sphere の Center に `EnergyTarget`、Radius 0.2。Attraction Speed 25、Attraction Force 20、Stick Distance 0.1、Stick Force 50。吸い込む先へ引き寄せる |
-| Kill (Sphere) | Center に `EnergyTarget`、Radius 0.8。吸い込む先に届いた粒を消す |
+| Attractor Shape Sphere | Sphere の Center に `EnergyTarget`、Radius 0.2。Attraction Speed 25、Attraction Force 20、Stick Distance 0.1、Stick Force 50。吸い込む先へ引き寄せる |
+| Kill Shape Sphere | Sphere の Center に `EnergyTarget`、Radius 0.8。Mode は Solid（球の中に入った粒を消す）、Radius Mode は None。吸い込む先に届いた粒を消す |
+
+Attractor Shape Sphere は旧名 Conform to Sphere のブロック（カテゴリ Force）。Kill Shape Sphere は Collision カテゴリの Kill Shape Plane のバリアントで、一覧には直接出ないので名前で検索する。
 
 ### 5. Output
 
@@ -75,4 +77,4 @@ Blackboard の「+」から次を足し、すべて Exposed にする。
 | 粒が 1 個しか出ない | Event を Initialize へ直接つないでいるか。Spawn コンテキストを挟むと `spawnCount` が使われない |
 | 粒が原点に出る | `EnergyPositions` が Exposed になっているか。Sample Graphics Buffer の Type が Vector3 か |
 | 粒が見えない | System の Space が World か。Bounds がステージを覆っているか |
-| 粒がカメラの手前で止まる | Kill (Sphere) の Radius が、Conform to Sphere の Radius より大きいか |
+| 粒がカメラの手前で止まる | Kill Shape Sphere の Radius が、Attractor Shape Sphere の Radius より大きいか。Kill Shape Sphere の Mode が Solid か |
