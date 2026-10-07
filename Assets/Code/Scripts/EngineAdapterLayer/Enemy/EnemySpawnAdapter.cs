@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kizami.EngineAdapter.Voxel;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -16,9 +17,11 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 敵の状態（EnemyAgent）の配列と体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出す Adapter。インゲームのシーンへ置く。
     /// 敵の状態の数は EnemySpawnSystem の同時に存在する数の上限で、出ている敵は EnemyCrowdRenderer でまとめて描画する。
-    /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、距離マップはプレイヤーのいるノードが変わるたびに計算し直す。
-    /// 出ている敵は、毎フレーム EnemyMoveJob で距離マップを下って歩かせ、落とす。
-    /// 切断できる体（EnemyBody）は、プレイヤーから貸す距離の中にいる敵へ近い順に貸し、返す距離より離れたら返す。返す距離は貸す距離より遠い。
+    /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、ステージのボクセルのモデルの形が変わったら、その範囲を調べ直す。
+    /// 距離マップは、プレイヤーのいるノードが変わるか、格子を調べ直すたびに計算し直す。
+    /// プレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ生成位置へ戻す。
+    /// 生成した敵は出した順にグループ（EnemyGroups）へ入れ、毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
+    /// 切断できる体（EnemyBody）は、プレイヤーから貸す距離の中にいる敵へ近い順に貸し、返す距離より離れたら返す。返す距離は貸す距離より遠い。貸している体の脚は EnemyLegs で歩かせる。
     /// 体を返すときは、短くなった部位の形を EnemyShapeKeeper に預け、次に貸すときに戻す。預ける空きがなければ、その敵の体は返さない。
     /// 体に空きがないときは、切断の届きうる近さ（取り上げる距離）の敵を優先し、その敵より一定以上遠い敵のうち最も遠い敵から体を取り上げる。
     /// 近接切断の結果は、切られた部位を持つ体へ渡し、体の部位の状態を敵の状態へ書き戻す。体から外れた切っていない部位は、見た目用の物（EnemyDebris）で散らばらせて消す。
@@ -32,6 +35,12 @@ namespace Kizami.EngineAdapter
     {
         /// <summary> かかった時間を平均するフレームの数 </summary>
         private const int TIMING_SAMPLE_COUNT = 30;
+
+        /// <summary> 戻れない敵がカメラに映っているかを調べる箱の、体の根からの中心の高さ（m） </summary>
+        private const float VISIBILITY_HEIGHT = 2f;
+
+        /// <summary> 戻れない敵がカメラに映っているかを調べる箱の一辺（m）。体の前後の長さ（約 10.5m）を囲む </summary>
+        private const float VISIBILITY_SIZE = 11f;
 
         private const string UPDATE_MARKER_NAME = "Kizami.Enemy.Update";
         private const string MOVE_MARKER_NAME = "Kizami.Enemy.Move";
@@ -49,6 +58,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 部位から、その部位を持つ体の _bodies での番号を引く表 </summary>
         private readonly Dictionary<CuttableObject, int> _partOwners = new();
+
+        /// <summary> カメラの視錐台の面。戻れない敵がカメラに映っているかを調べる作業用の配列 </summary>
+        private readonly Plane[] _frustumPlanes = new Plane[6];
 
         [SerializeField]
         [Tooltip("敵の体のプレハブ。まとめて描画する部位のメッシュ・マテリアル・位置もここから読む")]
@@ -98,6 +110,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("敵が登れる段差の高さ（m）")]
         private float _climbHeight = 1f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("敵が歩いて降りられる段差の高さ（m）。これより高い所からは降りない。足場が壊れて落ちるのは、この高さによらない")]
+        private float _dropHeight = 2f;
+
         [SerializeField]
         [Tooltip("経路の格子を作るときに、床と障害物として扱うレイヤー")]
         private LayerMask _groundLayers = 1;
@@ -121,6 +137,18 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0f)]
         [Tooltip("プレイヤーまでの経路の長さ（距離マップの値）がこの値（m）以下になったら止まる")]
         private float _stopDistance = 6f;
+
+        [SerializeField]
+        [Tooltip("グループの隊列と、アンカー（グループの先頭）の動き")]
+        private EnemyFormationSettings _formation = EnemyFormationSettings.Default;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("初期生成で、グループのメンバーを置く範囲の半径（m）。グループの中心は初期生成の範囲から選ぶ")]
+        private float _groupSpawnRadius = 4f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("プレイヤーへたどり着けない状態がこの時間（秒）続いた敵は、カメラに映っていなければ生成位置へ戻す。動けない敵と、体を貸している敵は戻さない")]
+        private float _unreachableReturnDelay = 10f;
 
         [SerializeField]
         [Tooltip("体から外れた切っていない部位を消すディゾルブのマテリアル。シェーダーは float のプロパティ _DissolveAmount（0〜1）で消える")]
@@ -156,6 +184,8 @@ namespace Kizami.EngineAdapter
 
         private EnemyShapeKeeper _shapeKeeper;
 
+        private EnemyGroups _groups;
+
         private ProfilerRecorder _updateRecorder;
         private ProfilerRecorder _moveRecorder;
         private ProfilerRecorder _bodyRecorder;
@@ -163,6 +193,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 体ごとの、貸している敵の _agents での番号。貸していなければ -1。並びは _bodies と同じ </summary>
         private int[] _bodyAgents;
+
+        /// <summary> 体ごとの脚。脚を持たない体では null。並びは _bodies と同じ </summary>
+        private EnemyLegs[] _bodyLegs;
 
         /// <summary> 体を貸す候補の敵の、プレイヤーとの距離の 2 乗。並べ替えに使う作業用の配列 </summary>
         private float[] _lendCandidateDistances;
@@ -202,6 +235,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 敵の状態の数（同時に存在する数の上限） </summary>
         public int Capacity => _agents.IsCreated ? _agents.Length : 0;
+
+        /// <summary> 使われているグループの数 </summary>
+        public int GroupCount => _groups?.ActiveCount ?? 0;
 
         /// <summary> 敵に貸している体の数 </summary>
         public int LentBodyCount
@@ -300,14 +336,21 @@ namespace Kizami.EngineAdapter
             _agents = new NativeArray<EnemyAgent>(_spawnSystem.MaxAliveCount, Allocator.Persistent);
             _crowdRenderer = new EnemyCrowdRenderer(_bodyPrefab, _agents.Length);
             _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
-                _groundLayers);
+                _dropHeight, _groundLayers);
+            foreach (var loader in FindObjectsByType<VoxelModelLoader>(FindObjectsSortMode.None))
+            {
+                _distanceField.Watch(loader);
+            }
+
             _shapeKeeper = new EnemyShapeKeeper(transform, _shapeKeeperCapacity, _agents.Length, _bodyPrefab.Parts.Count);
+            _groups = new EnemyGroups(_agents.Length);
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _bodyRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, BODY_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _lendCandidateDistances = new float[_agents.Length];
             _lendCandidates = new int[_agents.Length];
             _bodyAgents = new int[_bodyCount];
+            _bodyLegs = new EnemyLegs[_bodyCount];
             _renderRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, RENDER_MARKER_NAME, TIMING_SAMPLE_COUNT);
 
             for (var i = 0; i < _bodyCount; i++)
@@ -317,6 +360,7 @@ namespace Kizami.EngineAdapter
                 body.Initialize(spawnOrb, SpawnDebris);
                 _bodies.Add(body);
                 _bodyAgents[i] = -1;
+                _bodyLegs[i] = body.GetComponent<EnemyLegs>();
 
                 foreach (var part in body.Parts)
                 {
@@ -379,6 +423,7 @@ namespace Kizami.EngineAdapter
                 using (_moveMarker.Auto())
                 {
                     MoveAgents();
+                    ReturnUnreachableAgents();
                 }
 
                 if (_target != null)
@@ -404,6 +449,7 @@ namespace Kizami.EngineAdapter
         {
             _crowdRenderer?.Dispose();
             _distanceField?.Dispose();
+            _groups?.Dispose();
             if (_agents.IsCreated) _agents.Dispose();
             _updateRecorder.Dispose();
             _moveRecorder.Dispose();
@@ -418,20 +464,81 @@ namespace Kizami.EngineAdapter
             _distanceField.DrawGizmos(_target.position, _distanceGizmoRadius);
         }
 
+        /// <summary>
+        /// グループを更新してから、敵を動かす。動かしたあと、グループを 1 つ整える（穴詰め・合流・並べ替え）。
+        /// </summary>
         private void MoveAgents()
         {
+            var deltaTime = Time.deltaTime;
+            var playerPosition = _target != null ? (float3)_target.position : float3.zero;
+            var groupHandle = _groups.Schedule(_agents, _distanceField.Grid, _distanceField.Distances, _formation,
+                playerPosition, _moveSpeed, deltaTime);
+
             new EnemyMoveJob
             {
                 Agents = _agents,
                 Grid = _distanceField.Grid,
                 Distances = _distanceField.Distances,
-                DeltaTime = Time.deltaTime,
+                Groups = _groups.Groups,
+                Paths = _groups.Paths,
+                EngageSlots = _groups.EngageSlots,
+                Formation = _formation,
+                PlayerPosition = playerPosition,
+                DeltaTime = deltaTime,
                 MoveSpeed = _moveSpeed,
                 TurnSpeed = math.radians(_turnSpeed),
                 StopDistance = _stopDistance,
                 Gravity = -Physics.gravity.y,
                 BrokenMovePartLimit = _bodyPrefab.BrokenMovePartLimit
-            }.Schedule(_agents.Length, 64).Complete();
+            }.Schedule(_agents.Length, 64, groupHandle).Complete();
+
+            _groups.MaintainNext(_agents, _distanceField.Grid, _distanceField.Distances, _formation,
+                _bodyPrefab.BrokenMovePartLimit);
+        }
+
+        /// <summary>
+        /// プレイヤーへたどり着けない状態が戻す時間を超えた敵のうち、カメラに映っていない敵を、次の有効な生成位置へ移す。
+        /// 移した敵は元のグループから抜き、その生成位置で新しいグループにする。部位の状態はそのまま持ち続ける。
+        /// 動けない敵は戻さない（同時に存在する数の上限を埋め続ける、仕様の戦略の為）。体を貸している敵も戻さない（プレイヤーの近くにいる為）。
+        /// </summary>
+        private void ReturnUnreachableAgents()
+        {
+            var camera = Camera.main;
+            if (camera != null) GeometryUtility.CalculateFrustumPlanes(camera, _frustumPlanes);
+
+            EnemySpawnPoint point = null;
+            var brokenMovePartLimit = _bodyPrefab.BrokenMovePartLimit;
+
+            for (var i = 0; i < _agents.Length; i++)
+            {
+                var agent = _agents[i];
+                if (!agent.IsAlive || agent.UnreachableTime < _unreachableReturnDelay) continue;
+                if (agent.BodyIndex >= 0 || agent.BrokenMovePartCount >= brokenMovePartLimit) continue;
+
+                var bounds = new Bounds((Vector3)agent.Position + Vector3.up * VISIBILITY_HEIGHT,
+                    Vector3.one * VISIBILITY_SIZE);
+                if (camera != null && GeometryUtility.TestPlanesAABB(_frustumPlanes, bounds)) continue;
+
+                if (point == null)
+                {
+                    if (!TryGetNextSpawnPoint(out point)) return;
+
+                    _groups.CloseGroup();
+                }
+
+                EnemyGroups.Leave(ref agent);
+                var position = point.GetSpawnPosition();
+                agent.Position = position;
+                agent.Yaw = GetYawToTarget(position);
+                agent.IsGrounded = false;
+                agent.VerticalSpeed = 0f;
+                agent.UnreachableTime = 0f;
+                _groups.TryAdd(i, ref agent, point.transform.position, GetYawToTarget(point.transform.position),
+                    Random.Range(0f, _formation.HoldDuration), _formation);
+                _agents[i] = agent;
+            }
+
+            if (point != null) _groups.CloseGroup();
         }
 
         /// <summary>
@@ -542,6 +649,7 @@ namespace Kizami.EngineAdapter
                 _shapeKeeper.Keep(agentIndex, body);
             }
 
+            if (_bodyLegs[bodyIndex] != null) _bodyLegs[bodyIndex].ResetPose();
             body.Return();
 
             agent.BodyIndex = -1;
@@ -551,13 +659,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 空いている体を敵に貸し、預けていた短くなった部位の形を戻す。
+        /// 空いている体を敵に貸し、預けていた短くなった部位の形を戻す。足を基準の位置に置く。
         /// </summary>
         private void LendBody(int bodyIndex, int agentIndex, MeshDataCache cache)
         {
             var agent = _agents[agentIndex];
             _bodies[bodyIndex].Lend(agent, cache);
             _shapeKeeper.Restore(agentIndex, _bodies[bodyIndex]);
+            if (_bodyLegs[bodyIndex] != null) _bodyLegs[bodyIndex].ResetFeet(_distanceField.Grid);
 
             agent.BodyIndex = bodyIndex;
             _agents[agentIndex] = agent;
@@ -565,7 +674,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 貸している体の位置と向きを、敵の状態に合わせる。
+        /// 貸している体の位置と向きを敵の状態に合わせ、脚を動かす。
         /// </summary>
         private void SyncBodyTransforms()
         {
@@ -577,25 +686,37 @@ namespace Kizami.EngineAdapter
                 var agent = _agents[agentIndex];
                 _bodies[bodyIndex].transform.SetPositionAndRotation(agent.Position,
                     Quaternion.Euler(0f, math.degrees(agent.Yaw), 0f));
+                if (_bodyLegs[bodyIndex] != null) _bodyLegs[bodyIndex].UpdateLegs(Time.deltaTime, _distanceField.Grid);
             }
         }
 
         /// <summary>
-        /// 初期生成情報の範囲に、決まった数の敵を置く。
+        /// 初期生成情報の範囲に、決まった数の敵を置く。グループの人数ずつ、範囲から選んだ中心の周りにまとめて置く。
         /// </summary>
         private void SpawnInitial()
         {
             foreach (var area in _initialSpawnAreas)
             {
+                var center = Vector3.zero;
                 for (var i = 0; i < area.Count; i++)
                 {
-                    if (!TrySpawn(area.GetSpawnPosition())) return;
+                    if (i % _formation.GroupSize == 0)
+                    {
+                        center = area.GetSpawnPosition();
+                        _groups.CloseGroup();
+                    }
+
+                    var offset = Random.insideUnitCircle * _groupSpawnRadius;
+                    if (!TrySpawn(center + new Vector3(offset.x, 0f, offset.y), center)) return;
                 }
             }
+
+            _groups.CloseGroup();
         }
 
         /// <summary>
         /// 生成情報ごとに間隔を数え、間隔が来たら次の有効な生成位置から、一度に出す数の上限まで出す。
+        /// 一度に出した敵は、グループの人数ずつ新しいグループにする。
         /// </summary>
         private void SpawnByInterval()
         {
@@ -610,10 +731,13 @@ namespace Kizami.EngineAdapter
                 _spawnTimers[i] -= info.Interval;
                 if (!TryGetNextSpawnPoint(out var point)) continue;
 
+                _groups.CloseGroup();
                 for (var n = 0; n < info.MaxCountPerSpawn; n++)
                 {
-                    if (!TrySpawn(point.GetSpawnPosition())) break;
+                    if (!TrySpawn(point.GetSpawnPosition(), point.transform.position)) break;
                 }
+
+                _groups.CloseGroup();
             }
         }
 
@@ -638,22 +762,29 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 空いている敵の状態を使い、目標の方を向けて出す。空きがなければ出さない。
+        /// 空いている敵の状態を使い、目標の方を向けて出し、生成中のグループの隊列の最後に入れる。空きがなければ出さない。
         /// </summary>
-        private bool TrySpawn(Vector3 position)
+        /// <param name="position">出す位置</param>
+        /// <param name="groupCenter">新しいグループを作るときの、アンカーの位置</param>
+        private bool TrySpawn(Vector3 position, Vector3 groupCenter)
         {
             for (var i = 0; i < _agents.Length; i++)
             {
                 if (_agents[i].IsAlive) continue;
 
                 _shapeKeeper.Discard(i);
-                _agents[i] = new EnemyAgent
+                var agent = new EnemyAgent
                 {
                     IsAlive = true,
                     Position = position,
                     Yaw = GetYawToTarget(position),
-                    BodyIndex = -1
+                    BodyIndex = -1,
+                    GroupIndex = -1
                 };
+
+                var phaseTimer = Random.Range(0f, _formation.HoldDuration);
+                _groups.TryAdd(i, ref agent, groupCenter, GetYawToTarget(groupCenter), phaseTimer, _formation);
+                _agents[i] = agent;
                 return true;
             }
 

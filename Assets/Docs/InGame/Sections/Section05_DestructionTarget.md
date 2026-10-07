@@ -37,6 +37,7 @@
 | [VoxelPiece](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs) | `ApplyEdit`（ワールド空間でも指定できる）で削る・盛る。`RelativeVolume`（初期体積に対する今の体積の割合）、`Root`、`PartPath` を持つ |
 | [IVoxelShape](../../../Code/Scripts/EngineAdapterLayer/Voxel/Shapes/IVoxelShape.cs) | 削る形状（球・箱・カプセル） |
 | ボクセルの説明 | [VoxelOverview.md](../../Voxel/VoxelOverview.md) |
+| 区間4C の成果 | 敵の距離マップのボクセルへの追従（`EnemyDistanceField.Watch`。形状変化の通知を溜め、作り直しが済んでから変わった列を物理のクエリで調べ直す）。購読するのは `EnemySpawnAdapter` の初期化のときにシーンにある `VoxelModelLoader` だけ。敵の落下と着地（`EnemyAgent` の `VerticalSpeed`・`IsGrounded`、着地先は格子の層）。TestStage のボクセルの壁と橋（`CrowdVoxelTerrain`） |
 
 ## 作業一覧
 
@@ -52,7 +53,7 @@
 | 5-8 | デバッグ用の破壊攻撃 | Debug | 破壊タイプのダメージを出す操作 |
 | 5-9 | 崩落による撃破 | EngineAdapter | 落ちてくる塊に潰された敵と、足場ごと一定以上の高さを落ちた敵を撃破する。敵には PhysX のコライダーを付けず、格子の索引と SDF で判定する（Notion「敵の大量描画と体の貸し出し」）。ボクセルの SDF は Burst の Job から読める（区間4B で確認。EngineAdapter の asmdef の中から `VoxelVolume.Samples` を `VoxelSampling.Trilinear` で読む）。敵の状態は `EnemyAgent`、体を貸している敵だけが部位のコライダーを持つ。崩落で撃破した敵は切断されず、かけらも出さない |
 | 5-10 | エネルギーの演出 | EngineAdapter | 崩落で撃破した敵のエネルギーを、VFX Graph でプレイヤーへ吸い込ませる。獲得量は CPU 側で決めて `ChargeService` に渡す。区間4A の散らばる部位の見た目（`EnemyDebris`。コライダーがなく、地面をすり抜けて落ちる）を、ここで VFX Graph に置き換えるかも決める |
-| 5-11 | 地形の変化への追従の確認 | EngineAdapter | 破壊対象・マップのボクセルが壊れたときに、区間4C の距離マップが更新され、敵が開いた道を通り、壊れた床を避けることを確かめる |
+| 5-11 | 地形の変化への追従の確認 | EngineAdapter | 破壊対象・マップのボクセルが壊れたときに、区間4C の距離マップが更新され、敵が開いた道を通り、壊れた床を避けることを確かめる。区間4C では uloop から `ApplyEdit` を呼んで確かめた（Section04C のコミット 2）ので、ここではプレイヤーの破壊攻撃で確かめる。あとから読み込む `VoxelModelLoader` があれば `Watch` を呼ぶ |
 
 ## 完了条件
 

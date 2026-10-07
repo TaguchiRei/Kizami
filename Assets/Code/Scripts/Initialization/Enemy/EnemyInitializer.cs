@@ -10,7 +10,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// 敵の生成と体のプール（EnemySpawnAdapter）を初期化し、出ている敵の数、生成位置の有効・無効、敵の処理にかかった時間を画面に出す配線役。インゲームのシーンへ置く。
+    /// 敵の生成と体のプール（EnemySpawnAdapter）を初期化し、出ている敵とグループの数、生成位置の有効・無効、敵の処理にかかった時間を画面に出す配線役。インゲームのシーンへ置く。
     /// 倒れた体に残っていた切断済みの部位は、FragmentOrbAdapter でオーブにする。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
@@ -37,7 +37,8 @@ namespace Kizami.Initialization
             {
                 _spawnAdapter.Initialize(spawnOrb);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                DebugGUI.ObserveVariable("Enemies", () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity}");
+                DebugGUI.ObserveVariable("Enemies",
+                    () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity} (groups {_spawnAdapter.GroupCount})");
                 DebugGUI.ObserveVariable("Spawn Points", GetSpawnPointText);
                 DebugGUI.ObserveVariable("Enemy ms",
                     () => $"update {_spawnAdapter.UpdateMilliseconds:F2} / move {_spawnAdapter.MoveMilliseconds:F2} / body {_spawnAdapter.BodyMilliseconds:F2} / render {_spawnAdapter.RenderMilliseconds:F2}");
@@ -54,14 +55,14 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 距離マップの立てる層の数と、格子を作る時間・距離の計算 1 回の時間（ms）を並べる。
+        /// 距離マップの立てる層の数と、格子を作る時間・距離の計算 1 回の時間・形が変わった範囲を調べ直す時間（ms）を並べる。
         /// </summary>
         private string GetDistanceFieldText()
         {
             var field = _spawnAdapter.DistanceField;
             if (field == null) return "-";
 
-            return $"nodes {field.NodeCount} (overflow {field.OverflowColumnCount}) / bake {field.BakeMilliseconds:F1} / compute {field.ComputeMilliseconds:F2}";
+            return $"nodes {field.NodeCount} (overflow {field.OverflowColumnCount}) / bake {field.BakeMilliseconds:F1} / compute {field.ComputeMilliseconds:F2} / rebake {field.RebakeMilliseconds:F2}";
         }
 
         /// <summary>
