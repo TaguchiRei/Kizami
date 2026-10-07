@@ -475,6 +475,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.PlayerDebugInitializer
   _damageAmount: 10
   _fragmentOrbAdapter: {fileID: 1946405260}
+  _voxelDestructionAdapter: {fileID: 1734900002}
+  _destructionInterval: 0.1
 --- !u!1 &909869846
 GameObject:
   m_ObjectHideFlags: 0
@@ -1236,6 +1238,55 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1734900001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1734900003}
+  - component: {fileID: 1734900002}
+  m_Layer: 0
+  m_Name: VoxelDestruction
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1734900002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1734900001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ffe1232630ff42b898712502c1cb6a8a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelDestructionAdapter
+  _maxDistance: 50
+  _radius: 1.5
+  _targetLayers:
+    serializedVersion: 2
+    m_Bits: 4294966835
+--- !u!4 &1734900003
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1734900001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1248,3 +1299,4 @@ SceneRoots:
   - {fileID: 1379823857}
   - {fileID: 1946405261}
   - {fileID: 1539543159}
+  - {fileID: 1734900003}

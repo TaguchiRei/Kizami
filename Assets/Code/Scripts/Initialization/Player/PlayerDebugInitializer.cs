@@ -3,6 +3,7 @@ using Kizami.Application;
 using Kizami.BlackBoard;
 using Kizami.EngineAdapter;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UsefulToolkit.Attributes;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
@@ -13,7 +14,8 @@ using UsefulToolkit.Utility;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// プレイヤーへダメージを与える操作と、HP・チャージ量・かけらとオーブの数の画面表示を行うデバッグ用の Initializer。インゲームのシーンへ置く。
+    /// プレイヤーへダメージを与える操作と、狙った所のボクセルを削る破壊攻撃（G キーを押している間）と、HP・チャージ量・かけらとオーブの数の画面表示を行うデバッグ用の Initializer。インゲームのシーンへ置く。
+    /// 破壊攻撃はデバッグ専用の為、入力マップに Action を足さず Keyboard.current を直接読む。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動く。
     /// PlayerInitializer が登録する State を読むので、それより後に初期化する。
     /// </summary>
@@ -28,11 +30,20 @@ namespace Kizami.Initialization
         [Tooltip("管理中のかけらの数と、出ているオーブの数の取得元")]
         private FragmentOrbAdapter _fragmentOrbAdapter;
 
+        [SerializeField]
+        [Tooltip("破壊攻撃で、狙った所を削る Adapter")]
+        private VoxelDestructionAdapter _voxelDestructionAdapter;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("破壊攻撃のキーを押している間に削る間隔（秒）")]
+        private float _destructionInterval = 0.1f;
+
         private PlayerHealthService _healthService;
         private IPlayerHealthState _healthState;
         private IDisposable _healthSubscription;
         private IDisposable _modeSubscription;
         private bool _isDamageOnWarpEnabled;
+        private float _nextDestructionTime;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -78,6 +89,18 @@ namespace Kizami.Initialization
             {
                 _healthService?.ApplyDamage(_damageAmount);
             }
+        }
+
+        private void Update()
+        {
+            if (_voxelDestructionAdapter == null) return;
+
+            var keyboard = Keyboard.current;
+            if (keyboard == null || !keyboard.gKey.isPressed) return;
+            if (Time.unscaledTime < _nextDestructionTime) return;
+
+            _nextDestructionTime = Time.unscaledTime + _destructionInterval;
+            _voxelDestructionAdapter.CarveAtAim();
         }
 
         private void OnGUI()
