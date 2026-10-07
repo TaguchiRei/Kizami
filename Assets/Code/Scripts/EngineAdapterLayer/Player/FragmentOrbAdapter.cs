@@ -10,8 +10,8 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 切断で生まれたかけらを管理し、オーブに変えてプレイヤーに吸収させる Adapter。
-    /// かけらは、無視するレイヤー以外の何かにぶつかるか、寿命が来るとオーブになり、オーブは MainCamera の位置へ向かって吸収される。
-    /// 切った直後のかけらは敵の残りの部位に触れているので、敵のレイヤーとの接触は無視する。
+    /// かけらは寿命が来るとオーブになり、オーブは MainCamera の位置へ向かって吸収される。
+    /// 何かにぶつかってもオーブにしない。切った直後のかけらは敵の残りの部位や地面に触れていることがあり、すぐオーブになるとスロー中につかめない為。
     /// </summary>
     /// <remarks>
     /// 切り直されている途中のかけらは ExecuteCut が先に非アクティブにし、切断の結果が届くまで管理に残るので、
@@ -23,7 +23,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 管理中のかけらと、生まれた時刻（Time.time） </summary>
         private readonly Dictionary<CuttableObject, float> _fragments = new();
 
-        /// <summary> 回収時と接触時の処理を登録済みのかけら </summary>
+        /// <summary> 回収時の処理を登録済みのかけら </summary>
         private readonly HashSet<CuttableObject> _hookedFragments = new();
 
         /// <summary> 寿命が来たかけらを集める作業用の一覧 </summary>
@@ -40,12 +40,8 @@ namespace Kizami.EngineAdapter
         [Tooltip("オーブのプレハブ")]
         private GameObject _orbPrefab;
 
-        [SerializeField]
-        [Tooltip("ぶつかってもオーブにならない相手のレイヤー。切った直後のかけらが敵の残りの部位に触れるので、Enemy を入れる")]
-        private LayerMask _ignoredContactLayers;
-
         [SerializeField, Min(0f)]
-        [Tooltip("何にもぶつからないかけらがオーブになるまでの時間（秒）")]
+        [Tooltip("かけらが生まれてからオーブになるまでの時間（秒）")]
         private float _fragmentLifetime = 3f;
 
         [SerializeField, Min(0f)]
@@ -165,8 +161,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// かけらを管理に加える。初めて見るかけらには、回収されたときに管理から外す処理と、
-        /// ぶつかったときにオーブにする処理を登録する。
+        /// かけらを管理に加える。初めて見るかけらには、回収されたときに管理から外す処理を登録する。
         /// </summary>
         private void Track(CuttableObject fragment)
         {
@@ -175,30 +170,9 @@ namespace Kizami.EngineAdapter
             if (_hookedFragments.Add(fragment))
             {
                 fragment.ReuseAction += () => _fragments.Remove(fragment);
-
-                if (fragment.TryGetComponent(out FragmentContactReporter reporter))
-                {
-                    reporter.Touched += OnFragmentTouched;
-                }
-                else
-                {
-                    UsefulLogger.LogWarning("かけらに FragmentContactReporter がない為、ぶつかってもオーブになりません。", fragment);
-                }
             }
 
             _fragments[fragment] = Time.time;
-        }
-
-        /// <summary>
-        /// 管理中のかけらが、無視するレイヤー以外の相手にぶつかったときにオーブにする。
-        /// </summary>
-        private void OnFragmentTouched(CuttableObject fragment, Collider other)
-        {
-            if (!_fragments.ContainsKey(fragment)) return;
-            if (!fragment.gameObject.activeSelf) return;
-            if ((_ignoredContactLayers.value & (1 << other.gameObject.layer)) != 0) return;
-
-            ConvertToOrb(fragment);
         }
 
         /// <summary>

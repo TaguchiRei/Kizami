@@ -1620,9 +1620,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.FragmentOrbAdapter
   _fragmentPool: {fileID: 608286024}
   _orbPrefab: {fileID: 8129910674769226313, guid: 2840b9575a7e6654ebae8249f5162d0f, type: 3}
-  _ignoredContactLayers:
-    serializedVersion: 2
-    m_Bits: 128
   _fragmentLifetime: 3
   _orbSpeed: 15
   _absorbDistance: 0.5
