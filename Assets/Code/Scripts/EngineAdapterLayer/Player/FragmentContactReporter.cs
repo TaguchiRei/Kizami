@@ -10,8 +10,8 @@ namespace Kizami.EngineAdapter
     [RequireComponent(typeof(CuttableObject))]
     public sealed class FragmentContactReporter : MonoBehaviour
     {
-        /// <summary> ぶつかったときに呼ばれる。引数はぶつかったかけら </summary>
-        public Action<CuttableObject> Touched;
+        /// <summary> ぶつかったときに呼ばれる。引数はぶつかったかけらと、ぶつかった相手のコライダー </summary>
+        public Action<CuttableObject, Collider> Touched;
 
         private CuttableObject _fragment;
 
@@ -22,7 +22,7 @@ namespace Kizami.EngineAdapter
 
         private void OnCollisionEnter(Collision collision)
         {
-            Touched?.Invoke(_fragment);
+            Touched?.Invoke(_fragment, collision.collider);
         }
     }
 }

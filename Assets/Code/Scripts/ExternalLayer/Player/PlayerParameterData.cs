@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Kizami.External
 {
     /// <summary>
-    /// プレイヤーの移動・HP・近接切断・チャージに関わる、遊びのルールのパラメータ。
+    /// プレイヤーの移動・HP・近接切断・チャージ・スローモード・投擲に関わる、遊びのルールのパラメータ。
     /// </summary>
     [CreateAssetMenu(fileName = "PlayerParameterData", menuName = "Kizami/Player/PlayerParameterData")]
     public sealed class PlayerParameterData : ScriptableObject
@@ -91,6 +91,40 @@ namespace Kizami.External
         [Tooltip("チャージ量の上限")]
         private int _maxCharge = 100;
 
+        [Header("スローモード")]
+        [SerializeField, Range(0.01f, 1f)]
+        [Tooltip("スローモード中の時間の倍率")]
+        private float _slowModeTimeScale = 0.25f;
+
+        [SerializeField, Min(0)]
+        [Tooltip("スローモードの発動時に消費するチャージ量")]
+        private int _slowModeActivationCost = 20;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("スローモードを続けている間に、実時間 1 秒あたりに消費するチャージ量。0 で消費しない")]
+        private float _slowModeDrainPerSecond = 5f;
+
+        [SerializeField, Min(0)]
+        [Tooltip("1 回のスローモードの間に近接切断を振れる回数")]
+        private int _slowModeCutLimit = 5;
+
+        [Header("つかむ・投げる・ランチャー")]
+        [SerializeField, Min(0f)]
+        [Tooltip("かけらをつかめる、カメラからの距離（m）")]
+        private float _grabRange = 6f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("かけらを探す球の半径（m）")]
+        private float _grabRadius = 0.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("投げたかけらの初速（m/s）")]
+        private float _throwSpeed = 25f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ランチャーで撃ったかけらの速さ（m/s）")]
+        private float _launcherSpeed = 60f;
+
         /// <summary> 歩行の速度（m/s） </summary>
         public float WalkSpeed => _walkSpeed;
 
@@ -147,5 +181,29 @@ namespace Kizami.External
 
         /// <summary> チャージ量の上限 </summary>
         public int MaxCharge => _maxCharge;
+
+        /// <summary> スローモード中の時間の倍率 </summary>
+        public float SlowModeTimeScale => _slowModeTimeScale;
+
+        /// <summary> スローモードの発動時に消費するチャージ量 </summary>
+        public int SlowModeActivationCost => _slowModeActivationCost;
+
+        /// <summary> スローモードを続けている間に、実時間 1 秒あたりに消費するチャージ量 </summary>
+        public float SlowModeDrainPerSecond => _slowModeDrainPerSecond;
+
+        /// <summary> 1 回のスローモードの間に近接切断を振れる回数 </summary>
+        public int SlowModeCutLimit => _slowModeCutLimit;
+
+        /// <summary> かけらをつかめる、カメラからの距離（m） </summary>
+        public float GrabRange => _grabRange;
+
+        /// <summary> かけらを探す球の半径（m） </summary>
+        public float GrabRadius => _grabRadius;
+
+        /// <summary> 投げたかけらの初速（m/s） </summary>
+        public float ThrowSpeed => _throwSpeed;
+
+        /// <summary> ランチャーで撃ったかけらの速さ（m/s） </summary>
+        public float LauncherSpeed => _launcherSpeed;
     }
 }

@@ -377,6 +377,7 @@ MonoBehaviour:
   _enemySpawnAdapter: {fileID: 1539543158}
   _voxelDestructionAdapter: {fileID: 1734900002}
   _hudAdapter: {fileID: 60550492}
+  _fragmentThrowAdapter: {fileID: 1258148392}
   _equippedSkills:
   - {fileID: 11400000, guid: 3c8d0496d6baf774494d30e32f8f5cda, type: 2}
   - {fileID: 11400000, guid: 992c0f9acc63fff468eee1c55f9d0a68, type: 2}
@@ -727,6 +728,61 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1212232922}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1258148391
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1258148393}
+  - component: {fileID: 1258148392}
+  m_Layer: 0
+  m_Name: FragmentThrow
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1258148392
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1258148391}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d95ebe7a710b3a7489f96efb18a35a4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.FragmentThrowAdapter
+  _fragmentPool: {fileID: 608286024}
+  _fragmentLayers:
+    serializedVersion: 2
+    m_Bits: 64
+  _aimLayers:
+    serializedVersion: 2
+    m_Bits: 4294966963
+  _aimDistance: 100
+  _holdOffset: {x: 0.4, y: -0.3, z: 1.2}
+  _loadedOffset: {x: 0.7, y: -0.6, z: 1.2}
+  _flyingLifetime: 3
+--- !u!4 &1258148393
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1258148391}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -1564,7 +1620,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.FragmentOrbAdapter
   _fragmentPool: {fileID: 608286024}
   _orbPrefab: {fileID: 8129910674769226313, guid: 2840b9575a7e6654ebae8249f5162d0f, type: 3}
-  _contactGraceTime: 0.2
   _fragmentLifetime: 3
   _orbSpeed: 15
   _absorbDistance: 0.5
@@ -1595,6 +1650,7 @@ SceneRoots:
   - {fileID: 903436366}
   - {fileID: 1379823857}
   - {fileID: 1946405261}
+  - {fileID: 1258148393}
   - {fileID: 1539543159}
   - {fileID: 1734900003}
   - {fileID: 1452220893}
