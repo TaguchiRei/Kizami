@@ -12,11 +12,13 @@ namespace Kizami.EngineAdapter
     /// 持っているかけらはランチャーに 1 つだけ装填でき、装填したかけらは重力なしでまっすぐ撃ち出す。
     /// 持っているかけらと装填したかけらは物理を止め、当たり判定と切断の対象から外して、カメラの前のそれぞれの位置に置く。
     /// 投げたかけらと撃ったかけらは、何かにぶつかるか、寿命が来るとプールへ返す。飛ばした瞬間に重なっている相手にも当たったものとする。オーブにもチャージにもならない。
+    /// 装甲のパネルにぶつかったら、粉砕タイプとしてそのパネルだけを一撃で壊す。
     /// </summary>
     /// <remarks>
     /// かけらのプールは空きがなくなると古いかけらを使い回すので、運んでいるかけらと飛んでいるかけらが回収されたら手放し、物理の設定を戻す。
     /// 飛んでいるかけらの時間は Time.time で数え、スローモード中は一緒に遅くなる。
     /// 運んでいるかけらは、CinemachineBrain が LateUpdate でカメラを動かした後に合わせるよう、実行順を後ろにする。
+    /// 飛んでいるかけらは連続の衝突判定にする。薄い装甲のパネルを 1 ステップで越えると奥の物にも同時に触れ、奥の物への接触が先に届くとパネルを壊さずにプールへ返る為。
     /// </remarks>
     [DefaultExecutionOrder(EXECUTION_ORDER)]
     public sealed class FragmentThrowAdapter : InitializableMonoBehaviour
@@ -32,8 +34,9 @@ namespace Kizami.EngineAdapter
         /// <summary> つかむ候補と、視線の中心からの角度（度） </summary>
         private readonly List<(float Angle, CuttableObject Fragment)> _candidates = new();
 
-        /// <summary> 投げたかけらと撃ったかけらと、飛ばした時刻（Time.time） </summary>
-        private readonly Dictionary<CuttableObject, float> _flyingFragments = new();
+        /// <summary> 投げたかけらと撃ったかけらと、飛ばした時刻（Time.time）と、飛ばす前の衝突判定の方式 </summary>
+        private readonly Dictionary<CuttableObject, (float LaunchedTime, CollisionDetectionMode CollisionMode)>
+            _flyingFragments = new();
 
         /// <summary> 回収時と接触時の処理を登録済みのかけら </summary>
         private readonly HashSet<CuttableObject> _hookedFragments = new();
@@ -231,7 +234,7 @@ namespace Kizami.EngineAdapter
             Hook(fragment);
 
             var rigidbody = fragment.Rig;
-            var carried = new CarriedFragment(fragment, rigidbody.interpolation,
+            var carried = new CarriedFragment(fragment, rigidbody.interpolation, rigidbody.collisionDetectionMode,
                 Quaternion.Inverse(cameraTransform.rotation) * fragment.transform.rotation,
                 fragment.transform.InverseTransformPoint(GetCenter(fragment)));
 
@@ -267,6 +270,7 @@ namespace Kizami.EngineAdapter
             rigidbody.detectCollisions = true;
             rigidbody.interpolation = carried.Interpolation;
             rigidbody.useGravity = useGravity;
+            rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
             var cameraMain = Camera.main;
             var direction = cameraMain != null
@@ -275,7 +279,7 @@ namespace Kizami.EngineAdapter
             rigidbody.linearVelocity = direction * speed;
             rigidbody.angularVelocity = Vector3.zero;
 
-            _flyingFragments[fragment] = Time.time;
+            _flyingFragments[fragment] = (Time.time, carried.CollisionMode);
         }
 
         /// <summary>
@@ -311,13 +315,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 飛んでいるかけらがぶつかったときにプールへ返す。
+        /// 飛んでいるかけらがぶつかったときにプールへ返す。ぶつかった相手が装甲のパネルなら、粉砕タイプとしてそのパネルを一撃で壊す。
         /// </summary>
         private void OnFragmentTouched(CuttableObject fragment, Collider other)
         {
             if (!_flyingFragments.ContainsKey(fragment)) return;
 
-            // TODO: 区間8 で、ぶつかった相手が装甲なら粉砕タイプのダメージを通す
+            if (other.TryGetComponent(out ArmorPanel armorPanel)) armorPanel.Shatter();
+
             Release(fragment);
         }
 
@@ -328,9 +333,9 @@ namespace Kizami.EngineAdapter
         {
             _expiredFragments.Clear();
 
-            foreach (var (fragment, launchedTime) in _flyingFragments)
+            foreach (var (fragment, flying) in _flyingFragments)
             {
-                if (Time.time - launchedTime >= _flyingLifetime) _expiredFragments.Add(fragment);
+                if (Time.time - flying.LaunchedTime >= _flyingLifetime) _expiredFragments.Add(fragment);
             }
 
             foreach (var fragment in _expiredFragments)
@@ -361,7 +366,11 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void OnReused(CuttableObject fragment)
         {
-            if (fragment == _held.Fragment)
+            if (_flyingFragments.Remove(fragment, out var flying))
+            {
+                fragment.Rig.collisionDetectionMode = flying.CollisionMode;
+            }
+            else if (fragment == _held.Fragment)
             {
                 fragment.Rig.interpolation = _held.Interpolation;
                 _held = default;
@@ -371,7 +380,7 @@ namespace Kizami.EngineAdapter
                 fragment.Rig.interpolation = _loaded.Interpolation;
                 _loaded = default;
             }
-            else if (!_flyingFragments.Remove(fragment))
+            else
             {
                 return;
             }
@@ -393,17 +402,21 @@ namespace Kizami.EngineAdapter
             /// <summary> 運び始めたときの補間の設定。飛ばすときと回収されたときに戻す </summary>
             public readonly RigidbodyInterpolation Interpolation;
 
+            /// <summary> 運び始めたときの衝突判定の方式。飛んだあと回収されたときに戻す </summary>
+            public readonly CollisionDetectionMode CollisionMode;
+
             /// <summary> カメラから見た、かけらの向き </summary>
             public readonly Quaternion Rotation;
 
             /// <summary> かけらのローカル座標での、見た目の中心 </summary>
             public readonly Vector3 LocalCenter;
 
-            public CarriedFragment(CuttableObject fragment, RigidbodyInterpolation interpolation, Quaternion rotation,
-                Vector3 localCenter)
+            public CarriedFragment(CuttableObject fragment, RigidbodyInterpolation interpolation,
+                CollisionDetectionMode collisionMode, Quaternion rotation, Vector3 localCenter)
             {
                 Fragment = fragment;
                 Interpolation = interpolation;
+                CollisionMode = collisionMode;
                 Rotation = rotation;
                 LocalCenter = localCenter;
             }
