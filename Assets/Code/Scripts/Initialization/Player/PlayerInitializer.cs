@@ -11,12 +11,12 @@ using UsefulToolkit.MeshCut;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// プレイヤーの移動・視点・HP・近接切断・チャージ・スキルまわり（Service / State / Adapter）を生成して繋ぐ配線役。インゲームのシーンへ置く。
+    /// プレイヤーの移動・視点・HP・近接切断・チャージ・スキル・スローモードまわり（Service / State / Adapter）を生成して繋ぐ配線役。インゲームのシーンへ置く。
     /// 近接切断の結果は、敵の Adapter とかけらの Adapter の両方へ配る。
     /// チャージには、かけらの Adapter から吸収したかけらの数を、エネルギーの Adapter から崩落で倒した敵の数を受け取る。
     /// 操作系ごとの視点の回転のさせ方の違いは、シーンへ置く PlayerMovementAdapterBase の派生が吸収する。
     /// </summary>
-    public sealed class PlayerInitializer : InitializerBase
+    public sealed class PlayerInitializer : InitializerBase, IInjectable<ITimeScaleController>
     {
         private readonly PlayerHealthService _healthService = new();
 
@@ -44,6 +44,8 @@ namespace Kizami.Initialization
         private MeleeCutService _meleeCutService;
         private ChargeService _chargeService;
         private SkillService _skillService;
+        private SlowModeService _slowModeService;
+        private ITimeScaleController _timeScaleController;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -102,6 +104,14 @@ namespace Kizami.Initialization
             _skillService = new SkillService(blackBoard, _equippedSkills, _chargeService,
                 _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveBeam : null,
                 _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveExplosion : null, sceneId);
+
+            if (_timeScaleController == null)
+            {
+                UsefulLogger.LogError("ITimeScaleController を受け取れなかった為、スローモードを使えません。", this);
+            }
+
+            // SlowModeService は ChargeState を取得する為、ChargeService の生成より後に生成する
+            _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
 
             // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
             _healthService.Initialize(blackBoard, _parameters, sceneId);
@@ -164,6 +174,12 @@ namespace Kizami.Initialization
             _lookService?.Dispose();
             _meleeCutService?.Dispose();
             _skillService?.Dispose();
+            _slowModeService?.Dispose();
+        }
+
+        public void Inject(ITimeScaleController instance)
+        {
+            _timeScaleController = instance;
         }
     }
 }

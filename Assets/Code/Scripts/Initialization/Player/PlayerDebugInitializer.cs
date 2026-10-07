@@ -14,7 +14,7 @@ using UsefulToolkit.Utility;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// プレイヤーへダメージを与える操作と、狙った所のボクセルを削る破壊攻撃（G キーを押している間）と、HP・チャージ量・かけらとオーブの数の画面表示を行うデバッグ用の Initializer。インゲームのシーンへ置く。
+    /// プレイヤーへダメージを与える操作と、狙った所のボクセルを削る破壊攻撃（G キーを押している間）と、HP・チャージ量・スローモード中か・かけらとオーブの数の画面表示を行うデバッグ用の Initializer。インゲームのシーンへ置く。
     /// 破壊攻撃はデバッグ専用の為、入力マップに Action を足さず Keyboard.current を直接読む。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動く。
     /// PlayerInitializer が登録する State を読むので、それより後に初期化する。
@@ -60,6 +60,11 @@ namespace Kizami.Initialization
             if (blackBoard.TryGetSceneState<PlayerBoard, IChargeState>(out var chargeState, this))
             {
                 DebugGUI.ObserveVariable("Charge", () => $"{chargeState.Current} / {chargeState.Max}");
+            }
+
+            if (blackBoard.TryGetSceneState<PlayerBoard, ISlowModeState>(out var slowModeState, this))
+            {
+                DebugGUI.ObserveVariable("SlowMode", () => slowModeState.IsActive ? "On" : "Off");
             }
 
             if (_fragmentOrbAdapter != null)

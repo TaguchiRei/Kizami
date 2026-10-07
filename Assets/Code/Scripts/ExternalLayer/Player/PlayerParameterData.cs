@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Kizami.External
 {
     /// <summary>
-    /// プレイヤーの移動・HP・近接切断・チャージに関わる、遊びのルールのパラメータ。
+    /// プレイヤーの移動・HP・近接切断・チャージ・スローモードに関わる、遊びのルールのパラメータ。
     /// </summary>
     [CreateAssetMenu(fileName = "PlayerParameterData", menuName = "Kizami/Player/PlayerParameterData")]
     public sealed class PlayerParameterData : ScriptableObject
@@ -91,6 +91,19 @@ namespace Kizami.External
         [Tooltip("チャージ量の上限")]
         private int _maxCharge = 100;
 
+        [Header("スローモード")]
+        [SerializeField, Range(0.01f, 1f)]
+        [Tooltip("スローモード中の時間の倍率")]
+        private float _slowModeTimeScale = 0.25f;
+
+        [SerializeField, Min(0)]
+        [Tooltip("スローモードの発動時に消費するチャージ量")]
+        private int _slowModeActivationCost = 20;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("スローモードを続けている間に、実時間 1 秒あたりに消費するチャージ量。0 で消費しない")]
+        private float _slowModeDrainPerSecond = 5f;
+
         /// <summary> 歩行の速度（m/s） </summary>
         public float WalkSpeed => _walkSpeed;
 
@@ -147,5 +160,14 @@ namespace Kizami.External
 
         /// <summary> チャージ量の上限 </summary>
         public int MaxCharge => _maxCharge;
+
+        /// <summary> スローモード中の時間の倍率 </summary>
+        public float SlowModeTimeScale => _slowModeTimeScale;
+
+        /// <summary> スローモードの発動時に消費するチャージ量 </summary>
+        public int SlowModeActivationCost => _slowModeActivationCost;
+
+        /// <summary> スローモードを続けている間に、実時間 1 秒あたりに消費するチャージ量 </summary>
+        public float SlowModeDrainPerSecond => _slowModeDrainPerSecond;
     }
 }
