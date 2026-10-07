@@ -119,6 +119,62 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &60550491
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 60550493}
+  - component: {fileID: 60550492}
+  m_Layer: 0
+  m_Name: PlayerHud
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &60550492
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 60550491}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: efa527797db2fd54783082ed6dbf0167, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.PlayerHudAdapter
+  _widthRatio: 0.5
+  _healthHeight: 14
+  _chargeHeight: 10
+  _bottomMargin: 24
+  _gap: 6
+  _lineWidth: 2
+  _lineOverhang: 3
+  _backgroundColor: {r: 0, g: 0, b: 0, a: 0.5}
+  _healthColor: {r: 0.9, g: 0.25, b: 0.25, a: 1}
+  _chargeColor: {r: 0.3, g: 0.8, b: 1, a: 1}
+  _reachedLineColor: {r: 1, g: 1, b: 1, a: 1}
+  _unreachedLineColor: {r: 1, g: 1, b: 1, a: 0.35}
+--- !u!4 &60550493
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 60550491}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &608286023
 GameObject:
   m_ObjectHideFlags: 0
@@ -319,6 +375,12 @@ MonoBehaviour:
   _fragmentOrbAdapter: {fileID: 1946405260}
   _enemyEnergyAdapter: {fileID: 1579939516}
   _enemySpawnAdapter: {fileID: 1539543158}
+  _voxelDestructionAdapter: {fileID: 1734900002}
+  _hudAdapter: {fileID: 60550492}
+  _equippedSkills:
+  - {fileID: 11400000, guid: 3c8d0496d6baf774494d30e32f8f5cda, type: 2}
+  - {fileID: 11400000, guid: 992c0f9acc63fff468eee1c55f9d0a68, type: 2}
+  - {fileID: 0}
 --- !u!136 &903436363
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -1537,3 +1599,4 @@ SceneRoots:
   - {fileID: 1734900003}
   - {fileID: 1452220893}
   - {fileID: 1579939519}
+  - {fileID: 60550493}
