@@ -322,7 +322,7 @@ MonoBehaviour:
   _voxelDestructionAdapter: {fileID: 1734900002}
   _equippedSkills:
   - {fileID: 11400000, guid: 3c8d0496d6baf774494d30e32f8f5cda, type: 2}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 992c0f9acc63fff468eee1c55f9d0a68, type: 2}
   - {fileID: 0}
 --- !u!136 &903436363
 CapsuleCollider:

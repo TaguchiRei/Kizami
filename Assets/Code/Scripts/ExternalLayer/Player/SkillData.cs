@@ -25,7 +25,7 @@ namespace Kizami.External
         private float _radius = 1f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("ビームの長さ（m）")]
+        [Tooltip("ビームの長さ（m）。ビームでだけ使う")]
         private float _length = 30f;
 
         /// <summary> HUD に出す名前 </summary>
@@ -51,5 +51,8 @@ namespace Kizami.External
     {
         /// <summary> カメラの位置から視線の向きへ、カプセルで一度だけ削る </summary>
         Beam,
+
+        /// <summary> カメラの位置を中心に、球で一度だけ削る </summary>
+        Explosion,
     }
 }

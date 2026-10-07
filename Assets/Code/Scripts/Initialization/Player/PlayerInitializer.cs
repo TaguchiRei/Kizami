@@ -99,7 +99,8 @@ namespace Kizami.Initialization
             }
 
             _skillService = new SkillService(blackBoard, _equippedSkills, _chargeService,
-                _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveBeam : null);
+                _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveBeam : null,
+                _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveExplosion : null);
 
             // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
             _healthService.Initialize(blackBoard, _parameters, sceneId);

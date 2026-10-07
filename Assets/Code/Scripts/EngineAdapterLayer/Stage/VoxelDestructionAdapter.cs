@@ -6,7 +6,7 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// MainCamera を基準にした形（狙った所の球、視線の向きへ伸びるカプセル）の範囲にあるボクセルのピースを、同じ形でまとめて削る Adapter。
+    /// MainCamera を基準にした形（狙った所の球、視線の向きへ伸びるカプセル、カメラの位置を中心にした球）の範囲にあるボクセルのピースを、同じ形でまとめて削る Adapter。
     /// 範囲が複数のピースにまたがるときも、範囲内のすべてのピースを削る。
     /// </summary>
     public sealed class VoxelDestructionAdapter : MonoBehaviour
@@ -61,6 +61,20 @@ namespace Kizami.EngineAdapter
             var hitCount = Physics.OverlapCapsuleNonAlloc(start, end, radius, _hitBuffer, _targetLayers,
                 QueryTriggerInteraction.Ignore);
             Carve(new CapsuleShape(start, end, radius), hitCount);
+        }
+
+        /// <summary>
+        /// カメラの位置を中心に球で削る。足場がボクセルなら足場も削れる。
+        /// </summary>
+        /// <param name="radius">球の半径（m）</param>
+        public void CarveExplosion(float radius)
+        {
+            if (!TryGetCameraTransform(out var cameraTransform)) return;
+
+            var center = cameraTransform.position;
+            var hitCount = Physics.OverlapSphereNonAlloc(center, radius, _hitBuffer, _targetLayers,
+                QueryTriggerInteraction.Ignore);
+            Carve(new SphereShape(center, radius), hitCount);
         }
 
         private bool TryGetCameraTransform(out Transform cameraTransform)

@@ -19,17 +19,20 @@ namespace Kizami.Application
         private readonly SkillData[] _slots = new SkillData[SLOT_COUNT];
         private readonly ChargeService _chargeService;
         private readonly Action<float, float> _onBeam;
+        private readonly Action<float> _onExplosion;
         private readonly List<IDisposable> _subscriptions = new();
 
         /// <param name="blackBoard">入力の取得元</param>
         /// <param name="equippedSkills">枠ごとに装備するスキル。空きの枠と、SLOT_COUNT を超えた分は無視する</param>
         /// <param name="chargeService">発動に使うチャージの消費先</param>
         /// <param name="onBeam">ビームを出す関数。引数は長さ（m）と半径（m）</param>
+        /// <param name="onExplosion">爆発を出す関数。引数は半径（m）</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
-            ChargeService chargeService, Action<float, float> onBeam)
+            ChargeService chargeService, Action<float, float> onBeam, Action<float> onExplosion)
         {
             _chargeService = chargeService;
             _onBeam = onBeam;
+            _onExplosion = onExplosion;
 
             var count = Math.Min(equippedSkills.Count, SLOT_COUNT);
             for (var i = 0; i < count; i++)
@@ -62,6 +65,9 @@ namespace Kizami.Application
             {
                 case SkillEffect.Beam:
                     _onBeam?.Invoke(skill.Length, skill.Radius);
+                    break;
+                case SkillEffect.Explosion:
+                    _onExplosion?.Invoke(skill.Radius);
                     break;
             }
         }
