@@ -16,9 +16,14 @@ namespace Kizami.EngineAdapter
     /// <remarks>
     /// かけらのプールは空きがなくなると古いかけらを使い回すので、運んでいるかけらと飛んでいるかけらが回収されたら手放し、物理の設定を戻す。
     /// 飛んでいるかけらの時間は Time.time で数え、スローモード中は一緒に遅くなる。
+    /// 運んでいるかけらは、CinemachineBrain が LateUpdate でカメラを動かした後に合わせるよう、実行順を後ろにする。
     /// </remarks>
+    [DefaultExecutionOrder(EXECUTION_ORDER)]
     public sealed class FragmentThrowAdapter : InitializableMonoBehaviour
     {
+        /// <summary> 実行順。CinemachineBrain（既定の 0）より後 </summary>
+        private const int EXECUTION_ORDER = 100;
+
         /// <summary> つかむ範囲から一度に集めるコライダーの最大数。かけら 1 つが球のコライダーを 10 個持つので、かけら約 25 個ぶん </summary>
         private const int MAX_HIT_COUNT = 256;
 
