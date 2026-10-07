@@ -24,6 +24,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 立てる層の上に立っているか。false の間は落ちている </summary>
         public bool IsGrounded;
 
+        /// <summary> 落ち始めた高さ。着地したときに、落ちた高さを測る基準にする </summary>
+        public float FallStartHeight;
+
+        /// <summary> 崩落（足場ごとの落下、落ちてくる塊）で倒されたか。EnemySpawnAdapter が数えたら false に戻す </summary>
+        public bool IsDefeatedByCollapse;
+
         /// <summary> 貸している体の、EnemySpawnAdapter の体の一覧での番号。貸していなければ -1 </summary>
         public int BodyIndex;
 
