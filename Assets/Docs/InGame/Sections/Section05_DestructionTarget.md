@@ -1,16 +1,17 @@
-# 区間5：ダメージ基盤・破壊対象・崩落・クリア判定
+# 区間5：破壊対象・崩落・クリア判定
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手（着手前にこの計画を見直す） |
+| 状態 | 着手（2026-10-07） |
 | 目安の時期 | 2026/11/17〜12/07（最速の推定 10/18〜10/23） |
 | 前提となる区間 | 4C |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
 
 ## 目的
 
-ダメージタイプ（攻撃・破壊・粉砕）と、対象ごとの判定の窓口を作る。
 ボクセルでできた破壊対象とマップオブジェクトを置き、重要パーツを一定の割合まで削るとクリアになるようにする。
+マップを壊して起こした崩落に敵を巻き込んで撃破し、そのエネルギーをチャージにする。
+ダメージタイプのデータと判定の窓口は、利用者が揃う区間6へ持ち越す（決定 1）。
 
 ## 関連する仕様
 
@@ -23,37 +24,60 @@
 - 敵の大量描画と体の貸し出し（崩落に巻き込まれたかの判定）：https://app.notion.com/p/3f01ea2aa7fa818fb0ebc1f6ea509324
 - 議論の記録：[EnemyCrowdDiscussion.md](../EnemyCrowdDiscussion.md)（7 章 崩落、8 章 エネルギー）
 
-## 前提の変化（2026-10-05 追記）
+着手時の計画は、Notion を読めない環境で、リポジトリの計画書と議論の記録をもとに立てた。Notion の記述との突き合わせは済んでいない。
 
-- 5-2・5-3 は「判定の窓口を Application に置き、剣の切断もそこを通す」前提で書いている。しかし区間2〜4では、切断、オーブ化、敵のルールを EngineAdapter に置いている（利用者が 1 つの為）。切断は `MeleeCutAdapter` が MeshCut を直接呼び、Application の asmdef は MeshCut を参照していない。着手時に、判定をどの層に置くかを決め直す（例：ダメージタイプと対象の組から効果を返すだけの判定を Application に置き、Adapter から呼ぶ／判定も Adapter に置く）
-- 剣の切断は、区間4A で「切ってよいか」の絞り込み（部位ごとの切断回数の上限。UsefulToolkit.MeshCut 側）を持つ。破壊対象・マップに剣が効かないことも、同じ絞り込みで扱えるかを確かめる
-- 崩落による撃破とエネルギーの演出を、この区間に足した（2026-10-05。Notion「崩落による撃破」「敵の大量描画と体の貸し出し」の「崩落に巻き込まれたかの判定」）。敵には PhysX のコライダーを付けず、データで判定する見込み
+## 計画書と今のコードの食い違い（着手時に確認）
+
+2026-10-07 に確認した。
+
+| # | 内容 | 根拠 | 対応 |
+|---|---|---|---|
+| 1 | 剣はボクセルを切らない。破壊対象・マップに剣が効かないことは、絞り込みを足さなくても成り立っている | `MeleeCutAdapter.CollectTargets` は `CuttableObject` を持つコライダーだけを集める。`VoxelPiece` は `CuttableObject` を持たない | 5-3（剣の切断を窓口に通す）は行わない。完了条件の「剣では削れない」は、プレイモードで確かめるだけにする |
+| 2 | この区間でダメージを受ける組は「デバッグの破壊攻撃 → ボクセル」だけ。判定の窓口の利用者は 1 つになる | 崩落による撃破は `EnemySpawnAdapter` の中で完結する。装甲は区間8。Application がダメージを出すのは区間6のスキルから | ダメージのデータと判定の窓口（5-1・5-2）は区間6へ持ち越す（決定 1） |
+| 3 | 削られて本体から分離した塊は、パーツの体積に含まれない | `VoxelModelLoader.Volume` は「切り離されたピースは含まない」。パーツの `RelativeVolume` は、分離のあとに残った内側のサンプル数で計算する | 分離した塊は破壊済みに数える（決定 3）。追加の処理は要らない |
+| 4 | 格子より下まで落ちた敵は、既に `IsAlive = false` で消える。撃破の穴詰めと体の返却は、この経路に乗っている | `EnemyMoveJob` の落下の処理（`agent.Position.y < Grid.Origin.y`）、`EnemySpawnAdapter.ReturnBodies` | 落下による撃破は、同じ経路で `IsAlive` を落とし、崩落による撃破として数える（決定 7） |
+| 5 | 体を貸している敵の部位のコライダーと、ボクセルのモデルは衝突する | `DynamicsManager.asset` の衝突の表で、Enemy の行は Player とだけ衝突しない。TestStage のボクセル（`CrowdVoxelTerrain`）は Default レイヤー | 落ちてきた塊が体の上に乗って止まると、体の中心の SDF で判定できない。コミット 3 で、塊と Enemy の衝突を切るか、判定する点を体の上の方にも足すかを決める（決定 8） |
 
 ## 既存の資産
 
 | クラス | 内容 |
 |---|---|
-| [VoxelModelLoader](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs) | ボクセルモデルのアセットを読み込み、パーツごとに `VoxelPiece` を作る。パーツの形状の変化、分離、破棄をモデル単位でまとめて通知する |
-| [VoxelPiece](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs) | `ApplyEdit`（ワールド空間でも指定できる）で削る・盛る。`RelativeVolume`（初期体積に対する今の体積の割合）、`Root`、`PartPath` を持つ |
+| [VoxelModelLoader](../../../Code/Scripts/EngineAdapterLayer/Voxel/Model/VoxelModelLoader.cs) | ボクセルモデルのアセットを読み込み、パーツごとに `VoxelPiece` を作る。`TryGetPart`（パスでパーツを引く）、読み込み・形状の変化・分離・破棄の通知をモデル単位で受け取れる |
+| [VoxelPiece](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs) | `ApplyEdit`（ワールド空間でも指定できる）で削る・盛る。`RelativeVolume`、`Root`、`PartPath`、`Generation`、`SampleDistance`、`WorldBounds` を持つ。分離した塊は Rigidbody と凸包のコライダーを持ち、一定の高さより下へ落ちると破棄される |
 | [IVoxelShape](../../../Code/Scripts/EngineAdapterLayer/Voxel/Shapes/IVoxelShape.cs) | 削る形状（球・箱・カプセル） |
+| `VoxelModelBaker` | エディタで、置いた箱などをボクセルモデルのアセットへベイクする。区間4C の TestStage の壁と橋はこれで作った |
 | ボクセルの説明 | [VoxelOverview.md](../../Voxel/VoxelOverview.md) |
-| 区間4C の成果 | 敵の距離マップのボクセルへの追従（`EnemyDistanceField.Watch`。形状変化の通知を溜め、作り直しが済んでから変わった列を物理のクエリで調べ直す）。購読するのは `EnemySpawnAdapter` の初期化のときにシーンにある `VoxelModelLoader` だけ。敵の落下と着地（`EnemyAgent` の `VerticalSpeed`・`IsGrounded`、着地先は格子の層）。TestStage のボクセルの壁と橋（`CrowdVoxelTerrain`） |
+| 区間4C の成果 | 敵の距離マップのボクセルへの追従（`EnemyDistanceField.Watch`。購読するのは `EnemySpawnAdapter` の初期化のときにシーンにある `VoxelModelLoader` だけ）。敵の落下と着地（`EnemyAgent` の `VerticalSpeed`・`IsGrounded`）。TestStage のボクセルの壁と橋（`CrowdVoxelTerrain`） |
+| チャージ | `ChargeService.AddFragments`（かけら 1 個あたり `PlayerParameterData.ChargePerFragment`）、`IChargeState`。上限は 100、かけら 1 個で 1 |
+| VFX Graph | `com.unity.visualeffectgraph` 17.3.0 は導入済み。`Assets/Art/Particles/EnemyDead.vfx` は旧構成のシーンだけが使っている |
+
+## 既存コードの確認結果（2026-10-07）
+
+| 対象 | 状態 | 対応 |
+|---|---|---|
+| [MeleeCutAdapter](../../../Code/Scripts/EngineAdapterLayer/Player/MeleeCutAdapter.cs) | 切る対象は `CuttableObject` だけ | 変更なし（食い違い #1） |
+| [EnemyAgent](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyAgent.cs) | 落ち始めた高さを持たない | 落ち始めた高さと、崩落で撃破されたかを足す（決定 7） |
+| [EnemyMoveJob](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyMoveJob.cs) | 着地しても落ちた高さを見ない。格子より下まで落ちたら消す | 落ちた高さが一定以上なら、着地したときに撃破する（決定 7） |
+| [EnemySpawnAdapter](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnAdapter.cs) | 撃破は切断（核）と、格子より下への落下だけ | 潰された敵の判定（`EnemyCollapseDetector`）を持ち、崩落で撃破した敵の位置と数を、エネルギーの演出とチャージへ渡す |
+| [ChargeService](../../../Code/Scripts/Application/Player/ChargeService.cs) | かけらの数だけを受け取る | 崩落で撃破した敵の数を受け取るメソッドを足す（決定 9） |
+| [PlayerDebugInitializer](../../../Code/Scripts/Initialization/Player/PlayerDebugInitializer.cs) | HP のダメージのボタンだけ | デバッグの破壊攻撃のキーを足す（決定 6） |
+| `TestStage.unity` | ボクセルの壁と橋がある。破壊対象と、崩して敵を潰せる高い物はない | 破壊対象と、崩す塔を置く |
 
 ## 作業一覧
 
 | # | 作業 | 層 | 内容 |
 |---|---|---|---|
-| 5-1 | ダメージのデータ | BlackBoard | ダメージタイプの組み合わせ（強化型スキルで追加できるように複数を持てる形）、量、形状、発生源 |
-| 5-2 | 判定の窓口 | Application | ダメージを受け取り、対象（敵・装甲・ボクセル）ごとに効くかどうかを決める。装甲は区間8で中身を作り、ここでは窓口だけ用意する |
-| 5-3 | 既存の攻撃をつなぐ | Application | 区間2の切断を「攻撃タイプのダメージ」としてこの窓口に通す |
-| 5-4 | 破壊対象の定義データ | ExternalLayer | どのパーツが重要パーツか、クリアに必要な割合 |
-| 5-5 | 破壊対象の State | BlackBoard / EngineAdapter | 重要パーツごとの、削れた割合。ボクセルの形状が変わったときに更新する |
-| 5-6 | マップオブジェクト | Level | ボクセルでできた建物など。破壊タイプで削れる。削れた片はチャージにならない |
-| 5-7 | クリア判定 | Application | すべての破壊対象の重要パーツが必要な割合まで削れたらクリアにする。クリア画面は仮 |
-| 5-8 | デバッグ用の破壊攻撃 | Debug | 破壊タイプのダメージを出す操作 |
-| 5-9 | 崩落による撃破 | EngineAdapter | 落ちてくる塊に潰された敵と、足場ごと一定以上の高さを落ちた敵を撃破する。敵には PhysX のコライダーを付けず、格子の索引と SDF で判定する（Notion「敵の大量描画と体の貸し出し」）。ボクセルの SDF は Burst の Job から読める（区間4B で確認。EngineAdapter の asmdef の中から `VoxelVolume.Samples` を `VoxelSampling.Trilinear` で読む）。敵の状態は `EnemyAgent`、体を貸している敵だけが部位のコライダーを持つ。崩落で撃破した敵は切断されず、かけらも出さない |
-| 5-10 | エネルギーの演出 | EngineAdapter | 崩落で撃破した敵のエネルギーを、VFX Graph でプレイヤーへ吸い込ませる。獲得量は CPU 側で決めて `ChargeService` に渡す。区間4A の散らばる部位の見た目（`EnemyDebris`。コライダーがなく、地面をすり抜けて落ちる）を、ここで VFX Graph に置き換えるかも決める |
-| 5-11 | 地形の変化への追従の確認 | EngineAdapter | 破壊対象・マップのボクセルが壊れたときに、区間4C の距離マップが更新され、敵が開いた道を通り、壊れた床を避けることを確かめる。区間4C では uloop から `ApplyEdit` を呼んで確かめた（Section04C のコミット 2）ので、ここではプレイヤーの破壊攻撃で確かめる。あとから読み込む `VoxelModelLoader` があれば `Watch` を呼ぶ |
+| 5-1 | ダメージのデータ | ― | 区間6へ持ち越す（決定 1） |
+| 5-2 | 判定の窓口 | ― | 区間6へ持ち越す（決定 1） |
+| 5-3 | 既存の攻撃をつなぐ | ― | 行わない（食い違い #1） |
+| 5-4 | 破壊対象の定義データ | EngineAdapter | ステージシーンの `VoxelModelLoader` に付ける `DestructionTarget`。重要パーツの `PartPath` の一覧と、クリアに必要な割合（決定 2・4） |
+| 5-5 | 破壊対象の進み具合 | EngineAdapter | `DestructionTarget` が、重要パーツごとの削れた割合をボクセルの形状が変わったときに計算する。State は作らない（決定 5） |
+| 5-6 | マップオブジェクト | Level | 区間4C の壁と橋に加えて、崩して敵を潰せる塔を TestStage に置く。削れた片はチャージにならない（今のボクセルのまま） |
+| 5-7 | クリア判定 | EngineAdapter | `StageClearAdapter` が破壊対象を探して数え、すべて破壊済みになったら仮のクリア表示を出す（決定 5） |
+| 5-8 | デバッグ用の破壊攻撃 | EngineAdapter / Initialization | `VoxelDestructionAdapter` がカメラの向きで狙った所を球で削る。`PlayerDebugInitializer` がキーで呼ぶ（決定 6） |
+| 5-9 | 崩落による撃破 | EngineAdapter | 足場ごと一定以上の高さを落ちた敵と、落ちてくる塊に潰された敵を撃破する。かけらも切断も出さない（決定 7・8・10・11） |
+| 5-10 | エネルギーの演出 | EngineAdapter | 崩落で撃破した敵の位置から、VFX Graph の粒をカメラへ吸い込ませる。チャージは撃破したときに足す（決定 9）。`EnemyDebris` の置き換えは区間13へ持ち越す（決定 12） |
+| 5-11 | 地形の変化への追従の確認 | ― | デバッグの破壊攻撃で壁と床を壊し、区間4C の距離マップが追従することを確かめる（コミット 1） |
 
 ## 完了条件
 
@@ -62,16 +86,70 @@
 - すべての重要パーツを必要な割合まで削ると、クリアになる
 - マップを壊して起こした崩落に巻き込まれた敵と、足場ごと落ちた敵が撃破され、エネルギーがプレイヤーに吸い込まれてチャージが増える
 
-## 詳細仕様で決めること
+## 詳細仕様
 
-- 重要パーツの指定方法（ボクセルモデルのパーツ名 `PartPath` で指定する など）
-- 削られて本体から分離した塊を、破壊済みに数えるか
-- クリアに必要な割合をどの単位で持つか（ステージごとか、破壊対象ごとか）と、その値
-- 破壊ダメージの量と、削る形状の大きさの対応
-- ダメージの判定を置く層（上の「前提の変化」）
-- 崩落で撃破になる落下の高さ、落ちてくる塊の大きさ・速さの条件
-- 崩落で撃破した敵 1 体あたりのチャージ量と、足すタイミング（撃破したときか、オーブが届いたときか）
+### 決定（2026-10-07）
+
+| # | 項目 | 決定 |
+|---|---|---|
+| 1 | ダメージのデータと判定の層（5-1〜5-3） | この区間では作らず、区間6へ持ち越す。この区間でダメージを受ける組は 1 つだけ（食い違い #2）。Application がダメージを出し始めるのは区間6のスキル、種類によって結果が変わる相手（装甲）は区間8なので、層はそのときの利用者を見て決める。作るときは、Application と EngineAdapter の両方から参照できる BlackBoard に `[Flags]` の種類を置く案がある |
+| 2 | 重要パーツの指定方法 | `VoxelModelLoader` と同じ GameObject に付ける `DestructionTarget` に、`PartPath`（`VoxelModelLoader` からの相対パス）の一覧で指定する。読み込みが終わったら `TryGetPart` で引き、見つからないパスはエラーを出す |
+| 3 | 本体から分離した塊を破壊済みに数えるか | 数える。パーツの `RelativeVolume` は分離した塊を含まないので、そのまま使う（食い違い #3） |
+| 4 | クリアに必要な割合の単位と値 | 破壊対象ごとに持つ。重要パーツが 1 つずつ「1 − `RelativeVolume`」が割合以上になったら、その破壊対象は破壊済み。値は仮に 0.7。すべての破壊対象が破壊済みになったらクリア |
+| 5 | クリア判定と表示を置く層 | EngineAdapter の `StageClearAdapter` が数え、仮のクリア表示も出す。今クリアを読むのは仮の表示だけなので、Service と State は作らない。区間11でリザルトやリトライがクリアを読むときに、Application の Service と State に移す |
+| 6 | デバッグの破壊攻撃 | `PlayerDebugInitializer` が `Keyboard.current` を直接読む（キーは仮に G、押している間は一定の間隔で削る）。カメラの中心から最大 50m のレイを撃ち、当たった所を半径 1.5m の球で削る（仮）。デバッグ専用の Action を入力マップに足さない。破壊ダメージの量と形状の大きさの対応は区間6で決める |
+| 7 | 落下で撃破になる高さ | 3m（仮）。敵が自分で降りるのは 2m までなので、3m 以上落ちるのは足場が壊れたときだけ。橋（4〜5.25m）が崩れれば撃破になる。格子より下まで落ちて消える敵も、崩落による撃破に数える |
+| 8 | 潰されて撃破になる条件 | 分離した塊のうち、下向きの速さが 3m/s 以上、体積が 0.5m³ 以上のもの。塊の `WorldBounds` に入った敵について、体の中心（根から 1.5m 上）の SDF が 0.3m 以下なら撃破する（値はすべて仮）。体を貸している敵で塊が体の上に止まる場合の扱いは、コミット 3 で決める（食い違い #5） |
+| 9 | 崩落で撃破した敵 1 体あたりのチャージ量と、足すタイミング | かけら 1 個分（仮）。撃破したときに足す。VFX Graph の粒は届いたことを CPU に返しにくい為 |
+| 10 | 潰されたかの判定の方式 | 格子の索引は作らない。落ちている塊は少ないので、毎フレーム、塊の範囲と全部の敵を総当たりで比べ、範囲に入った敵だけ `SampleDistance` で確かめる。コミット 3 で計測し、重ければ索引か Burst の Job にする |
+| 11 | 体を貸していた敵が崩落で撃破されたとき | すぐに体をプールへ返す。かけらとディゾルブは出さず、エネルギーの演出だけを出す |
+| 12 | 散らばる部位（`EnemyDebris`）を VFX Graph に置き換えるか | 置き換えない。完了条件に関わらないので区間13へ持ち越す |
+
+### 決めること
+
+なし（2026-10-07 にすべて決定）。
+
+## 作業計画
+
+### 新しく作る型と、区間5 での利用者
+
+| 型 | 層・置き場所 | 区間5 での利用者 |
+|---|---|---|
+| `VoxelDestructionAdapter`（狙った所のボクセルを球で削る） | EngineAdapter、InGame | `PlayerDebugInitializer`（区間6でスキルも使う） |
+| `DestructionTarget`（重要パーツの指定と、削れた割合） | EngineAdapter、ステージシーン | `StageClearAdapter` |
+| `StageClearAdapter`（破壊対象を探して数え、仮のクリア表示を出す） | EngineAdapter、InGame | 初期化する Initializer。既存の Initializer に入れられるなら新しく作らない |
+| `EnemyCollapseDetector`（落ちてくる塊に潰されたかの判定） | EngineAdapter のプレーンなクラス | `EnemySpawnAdapter`（`EnemyGroups` と同じく持ち主になる） |
+| エネルギーの VFX Graph のアセットと、撃破位置を GraphicsBuffer で渡すコンポーネント | EngineAdapter、InGame | `EnemySpawnAdapter` |
+
+既存の型の拡張：`EnemyAgent`（落ち始めた高さ）、`EnemyMoveJob`（落下の撃破）、`ChargeService`（崩落で撃破した敵の分）、`PlayerParameterData`（1 体あたりのチャージ量）、`PlayerDebugInitializer`（破壊攻撃のキー）。
+
+- 基準1：ダメージのデータ、判定の窓口、クリアの Service と State は、区間5 での利用者が 1 つ以下なので作らない（決定 1・5）。潰されたかの判定は、格子の索引を作る前に総当たりで計測する（決定 10）
+- 基準2：計画当初の「判定とクリアは Application」と、区間2〜4の「利用者が 1 つなら EngineAdapter」が食い違っていたので、決定 1・5 でユーザーが EngineAdapter 側を選んだ
+- 基準4：剣とボクセル、分離した塊、落ちて消える敵、敵とボクセルの衝突は、コードと設定で確かめてから決めた（食い違い #1・#3〜#5）
+
+### コミットの分け方
+
+| # | 内容 | 確かめ方 |
+|---|---|---|
+| 0 | 区間計画書の更新 | ― |
+| 1 | デバッグの破壊攻撃（決定 6）。5-11 もここで確かめる | 壁と橋が削れる。剣では削れない。壁に開けた穴を敵が通り、削った床を避ける |
+| 2 | 破壊対象とクリア（決定 2〜5）。TestStage に破壊対象を置く | 重要パーツを全部削るとクリアの表示が出る。重要パーツ以外を削っても進まない。塊を切り離しても進む |
+| 3 | 落下と潰されたことによる撃破（決定 7・8・10・11）。TestStage に崩す塔を置く | 橋を壊すと上にいた敵が落ちて撃破される。塔を崩すと下にいた敵が撃破される。かけらは出ない。判定にかかる時間 |
+| 4 | エネルギーの演出とチャージ（決定 9） | 崩落で撃破すると粒がカメラへ吸い込まれ、チャージが撃破した数だけ増える |
+| 5 | 計測、実装結果、全体計画書の更新 | 敵の処理の合計が 4ms 以下（4B の決定 6）に収まる |
+
+## 次の区間へ持ち越すこと（計画の時点）
+
+- 区間6：ダメージのデータ（種類の組み合わせ・量・形状・発生源）と判定の窓口、破壊ダメージの量と削る形状の大きさの対応（決定 1・6）
+- 区間11：クリアを Application の Service と State に移す（決定 5）
+- 区間13：散らばる部位（`EnemyDebris`）を VFX Graph に置き換えるか（決定 12）
 
 ## 他プラットフォームへの対応
 
 - プラットフォームによる違いはない。スマホでは、ボクセルの品質設定（`VoxelQualitySettings`）を別の値にする可能性がある
+- VFX Graph は compute shader が必要。動かない機種では Particle System で代わりにする（[EnemyCrowdDiscussion.md](../EnemyCrowdDiscussion.md) 8 章）
+
+## 見つけた問題（今回は扱わない）
+
+- 【ステージ】区間4C で記録済みの、生成位置 C がボクセルの壁（`CrowdVoxelTerrain/VoxelWall`）の中にある件（[Section04C](Section04C_CrowdAI.md) の「見つけた問題」）
+- 【アセット】`Assets/Art/Particles/EnemyDead.vfx` は、旧構成の `Test/InGame.unity` だけが使っている。エネルギーの演出には使わず、新しく作る
