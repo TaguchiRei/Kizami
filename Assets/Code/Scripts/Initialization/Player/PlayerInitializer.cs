@@ -32,6 +32,7 @@ namespace Kizami.Initialization
         [SerializeField] private EnemyEnergyAdapter _enemyEnergyAdapter;
         [SerializeField] private EnemySpawnAdapter _enemySpawnAdapter;
         [SerializeField] private VoxelDestructionAdapter _voxelDestructionAdapter;
+        [SerializeField] private PlayerHudAdapter _hudAdapter;
 
         // TODO: アウトゲームで装備したスキルを受け取る
         [SerializeField]
@@ -100,7 +101,7 @@ namespace Kizami.Initialization
 
             _skillService = new SkillService(blackBoard, _equippedSkills, _chargeService,
                 _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveBeam : null,
-                _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveExplosion : null);
+                _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveExplosion : null, sceneId);
 
             // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
             _healthService.Initialize(blackBoard, _parameters, sceneId);
@@ -128,6 +129,15 @@ namespace Kizami.Initialization
             else
             {
                 UsefulLogger.LogError("MeleeCutPreviewAdapter が設定されていません。", this);
+            }
+
+            if (_hudAdapter != null)
+            {
+                _hudAdapter.Initialize(blackBoard);
+            }
+            else
+            {
+                UsefulLogger.LogError("PlayerHudAdapter が設定されていません。", this);
             }
 
             base.Initialize(blackBoard);

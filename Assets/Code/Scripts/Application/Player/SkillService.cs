@@ -17,18 +17,20 @@ namespace Kizami.Application
         public const int SLOT_COUNT = 3;
 
         private readonly SkillData[] _slots = new SkillData[SLOT_COUNT];
+        private readonly SkillSlotState _slotState = new(SLOT_COUNT);
         private readonly ChargeService _chargeService;
         private readonly Action<float, float> _onBeam;
         private readonly Action<float> _onExplosion;
         private readonly List<IDisposable> _subscriptions = new();
 
-        /// <param name="blackBoard">入力の取得元</param>
+        /// <param name="blackBoard">SkillSlotState の登録先と、入力の取得元</param>
         /// <param name="equippedSkills">枠ごとに装備するスキル。空きの枠と、SLOT_COUNT を超えた分は無視する</param>
         /// <param name="chargeService">発動に使うチャージの消費先</param>
         /// <param name="onBeam">ビームを出す関数。引数は長さ（m）と半径（m）</param>
         /// <param name="onExplosion">爆発を出す関数。引数は半径（m）</param>
+        /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
-            ChargeService chargeService, Action<float, float> onBeam, Action<float> onExplosion)
+            ChargeService chargeService, Action<float, float> onBeam, Action<float> onExplosion, int sceneId)
         {
             _chargeService = chargeService;
             _onBeam = onBeam;
@@ -38,9 +40,13 @@ namespace Kizami.Application
             for (var i = 0; i < count; i++)
             {
                 _slots[i] = equippedSkills[i];
+                if (_slots[i] != null) _slotState.SetSlot(i, _slots[i].Cost);
             }
 
-            if (!blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this)) return;
+            if (!blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this) ||
+                !blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this)) return;
+
+            playerBoard.RegisterSceneState<ISkillSlotState>(_slotState, sceneId);
 
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Skill1,
                 context => OnSkill(context, 0)));
