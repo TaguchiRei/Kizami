@@ -774,8 +774,8 @@ MonoBehaviour:
     m_Bits: 4294966963
   _aimDistance: 100
   _holdOffset: {x: 0.4, y: -0.3, z: 1.2}
-  _contactGraceTime: 0.1
-  _thrownLifetime: 3
+  _loadedOffset: {x: 0.7, y: -0.6, z: 1.2}
+  _flyingLifetime: 3
 --- !u!4 &1258148393
 Transform:
   m_ObjectHideFlags: 0

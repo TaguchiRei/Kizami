@@ -9,34 +9,35 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 視線の先のかけらをつかんでカメラの前に持ち、視線の先へ投げる Adapter。
-    /// 持っている間のかけらは物理を止め、当たり判定と切断の対象から外す。
-    /// 投げたかけらは、猶予時間を過ぎてから何かにぶつかるか、寿命が来るとプールへ返す。オーブにもチャージにもならない。
+    /// 持っているかけらはランチャーに 1 つだけ装填でき、装填したかけらは重力なしでまっすぐ撃ち出す。
+    /// 持っているかけらと装填したかけらは物理を止め、当たり判定と切断の対象から外して、カメラの前のそれぞれの位置に置く。
+    /// 投げたかけらと撃ったかけらは、何かにぶつかるか、寿命が来るとプールへ返す。飛ばした瞬間に重なっている相手にも当たったものとする。オーブにもチャージにもならない。
     /// </summary>
     /// <remarks>
-    /// かけらのプールは空きがなくなると古いかけらを使い回すので、持っているかけらと投げたかけらが回収されたら手放し、物理の設定を戻す。
-    /// 投げたかけらの時間は Time.time で数え、スローモード中は一緒に遅くなる。
+    /// かけらのプールは空きがなくなると古いかけらを使い回すので、運んでいるかけらと飛んでいるかけらが回収されたら手放し、物理の設定を戻す。
+    /// 飛んでいるかけらの時間は Time.time で数え、スローモード中は一緒に遅くなる。
     /// </remarks>
     public sealed class FragmentThrowAdapter : InitializableMonoBehaviour
     {
-        /// <summary> つかむ範囲から一度に集めるコライダーの最大数 </summary>
-        private const int MAX_HIT_COUNT = 64;
+        /// <summary> つかむ範囲から一度に集めるコライダーの最大数。かけら 1 つが球のコライダーを 10 個持つので、かけら約 25 個ぶん </summary>
+        private const int MAX_HIT_COUNT = 256;
 
         private readonly RaycastHit[] _hitBuffer = new RaycastHit[MAX_HIT_COUNT];
 
         /// <summary> つかむ候補と、視線の中心からの角度（度） </summary>
         private readonly List<(float Angle, CuttableObject Fragment)> _candidates = new();
 
-        /// <summary> 投げたかけらと、投げた時刻（Time.time） </summary>
-        private readonly Dictionary<CuttableObject, float> _thrownFragments = new();
+        /// <summary> 投げたかけらと撃ったかけらと、飛ばした時刻（Time.time） </summary>
+        private readonly Dictionary<CuttableObject, float> _flyingFragments = new();
 
         /// <summary> 回収時と接触時の処理を登録済みのかけら </summary>
         private readonly HashSet<CuttableObject> _hookedFragments = new();
 
-        /// <summary> 寿命が来た投げたかけらを集める作業用の一覧 </summary>
+        /// <summary> 寿命が来た飛んでいるかけらを集める作業用の一覧 </summary>
         private readonly List<CuttableObject> _expiredFragments = new();
 
         [SerializeField]
-        [Tooltip("かけらのプール。投げ終わったかけらを返す先")]
+        [Tooltip("かけらのプール。飛ばし終わったかけらを返す先")]
         private MeshCutObjectPool _fragmentPool;
 
         [SerializeField]
@@ -44,39 +45,42 @@ namespace Kizami.EngineAdapter
         private LayerMask _fragmentLayers;
 
         [SerializeField]
-        [Tooltip("投げる先を決めるレイが当たるレイヤー。プレイヤーとかけらのレイヤーは外す")]
+        [Tooltip("飛ばす先を決めるレイが当たるレイヤー。プレイヤーとかけらのレイヤーは外す")]
         private LayerMask _aimLayers = ~0;
 
         [SerializeField, Min(0f)]
-        [Tooltip("投げる先を決めるレイの長さ（m）。何にも当たらなければ、視線の先のこの距離の点へ投げる")]
+        [Tooltip("飛ばす先を決めるレイの長さ（m）。何にも当たらなければ、視線の先のこの距離の点へ飛ばす")]
         private float _aimDistance = 100f;
 
         [SerializeField]
         [Tooltip("持っているかけらの中心を置く位置（カメラのローカル座標、m）")]
         private Vector3 _holdOffset = new(0.4f, -0.3f, 1.2f);
 
-        [SerializeField, Min(0f)]
-        [Tooltip("投げてから、ぶつかってもプールへ返さない時間（秒）")]
-        private float _contactGraceTime = 0.1f;
+        [SerializeField]
+        [Tooltip("装填したかけらの中心を置く位置（カメラのローカル座標、m）")]
+        private Vector3 _loadedOffset = new(0.7f, -0.6f, 1.2f);
 
         [SerializeField, Min(0f)]
-        [Tooltip("何にもぶつからない投げたかけらを、プールへ返すまでの時間（秒）")]
-        private float _thrownLifetime = 3f;
+        [Tooltip("何にもぶつからない飛んでいるかけらを、プールへ返すまでの時間（秒）")]
+        private float _flyingLifetime = 3f;
 
         private Func<CuttableObject, bool> _tryTake;
-        private CuttableObject _heldFragment;
-
-        /// <summary> つかんだときのかけらの補間の設定。投げるときと回収されたときに戻す </summary>
-        private RigidbodyInterpolation _heldInterpolation;
-
-        /// <summary> カメラから見た、持っているかけらの向き </summary>
-        private Quaternion _heldRotation;
-
-        /// <summary> 持っているかけらのローカル座標での、見た目の中心 </summary>
-        private Vector3 _heldLocalCenter;
+        private CarriedFragment _held;
+        private CarriedFragment _loaded;
 
         /// <summary> かけらを持っているか </summary>
-        public bool IsHolding => _heldFragment != null;
+        public bool IsHolding => _held.Fragment != null;
+
+        /// <summary> ランチャーにかけらを装填しているか </summary>
+        public bool IsLoaded => _loaded.Fragment != null;
+
+        /// <summary>
+        /// かけらの見た目の中心を返す。Renderer がなければ Transform の位置を返す。
+        /// </summary>
+        private static Vector3 GetCenter(CuttableObject fragment)
+        {
+            return fragment.Renderer != null ? fragment.Renderer.bounds.center : fragment.transform.position;
+        }
 
         /// <summary>
         /// PlayerInitializer から呼ばれる。
@@ -96,7 +100,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// カメラから視線の向きへ球を飛ばし、当たったかけらのうち、視線の中心からの角度が最も小さいものをつかむ。
-        /// オーブにする管理から外せないかけら（オーブになったもの、切り直しの途中のもの、投げたもの）は、次に角度が小さいものを試す。
+        /// オーブにする管理から外せないかけら（オーブになったもの、切り直しの途中のもの、飛んでいるもの）は、次に角度が小さいものを試す。
         /// </summary>
         /// <param name="range">球を飛ばす距離（m）</param>
         /// <param name="radius">球の半径（m）</param>
@@ -109,16 +113,13 @@ namespace Kizami.EngineAdapter
             if (cameraMain == null) return false;
 
             var cameraTransform = cameraMain.transform;
-            var origin = cameraTransform.position;
-            var forward = cameraTransform.forward;
-
-            CollectCandidates(origin, forward, range, radius);
+            CollectCandidates(cameraTransform.position, cameraTransform.forward, range, radius);
 
             foreach (var (_, fragment) in _candidates)
             {
                 if (!_tryTake(fragment)) continue;
 
-                Hold(fragment, cameraTransform);
+                _held = Carry(fragment, cameraTransform, _holdOffset);
                 return true;
             }
 
@@ -133,23 +134,33 @@ namespace Kizami.EngineAdapter
         {
             if (!Initialized || !IsHolding) return;
 
-            var cameraMain = Camera.main;
-            if (cameraMain == null) return;
+            Launch(_held, speed, true);
+            _held = default;
+        }
 
-            var fragment = _heldFragment;
-            _heldFragment = null;
+        /// <summary>
+        /// 持っているかけらをランチャーに装填する。装填できるのは 1 つだけ。
+        /// </summary>
+        /// <returns>装填できたら true。持っていないか、既に装填しているときは false</returns>
+        public bool TryLoad()
+        {
+            if (!Initialized || !IsHolding || IsLoaded) return false;
 
-            var rigidbody = fragment.Rig;
-            rigidbody.isKinematic = false;
-            rigidbody.detectCollisions = true;
-            rigidbody.interpolation = _heldInterpolation;
-            rigidbody.useGravity = true;
+            _loaded = _held;
+            _held = default;
+            return true;
+        }
 
-            var start = fragment.Renderer != null ? fragment.Renderer.bounds.center : fragment.transform.position;
-            rigidbody.linearVelocity = (GetAimPoint(cameraMain.transform) - start).normalized * speed;
-            rigidbody.angularVelocity = Vector3.zero;
+        /// <summary>
+        /// 装填したかけらを、視線の先へ重力なしでまっすぐ撃ち出す。装填していなければ何もしない。
+        /// </summary>
+        /// <param name="speed">速さ（m/s）</param>
+        public void Fire(float speed)
+        {
+            if (!Initialized || !IsLoaded) return;
 
-            _thrownFragments[fragment] = Time.time;
+            Launch(_loaded, speed, false);
+            _loaded = default;
         }
 
         private void Update()
@@ -161,12 +172,14 @@ namespace Kizami.EngineAdapter
 
         private void LateUpdate()
         {
-            if (!Initialized || !IsHolding) return;
+            if (!Initialized || (!IsHolding && !IsLoaded)) return;
 
             var cameraMain = Camera.main;
             if (cameraMain == null) return;
 
-            FollowCamera(_heldFragment.transform, cameraMain.transform);
+            var cameraTransform = cameraMain.transform;
+            if (IsHolding) FollowCamera(_held, cameraTransform, _holdOffset);
+            if (IsLoaded) FollowCamera(_loaded, cameraTransform, _loadedOffset);
         }
 
         /// <summary>
@@ -189,8 +202,7 @@ namespace Kizami.EngineAdapter
                 if (!_hitBuffer[i].collider.TryGetComponent(out CuttableObject fragment)) continue;
                 if (!fragment.gameObject.activeSelf || ContainsCandidate(fragment)) continue;
 
-                var center = fragment.Renderer != null ? fragment.Renderer.bounds.center : fragment.transform.position;
-                _candidates.Add((Vector3.Angle(forward, center - origin), fragment));
+                _candidates.Add((Vector3.Angle(forward, GetCenter(fragment) - origin), fragment));
             }
 
             _candidates.Sort((a, b) => a.Angle.CompareTo(b.Angle));
@@ -207,36 +219,58 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// かけらの物理を止め、当たり判定と切断の対象から外して、カメラの前に置く。
+        /// かけらの物理を止め、当たり判定と切断の対象から外して、カメラの前の指定した位置に置く。
         /// </summary>
-        private void Hold(CuttableObject fragment, Transform cameraTransform)
+        private CarriedFragment Carry(CuttableObject fragment, Transform cameraTransform, Vector3 offset)
         {
             Hook(fragment);
 
             var rigidbody = fragment.Rig;
-            _heldInterpolation = rigidbody.interpolation;
+            var carried = new CarriedFragment(fragment, rigidbody.interpolation,
+                Quaternion.Inverse(cameraTransform.rotation) * fragment.transform.rotation,
+                fragment.transform.InverseTransformPoint(GetCenter(fragment)));
+
             rigidbody.interpolation = RigidbodyInterpolation.None;
             rigidbody.isKinematic = true;
             rigidbody.detectCollisions = false;
             fragment.DisableCutting();
 
-            var center = fragment.Renderer != null ? fragment.Renderer.bounds.center : fragment.transform.position;
-            _heldLocalCenter = fragment.transform.InverseTransformPoint(center);
-            _heldRotation = Quaternion.Inverse(cameraTransform.rotation) * fragment.transform.rotation;
-            _heldFragment = fragment;
-
-            FollowCamera(fragment.transform, cameraTransform);
+            FollowCamera(carried, cameraTransform, offset);
+            return carried;
         }
 
         /// <summary>
-        /// 持っているかけらを、つかんだときのカメラから見た向きのまま、見た目の中心が持つ位置に来るように置く。
+        /// 運んでいるかけらを、運び始めたときのカメラから見た向きのまま、見た目の中心が指定した位置に来るように置く。
         /// </summary>
-        private void FollowCamera(Transform fragmentTransform, Transform cameraTransform)
+        private void FollowCamera(CarriedFragment carried, Transform cameraTransform, Vector3 offset)
         {
-            fragmentTransform.rotation = cameraTransform.rotation * _heldRotation;
+            var fragmentTransform = carried.Fragment.transform;
+            fragmentTransform.rotation = cameraTransform.rotation * carried.Rotation;
 
-            var centerOffset = fragmentTransform.TransformPoint(_heldLocalCenter) - fragmentTransform.position;
-            fragmentTransform.position = cameraTransform.TransformPoint(_holdOffset) - centerOffset;
+            var centerOffset = fragmentTransform.TransformPoint(carried.LocalCenter) - fragmentTransform.position;
+            fragmentTransform.position = cameraTransform.TransformPoint(offset) - centerOffset;
+        }
+
+        /// <summary>
+        /// 運んでいるかけらの物理を戻し、中心から視線の先の狙った点へ向けて飛ばす。
+        /// </summary>
+        private void Launch(CarriedFragment carried, float speed, bool useGravity)
+        {
+            var fragment = carried.Fragment;
+            var rigidbody = fragment.Rig;
+            rigidbody.isKinematic = false;
+            rigidbody.detectCollisions = true;
+            rigidbody.interpolation = carried.Interpolation;
+            rigidbody.useGravity = useGravity;
+
+            var cameraMain = Camera.main;
+            var direction = cameraMain != null
+                ? (GetAimPoint(cameraMain.transform) - GetCenter(fragment)).normalized
+                : fragment.transform.forward;
+            rigidbody.linearVelocity = direction * speed;
+            rigidbody.angularVelocity = Vector3.zero;
+
+            _flyingFragments[fragment] = Time.time;
         }
 
         /// <summary>
@@ -267,32 +301,31 @@ namespace Kizami.EngineAdapter
             }
             else
             {
-                UsefulLogger.LogWarning("かけらに FragmentContactReporter がない為、投げてもぶつかったときに消えません。", fragment);
+                UsefulLogger.LogWarning("かけらに FragmentContactReporter がない為、飛ばしてもぶつかったときに消えません。", fragment);
             }
         }
 
         /// <summary>
-        /// 投げたかけらが、猶予時間を過ぎてからぶつかったときにプールへ返す。
+        /// 飛んでいるかけらがぶつかったときにプールへ返す。
         /// </summary>
         private void OnFragmentTouched(CuttableObject fragment)
         {
-            if (!_thrownFragments.TryGetValue(fragment, out var thrownTime)) return;
-            if (Time.time - thrownTime < _contactGraceTime) return;
+            if (!_flyingFragments.ContainsKey(fragment)) return;
 
             // TODO: 区間8 で、ぶつかった相手が装甲なら粉砕タイプのダメージを通す
             Release(fragment);
         }
 
         /// <summary>
-        /// 寿命が来た投げたかけらをプールへ返す。
+        /// 寿命が来た飛んでいるかけらをプールへ返す。
         /// </summary>
         private void ReleaseExpiredFragments()
         {
             _expiredFragments.Clear();
 
-            foreach (var (fragment, thrownTime) in _thrownFragments)
+            foreach (var (fragment, launchedTime) in _flyingFragments)
             {
-                if (Time.time - thrownTime >= _thrownLifetime) _expiredFragments.Add(fragment);
+                if (Time.time - launchedTime >= _flyingLifetime) _expiredFragments.Add(fragment);
             }
 
             foreach (var fragment in _expiredFragments)
@@ -318,17 +351,22 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// かけらが回収されたときに、持っているかけらなら手放し、投げたかけらなら一覧から外して、物理の設定をプレハブの状態へ戻す。
+        /// かけらが回収されたときに、運んでいるかけらなら手放し、飛んでいるかけらなら一覧から外して、物理の設定をプレハブの状態へ戻す。
         /// 扱っていないかけらでは何もしない。
         /// </summary>
         private void OnReused(CuttableObject fragment)
         {
-            if (fragment == _heldFragment)
+            if (fragment == _held.Fragment)
             {
-                _heldFragment = null;
-                fragment.Rig.interpolation = _heldInterpolation;
+                fragment.Rig.interpolation = _held.Interpolation;
+                _held = default;
             }
-            else if (!_thrownFragments.Remove(fragment))
+            else if (fragment == _loaded.Fragment)
+            {
+                fragment.Rig.interpolation = _loaded.Interpolation;
+                _loaded = default;
+            }
+            else if (!_flyingFragments.Remove(fragment))
             {
                 return;
             }
@@ -337,6 +375,33 @@ namespace Kizami.EngineAdapter
             rigidbody.isKinematic = false;
             rigidbody.detectCollisions = true;
             rigidbody.useGravity = true;
+        }
+
+        /// <summary>
+        /// カメラの前に運んでいるかけらと、運び始めたときの状態。
+        /// </summary>
+        private readonly struct CarriedFragment
+        {
+            /// <summary> 運んでいるかけら。運んでいなければ null </summary>
+            public readonly CuttableObject Fragment;
+
+            /// <summary> 運び始めたときの補間の設定。飛ばすときと回収されたときに戻す </summary>
+            public readonly RigidbodyInterpolation Interpolation;
+
+            /// <summary> カメラから見た、かけらの向き </summary>
+            public readonly Quaternion Rotation;
+
+            /// <summary> かけらのローカル座標での、見た目の中心 </summary>
+            public readonly Vector3 LocalCenter;
+
+            public CarriedFragment(CuttableObject fragment, RigidbodyInterpolation interpolation, Quaternion rotation,
+                Vector3 localCenter)
+            {
+                Fragment = fragment;
+                Interpolation = interpolation;
+                Rotation = rotation;
+                LocalCenter = localCenter;
+            }
         }
     }
 }

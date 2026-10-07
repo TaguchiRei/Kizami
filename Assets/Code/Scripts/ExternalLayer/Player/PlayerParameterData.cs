@@ -108,7 +108,7 @@ namespace Kizami.External
         [Tooltip("1 回のスローモードの間に近接切断を振れる回数")]
         private int _slowModeCutLimit = 5;
 
-        [Header("つかむ・投げる")]
+        [Header("つかむ・投げる・ランチャー")]
         [SerializeField, Min(0f)]
         [Tooltip("かけらをつかめる、カメラからの距離（m）")]
         private float _grabRange = 6f;
@@ -120,6 +120,10 @@ namespace Kizami.External
         [SerializeField, Min(0f)]
         [Tooltip("投げたかけらの初速（m/s）")]
         private float _throwSpeed = 25f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ランチャーで撃ったかけらの速さ（m/s）")]
+        private float _launcherSpeed = 60f;
 
         /// <summary> 歩行の速度（m/s） </summary>
         public float WalkSpeed => _walkSpeed;
@@ -198,5 +202,8 @@ namespace Kizami.External
 
         /// <summary> 投げたかけらの初速（m/s） </summary>
         public float ThrowSpeed => _throwSpeed;
+
+        /// <summary> ランチャーで撃ったかけらの速さ（m/s） </summary>
+        public float LauncherSpeed => _launcherSpeed;
     }
 }

@@ -128,7 +128,9 @@ namespace Kizami.Initialization
             // FragmentThrowService は SlowModeState を取得する為、SlowModeService の生成より後に生成する
             _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters,
                 _fragmentThrowAdapter != null ? _fragmentThrowAdapter.TryGrab : null,
-                _fragmentThrowAdapter != null ? _fragmentThrowAdapter.Throw : null);
+                _fragmentThrowAdapter != null ? _fragmentThrowAdapter.Throw : null,
+                _fragmentThrowAdapter != null ? _fragmentThrowAdapter.TryLoad : null,
+                _fragmentThrowAdapter != null ? _fragmentThrowAdapter.Fire : null);
 
             // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
             _healthService.Initialize(blackBoard, _parameters, sceneId);
