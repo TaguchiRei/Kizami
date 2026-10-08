@@ -22,7 +22,7 @@ namespace Kizami.EngineAdapter
     /// コストの値ごとのバケットに分けて小さい順に確定させる（Dial 法）。辺のコストの最大が 14 なので、バケットは 15 個を使い回せる。
     /// 計算は 2 つの配列を入れ替えて行い、Job が終わるまで前の結果を読めるようにする。Job は複数のフレームにまたがってよい。
     /// </remarks>
-    // TODO: 区間14で、2 段の距離マップと、エディタでの事前の焼き付けを作る
+    // TODO: 2 段の距離マップと、エディタでの事前の焼き付けを作る
     public sealed class EnemyDistanceField : IDisposable
     {
         private const int MAX_LAYERS = EnemyNavigationGrid.MAX_LAYERS;

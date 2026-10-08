@@ -293,7 +293,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// EnemyInitializer から呼ばれる。ステージシーンの EnemySpawnSystem を探し、上限の数だけ敵の状態と、体と、見た目用の部位を作る。
+        /// ステージシーンの EnemySpawnSystem を探し、上限の数だけ敵の状態と、体と、見た目用の部位を作る。
         /// 見つからないときは Update を止めたままにする。
         /// </summary>
         /// <param name="spawnOrb">倒れた体に残っていた切断済みの部位を、オーブにする関数。引数はオーブを出す位置</param>

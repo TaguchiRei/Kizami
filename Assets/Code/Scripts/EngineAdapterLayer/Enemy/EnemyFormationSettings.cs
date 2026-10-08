@@ -181,7 +181,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 交戦する敵の置き場の、螺旋に沿った間隔（m） </summary>
         public float SpiralSlotSpacing => _spiralSlotSpacing;
 
-        /// <summary> 既定の値。区間4C の決定 3〜6 の仮の値 </summary>
+        /// <summary> 既定の値（仮の値） </summary>
         public static EnemyFormationSettings Default => new()
         {
             _groupSize = 12,

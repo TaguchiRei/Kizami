@@ -20,7 +20,7 @@ namespace Kizami.EngineAdapter
     {
         /// <summary>
         /// 1 回の描画で出せるインスタンスの数。上限の 1023 は uniform scaling を仮定するシェーダーの値で、URP Lit は行列を 2 つ送るので 511 になる。
-        /// Unity は自動で分けないので、これを超える分は描画を分ける
+        /// Unity は自動で分けないので、これを超える分は描画を分ける。
         /// </summary>
         private const int MAX_INSTANCES_PER_DRAW = 511;
 
