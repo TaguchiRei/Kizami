@@ -107,7 +107,7 @@ namespace Kizami.EngineAdapter
 
             if (agent.IsGrounded && agent.BrokenMovePartCount < BrokenMovePartLimit) Walk(ref agent, index);
             UpdateVertical(ref agent);
-            UpdateUnreachableTime(ref agent);
+            UpdateStrandedTime(ref agent);
 
             Agents[index] = agent;
         }
@@ -115,7 +115,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 立っている層からプレイヤーへたどり着けない（距離マップの値がない）間、その時間を数える。たどり着けたら 0 に戻す。落ちている間は数えたままにする。
         /// </summary>
-        private void UpdateUnreachableTime(ref EnemyAgent agent)
+        private void UpdateStrandedTime(ref EnemyAgent agent)
         {
             if (!agent.IsAlive || !agent.IsGrounded) return;
 
@@ -126,7 +126,7 @@ namespace Kizami.EngineAdapter
                 isReachable = node >= 0 && !float.IsPositiveInfinity(Distances[node]);
             }
 
-            agent.UnreachableTime = isReachable ? 0f : agent.UnreachableTime + DeltaTime;
+            agent.StrandedTime = isReachable ? 0f : agent.StrandedTime + DeltaTime;
         }
 
         private void Walk(ref EnemyAgent agent, int index)

@@ -1,5 +1,6 @@
 using Kizami.BlackBoard;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.Initialization;
 
@@ -58,7 +59,8 @@ namespace Kizami.EngineAdapter
 
         [SerializeField]
         [Tooltip("チャージが消費量に届いていないスキルの線の色")]
-        private Color _unreachedLineColor = new(1f, 1f, 1f, 0.35f);
+        [FormerlySerializedAs("_unreachedLineColor")]
+        private Color _chargingLineColor = new(1f, 1f, 1f, 0.35f);
 
         private IPlayerHealthState _healthState;
         private IChargeState _chargeState;
@@ -123,7 +125,7 @@ namespace Kizami.EngineAdapter
                 if (!_slotState.TryGetCost(slot, out var cost) || cost > _chargeState.Max) continue;
 
                 var halfWidth = fullWidth * 0.5f * cost / _chargeState.Max;
-                GUI.color = _chargeState.Current >= cost ? _reachedLineColor : _unreachedLineColor;
+                GUI.color = _chargeState.Current >= cost ? _reachedLineColor : _chargingLineColor;
                 GUI.DrawTexture(new Rect(centerX - halfWidth - _lineWidth * 0.5f, lineY, _lineWidth, lineHeight),
                     Texture2D.whiteTexture);
                 GUI.DrawTexture(new Rect(centerX + halfWidth - _lineWidth * 0.5f, lineY, _lineWidth, lineHeight),

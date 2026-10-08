@@ -34,14 +34,14 @@ namespace Kizami.Application
         {
             if (context.Phase == InputPhase.Canceled)
             {
-                _state.ChangeLookInput(Vector2.zero);
+                _state.SetLookInput(Vector2.zero);
                 return;
             }
 
             var raw = context.Value;
 
             // 入力の右方向・上方向を、そのまま視点の右回り・上向きとして扱う
-            _state.ChangeLookInput(new Vector2(
+            _state.SetLookInput(new Vector2(
                 raw.x * _settingState.HorizontalSensitivity,
                 raw.y * _settingState.VerticalSensitivity));
         }

@@ -6,6 +6,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Profiling;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 using UsefulToolkit.MeshCut;
@@ -141,7 +142,8 @@ namespace Kizami.EngineAdapter
 
         [SerializeField, Min(0f)]
         [Tooltip("プレイヤーへたどり着けない状態がこの時間（秒）続いた敵は、カメラに映っていなければ生成位置へ戻す。動けない敵と、体を貸している敵は戻さない")]
-        private float _unreachableReturnDelay = 10f;
+        [FormerlySerializedAs("_unreachableReturnDelay")]
+        private float _strandedReturnDelay = 10f;
 
         [SerializeField, Min(0f)]
         [Tooltip("この高さ（m）以上落ちて着地した敵を、崩落で倒す。歩いて降りられる高さより高くする")]
@@ -387,7 +389,7 @@ namespace Kizami.EngineAdapter
                 using (_moveMarker.Auto())
                 {
                     MoveAgents();
-                    ReturnUnreachableAgents();
+                    ReturnStrandedAgents();
                     CrushDefeatCount += _collapseDetector.Detect(_agents);
                     CountCollapseDefeats();
                 }
@@ -487,7 +489,7 @@ namespace Kizami.EngineAdapter
         /// 移した敵は元のグループから抜き、その生成位置で新しいグループにする。部位の状態はそのまま持ち続ける。
         /// 動けない敵は戻さない（同時に存在する数の上限を埋め続ける、仕様の戦略の為）。体を貸している敵も戻さない（プレイヤーの近くにいる為）。
         /// </summary>
-        private void ReturnUnreachableAgents()
+        private void ReturnStrandedAgents()
         {
             var camera = Camera.main;
             if (camera != null) GeometryUtility.CalculateFrustumPlanes(camera, _frustumPlanes);
@@ -498,7 +500,7 @@ namespace Kizami.EngineAdapter
             for (var i = 0; i < _agents.Length; i++)
             {
                 var agent = _agents[i];
-                if (!agent.IsAlive || agent.UnreachableTime < _unreachableReturnDelay) continue;
+                if (!agent.IsAlive || agent.StrandedTime < _strandedReturnDelay) continue;
                 if (agent.BodyIndex >= 0 || agent.BrokenMovePartCount >= brokenMovePartLimit) continue;
 
                 var bounds = new Bounds((Vector3)agent.Position + Vector3.up * VISIBILITY_HEIGHT,
@@ -519,7 +521,7 @@ namespace Kizami.EngineAdapter
                 agent.IsGrounded = false;
                 agent.VerticalSpeed = 0f;
                 agent.FallStartHeight = position.y;
-                agent.UnreachableTime = 0f;
+                agent.StrandedTime = 0f;
                 _groups.TryAdd(i, ref agent, point.transform.position, GetYawToTarget(point.transform.position),
                     Random.Range(0f, _formation.HoldDuration), _formation);
                 _agents[i] = agent;

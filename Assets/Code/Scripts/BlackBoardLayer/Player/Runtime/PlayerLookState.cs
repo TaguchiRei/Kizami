@@ -24,7 +24,7 @@ namespace Kizami.BlackBoard
         /// 視点操作の入力値を設定する。
         /// </summary>
         /// <param name="lookInput">x が右向き、y が上向きを正とする回転量</param>
-        public void ChangeLookInput(Vector2 lookInput)
+        public void SetLookInput(Vector2 lookInput)
         {
             LookInput = lookInput;
             _lookInputChangedActions.Invoke(lookInput);

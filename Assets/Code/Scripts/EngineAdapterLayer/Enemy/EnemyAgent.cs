@@ -43,7 +43,7 @@ namespace Kizami.EngineAdapter
         public bool IsEngaged;
 
         /// <summary> 立っている層からプレイヤーへたどり着けない状態が続いている時間（秒） </summary>
-        public float UnreachableTime;
+        public float StrandedTime;
 
         /// <summary> 体から外れた部位。ビット i が体の部位 i を表す </summary>
         public uint LostParts;

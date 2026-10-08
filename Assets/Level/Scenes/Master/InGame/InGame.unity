@@ -159,7 +159,7 @@ MonoBehaviour:
   _healthColor: {r: 0.9, g: 0.25, b: 0.25, a: 1}
   _chargeColor: {r: 0.3, g: 0.8, b: 1, a: 1}
   _reachedLineColor: {r: 1, g: 1, b: 1, a: 1}
-  _unreachedLineColor: {r: 1, g: 1, b: 1, a: 0.35}
+  _chargingLineColor: {r: 1, g: 1, b: 1, a: 0.35}
 --- !u!4 &60550493
 Transform:
   m_ObjectHideFlags: 0
@@ -1164,7 +1164,7 @@ MonoBehaviour:
     _spiralLoopSpacing: 6
     _spiralSlotSpacing: 2.5
   _groupSpawnRadius: 4
-  _unreachableReturnDelay: 10
+  _strandedReturnDelay: 10
   _fallDefeatHeight: 3
   _crushMinFallSpeed: 3
   _crushMinVolume: 0.5
