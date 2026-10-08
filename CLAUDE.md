@@ -113,7 +113,8 @@ PC（マウスとキーボード）を先に作り、そのあとスマホと VR
 
 - 敵のメッシュ切断は、マルチスレッド / Burst / Job で並列化と非同期化が済んでいる（UsefulToolkit.MeshCut）
 - 敵とボスは SkinnedMeshRenderer を使わず、パーツごとに分かれた軽量なメッシュを、パーツ単位で FK / IK で動かす。そのため、ボクセルのスキニング（`Assets/Docs/Voxel/Skinning/SkinningPlan.md`）はボスには要らない
-- 敵の仮モデルは四足歩行の AttackerEnemy（`Assets/Art/Models/AttackerEnemy.fbx`、体のプレハブは `Assets/Level/Prefabs/Enemy/AttackerEnemy.prefab`。三角形は合計 4310）。綴りが Attakker の旧 FBX とプレハブは旧構成のもの。敵の体は最初にすべてプールに用意し、実行中は Instantiate しない
+- 敵の仮モデルは四足歩行の攻撃する敵（`Assets/Art/Models/EnemyModels/MachineEnemy_Attacker.fbx`、体のプレハブは `Assets/Level/Prefabs/Enemy/AttackerEnemy.prefab`。三角形は合計 4310）。同じフォルダに、シールドを持つ敵（`MachineEnemy_Defender`）、吸収型の敵（`MachineEnemy_Finisher`。フィニッシャー持ちとも呼ぶ）、ボス（`MachineEnemy_Boss`）のモデルがある。敵のモデルは部位ごとの回転を 0 にして書き出し（脚の IK が休みの姿勢の回転を 0 とする為）、取り込み設定で Read/Write を有効にする。綴りが Attakker のプレハブは旧構成のもの。敵の体は最初にすべてプールに用意し、実行中は Instantiate しない
+- シールドを持つ敵と吸収型の敵は、ユーザーが用意したモデルに差し替えて作る。敵のシールドは物理の当たり判定を持ち、プレイヤーが中へ入れないようにする
 - ボクセルでできた物は、仕様上メッシュ切断できない。切断攻撃に破壊属性を付けたときは、切断方向と同じ向きに、厚みゼロの平面でボクセルを分ける処理を走らせる
 - スローモードは未実装。設計案は Notion のシステムリスト「時間制御（スローモード）」（https://app.notion.com/p/3ea1ea2aa7fa8183bbfac10bfafd4d70）を正とする。世界全体が遅くなり、プレイヤーのアニメーション・視点操作・UI だけ等速。倍率の正本は TimeScale State で、`Time.timeScale` と `Time.fixedDeltaTime` への反映は EngineAdapterLayer の 1 か所だけ
 
