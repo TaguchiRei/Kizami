@@ -65,9 +65,6 @@ namespace Kizami.EngineAdapter
             return Mathf.Abs(distance) < radius;
         }
 
-        /// <summary>
-        /// PlayerInitializer から呼ばれる。
-        /// </summary>
         /// <param name="onCut">切断が終わったときに、切断の結果と切断面を渡す関数。切断面の法線は表のかけらの側を向く</param>
         public void Initialize(Action<MultiCutResult[], Plane> onCut)
         {

@@ -43,7 +43,7 @@ namespace Kizami.EngineAdapter
         public bool IsBroken => Durability <= 0;
 
         /// <summary>
-        /// 攻撃タイプか破壊タイプの攻撃が 1 回当たったとして耐久値を 1 減らし、0 になったら壊す。壊れたパネルでは何もしない。
+        /// 攻撃タイプか破壊タイプの攻撃が 1 回当たったとして耐久値を 1 減らし、0 になったら壊す。
         /// </summary>
         public void ApplyHit()
         {
@@ -62,7 +62,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 耐久値によらず一撃で壊す。壊れたパネルでは何もしない。
+        /// 耐久値によらず一撃で壊す。
         /// </summary>
         public void Shatter()
         {

@@ -58,7 +58,7 @@ namespace Kizami.EngineAdapter
         private PlayerMoveMode _lastAppliedMode;
 
         /// <summary>
-        /// PlayerInitializer から呼ばれる。PlayerMovementState と PlayerLookState の登録より後に呼ぶこと。
+        /// PlayerMovementState と PlayerLookState の登録より後に呼ぶこと。
         /// </summary>
         /// <param name="blackBoard">PlayerContactState の登録先と、移動・視点ステートの取得元</param>
         /// <param name="step">FixedUpdate ごとに視線の向きと経過時間を渡して呼び、打ち出し速度を受け取る処理（PlayerMovementService.Step）</param>

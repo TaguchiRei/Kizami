@@ -74,7 +74,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// PlayerInitializer から呼ばれる。HP・チャージ・装備枠の State の登録より後に呼ぶこと。
+        /// HP・チャージ・装備枠の State の登録より後に呼ぶこと。
         /// </summary>
         /// <param name="blackBoard">HP・チャージ・装備枠の取得元</param>
         public void Initialize(IBlackBoard blackBoard)

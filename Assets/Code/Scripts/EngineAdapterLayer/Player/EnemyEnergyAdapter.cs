@@ -47,9 +47,6 @@ namespace Kizami.EngineAdapter
         /// <summary> このフレームに溜めた、倒した敵の数 </summary>
         private int _pendingCount;
 
-        /// <summary>
-        /// PlayerInitializer から呼ばれる。
-        /// </summary>
         /// <param name="onDefeatedCollected">フレームごとに、そのフレームに倒した敵の数を渡す関数（ChargeService.AddCollapsedEnemies）</param>
         public void Initialize(Action<int> onDefeatedCollected)
         {

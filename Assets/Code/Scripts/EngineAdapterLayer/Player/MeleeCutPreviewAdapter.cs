@@ -18,7 +18,7 @@ namespace Kizami.EngineAdapter
         private IMeleeCutState _state;
 
         /// <summary>
-        /// PlayerInitializer から呼ばれる。MeleeCutState の登録より後に呼ぶこと。
+        /// MeleeCutState の登録より後に呼ぶこと。
         /// </summary>
         /// <param name="blackBoard">切断面の角度の取得元</param>
         public void Initialize(IBlackBoard blackBoard)

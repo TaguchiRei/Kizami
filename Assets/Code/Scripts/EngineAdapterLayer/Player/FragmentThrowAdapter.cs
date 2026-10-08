@@ -10,7 +10,6 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 視線の先のかけらをつかんでカメラの前に持ち、視線の先へ投げる Adapter。
     /// 持っているかけらはランチャーに 1 つだけ装填でき、装填したかけらは重力なしでまっすぐ撃ち出す。
-    /// 持っているかけらと装填したかけらは物理を止め、当たり判定と切断の対象から外して、カメラの前のそれぞれの位置に置く。
     /// 投げたかけらと撃ったかけらは、何かにぶつかるか、寿命が来るとプールへ返す。飛ばした瞬間に重なっている相手にも当たったものとする。オーブにもチャージにもならない。
     /// 装甲のパネルにぶつかったら、粉砕タイプとしてそのパネルだけを一撃で壊す。
     /// </summary>
@@ -90,9 +89,6 @@ namespace Kizami.EngineAdapter
             return fragment.Renderer != null ? fragment.Renderer.bounds.center : fragment.transform.position;
         }
 
-        /// <summary>
-        /// PlayerInitializer から呼ばれる。
-        /// </summary>
         /// <param name="tryTake">かけらを、オーブにする管理から外す関数。外せたかけらだけをつかむ</param>
         public void Initialize(Func<CuttableObject, bool> tryTake)
         {
@@ -135,7 +131,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 持っているかけらを、視線の先へ重力ありで投げる。持っていなければ何もしない。
+        /// 持っているかけらを、視線の先へ重力ありで投げる。
         /// </summary>
         /// <param name="speed">初速（m/s）</param>
         public void Throw(float speed)
@@ -160,7 +156,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 装填したかけらを、視線の先へ重力なしでまっすぐ撃ち出す。装填していなければ何もしない。
+        /// 装填したかけらを、視線の先へ重力なしでまっすぐ撃ち出す。
         /// </summary>
         /// <param name="speed">速さ（m/s）</param>
         public void Fire(float speed)
@@ -362,7 +358,6 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// かけらが回収されたときに、運んでいるかけらなら手放し、飛んでいるかけらなら一覧から外して、物理の設定をプレハブの状態へ戻す。
-        /// 扱っていないかけらでは何もしない。
         /// </summary>
         private void OnReused(CuttableObject fragment)
         {

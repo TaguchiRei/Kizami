@@ -9,7 +9,7 @@ namespace Kizami.EngineAdapter
     /// ステージシーンの破壊対象（DestructionTarget）を集め、すべて破壊済みになったらクリアにして、仮のクリア表示を出す Adapter。インゲームのシーンへ置く。
     /// クリアを読むのは仮の表示だけなので、判定もこの Adapter が持つ。
     /// </summary>
-    // TODO: リザルトやリトライがクリアを読むようになったら（区間11）、判定を Application の Service と State に移す
+    // TODO: リザルトやリトライがクリアを読むようになったら、判定を Application の Service と State に移す
     public sealed class StageClearAdapter : InitializableMonoBehaviour
     {
         private const string CLEAR_TEXT = "STAGE CLEAR";

@@ -65,9 +65,6 @@ namespace Kizami.EngineAdapter
         /// <summary> 出ているオーブの数 </summary>
         public int OrbCount => _orbs.Count;
 
-        /// <summary>
-        /// PlayerInitializer から呼ばれる。
-        /// </summary>
         /// <param name="onAbsorbed">かけらを吸収したときに呼ぶ関数。引数は吸収したかけらの数</param>
         public void Initialize(Action<int> onAbsorbed)
         {
