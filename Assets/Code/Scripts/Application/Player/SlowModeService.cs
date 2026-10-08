@@ -14,7 +14,6 @@ namespace Kizami.Application
     /// <summary>
     /// スローモードの入力を受けて、チャージを消費して時間の倍率を下げ、続けている間もチャージを消費するユースケース。
     /// 入力でもう一度切り替えるか、チャージが 0 になると終わる。
-    /// 継続中の消費は実時間で数える。
     /// スローモード中に近接切断を振れる回数を数え、上限に達したらスローモードが終わるまで振らせない。
     /// </summary>
     public sealed class SlowModeService : IDisposable

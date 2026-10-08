@@ -27,7 +27,7 @@ namespace Kizami.Application
     }
 
     /// <summary>
-    /// 時間の倍率を変える操作面。DI コンテナ経由で配る。
+    /// 時間の倍率を変える操作面。
     /// </summary>
     public interface ITimeScaleController
     {
