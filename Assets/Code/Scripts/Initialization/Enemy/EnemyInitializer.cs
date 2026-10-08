@@ -1,9 +1,7 @@
-using System;
 using System.Text;
 using Kizami.EngineAdapter;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
-using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Debugging;
 using UsefulToolkit.Initialization;
 
@@ -24,47 +22,37 @@ namespace Kizami.Initialization
 
         public override void Initialize(IBlackBoard blackBoard)
         {
-            Action<Vector3> spawnOrb = null;
-            if (_fragmentOrbAdapter != null)
+            if (!HasRequiredReferences())
             {
-                spawnOrb = _fragmentOrbAdapter.SpawnOrb;
-            }
-            else
-            {
-                UsefulLogger.LogError("FragmentOrbAdapter が設定されていません。", this);
+                base.Initialize(blackBoard);
+                return;
             }
 
-            Action<Vector3> emitEnergy = null;
-            if (_energyAdapter != null)
-            {
-                emitEnergy = _energyAdapter.Emit;
-            }
-            else
-            {
-                UsefulLogger.LogError("EnemyEnergyAdapter が設定されていません。", this);
-            }
-
-            if (_spawnAdapter != null)
-            {
-                _spawnAdapter.Initialize(spawnOrb, emitEnergy);
+            _spawnAdapter.Initialize(_fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                DebugGUI.ObserveVariable("Enemies",
-                    () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity} (groups {_spawnAdapter.GroupCount})");
-                DebugGUI.ObserveVariable("Collapse Defeats",
-                    () => $"{_spawnAdapter.CollapseDefeatCount} (crush {_spawnAdapter.CrushDefeatCount})");
-                DebugGUI.ObserveVariable("Spawn Points", GetSpawnPointText);
-                DebugGUI.ObserveVariable("Enemy ms",
-                    () => $"update {_spawnAdapter.UpdateMilliseconds:F2} / move {_spawnAdapter.MoveMilliseconds:F2} / body {_spawnAdapter.BodyMilliseconds:F2} / render {_spawnAdapter.RenderMilliseconds:F2}");
-                DebugGUI.ObserveVariable("Bodies", () => $"{_spawnAdapter.LentBodyCount} / {_spawnAdapter.BodyCount} (kept shapes {_spawnAdapter.KeptShapeCount})");
-                DebugGUI.ObserveVariable("Distance Field", GetDistanceFieldText);
+            DebugGUI.ObserveVariable("Enemies",
+                () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity} (groups {_spawnAdapter.GroupCount})");
+            DebugGUI.ObserveVariable("Collapse Defeats",
+                () => $"{_spawnAdapter.CollapseDefeatCount} (crush {_spawnAdapter.CrushDefeatCount})");
+            DebugGUI.ObserveVariable("Spawn Points", GetSpawnPointText);
+            DebugGUI.ObserveVariable("Enemy ms",
+                () => $"update {_spawnAdapter.UpdateMilliseconds:F2} / move {_spawnAdapter.MoveMilliseconds:F2} / body {_spawnAdapter.BodyMilliseconds:F2} / render {_spawnAdapter.RenderMilliseconds:F2}");
+            DebugGUI.ObserveVariable("Bodies", () => $"{_spawnAdapter.LentBodyCount} / {_spawnAdapter.BodyCount} (kept shapes {_spawnAdapter.KeptShapeCount})");
+            DebugGUI.ObserveVariable("Distance Field", GetDistanceFieldText);
 #endif
-            }
-            else
-            {
-                UsefulLogger.LogError("EnemySpawnAdapter が設定されていません。", this);
-            }
 
             base.Initialize(blackBoard);
+        }
+
+        /// <summary>
+        /// 必須の参照がすべて設定されているかを返す。足りないものは、すべてエラーログに出す。
+        /// </summary>
+        private bool HasRequiredReferences()
+        {
+            var hasAll = this.IsAssigned(_spawnAdapter, nameof(EnemySpawnAdapter));
+            hasAll &= this.IsAssigned(_fragmentOrbAdapter, nameof(FragmentOrbAdapter));
+            hasAll &= this.IsAssigned(_energyAdapter, nameof(EnemyEnergyAdapter));
+            return hasAll;
         }
 
         /// <summary>
