@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 進行中（2026-10-08 着手） |
+| 状態 | 完了（2026-10-08） |
 | 目安の時期 | 2027/01/05〜01/11（最速の推定 2026/10/09〜10/10） |
 | 前提となる区間 | 8 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -133,6 +133,52 @@
 - VR とスマホの既存コード（`Vr〜` の Adapter、`TouchLookInputSource`、ビルドモード）は、どのシーンにも置かれていないものを含めて壊さずに保つ。使われていないように見えても、2 つ目の利用者（スマホ・VR）が来る予定のものは消さない（code-refactoring の確認項目 1）
 - プレイモードで確かめられるのは PC だけ。スマホと VR の経路は、コンパイルが通ることまでを確かめ、未確認として報告する
 
+## 実装結果（2026-10-08）
+
+### 決めたこと
+
+- 前半（ソースコード）は「詳細仕様」の決定 1〜6 のとおり。`EnemySpawnAdapter` から `EnemyBodyLender` と `EnemyDebrisSpawner` を切り出し、`VoxelPiece` は分けなかった
+- 後半（コメント）は、`<remarks>` を「サマリーに入れると役割がぼやけるが、消すと壊されうる制約」だけにした（ユーザーの指摘）。動作やアルゴリズムの説明は、実装しているメソッド・定数のサマリーへ移し、メソッドと同じ内容の行は消した。19 か所のうち 7 か所は `<remarks>` がなくなり、残る 12 か所は 1〜3 行になった
+- 「Time.deltaTime で数え、スローモード中は一緒に遅くなる」のような、ゲーム全体の決まりに従っているだけの説明は、各クラスに書かない
+- 上の 2 点は、スキル `comment-refactoring` の基準 6 に書き足した（2026-10-08。claude.ai のスキルへの反映はユーザーが行う）
+- Shader は、このスキルの元になった整理（コミット `09d8fbd`・`a66b04e`）で整っていたので、直していない
+
+### 作った主なもの
+
+| コミット | 内容 |
+|---|---|
+| `2de6e18` | 構造の整理。経路の格子に、進めるかの判定（`IsBlocked`）と床の続く長さ（`GetFlatFloorLength`）をまとめた。Voxel の実行時ログを `UsefulLogger` に揃えた。ID とローカル変数の揃え直し |
+| `edd211a` | `PlayerInitializer`・`EnemyInitializer` の必須の参照を、最初にまとめて確かめる（`InitializerExtensions.IsAssigned`） |
+| `8c14460` | `EnemySpawnAdapter` から `EnemyBodyLender`（体の貸し借り）と `EnemyDebrisSpawner`（見た目用の部位）を切り出した |
+| `ea42c67`・`5026645` | 命名（決定 5）。SerializeField は `FormerlySerializedAs` を付けて保存し直してから外した |
+| `0e69b92` | メンバー順 |
+| `16baa63`〜`fbdef9b` | コメントの整理（BlackBoard と External、Application、Initialization、EngineAdapter の Player・Stage まわり、Enemy、Voxel） |
+| `d216598`・`e896857` | `<remarks>` を制約だけにした |
+| `3ba4f31` | `Assets/Docs/Voxel/` の行リンク 36 件の付け直し、全体計画書と区間9の計画書を今のコードに合わせた |
+
+### 完了条件の確認結果
+
+| 完了条件 | 結果 |
+|---|---|
+| コンパイルのエラーと警告が 0 件 | 確認済み。Refresh してからコンパイルし、`Kizami.EngineAdapter.Runtime.dll` の更新時刻が全ソースより新しいことを確かめた |
+| InGame で、区間8の完了時と同じに動く | 確認済み（エディタ、uloop の入力と State の値で確認）。常駐シーン → アウトゲーム → インゲーム、移動・ジャンプ・ワープ・視点、切断（かけら・撃破・オーブ・チャージ）、スロー（倍率 0.25、振れる回数）、つかむ・投げる・装填・撃つ、スキル 1・2（チャージの消費、ビームが装甲で止まる）、剣が装甲に当たる、G キーでボクセルを削る、敵 10 体と 1000 体（84 組、32 体に体を貸す）、足場ごと落ちた敵の崩落による撃破。エラーと警告のログは 0 件。見た目、プレイヤーの被ダメージ、落ちてくる塊に潰されたときの撃破は確かめていない |
+| Enemy ms が区間4C から大きく変わらない | 1000 体・32 体に体を貸して、平均 1.72〜1.87ms（安全チェックと Jobs Debugger なし。計測のあとで元に戻した）。区間4C の 1.33ms より 3 割ほど多いが、移動・体・まとめて描画の 3 つがそろって 1.2〜1.4 倍で、構造を変えていないまとめて描画も増えている。条件も揃っていない（区間4C は包囲ができた再生 4 分後に 5 秒の平均。今回はインゲームに入り直して約 40 秒後にプレイヤーを群れの中へ移し、0.2 秒ごとに uloop で動的コードを実行しながら測った）。合格ラインの 4ms には収まっている |
+| `scan_naming.py` と `reorder_members.py` の候補が 0 件 | 確認済み。どちらも 0 件 |
+| `find_candidates.py` の装飾と複数行の変数のサマリーが 0 件 | 装飾 1 件と複数行 5 件を、基準どおり残した。装飾は `ScreenSpaceBooleanFeature.cs` の視線のアスキー図。複数行は `MAX_INSTANCES_PER_DRAW`・`MESHING_READ_MARGIN`・`TRUNCATION_VOXELS`・`PADDING_CELLS`・`VoxelHullDirections.COUNT` で、どれも値を変えたときに合わせるものが 1 行に収まらない制約 |
+| 後半の各コミットで、差分がコメントだけ | 確認済み。`check_comment_only_diff.py` の出力は、すべての区切りで空 |
+
+残した否定形は、どれも禁止事項・制約か、仕様の説明（例：「ここで .w で割ってはいけない」「預ける空きがなければ返さない」「動けない敵は戻さない（仕様の戦略の為）」）。
+
+### 次の区間へ持ち越すこと
+
+- 区間9：体のプレハブ 1 つの前提（`EnemySpawnAdapter._bodyPrefab`、`EnemyBodyLender`、`EnemyCrowdRenderer`、`BrokenMovePartLimit`）を、敵の種類ごとに持つ形にする。区間9の計画書の「体のプレハブ 1 つを前提にしている」に、切り出したあとの場所を書いた
+- Enemy ms を区間4C と同じ条件（包囲ができてから 5 秒の平均）で測り直すかは、区間9で敵の処理が増えたときの計測に合わせて決める
+
+### 使い方
+
+- 敵の体の貸し借りを直すときは `EnemyBodyLender`、見た目用の部位は `EnemyDebrisSpawner` を見る。SerializeField と持ち主は `EnemySpawnAdapter` のまま
+- Initializer に Inspector の必須の参照を足すときは、`HasRequiredReferences` に `IsAssigned` を 1 行足す
+
 ## 見つけた問題（今回は扱わない）
 
 計画の時点で分かっていたもののうち、2 つのスキルの範囲外か、挙動が変わるもの。
@@ -142,3 +188,4 @@
 - 【ステージ】TestStage の生成位置 C が、ボクセルの壁の中にある（区間4C の「見つけた問題」）。区間14へ回す
 - 【融解】`VoxelMeltSystem` の Spheres の表示は、1 回の描画に 1023 個まで出す。URP Lit の上限は 511（`EnemyCrowdRenderer` の注記）。InGame では使っていないので、使うかを決める区間13で直す
 - 【補助スクリプト】`scan_naming.py` が `Un〜` で始まる否定形の名前を検出しない（スキルの側）
+- 【シェーダー】`ScreenSpaceEmbeddedFeature` の RenderGraph のパス名が `SSBoolean_BackDepth`・`SSBoolean_Composite` で、Boolean 側と同じ。Frame Debugger で見分けられない。Embedded は使っていないので、使うときに直す
