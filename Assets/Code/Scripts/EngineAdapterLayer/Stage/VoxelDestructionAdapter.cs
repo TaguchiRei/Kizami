@@ -8,11 +8,11 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// MainCamera を基準にした形（狙った所の球、視線の向きへ伸びるカプセル、カメラの位置を中心にした球）の範囲にあるボクセルのピースを、同じ形でまとめて削る Adapter。
     /// 範囲が複数のピースにまたがるときも、範囲内のすべてのピースを削る。
-    /// 破壊タイプの攻撃として、装甲のパネルに当たったらダメージを与え、装甲の奥のピースは削らない。
+    /// 破壊タイプの攻撃として、装甲のパネルに当たったら 1 回当たったものとし、装甲の奥のピースは削らない。
     /// </summary>
     /// <remarks>
     /// 狙った所の球は、レイが最初に当たったのが装甲なら削らない。ビームは中心のレイが最初に当たった装甲で止まる（壁は貫通する）。
-    /// 爆発は球に入ったパネルすべてにダメージを与え、中心から各ピースのバウンディングボックスの中心へのレイが装甲に当たるピースを削らない。
+    /// 爆発は球に入ったパネルすべてに 1 回ずつ当たったものとし、中心から各ピースのバウンディングボックスの中心へのレイが装甲に当たるピースを削らない。
     /// 爆発の遮断はピース単位の大まかな判定で、ピースの一部だけが装甲の陰にあっても、ピース全体を削るか削らないかのどちらかになる。
     /// </remarks>
     public sealed class VoxelDestructionAdapter : MonoBehaviour
@@ -38,16 +38,12 @@ namespace Kizami.EngineAdapter
         private LayerMask _targetLayers = ~0;
 
         [SerializeField]
-        [Tooltip("装甲のパネルのレイヤー。遮断の判定と、ダメージを与えるパネルの収集に使う")]
+        [Tooltip("装甲のパネルのレイヤー。遮断の判定と、当たったパネルの収集に使う")]
         private LayerMask _armorLayers;
-
-        [SerializeField, Min(0)]
-        [Tooltip("狙った所の球（デバッグの破壊攻撃）が、装甲のパネルに与えるダメージ")]
-        private int _aimArmorDamage = 3;
 
         /// <summary>
         /// 狙った所を球で削る。狙える距離に何もなければ削らない。
-        /// レイが最初に当たったのが装甲のパネルなら、そのパネルにダメージを与えて削らない。
+        /// レイが最初に当たったのが装甲のパネルなら、そのパネルに 1 回当てて削らない。
         /// </summary>
         public void CarveAtAim()
         {
@@ -61,7 +57,7 @@ namespace Kizami.EngineAdapter
 
             if (hit.collider.TryGetComponent(out ArmorPanel armorPanel))
             {
-                armorPanel.ApplyDamage(_aimArmorDamage);
+                armorPanel.ApplyHit();
                 return;
             }
 
@@ -72,12 +68,11 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// カメラの位置から視線の向きへ伸びるカプセルで削る。途中の壁を貫通する。
-        /// 中心のレイが装甲のパネルに当たったら、そのパネルにダメージを与え、カプセルの先端がその点に届く所までで止める。
+        /// 中心のレイが装甲のパネルに当たったら、そのパネルに 1 回当て、カプセルの先端がその点に届く所までで止める。
         /// </summary>
         /// <param name="length">カプセルの長さ（m）</param>
         /// <param name="radius">カプセルの半径（m）</param>
-        /// <param name="armorDamage">装甲のパネルに与えるダメージ</param>
-        public void CarveBeam(float length, float radius, int armorDamage)
+        public void CarveBeam(float length, float radius)
         {
             if (!TryGetCameraTransform(out var cameraTransform)) return;
 
@@ -86,7 +81,7 @@ namespace Kizami.EngineAdapter
 
             if (Physics.Raycast(start, forward, out var armorHit, length, _armorLayers, QueryTriggerInteraction.Ignore))
             {
-                if (armorHit.collider.TryGetComponent(out ArmorPanel armorPanel)) armorPanel.ApplyDamage(armorDamage);
+                if (armorHit.collider.TryGetComponent(out ArmorPanel armorPanel)) armorPanel.ApplyHit();
 
                 // カプセルの端の半球が装甲を越えないよう、中心の線を半径の分だけ手前で止める
                 length = armorHit.distance - radius;
@@ -101,11 +96,10 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// カメラの位置を中心に球で削る。足場がボクセルなら足場も削れる。
-        /// 球に入った装甲のパネルすべてにダメージを与え、中心から見て装甲の奥にあるピースは削らない。
+        /// 球に入った装甲のパネルすべてに 1 回ずつ当て、中心から見て装甲の奥にあるピースは削らない。
         /// </summary>
         /// <param name="radius">球の半径（m）</param>
-        /// <param name="armorDamage">装甲のパネルに与えるダメージ</param>
-        public void CarveExplosion(float radius, int armorDamage)
+        public void CarveExplosion(float radius)
         {
             if (!TryGetCameraTransform(out var cameraTransform)) return;
 
@@ -115,12 +109,12 @@ namespace Kizami.EngineAdapter
             var hitCount = Physics.OverlapSphereNonAlloc(center, radius, _hitBuffer, _targetLayers,
                 QueryTriggerInteraction.Ignore);
 
-            // 遮断の判定は、ダメージで壊れる前のパネルで行う
+            // 遮断の判定は、当てて壊れる前のパネルで行う
             Carve(new SphereShape(center, radius), hitCount, _armorPanels.Count > 0, center);
 
             foreach (var armorPanel in _armorPanels)
             {
-                armorPanel.ApplyDamage(armorDamage);
+                armorPanel.ApplyHit();
             }
 
             _armorPanels.Clear();

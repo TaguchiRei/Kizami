@@ -4,10 +4,11 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 装甲の 1 枚のパネル。攻撃タイプと破壊タイプのダメージで耐久値が減り、0 になるか粉砕タイプが当たると壊れる。
+    /// 装甲の 1 枚のパネル。攻撃タイプと破壊タイプの攻撃が 1 回当たるごとに耐久値が 1 減り、0 になるか粉砕タイプが当たると壊れる。
     /// 壊れたパネルは非アクティブにする。残りの耐久値の割合で色を変える。
     /// </summary>
     /// <remarks>
+    /// 耐久値は当たった回数で数え、攻撃の種類や大きさによらない。何度も当たる攻撃は、当たった回数だけ ApplyHit を呼ぶ。
     /// 奥への遮断は、パネルのコライダーが攻撃のレイを止めることで判定する。破壊対象とのひも付けは持たない。
     /// </remarks>
     public sealed class ArmorPanel : MonoBehaviour
@@ -15,8 +16,8 @@ namespace Kizami.EngineAdapter
         private static readonly int _baseColorId = Shader.PropertyToID("_BaseColor");
 
         [SerializeField, Min(1)]
-        [Tooltip("耐久値の最大")]
-        private int _maxDurability = 6;
+        [Tooltip("耐久値の最大。壊れるまでに耐える、攻撃タイプと破壊タイプの攻撃が当たった回数")]
+        private int _maxDurability = 10;
 
         [SerializeField]
         [Tooltip("耐久値が最大のときの色")]
@@ -42,14 +43,13 @@ namespace Kizami.EngineAdapter
         public bool IsBroken => Durability <= 0;
 
         /// <summary>
-        /// 耐久値を減らし、0 になったら壊す。壊れたパネルでは何もしない。
+        /// 攻撃タイプか破壊タイプの攻撃が 1 回当たったとして耐久値を 1 減らし、0 になったら壊す。壊れたパネルでは何もしない。
         /// </summary>
-        /// <param name="amount">減らす量</param>
-        public void ApplyDamage(int amount)
+        public void ApplyHit()
         {
-            if (IsBroken || amount <= 0) return;
+            if (IsBroken) return;
 
-            Durability = Mathf.Max(0, Durability - amount);
+            Durability--;
 
             if (IsBroken)
             {

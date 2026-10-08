@@ -125,7 +125,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 99de147bfe2c8ef49bf84e59db636ede, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.ArmorPanel
-  _maxDurability: 6
+  _maxDurability: 10
   _fullColor: {r: 0.45, g: 0.55, b: 0.65, a: 1}
   _damagedColor: {r: 0.9, g: 0.35, b: 0.15, a: 1}
   _renderer: {fileID: 7825401099895375640}

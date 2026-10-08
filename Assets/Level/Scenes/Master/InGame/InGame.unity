@@ -1532,7 +1532,6 @@ MonoBehaviour:
   _armorLayers:
     serializedVersion: 2
     m_Bits: 1024
-  _aimArmorDamage: 3
 --- !u!4 &1734900003
 Transform:
   m_ObjectHideFlags: 0

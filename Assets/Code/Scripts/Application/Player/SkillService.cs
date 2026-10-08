@@ -19,18 +19,18 @@ namespace Kizami.Application
         private readonly SkillData[] _slots = new SkillData[SLOT_COUNT];
         private readonly SkillSlotState _slotState = new(SLOT_COUNT);
         private readonly ChargeService _chargeService;
-        private readonly Action<float, float, int> _onBeam;
-        private readonly Action<float, int> _onExplosion;
+        private readonly Action<float, float> _onBeam;
+        private readonly Action<float> _onExplosion;
         private readonly List<IDisposable> _subscriptions = new();
 
         /// <param name="blackBoard">SkillSlotState の登録先と、入力の取得元</param>
         /// <param name="equippedSkills">枠ごとに装備するスキル。空きの枠と、SLOT_COUNT を超えた分は無視する</param>
         /// <param name="chargeService">発動に使うチャージの消費先</param>
-        /// <param name="onBeam">ビームを出す関数。引数は長さ（m）、半径（m）、装甲に与えるダメージ</param>
-        /// <param name="onExplosion">爆発を出す関数。引数は半径（m）と、装甲に与えるダメージ</param>
+        /// <param name="onBeam">ビームを出す関数。引数は長さ（m）と半径（m）</param>
+        /// <param name="onExplosion">爆発を出す関数。引数は半径（m）</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
-            ChargeService chargeService, Action<float, float, int> onBeam, Action<float, int> onExplosion, int sceneId)
+            ChargeService chargeService, Action<float, float> onBeam, Action<float> onExplosion, int sceneId)
         {
             _chargeService = chargeService;
             _onBeam = onBeam;
@@ -70,10 +70,10 @@ namespace Kizami.Application
             switch (skill.Effect)
             {
                 case SkillEffect.Beam:
-                    _onBeam?.Invoke(skill.Length, skill.Radius, skill.ArmorDamage);
+                    _onBeam?.Invoke(skill.Length, skill.Radius);
                     break;
                 case SkillEffect.Explosion:
-                    _onExplosion?.Invoke(skill.Radius, skill.ArmorDamage);
+                    _onExplosion?.Invoke(skill.Radius);
                     break;
             }
         }

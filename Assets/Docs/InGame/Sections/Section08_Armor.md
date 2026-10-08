@@ -59,10 +59,10 @@
 | 対象 | 状態 | 対応 |
 |---|---|---|
 | [FragmentThrowAdapter](../../../Code/Scripts/EngineAdapterLayer/Player/FragmentThrowAdapter.cs) | `OnFragmentTouched(fragment, other)` に `// TODO:` がある | 相手が装甲なら一撃で壊す |
-| [VoxelDestructionAdapter](../../../Code/Scripts/EngineAdapterLayer/Stage/VoxelDestructionAdapter.cs) | `CarveBeam(length, radius)` / `CarveExplosion(radius)` / `CarveAtAim()` が範囲内のピースを直接削る | 装甲での遮断と、装甲へのダメージを足す |
-| [SkillService](../../../Code/Scripts/Application/Player/SkillService.cs) / [SkillData](../../../Code/Scripts/ExternalLayer/Player/SkillData.cs) | ダメージ量を持たない（区間6の決定 8） | `SkillData` に装甲へのダメージを足し、効果の関数へ渡す |
+| [VoxelDestructionAdapter](../../../Code/Scripts/EngineAdapterLayer/Stage/VoxelDestructionAdapter.cs) | `CarveBeam(length, radius)` / `CarveExplosion(radius)` / `CarveAtAim()` が範囲内のピースを直接削る | 装甲での遮断と、装甲に当てる処理を足す |
+| [SkillService](../../../Code/Scripts/Application/Player/SkillService.cs) / [SkillData](../../../Code/Scripts/ExternalLayer/Player/SkillData.cs) | ダメージ量を持たない（区間6の決定 8） | 変更なし。装甲の耐久値は当たった回数で減るので、量は要らない（決定 4） |
 | [MeleeCutService](../../../Code/Scripts/Application/Player/MeleeCutService.cs) → [MeleeCutAdapter](../../../Code/Scripts/EngineAdapterLayer/Player/MeleeCutAdapter.cs) | `PlayerInitializer` が `Swing(angle)` を直接渡している | 剣が装甲に与えるダメージを引数で渡す |
-| [PlayerParameterData](../../../Code/Scripts/ExternalLayer/Player/PlayerParameterData.cs) | 近接切断の値に装甲のダメージがない | 剣の装甲へのダメージを足す |
+| [PlayerParameterData](../../../Code/Scripts/ExternalLayer/Player/PlayerParameterData.cs) | 近接切断の値 | 変更なし（決定 4） |
 | [DestructionTarget](../../../Code/Scripts/EngineAdapterLayer/Stage/DestructionTarget.cs) | 重要パーツの削れた割合だけを見る | 変更なし。遮断は物理で判定するので、装甲とのひも付けは要らない |
 | 敵の格子（`EnemySpawnAdapter._groundLayers`） | Default だけを見る | 装甲は `Armor` レイヤーなので、格子に影響しない |
 
@@ -93,13 +93,13 @@
 |---|---|---|
 | 1 | 装甲の作り方 | メッシュのパネル（箱のメッシュと BoxCollider）。ボクセルにすると破壊タイプで削れることになり、仕様の「耐久値で壊れる」と合わない |
 | 2 | 「命中箇所」の単位 | パネル 1 枚（1.3m 角、厚さ 0.1m）。粉砕では当たったパネルだけが消える。殻は内側 2.4m・外側 2.6m の立方体で、1 面を 2 × 2 枚で覆う。隣の面のパネルと角で重ねて、辺に隙間を作らない（コミット 1 で 1.2m から変更） |
-| 3 | 耐久値 | パネルごとに 6 |
-| 4 | ダメージ量 | 剣は 1 で、範囲内のパネルすべてに 1 回ずつ与える（`PlayerParameterData`）。ビームと爆発は 3（`SkillData`） |
-| 5 | 遮断の判定 | ビーム：中心のレイが最初に当たった装甲で止め、そのパネルにダメージを与える。削るカプセルもそこまでにする（壁は貫通し、装甲では止まる）。爆発：球に入ったパネルすべてにダメージを与える。球の中に装甲があるときだけ、中心から各ピースのバウンディングボックスの中心へレイを飛ばし、装甲に当たったピースは削らない（ピース単位の大まかな判定） |
-| 6 | ダメージタイプのデータと判定の窓口 | 作らない。3 つの攻撃が `ArmorPanel` の `ApplyDamage`（攻撃・破壊）と `Shatter`（粉砕）を直接呼ぶ。1 つの攻撃が複数の種類を持つようになる区間10（剣に破壊属性を付ける）へ持ち越す。区間8では攻撃ごとに種類が 1 つに決まり、装甲への効き方も 2 通りしかない為 |
+| 3 | 耐久値 | パネルごとに 10。攻撃タイプと破壊タイプの攻撃が 10 回当たると壊れる（2026-10-08、コミット 3 の確認のあとにユーザーが決定。当初は 6） |
+| 4 | ダメージ量 | 持たない。耐久値は当たった回数（ヒット数）で減り、攻撃の種類や大きさによらず 1 回で 1 減る。剣は範囲内のパネルすべてに 1 回ずつ、ビームは中心のレイが当たったパネルに 1 回、爆発は球に入ったパネルすべてに 1 回ずつ当たる。何度も当たる攻撃（多段ヒットの装甲向けのスキルなど）は、当たった回数だけ減らす（2026-10-08、ユーザーが決定。当初は剣 1・スキル 3 のダメージ量を持たせていた） |
+| 5 | 遮断の判定 | ビーム：中心のレイが最初に当たった装甲で止め、そのパネルに 1 回当てる。削るカプセルもそこまでにする（壁は貫通し、装甲では止まる）。爆発：球に入ったパネルすべてに 1 回ずつ当てる。球の中に装甲があるときだけ、中心から各ピースのバウンディングボックスの中心へレイを飛ばし、装甲に当たったピースは削らない（ピース単位の大まかな判定） |
+| 6 | ダメージタイプのデータと判定の窓口 | 作らない。3 つの攻撃が `ArmorPanel` の `ApplyHit`（攻撃・破壊）と `Shatter`（粉砕）を直接呼ぶ。1 つの攻撃が複数の種類を持つようになる区間10（剣に破壊属性を付ける）へ持ち越す。区間8では攻撃ごとに種類が 1 つに決まり、装甲への効き方も 2 通りしかない為 |
 | 7 | 装甲の State | 作らない。耐久値を読む側がない（食い違い #1） |
 | 8 | 見た目 | 耐久値の割合で色が変わる（MaterialPropertyBlock）。壊れたら非アクティブにする。演出は区間13 |
-| 9 | デバッグの破壊攻撃（G） | 破壊タイプとして扱う。レイが装甲に当たったらダメージを与え、削らない |
+| 9 | デバッグの破壊攻撃（G） | 破壊タイプとして扱う。レイが装甲に当たったらそのパネルに 1 回当て、削らない |
 | 10 | TestStage での置き方 | 門 A の核 2 つを、パネルの殻（核 1 つにつき 24 枚）で囲み、プレハブにする。門 B は装甲なしのまま比べる |
 
 ## 作業計画
@@ -108,9 +108,9 @@
 
 | 型 | 層・置き場所 | 区間8 での利用者 |
 |---|---|---|
-| `ArmorPanel`（耐久値、`ApplyDamage`、`Shatter`、色の変化） | EngineAdapter | `FragmentThrowAdapter`、`VoxelDestructionAdapter`、`MeleeCutAdapter` |
+| `ArmorPanel`（耐久値、`ApplyHit`、`Shatter`、色の変化） | EngineAdapter | `FragmentThrowAdapter`、`VoxelDestructionAdapter`、`MeleeCutAdapter` |
 
-既存の型の拡張：`SkillData`（装甲へのダメージ）、`SkillService`（効果の関数へ渡す）、`VoxelDestructionAdapter`（遮断と装甲へのダメージ）、`MeleeCutService`・`MeleeCutAdapter`（剣の装甲へのダメージと装甲の収集）、`PlayerParameterData`（剣の装甲へのダメージ）、`FragmentThrowAdapter`（粉砕）。
+既存の型の拡張：`VoxelDestructionAdapter`（遮断と装甲に当てる処理）、`MeleeCutAdapter`（装甲の収集と、装甲に当てる処理）、`FragmentThrowAdapter`（粉砕）。
 
 - 基準1：装甲の State（決定 7）、ダメージタイプと判定の窓口（決定 6）、装甲をまとめる親のクラス（遮断は物理で判定するので要らない）、HUD は作らない
 - 基準2：当初の「Application の 1 か所の窓口」は、当てる処理が EngineAdapter にそろっているので、通すと往復になるだけ。決定 6 で見直した
@@ -124,8 +124,8 @@
 | 0 | 区間計画書の更新 | ― |
 | 1 | `Armor` レイヤー、`ArmorPanel`、プレハブ、門 A に置く | `ApplyDamage` を直接呼ぶと色が変わり、6 で消える。`Shatter` では 1 回で消える |
 | 2 | 粉砕（投げる・撃つ） | 当たったパネルだけが一撃で消え、まわりのパネルは残る |
-| 3 | 破壊タイプ（ビーム・爆発・G）の遮断とダメージ | 装甲がある間は核の削れた割合が変わらない。ビーム 2 発でパネルが壊れる。穴を通したビームは核を削る |
-| 4 | 攻撃タイプ（剣） | 6 回振るとパネルが壊れ、かけらは出ない。核は高さ約 6m にあるので、`execute-dynamic-code` でプレイヤーを近くへ動かして確かめる |
+| 3 | 破壊タイプ（ビーム・爆発・G）の遮断とダメージ（コミット 3.5 で、ヒット数で減る形と耐久値 10 に直した） | 装甲がある間は核の削れた割合が変わらない。ビーム 2 発でパネルが壊れる。穴を通したビームは核を削る |
+| 4 | 攻撃タイプ（剣） | 10 回振るとパネルが壊れ、かけらは出ない。核は高さ約 6m にあるので、`execute-dynamic-code` でプレイヤーを近くへ動かして確かめる |
 | 5 | 通しの確認、値の調整、実装結果と全体計画書の更新 | 完了条件をすべて確かめる |
 
 ## 実装中に確かめたこと
@@ -145,6 +145,8 @@
 - （コミット 3）G キーの処理（`CarveAtAim`）をパネルに向けて呼ぶと、2 回でパネルが消え、どちらも核は削れなかった。3 回目は穴を抜けて核を削った（0.415 → 0.730）
 - （コミット 3）入力の経路も確かめた。チャージを 100 にして 1 キー（ビーム）を押すと、チャージが 70 になり、狙ったパネルが 6 → 3 になり、核は削れなかった。エラーと警告は 0 件
 - （コミット 3）爆発は半径 4m なので、核のそばで使うと殻の 24 枚すべてに当たり、2 回（チャージ 100）で装甲が丸ごとなくなる。ビームはパネル 1 枚に 2 発（60）かかる。この差はコミット 5 の値の調整で見る
+- （コミット 3.5）ユーザーの決定で、耐久値を 10 にし、ダメージ量をやめてヒット数で減らす形にした（決定 3・4）。`ArmorPanel.ApplyDamage(amount)` を `ApplyHit()` に置き換え、`SkillData` の `_armorDamage`、`SkillService` の引数、`VoxelDestructionAdapter` の `_aimArmorDamage` を消した（`SkillData` と `SkillService` はコミット 2 の時点に戻った）。パネルのプレハブの耐久値を 10 にし、InGame を保存し直して `_aimArmorDamage` の値を消した。ローカルでコンパイルし、エラーと警告は 0 件
+- （コミット 3.5）プレイモードで、チャージ 100 で 1 キー（ビーム）を押すと、チャージ 70、パネルが 10 → 9。続けてビームを 9 発撃つと 0 で消え、その間は核の削れた割合が 0 のまま。11 発目は穴を抜けて核を削り（0.415）、反対側のパネルを 10 → 9 にした。爆発 1 回で、球に入ったパネルがそれぞれ 10 → 9。G キー 1 回で 10 → 9。エラーと警告は 0 件
 
 ## 見つけた問題（今回は扱わない）
 
@@ -153,7 +155,7 @@
 
 ## 次の区間へ持ち越すこと（計画の時点）
 
-- 区間9：シールドを持つ敵。シールドの中の敵へ剣を通さない遮断（剣の範囲と装甲の重なり）
+- 区間9：シールドを持つ敵。シールドの中の敵へ剣を通さない遮断（剣の範囲と装甲の重なり）。敵のシールドは物理の当たり判定を持ち、プレイヤーが中へ入れないようにする（2026-10-08、ユーザーの要望）
 - 区間10：ダメージタイプのデータと判定の窓口。1 つの攻撃が複数の種類を持つ（剣に破壊属性を付ける）ようになったら作る（決定 6）
 - 区間13：装甲が壊れるときの演出
 
