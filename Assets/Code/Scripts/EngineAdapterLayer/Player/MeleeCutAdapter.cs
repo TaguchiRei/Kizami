@@ -11,6 +11,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 近接切断の振り（Swing）を受けて、カメラの位置と向き、切断面の角度から刃を配置し、
     /// カメラの前方へ伸びる薄い直方体の範囲にある切れる CuttableObject をまとめて切断する Adapter。
+    /// 攻撃タイプの攻撃として、範囲にある装甲のパネルには 1 回ずつ当てる。パネルは切断しないので、かけらは出ない。
     /// </summary>
     public sealed class MeleeCutAdapter : InitializableMonoBehaviour
     {
@@ -19,6 +20,7 @@ namespace Kizami.EngineAdapter
 
         private readonly Collider[] _hitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly List<CuttableObject> _targets = new();
+        private readonly HashSet<ArmorPanel> _armorPanels = new();
 
         [SerializeField]
         [Tooltip("切断に使う刃。プールと同じシーンに置かれたもの")]
@@ -80,7 +82,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 振ったときの角度で刃を配置し、範囲内の切れる対象を切断する。
+        /// 振ったときの角度で刃を配置し、範囲内の切れる対象を切断する。範囲内の装甲のパネルには 1 回ずつ当てる。
         /// </summary>
         /// <param name="angle">切断面の角度（度）</param>
         public void Swing(float angle)
@@ -107,6 +109,13 @@ namespace Kizami.EngineAdapter
             var bladeRotation = Quaternion.LookRotation(forward, normal);
 
             CollectTargets(origin, forward, normal, bladeRotation);
+
+            foreach (var armorPanel in _armorPanels)
+            {
+                armorPanel.ApplyHit();
+            }
+
+            _armorPanels.Clear();
             if (_targets.Count == 0) return;
 
             _blade.transform.SetPositionAndRotation(origin, bladeRotation);
@@ -114,11 +123,13 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 範囲内にあり、今切れる状態で、Renderer のバウンディングボックスが刃の平面をまたぐ CuttableObject を集める。
+        /// 範囲内にあり、今切れる状態で、Renderer のバウンディングボックスが刃の平面をまたぐ CuttableObject を _targets に集める。
+        /// 範囲内の装甲のパネルは _armorPanels に集める。
         /// </summary>
         private void CollectTargets(Vector3 origin, Vector3 forward, Vector3 normal, Quaternion bladeRotation)
         {
             _targets.Clear();
+            _armorPanels.Clear();
 
             var center = origin + forward * (_reach * 0.5f);
             var halfExtents = new Vector3(_width * 0.5f, _thickness * 0.5f, _reach * 0.5f);
@@ -132,6 +143,12 @@ namespace Kizami.EngineAdapter
 
             for (var i = 0; i < hitCount; i++)
             {
+                if (_hitBuffer[i].TryGetComponent(out ArmorPanel armorPanel))
+                {
+                    _armorPanels.Add(armorPanel);
+                    continue;
+                }
+
                 if (!_hitBuffer[i].TryGetComponent(out CuttableObject cuttable)) continue;
                 if (!cuttable.IsCuttable || _targets.Contains(cuttable)) continue;
                 if (!IsStraddlingPlane(cuttable, origin, normal)) continue;

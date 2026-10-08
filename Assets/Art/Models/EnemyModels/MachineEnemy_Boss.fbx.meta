@@ -1,14 +1,9 @@
 fileFormatVersion: 2
-guid: 42419bbfaed1d0d4ebd4540229b7e120
+guid: 35b8c16dca6e6f54fbc82ffc2c72ea34
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects:
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: AttackerEnemy
-    second: {fileID: 2100000, guid: 68d922cc4a46c0045b7027b040ba9876, type: 2}
+  externalObjects: {}
   materials:
     materialImportMode: 2
     materialName: 0

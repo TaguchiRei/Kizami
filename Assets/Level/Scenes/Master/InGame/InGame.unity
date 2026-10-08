@@ -1529,6 +1529,9 @@ MonoBehaviour:
   _targetLayers:
     serializedVersion: 2
     m_Bits: 4294966835
+  _armorLayers:
+    serializedVersion: 2
+    m_Bits: 1024
 --- !u!4 &1734900003
 Transform:
   m_ObjectHideFlags: 0

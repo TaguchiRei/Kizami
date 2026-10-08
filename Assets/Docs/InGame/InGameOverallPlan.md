@@ -62,7 +62,7 @@
 | 項目 | 内容 |
 |---|---|
 | 敵のメッシュ切断 | UsefulToolkit.MeshCut を使う。マルチスレッド、Burst、Job で並列化と非同期化が済んでいる |
-| 敵の構成 | SkinnedMeshRenderer は使わない。パーツごとに分かれた軽量なメッシュを、パーツ単位で FK / IK で動かす。仮モデルは四足歩行の AttackerEnemy（`Assets/Art/Models/AttackerEnemy.fbx`。区間4A で、`AttakkerEnemy.blend` を直して別名の `AttackerEnemy.blend` から書き出した。三角形は合計 4310、実測。体のプレハブは `Assets/Level/Prefabs/Enemy/AttackerEnemy.prefab`）。1000 体をまとめて描画すると、通常の描画と影で約 862 万の三角形になる（区間4B で計測） |
+| 敵の構成 | SkinnedMeshRenderer は使わない。パーツごとに分かれた軽量なメッシュを、パーツ単位で FK / IK で動かす。仮モデルは四足歩行の攻撃する敵（`Assets/Art/Models/EnemyModels/MachineEnemy_Attacker.fbx`。区間8の途中でユーザーが入れ替えた。部位の位置・向き・大きさは区間4A の旧 `AttackerEnemy.fbx` と同じで、三角形は合計 4310、実測。体のプレハブは `Assets/Level/Prefabs/Enemy/AttackerEnemy.prefab`）。同じフォルダに、シールドを持つ敵（`MachineEnemy_Defender`）、吸収型の敵（`MachineEnemy_Finisher`）、ボス（`MachineEnemy_Boss`）のモデルがある。敵のモデルは部位ごとの回転を 0 にして書き出す（脚の IK の `EnemyLegs` が、休みの姿勢の回転を 0 とする為）。取り込み設定は Read/Write を有効にする。1000 体をまとめて描画すると、通常の描画と影で約 862 万の三角形になる（区間4B で計測） |
 | 敵の群衆（2026-10-05 決定、2026-10-06 区間4B で確定） | 同時に約 1000 体。敵の状態は構造体の NativeArray（`EnemyAgent`）に持って Burst の Job で更新し、`Graphics.RenderMeshInstanced` でまとめて描画する。切断できる GameObject の体は、近くの敵にだけプールから貸す。経路は縦の列ごとに立てる層を持つ格子と、プレイヤーからの距離マップ。移動は簡易物理で、NavMesh は使わない。詳細は Notion「敵の群衆 AI」「敵の大量描画と体の貸し出し」と、区間4B・4C の計画書の「計測の結果」。区間4C の本実装で、1000 体・32 体に体を貸して敵の処理は平均 1.33ms（エディタ、安全チェックなし） |
 | 敵の体のプール（2026-10-05 決定） | 敵の体は最初にすべてプールに用意し、実行中は Instantiate しない |
 | ボスの構成 | 敵と同じく、パーツ単位で FK / IK で動かす。ボクセルのスキニングは使わない |
@@ -80,7 +80,7 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-08 時点。区間7 の完了まで）
+## 3. 現状（2026-10-08 時点。区間8 の完了まで）
 
 | 分野 | 状態 |
 |---|---|
@@ -103,14 +103,15 @@
 | 崩落による撃破とエネルギー | あり（区間5）。足場ごと 3m 以上落ちた敵（`EnemyMoveJob`）と、落ちてくるボクセルの塊に潰された敵（`EnemyCollapseDetector`）を倒す。かけらは出さない。倒した敵の位置は `EnemyEnergyAdapter`（InGame の `EnemyEnergy`）が GraphicsBuffer で VFX Graph（`EnemyEnergy.vfx`）へ渡し、粒をカメラへ吸い込ませる。チャージは倒したときに `ChargeService.AddCollapsedEnemies` で足す。Enemy と Default のレイヤーは衝突しない（落ちてくる塊が体をすり抜ける為）。TestStage に崩す張り出し（`CrowdVoxelTerrain/Overhang`）を置いた |
 | スローモード | あり（区間7）。F で切り替え、`SlowModeService` がチャージを消費して `ITimeScaleController`（常駐の DI）で倍率を 0.25 にする。状態は `ISlowModeState`（`PlayerBoard`）。1 回のスローで振れる回数は 5 回（`SlowModeService.TryUseCut` を `MeleeCutService` へ直接渡す） |
 | つかむ・投げる・ランチャー | あり（区間7）。`FragmentThrowService` が右クリック・R・中クリックを受け、InGame の `FragmentThrowAdapter`（`FragmentThrow`）が、かけらを `FragmentOrbAdapter.TryTake` で管理から外してカメラの前に運び、投げる・装填する・撃つ。飛ばしたかけらは最初にぶつかった時点でプールへ返り、チャージにならない |
-| ダメージタイプと判定の窓口 | なし（区間8。区間7の決定 10。区間7では粉砕ダメージの受け手（装甲）がない為。投げた・撃ったかけらがぶつかった相手は `FragmentThrowAdapter.OnFragmentTouched` に届いている） |
+| 装甲 | あり（区間8）。メッシュのパネル（`ArmorPanel`、Armor レイヤー、1.3m 角）がパネルごとに耐久値 10 を持つ。剣・スキル・G キーは 1 回当たるごとに 1 減らし、投げた・撃ったかけらは当たったパネルを一撃で壊す。ビームは装甲で止まり、爆発と G キーは装甲の奥を削らない。パネルはプレイヤーを通さない。TestStage の門 A の核 2 つを殻（`ArmorCoreShell.prefab`、24 枚）で囲み、剣の確認用の壁 `ArmorTestWall` を開始位置の近くに置いた |
+| ダメージタイプと判定の窓口 | なし（区間10。区間8の決定 6。区間8では攻撃ごとに種類が 1 つに決まり、装甲への効き方も 2 通りしかない為。各攻撃の Adapter が `ArmorPanel.ApplyHit` / `Shatter` を直接呼ぶ） |
 | スキル | あり（区間6）。1 キーで前方ビーム（消費 30。カメラから視線の向きへ半径 1m・長さ 30m のカプセルで削り、壁を貫通する）、2 キーで自分中心の爆発（消費 50。カメラの位置を中心に半径 4m の球で削る）。`SkillData`（External）を `PlayerInitializer` の Inspector の 3 枠に装備し、`SkillService` が入力を受けてチャージを消費し、`VoxelDestructionAdapter` の `CarveBeam` / `CarveExplosion` を呼ぶ。チャージが足りなければ発動も消費もしない。クールタイムと見た目の演出はない。スキルは敵に当たらない（Enemy のレイヤーを除いて削る） |
-| 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブ（`Enemy/AttakkerEnemy.prefab` など。区間4A で作った `Enemy/AttackerEnemy.prefab` は除く）は旧構成のもの。旧 FBX `Assets/Art/Models/AttakkerEnemy.fbx` は、旧構成のプレハブと開発用のシーンが参照している為に残してある。`Assets/Art/` は区間4A から git の対象。`Test/InGame.unity` は Build Settings から外してあり、`BuildScenes.InGame` は新しい `Master/InGame` を指す |
+| 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブ（`Enemy/AttakkerEnemy.prefab` など。区間4A で作った `Enemy/AttackerEnemy.prefab` は除く）は旧構成のもの。旧 FBX `AttakkerEnemy.fbx` と区間4A の `AttackerEnemy.fbx` は、区間8の途中でユーザーが消した。旧構成の `AttakkerEnemy.prefab` と開発用のシーン（`ShaderTest`、`VoxelModelTest`）は、参照が切れたまま。`Assets/Art/` は区間4A から git の対象。`Test/InGame.unity` は Build Settings から外してあり、`BuildScenes.InGame` は新しい `Master/InGame` を指す |
 
 ## 4. 進め方
 
 - 先に「刻む → 溜まる → スキルで壊す → クリア」のコアループを、仮の見た目で一周させる。そのあとで、スロー、装甲、敵の種類、強化型スキルを足していく
-- ダメージタイプは「攻撃が持つデータ」として持つ。攻撃と対象ごとの判定をどこに置くかは、区間5の着手時に決める（2026-10-05 変更）。計画当初は Application の 1 か所の窓口にまとめる予定だったが、区間2〜4では、切断・オーブ化・敵のルールを、利用者が 1 つであることから EngineAdapter に置いている。また、切断は EngineAdapter の `MeleeCutAdapter` が MeshCut を直接呼んでおり、Application の asmdef は MeshCut を参照していない。区間5・6では、ダメージを受けるのがボクセルだけだった為に窓口を作らず、区間7（粉砕のダメージ）へ持ち越した（区間6の決定 7）
+- ダメージタイプは「攻撃が持つデータ」として持つ。攻撃と対象ごとの判定をどこに置くかは、区間5の着手時に決める（2026-10-05 変更）。計画当初は Application の 1 か所の窓口にまとめる予定だったが、区間2〜4では、切断・オーブ化・敵のルールを、利用者が 1 つであることから EngineAdapter に置いている。また、切断は EngineAdapter の `MeleeCutAdapter` が MeshCut を直接呼んでおり、Application の asmdef は MeshCut を参照していない。区間5・6では、ダメージを受けるのがボクセルだけだった為に窓口を作らず、区間7（粉砕のダメージ）へ持ち越した（区間6の決定 7）。区間7・8でも作らず、区間8では装甲の受け手（`ArmorPanel`）を各攻撃の Adapter から直接呼ぶ形にした。1 つの攻撃が複数の種類を持つようになる区間10で作る（区間8の決定 6）
 - 各区間は 0 章の「区間の進め方」の順で進める
 - 区間計画書は、着手する直前にその時点の実装に合わせて見直す
 
@@ -132,8 +133,8 @@
 | 6 | スキル基盤・攻撃型スキル | スキルの定義データ、装備枠 3、チャージ消費、攻撃型スキル 2 種、仮の HUD | 3, 5 | 12/08〜12/14 | 10/24〜10/25 | 完了（2026-10-08） | [Section06](Sections/Section06_Skill.md) |
 | B | マイルストーンB | 1 ステージが最初から最後まで遊べる | | 12/14 | 10/25 | 達成（2026-10-08） | |
 | 7 | スローモード・つかみ・投擲・ランチャー | TimeScale の倍率操作、ゲージ消費、スロー中の切断回数の上限、かけらのつかみ・投擲・ランチャー、粉砕ダメージ | 3, 5 | 12/15〜12/28 | 10/26〜10/29 | 完了（2026-10-08） | [Section07](Sections/Section07_SlowMode.md) |
-| 8 | 装甲 | 耐久値、粉砕タイプで一撃破壊、破壊ダメージの遮断、破壊対象の防御パーツ | 5, 7 | 12/29〜2027/01/04 | 10/30〜10/31 | 未着手 | [Section08](Sections/Section08_Armor.md) |
-| 10 | 強化型スキル・回復 | ダメージタイプの付与などの強化型スキル、破壊属性の切断でボクセルを平面で切り分ける、HP を回復するスキル | 6, 7 | 01/05〜01/18 | 11/01〜11/04 | 未着手 | [Section10](Sections/Section10_EnhanceSkill.md) |
+| 8 | 装甲 | 耐久値、粉砕タイプで一撃破壊、破壊ダメージの遮断、破壊対象の防御パーツ | 5, 7 | 12/29〜2027/01/04 | 10/30〜10/31 | 完了（2026-10-08） | [Section08](Sections/Section08_Armor.md) |
+| 10 | 強化型スキル・回復 | ダメージタイプのデータと判定の窓口（区間8から持ち越し）、ダメージタイプの付与などの強化型スキル、破壊属性の切断でボクセルを平面で切り分ける、HP を回復するスキル | 6, 7 | 01/05〜01/18 | 11/01〜11/04 | 未着手 | [Section10](Sections/Section10_EnhanceSkill.md) |
 | 11 | ステージ制・インゲームの流れ・HUD | ステージデータ、HUD、失敗（HP 0）、リザルトとスコア、リトライ、アウトゲームとの受け渡し、ポーズ | B | 01/19〜02/01 | 11/05〜11/08 | 未着手 | [Section11](Sections/Section11_StageFlow.md) |
 | 9 | 敵の固有アクション・バリエーション | 雑魚 3 種の固有のアクション（攻撃する敵の攻撃、シールドを持つ敵、吸収型の敵）、特殊部位（敵を生み出す部位など） | 4C, 8, 11 | 02/02〜02/15 | 11/09〜11/12 | 未着手 | [Section09](Sections/Section09_EnemyVariation.md) |
 | 14 | ステージ制作 | チュートリアル、一般戦闘、ギミック戦闘の 3 ステージ（破壊対象、マップ、生成システム、ギミック、チュートリアルの案内）、2 段の距離マップと格子の事前の焼き付け（区間4C から持ち越し） | 9, 11 | 02/16〜03/01 | 11/13〜11/16 | 未着手 | [Section14](Sections/Section14_StageContent.md) |
@@ -187,6 +188,8 @@ flowchart LR
 | 部位の役割の選択 | UsefulToolkit.framework の `SubclassSelectorAttribute`（`[SerializeReference]` のフィールドにサブクラスを選ぶ表示を付ける） |
 | かけらの接触 | かけらのプレハブに付けた `FragmentContactReporter`（`OnCollisionEnter`）。接触のコールバックは Rigidbody と同じ GameObject のコンポーネントにしか届かない為。ぶつかったかけらと相手のコライダーを渡す（区間7） |
 | かけらを持つ間に切らせない | UsefulToolkit.MeshCut の `CuttableObject.DisableCutting`（プールへ返すと `OnRecycle` で切れる状態に戻る）（区間7） |
+| 装甲 | 区間8の `ArmorPanel`（パネルごとの耐久値）。遮断は Armor レイヤーへの `Physics.Raycast` で判定し、爆発で当てるパネルは `Physics.OverlapSphereNonAlloc` で集める。破壊対象とのひも付けは持たない |
+| 速く飛ぶかけらの当たり | 投げた・撃ったかけらは、飛んでいる間だけ `CollisionDetectionMode.ContinuousDynamic` にする。Discrete だと薄い装甲のパネルを 1 ステップで越え、奥の物への接触が先に届く（区間8） |
 | カメラに合わせて物を置く | CinemachineBrain は実行順の指定なしに `LateUpdate` でカメラを動かすので、カメラに合わせる側に `[DefaultExecutionOrder]` で後ろの実行順を付ける（区間7の `FragmentThrowAdapter`） |
 | シーン遷移 | `GameSceneController` / `GameSceneInitializer`、SceneGroup アセット（`GameSceneGroupData`） |
 | デバッグ表示 | UsefulToolkit.Debugging の `DebugGUI`（`ObserveVariable` で値を画面に出す。シーンへの配置は `UsefulToolkit/ProgramTools/DebugGUI Setup`）、State の `GetLog()` |
@@ -213,8 +216,8 @@ flowchart LR
 | 5 | 重要パーツの指定方法、本体から分離した塊を破壊済みに数えるか、クリアに必要な割合をどの単位で持つか、ダメージの判定を置く層、崩落で撃破になる条件、崩落で撃破した敵 1 体あたりのチャージ量と足すタイミング |
 | 6 | 最初に作る攻撃型スキル、消費量、ダメージのデータと判定の窓口を置く層、破壊ダメージの量と削る形状の大きさの対応（区間5から持ち越し） |
 | 7 | ダメージのデータと判定の窓口を置く層（区間6から持ち越し。区間7で作らず区間8へ持ち越すと決めた）、スローの倍率、初回消費と継続消費、スロー中の切断回数の上限と、部位ごとの切断回数の上限との関係、サウンドのスロー表現 |
-| 8 | 装甲の作り方（メッシュかボクセルか）、耐久値、遮断の判定方法、ダメージ量と耐久値の対応（区間6から持ち越し） |
-| 10 | 強化型スキルの一覧、平面で切り分ける範囲、切り分けた側の扱い、回復スキルの中身と分類 |
+| 8 | 装甲の作り方（メッシュかボクセルか）、耐久値、遮断の判定方法、ダメージ量と耐久値の対応（区間6から持ち越し）、ダメージのデータと判定の窓口を置く層（区間7から持ち越し。区間8で作らず区間10へ持ち越すと決めた） |
+| 10 | ダメージのデータと判定の窓口（区間8から持ち越し）、強化型スキルの一覧、平面で切り分ける範囲、切り分けた側の扱い、回復スキルの中身と分類 |
 | 11 | ステージごとの失敗条件、失敗したあとの表示、スコアの計算式と表示項目、リトライの方法（UsefulToolkit にシーンを読み直す経路を足す）、ポーズを `timeScale = 0` で実装するか、クリアを Application の Service と State に移す（区間5から持ち越し） |
 | 9 | 雑魚 3 種のパラメータと固有のアクション、特殊部位の種類 |
 | 14 | ギミック戦闘ステージのギミック、チュートリアルの進め方、各ステージの破壊対象・マップ・敵の配置、ボクセルの支えの判定、崩落で倒す値の調整（区間5から持ち越し） |
