@@ -167,14 +167,6 @@ namespace Kizami.EngineAdapter
             }
         }
 
-        public void Dispose()
-        {
-            if (_groups.IsCreated) _groups.Dispose();
-            if (_paths.IsCreated) _paths.Dispose();
-            if (_members.IsCreated) _members.Dispose();
-            if (_engageSlots.IsCreated) _engageSlots.Dispose();
-        }
-
         /// <summary>
         /// 倒れた敵、ほかのグループへ移った敵、動けなくなった敵を区画から抜き、残りを順番を保って前へ詰める。
         /// 動けなくなった敵はグループから抜いて交戦もやめさせ、その場に残す。残りがいなければグループを空ける。
@@ -332,6 +324,14 @@ namespace Kizami.EngineAdapter
             }
 
             return -1;
+        }
+
+        public void Dispose()
+        {
+            if (_groups.IsCreated) _groups.Dispose();
+            if (_paths.IsCreated) _paths.Dispose();
+            if (_members.IsCreated) _members.Dispose();
+            if (_engageSlots.IsCreated) _engageSlots.Dispose();
         }
     }
 }

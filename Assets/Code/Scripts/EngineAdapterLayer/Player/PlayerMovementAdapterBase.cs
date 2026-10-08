@@ -38,6 +38,14 @@ namespace Kizami.EngineAdapter
         [SerializeField] private Rigidbody _rigidbody;
         [SerializeField] private CapsuleCollider _collider;
 
+        [Header("水平速度の補間レート（地上・壁走り中） (m/s^2)")]
+        [SerializeField, Min(0f)] private float _acceleration = 40f;
+        [SerializeField, Min(0f)] private float _deceleration = 60f;
+
+        [Header("水平速度の補間レート（空中） (m/s^2)")]
+        [SerializeField, Min(0f)] private float _airAcceleration = 10f;
+        [SerializeField, Min(0f)] private float _airDeceleration = 10f;
+
         private IPlayerMovementState _movementState;
         private Func<Vector3, float, Vector3?> _step;
         private IDisposable _lookSubscription;
@@ -91,14 +99,6 @@ namespace Kizami.EngineAdapter
         {
             _lookSubscription?.Dispose();
         }
-
-        [Header("水平速度の補間レート（地上・壁走り中） (m/s^2)")]
-        [SerializeField, Min(0f)] private float _acceleration = 40f;
-        [SerializeField, Min(0f)] private float _deceleration = 60f;
-
-        [Header("水平速度の補間レート（空中） (m/s^2)")]
-        [SerializeField, Min(0f)] private float _airAcceleration = 10f;
-        [SerializeField, Min(0f)] private float _airDeceleration = 10f;
 
         /// <summary>
         /// 1 ステップ分の処理を次の順で行う。

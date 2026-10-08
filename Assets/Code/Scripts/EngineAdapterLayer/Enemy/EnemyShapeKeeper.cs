@@ -49,6 +49,11 @@ namespace Kizami.EngineAdapter
             }
         }
 
+        private static bool IsShortened(CuttableObject cuttable)
+        {
+            return cuttable != null && cuttable.gameObject.activeSelf && cuttable.CutCount > 0;
+        }
+
         /// <summary>
         /// 体の短くなった部位（切断済みで体に残っている部位）を、すべて預かれるだけの空きがあるか。
         /// </summary>
@@ -100,11 +105,6 @@ namespace Kizami.EngineAdapter
                 var slot = agentIndex * _partCount + part;
                 if (_keptShapes[slot] >= 0) ReleaseKeeper(slot);
             }
-        }
-
-        private static bool IsShortened(CuttableObject cuttable)
-        {
-            return cuttable != null && cuttable.gameObject.activeSelf && cuttable.CutCount > 0;
         }
 
         private int CountShortenedParts(EnemyBody body)

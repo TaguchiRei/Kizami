@@ -100,18 +100,6 @@ namespace Kizami.EngineAdapter
             agent.IsDefeatedByCollapse = true;
         }
 
-        public void Execute(int index)
-        {
-            var agent = Agents[index];
-            if (!agent.IsAlive) return;
-
-            if (agent.IsGrounded && agent.BrokenMovePartCount < BrokenMovePartLimit) Walk(ref agent, index);
-            UpdateVertical(ref agent);
-            UpdateStrandedTime(ref agent);
-
-            Agents[index] = agent;
-        }
-
         /// <summary>
         /// 立っている層からプレイヤーへたどり着けない（距離マップの値がない）間、その時間を数える。たどり着けたら 0 に戻す。落ちている間は数えたままにする。
         /// </summary>
@@ -417,6 +405,18 @@ namespace Kizami.EngineAdapter
             var inside = math.clamp(position.xz, cellMin + COLUMN_EDGE_MARGIN, cellMin + Grid.CellSize - COLUMN_EDGE_MARGIN);
             position.x = inside.x;
             position.z = inside.y;
+        }
+
+        public void Execute(int index)
+        {
+            var agent = Agents[index];
+            if (!agent.IsAlive) return;
+
+            if (agent.IsGrounded && agent.BrokenMovePartCount < BrokenMovePartLimit) Walk(ref agent, index);
+            UpdateVertical(ref agent);
+            UpdateStrandedTime(ref agent);
+
+            Agents[index] = agent;
         }
     }
 }

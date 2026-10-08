@@ -79,38 +79,6 @@ namespace Kizami.EngineAdapter
             return current < target ? math.min(current + maxDelta, target) : math.max(current - maxDelta, target);
         }
 
-        public void Execute()
-        {
-            var usedEncircleSlots = new NativeArray<bool>(MAX_ENCIRCLE_SLOTS, Allocator.Temp);
-            for (var g = 0; g < Groups.Length; g++)
-            {
-                var group = Groups[g];
-                if (group.IsActive && group.EncircleSlot >= 0) usedEncircleSlots[group.EncircleSlot] = true;
-            }
-
-            for (var g = 0; g < Groups.Length; g++)
-            {
-                var group = Groups[g];
-                if (!group.IsActive) continue;
-
-                if (!HasAliveMember(g, group))
-                {
-                    group.IsActive = false;
-                    Groups[g] = group;
-                    continue;
-                }
-
-                UpdatePhase(g, ref group);
-                MoveAnchor(g, ref group, usedEncircleSlots);
-                RecordPath(g, ref group);
-                UpdateColumnCount(ref group);
-                Groups[g] = group;
-            }
-
-            usedEncircleSlots.Dispose();
-            UpdateEngageSlots();
-        }
-
         private bool HasAliveMember(int g, in EnemyGroup group)
         {
             for (var i = 0; i < group.MemberCount; i++)
@@ -462,6 +430,38 @@ namespace Kizami.EngineAdapter
             }
 
             usedSlots.Dispose();
+        }
+
+        public void Execute()
+        {
+            var usedEncircleSlots = new NativeArray<bool>(MAX_ENCIRCLE_SLOTS, Allocator.Temp);
+            for (var g = 0; g < Groups.Length; g++)
+            {
+                var group = Groups[g];
+                if (group.IsActive && group.EncircleSlot >= 0) usedEncircleSlots[group.EncircleSlot] = true;
+            }
+
+            for (var g = 0; g < Groups.Length; g++)
+            {
+                var group = Groups[g];
+                if (!group.IsActive) continue;
+
+                if (!HasAliveMember(g, group))
+                {
+                    group.IsActive = false;
+                    Groups[g] = group;
+                    continue;
+                }
+
+                UpdatePhase(g, ref group);
+                MoveAnchor(g, ref group, usedEncircleSlots);
+                RecordPath(g, ref group);
+                UpdateColumnCount(ref group);
+                Groups[g] = group;
+            }
+
+            usedEncircleSlots.Dispose();
+            UpdateEngageSlots();
         }
     }
 }
