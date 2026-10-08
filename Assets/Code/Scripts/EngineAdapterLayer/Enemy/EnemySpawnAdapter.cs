@@ -6,7 +6,6 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Profiling;
 using UnityEngine;
-using UnityEngine.Serialization;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 using UsefulToolkit.MeshCut;
@@ -142,7 +141,6 @@ namespace Kizami.EngineAdapter
 
         [SerializeField, Min(0f)]
         [Tooltip("プレイヤーへたどり着けない状態がこの時間（秒）続いた敵は、カメラに映っていなければ生成位置へ戻す。動けない敵と、体を貸している敵は戻さない")]
-        [FormerlySerializedAs("_unreachableReturnDelay")]
         private float _strandedReturnDelay = 10f;
 
         [SerializeField, Min(0f)]

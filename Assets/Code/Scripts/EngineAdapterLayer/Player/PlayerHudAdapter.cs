@@ -1,6 +1,5 @@
 using Kizami.BlackBoard;
 using UnityEngine;
-using UnityEngine.Serialization;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.Initialization;
 
@@ -59,7 +58,6 @@ namespace Kizami.EngineAdapter
 
         [SerializeField]
         [Tooltip("チャージが消費量に届いていないスキルの線の色")]
-        [FormerlySerializedAs("_unreachedLineColor")]
         private Color _chargingLineColor = new(1f, 1f, 1f, 0.35f);
 
         private IPlayerHealthState _healthState;
