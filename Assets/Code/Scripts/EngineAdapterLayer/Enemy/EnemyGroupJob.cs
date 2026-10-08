@@ -271,8 +271,7 @@ namespace Kizami.EngineAdapter
         {
             heading = toSlot;
             var probe = position.xz + math.normalizesafe(toSlot) * Grid.CellSize;
-            if (Grid.TryGetColumn(new float3(probe.x, height, probe.y), out var probeColumn)
-                && (probeColumn == column || Grid.GetLandingNode(probeColumn, height) >= 0)) return true;
+            if (!Grid.IsBlocked(column, height, probe)) return true;
 
             if (Grid.TryGetColumnToward(column, height, position.xz + toSlot, out var towardColumn)
                 || (!float.IsPositiveInfinity(distance)
@@ -309,10 +308,7 @@ namespace Kizami.EngineAdapter
 
             var toFar = (Grid.GetCellCenter(farColumn, 0f) - position).xz;
             var probe = position.xz + math.normalizesafe(toFar) * Grid.CellSize;
-            if (!Grid.TryGetColumn(new float3(probe.x, height, probe.y), out var probeColumn)) return toNext;
-            if (probeColumn != column && Grid.GetLandingNode(probeColumn, height) < 0) return toNext;
-
-            return toFar;
+            return Grid.IsBlocked(column, height, probe) ? toNext : toFar;
         }
 
         /// <summary>
@@ -387,8 +383,8 @@ namespace Kizami.EngineAdapter
             var maxColumns = group.EncircleSlot >= 0 ? Formation.EncircleColumns : Formation.MaxColumns;
             var right = new float2(math.cos(group.AnchorYaw), -math.sin(group.AnchorYaw));
             var maxSide = (maxColumns - 1) * Formation.LateralSpacing * 0.5f;
-            var width = GetFreeLength(group.AnchorPosition, right, maxSide)
-                        + GetFreeLength(group.AnchorPosition, -right, maxSide);
+            var width = Grid.GetFlatFloorLength(group.AnchorPosition, right, maxSide)
+                        + Grid.GetFlatFloorLength(group.AnchorPosition, -right, maxSide);
             var columnCount = math.clamp(1 + (int)math.floor(width / Formation.LateralSpacing), 1, maxColumns);
 
             if (columnCount == group.ColumnCount)
@@ -407,25 +403,6 @@ namespace Kizami.EngineAdapter
 
             group.PendingColumnTime += DeltaTime;
             if (group.PendingColumnTime >= Formation.ColumnChangeDelay) group.ColumnCount = columnCount;
-        }
-
-        /// <summary>
-        /// origin から direction へマスの一辺ずつ進み、origin と同じ高さの床が続く長さ（m）を maxLength まで返す。
-        /// </summary>
-        private float GetFreeLength(float3 origin, float2 direction, float maxLength)
-        {
-            var steps = (int)math.ceil(maxLength / Grid.CellSize);
-            for (var s = 1; s <= steps; s++)
-            {
-                var length = math.min(s * Grid.CellSize, maxLength);
-                var point = origin + new float3(direction.x, 0f, direction.y) * length;
-                if (!Grid.TryGetColumn(point, out var column) || Grid.GetNodeNear(column, origin.y) < 0)
-                {
-                    return (s - 1) * Grid.CellSize;
-                }
-            }
-
-            return maxLength;
         }
 
         /// <summary>

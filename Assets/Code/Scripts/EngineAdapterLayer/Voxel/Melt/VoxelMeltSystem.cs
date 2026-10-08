@@ -6,6 +6,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UsefulToolkit.BlackBoard.BlackBoard;
+using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter.Voxel
 {
@@ -179,7 +180,7 @@ namespace Kizami.EngineAdapter.Voxel
             {
                 if (!_hasWarnedParticleLimit)
                 {
-                    Debug.LogWarning($"粒の数が上限 {_maxParticles} に達した為、以降の融解は粒にせず捨てます。", this);
+                    UsefulLogger.LogWarning($"粒の数が上限 {_maxParticles} に達した為、以降の融解は粒にせず捨てます。", this);
                     _hasWarnedParticleLimit = true;
                 }
 

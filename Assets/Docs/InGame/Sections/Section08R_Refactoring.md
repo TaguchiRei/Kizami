@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手（着手前にこの計画を見直す） |
+| 状態 | 進行中（2026-10-08 着手） |
 | 目安の時期 | 2027/01/05〜01/11（最速の推定 2026/10/09〜10/10） |
 | 前提となる区間 | 8 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -58,6 +58,23 @@
 | 体のプレハブ 1 つの前提 | `EnemySpawnAdapter._bodyPrefab`、`EnemyCrowdRenderer`、`EnemyShapeKeeper`、移動 Job の `BrokenMovePartLimit` | 区間9で直す（この区間では先取りしない） |
 | `// TODO:` | 7 件（区間9・11・14 の予定を含む） | 残す。コメントの基準 1 に合っているかだけを後半で見る |
 
+## 既存コードの確認結果（2026-10-08、R-1）
+
+対象の 128 ファイルを全部読んだ結果。Notion は、仕様リストの一覧の取得（SQL）がワークスペースのプランで使えない為、キーワード検索で関係するページだけを読んだ。
+
+| 確認項目 | 見つけたもの | 対応 |
+|---|---|---|
+| 1. 過剰な分割 | `PlayerCameraAdapterBase`（派生 1 つ）、呼び出しのない public メンバー（`EnemySpawnPoint.Enable/Disable`、`OperationSettingService` の感度の設定、`ArmorPanel.MaxDurability`、`VoxelPiece.BakeMesh` など）、融解（Thermal / Melt） | 残す。ゲームパッド対応・仕様「敵の出現」の無効化・設定画面・Voxel の公開 API・区間13 の判断で使う見込みがある |
+| 2. 同じことをするもの | `EnemyGroupJob.GetFreeLength` と `EnemyMoveJob.ClampLateral`（同じ高さの床が続く長さ）、隣の列へ進めるかの判定（`TryGetHeadingToward` の前半と `IsBlocked`） | `EnemyNavigationGrid` のメソッドにまとめる |
+| 2. 同じことをするもの | 切り離された塊の追跡（`EnemyCollapseDetector` と `EnemyDistanceField`）、購読の一括解除のループ（7 クラス） | 残す。前者は落ちている塊と止まった塊で目的が違う。後者は UsefulToolkit も同じ書き方で、置き換える型がない |
+| 3. 既存機能の再実装 | なし。小さな揃え直しとして、`EnemyEnergyAdapter._energyEventId` が他の ID と違って Initialize で求めている、`ApplicationManagementInitializer._buildModeState` がフィールドである | 揃える |
+| 3. 既存機能の再実装 | Voxel の実行時コード（`VoxelPiece`・`VoxelModelLoader`・`VoxelMeltSystem`）だけ `Debug.Log` を使う（9 か所） | `UsefulLogger` に揃える。どれも設定漏れや使い方の誤りを知らせるもので、リリースビルドで出す必要はない |
+| 4. 複雑な書き方 | `EnemySpawnAdapter` が 6 つの役割（生成、体の貸し借り、見た目用の部位、崩落の数え、移動の Job の起動、計測）を持つ | 体の貸し借りと見た目用の部位を切り出す（決定 1） |
+| 4. 複雑な書き方 | `VoxelPiece` は「ボリュームの編集・分離」と「チャンクのメッシュ化」の 2 つの役割で、両者が再メッシュ化の待ち行列を共有する | 残す（決定 4） |
+| 5. 命名 | 否定形：`EnemyAgent.UnreachableTime`・`EnemyMoveJob.UpdateUnreachableTime`・`EnemySpawnAdapter.ReturnUnreachableAgents`・`_unreachableReturnDelay`、`PlayerHudAdapter._unreachedLineColor`。不揃い：`PlayerLookState.ChangeLookInput`（他の State は `Set〜`）、`OutGameStartInitializer._transitioning` | 直す（決定 5） |
+| 6. メンバー順 | `reorder_members.py` の候補 7 ファイル（`EnemyDistanceField`・`EnemyGroupJob`・`PlayerMovementAdapterBase` など） | 並べ替える |
+| 7. 参照の渡し方 | `PlayerInitializer` の約 4 割が「未設定ならエラーログ」と `_x != null ? _x.Method : null` の分岐。`EnemyInitializer` も同じ形 | 必須の参照をまとめて確かめる（決定 2） |
+
 ## 作業一覧
 
 コミットは両スキルの順番に従う。前半はスキル `code-refactoring` の「コミットの順番」で、後半は層ごとの区切りで分ける。各コミットで、作業 → 検証 → 変更ファイルと確認結果の報告をして止まる。
@@ -79,15 +96,37 @@
 - `find_candidates.py` の装飾と複数行の変数のサマリーが 0 件。残した否定形は、理由を実装結果に書く
 - 後半の各コミットで、`check_comment_only_diff.py` の出力が空（差分がコメントだけ）
 
-## 詳細仕様で決めること
+## 詳細仕様
 
-R-2 の提案に対する回答で決める。
+### 決定（2026-10-08）
 
-| # | 項目 | 案 |
+| # | 項目 | 決定 |
 |---|---|---|
-| 1 | 確認項目 1〜7 ごとの、直すものと残すもの | R-1 で調べてから出す |
-| 2 | `EnemySpawnAdapter` を分けるか、分けるならどの単位か | R-1 で調べてから出す。区間9の種類の追加は先取りせず、今の役割の数で判断する |
-| 3 | 大きめの作り直しを、この区間に入れるか区間9へ回すか | R-2 で、作り直しの量と区間9への影響を見て決める |
+| 1 | `EnemySpawnAdapter` の分け方（計画時の #2・#3） | この区間で分ける。体の貸し借り（`EnemyBodyLender`）と見た目用の部位（`EnemyDebrisSpawner`）を素の C# クラスとして切り出し、持ち主は Adapter のままにする（`EnemyShapeKeeper`・`EnemyGroups` と同じ形）。SerializeField は Adapter に残し、シーンは触らない |
+| 2 | 初期化での必須の参照 | `PlayerInitializer` と `EnemyInitializer` は、必須の参照を最初にまとめて確かめ、足りなければ全部をエラーログに出して止める。設定漏れのときに一部だけ動く挙動はなくなる |
+| 3 | ログ | Voxel の実行時コードを `UsefulLogger` に揃える。UsefulToolkit にリリースビルドでも出すログの API はない（`LogError` はエディタと Development Build、それ以外はエディタだけ）。エディタ専用の asmdef（ベイク、デバッグツール）は UsefulToolkit を参照しないので `Debug.Log` のまま |
+| 4 | `VoxelPiece` | 分けない。メンバー順とコメントだけ直す |
+| 5 | 命名 | `UnreachableTime` → `StrandedTime`、`UpdateUnreachableTime` → `UpdateStrandedTime`、`ReturnUnreachableAgents` → `ReturnStrandedAgents`、`_unreachableReturnDelay` → `_strandedReturnDelay`、`_unreachedLineColor` → `_chargingLineColor`、`ChangeLookInput` → `SetLookInput`、`_transitioning` → `_isTransitioning`。SerializeField は `FormerlySerializedAs` を付けて保存し直してから属性を外す |
+| 6 | 補助スクリプト | `reorder_members.py` が、同じ行の属性（`[SerializeField, Min(0f)]`）の括弧をメソッドと誤判定していたので直した（スキルの側の修正） |
+
+## 作業計画
+
+### 新しく作る型と、区間8R での利用者
+
+| 型 | 利用者 | 理由 |
+|---|---|---|
+| `EnemyBodyLender` | `EnemySpawnAdapter` | 体の一覧・部位の持ち主の表・貸している敵・脚・形の預かりと、貸す・返す・取り上げる・位置を合わせる・切断の結果を渡す処理を、1 つの役割としてまとめる（決定 1） |
+| `EnemyDebrisSpawner` | `EnemySpawnAdapter` | 見た目用の部位の生成・飛ばし・回収をまとめる（決定 1） |
+
+### コミットの分け方
+
+| # | 内容 | 確かめること |
+|---|---|---|
+| 1 | 構造の整理：経路の格子のメソッドへの集約、ID とローカル変数の揃え直し、Voxel のログ | コンパイル、敵の移動と隊列、ボクセルを削る |
+| 2 | 初期化での必須の参照のまとめ | コンパイル、InGame の初期化（State の登録と Adapter の Initialized） |
+| 3 | `EnemySpawnAdapter` の分割 | コンパイル、体の貸し借り・切断・崩落、敵 1000 体の Enemy ms |
+| 4 | 命名（SerializeField は 2 段階） | コンパイル、Inspector の値が保たれていること |
+| 5 | メンバー順 | コンパイル、`reorder_members.py` が 0 件 |
 
 ## 他プラットフォームへの対応
 
@@ -101,3 +140,5 @@ R-2 の提案に対する回答で決める。
 - 【旧構成】旧シーン `Level/Scenes/Test/InGame.unity`・`OutGame.unity`、参照が切れた `Level/Prefabs/Enemy/AttakkerEnemy.prefab`・`Development/ShaderTest`・`VoxelModelTest`、旧シーンだけが使う `Art/Particles/EnemyDead.vfx`、古い構成のままの `Assets/GEMINI.md` が残っている。消すかはユーザーが決める
 - 【見た目】体を貸していない敵が、体を貸した敵より暗く見える（区間8の「見つけた問題」）。体を貸していない敵が休みの姿勢のまま描かれる（区間4C の「見つけた問題」）。区間13へ回す
 - 【ステージ】TestStage の生成位置 C が、ボクセルの壁の中にある（区間4C の「見つけた問題」）。区間14へ回す
+- 【融解】`VoxelMeltSystem` の Spheres の表示は、1 回の描画に 1023 個まで出す。URP Lit の上限は 511（`EnemyCrowdRenderer` の注記）。InGame では使っていないので、使うかを決める区間13で直す
+- 【補助スクリプト】`scan_naming.py` が `Un〜` で始まる否定形の名前を検出しない（スキルの側）

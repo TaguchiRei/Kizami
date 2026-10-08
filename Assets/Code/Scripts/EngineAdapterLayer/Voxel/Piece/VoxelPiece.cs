@@ -6,6 +6,7 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UsefulToolkit.BlackBoard.BlackBoard;
+using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter.Voxel
 {
@@ -259,7 +260,7 @@ namespace Kizami.EngineAdapter.Voxel
 
             if (source.MaxDistance < layout.VoxelSize * 2f)
             {
-                Debug.LogWarning(
+                UsefulLogger.LogWarning(
                     $"ベイク時の最大距離 {source.MaxDistance} がボクセル 2 つ分 {layout.VoxelSize * 2f} より短い為、法線が荒れます。" +
                     "最大距離を大きくしてベイクし直してください。", this);
             }
@@ -281,7 +282,7 @@ namespace Kizami.EngineAdapter.Voxel
         {
             if (_volume == null)
             {
-                Debug.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
+                UsefulLogger.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
                 return;
             }
 
@@ -323,7 +324,7 @@ namespace Kizami.EngineAdapter.Voxel
         {
             if (_volume == null)
             {
-                Debug.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
+                UsefulLogger.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
                 return Array.Empty<VoxelPiece>();
             }
 
@@ -387,7 +388,7 @@ namespace Kizami.EngineAdapter.Voxel
         {
             if (_volume == null)
             {
-                Debug.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
+                UsefulLogger.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
                 return;
             }
 
@@ -395,7 +396,7 @@ namespace Kizami.EngineAdapter.Voxel
             {
                 if (!_hasWarnedThermalSettings)
                 {
-                    Debug.LogWarning("VoxelMeltSystem または VoxelThermalSettings が設定されていない為、加熱を無視します。", this);
+                    UsefulLogger.LogWarning("VoxelMeltSystem または VoxelThermalSettings が設定されていない為、加熱を無視します。", this);
                     _hasWarnedThermalSettings = true;
                 }
 
@@ -886,7 +887,7 @@ namespace Kizami.EngineAdapter.Voxel
         {
             if (_quality == null)
             {
-                Debug.LogError("VoxelQualitySettings が設定されていません。", this);
+                UsefulLogger.LogError("VoxelQualitySettings が設定されていません。", this);
                 layout = default;
                 return false;
             }

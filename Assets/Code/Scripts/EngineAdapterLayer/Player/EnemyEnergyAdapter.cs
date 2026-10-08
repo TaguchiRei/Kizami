@@ -20,8 +20,7 @@ namespace Kizami.EngineAdapter
     /// </remarks>
     public sealed class EnemyEnergyAdapter : InitializableMonoBehaviour
     {
-        private const string ENERGY_EVENT_NAME = "OnEnergy";
-
+        private static readonly int _energyEventId = Shader.PropertyToID("OnEnergy");
         private static readonly int _positionsId = Shader.PropertyToID("EnergyPositions");
         private static readonly int _positionCountId = Shader.PropertyToID("EnergyPositionCount");
         private static readonly int _targetId = Shader.PropertyToID("EnergyTarget");
@@ -44,7 +43,6 @@ namespace Kizami.EngineAdapter
         private Action<int> _onDefeatedCollected;
         private GraphicsBuffer _positionBuffer;
         private VFXEventAttribute _eventAttribute;
-        private int _energyEventId;
 
         /// <summary> このフレームに溜めた、倒した敵の数 </summary>
         private int _pendingCount;
@@ -66,7 +64,6 @@ namespace Kizami.EngineAdapter
                 _positionBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, _maxPositionsPerFrame,
                     sizeof(float) * 3);
                 _eventAttribute = _effect.CreateVFXEventAttribute();
-                _energyEventId = Shader.PropertyToID(ENERGY_EVENT_NAME);
             }
 
             base.Initialize();

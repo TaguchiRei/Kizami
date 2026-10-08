@@ -179,5 +179,34 @@ namespace Kizami.EngineAdapter
             var node = GetLandingNode(column, fromHeight);
             return node >= 0 && math.abs(Heights[node] - fromHeight) <= ClimbHeight;
         }
+
+        /// <summary>
+        /// 高さ height で列 column にいるとき、水平の位置 probe の列へ進めないか。同じ列なら進める。
+        /// </summary>
+        public bool IsBlocked(int column, float height, float2 probe)
+        {
+            if (!TryGetColumn(new float3(probe.x, height, probe.y), out var probeColumn)) return true;
+
+            return probeColumn != column && GetLandingNode(probeColumn, height) < 0;
+        }
+
+        /// <summary>
+        /// origin から水平の向き direction へマスの一辺ずつ進み、origin と同じ高さの床が続く長さ（m）を maxLength まで返す。
+        /// </summary>
+        public float GetFlatFloorLength(float3 origin, float2 direction, float maxLength)
+        {
+            var steps = (int)math.ceil(maxLength / CellSize);
+            for (var s = 1; s <= steps; s++)
+            {
+                var length = math.min(s * CellSize, maxLength);
+                var point = origin + new float3(direction.x, 0f, direction.y) * length;
+                if (!TryGetColumn(point, out var column) || GetNodeNear(column, origin.y) < 0)
+                {
+                    return (s - 1) * CellSize;
+                }
+            }
+
+            return maxLength;
+        }
     }
 }

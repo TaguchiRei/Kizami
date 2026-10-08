@@ -203,7 +203,7 @@ namespace Kizami.EngineAdapter
 
             speed *= math.saturate(targetDistance / SLOW_DOWN_DISTANCE);
             var probe = agent.Position.xz + toTarget / targetDistance * Grid.CellSize;
-            if (!IsBlocked(column, height, probe))
+            if (!Grid.IsBlocked(column, height, probe))
             {
                 Step(ref agent, column, height, toTarget, speed);
                 return;
@@ -239,16 +239,6 @@ namespace Kizami.EngineAdapter
         {
             var yawDelta = math.atan2(math.sin(desiredYaw - agent.Yaw), math.cos(desiredYaw - agent.Yaw));
             agent.Yaw += math.clamp(yawDelta, -TurnSpeed * DeltaTime, TurnSpeed * DeltaTime);
-        }
-
-        /// <summary>
-        /// 高さ height で列 column にいる敵が、水平の位置 probe の列へ進めないか。同じ列なら進める。
-        /// </summary>
-        private bool IsBlocked(int column, float height, float2 probe)
-        {
-            if (!Grid.TryGetColumn(new float3(probe.x, height, probe.y), out var probeColumn)) return true;
-
-            return probeColumn != column && Grid.GetLandingNode(probeColumn, height) < 0;
         }
 
         /// <summary>
@@ -327,21 +317,7 @@ namespace Kizami.EngineAdapter
         private float ClampLateral(float3 point, float2 right, float lateral)
         {
             var side = math.sign(lateral);
-            var length = math.abs(lateral);
-            var steps = (int)math.ceil(length / Grid.CellSize);
-
-            for (var s = 1; s <= steps; s++)
-            {
-                var stepLength = math.min(s * Grid.CellSize, length);
-                var probe = point.xz + right * (side * stepLength);
-                if (!Grid.TryGetColumn(new float3(probe.x, point.y, probe.y), out var column)
-                    || Grid.GetNodeNear(column, point.y) < 0)
-                {
-                    return side * (s - 1) * Grid.CellSize;
-                }
-            }
-
-            return lateral;
+            return side * Grid.GetFlatFloorLength(point, right * side, math.abs(lateral));
         }
 
         /// <summary>
