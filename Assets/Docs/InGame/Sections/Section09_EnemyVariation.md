@@ -51,7 +51,7 @@
 |---|---|---|---|
 | 1 | 前提の区間11（失敗・HUD）と区間10が、まだ手を付けていない | 全体計画書 5 章 | 区間9を先に行う（2026-10-08、全体計画で順番を変えた） |
 | 2 | 9-4 の仮モデルは要らない | 上のモデルの表 | 9-4 を「届いたモデルからプレハブを作る」に変える |
-| 3 | 敵の仕組みが、体のプレハブ 1 つを前提にしている | `EnemySpawnAdapter._bodyPrefab`、`EnemyCrowdRenderer(bodyPrefab)`、`EnemyShapeKeeper(partCount)`、移動 Job の `BrokenMovePartLimit` | 敵の種類を足す 9-3 を最初の作業にする。ほかの作業はこれに乗る |
+| 3 | 敵の仕組みが、体のプレハブ 1 つを前提にしている | `EnemySpawnAdapter._bodyPrefab`、`EnemyBodyLender(bodyPrefab)`（中の `EnemyShapeKeeper(partCount)`）、`EnemyCrowdRenderer(bodyPrefab)`、移動 Job の `BrokenMovePartLimit` | 敵の種類を足す 9-3 を最初の作業にする。ほかの作業はこれに乗る |
 | 4 | 剣がシールドで止まらない。装甲の耐久値を減らすのと同じ振りで、奥の敵も切れる | `MeleeCutAdapter.CollectTargets`（装甲と切る対象を、同じ箱で別々に集める） | 切る対象ごとに、カメラから Armor レイヤーへレイを撃ち、当たったら切らない（区間8から持ち越し） |
 | 5 | シールドは前面の大きな壁 | 上のモデルの表 | 「かくまう」を、壁の後ろに群れを置く形にする（決めることの 3） |
 | 6 | シールドの端（中心から 10.5m）は、体を貸す距離（12m）の外になりうる。そのときは当たり判定がなく、通り抜けられる | `EnemySpawnAdapter._lendDistance = 12`、`_returnDistance = 18` | 体を貸す距離を種類ごとに持たせる（決めることの 4） |
@@ -61,7 +61,7 @@
 
 | # | 項目 | 案 |
 |---|---|---|
-| 1 | 敵の種類の持ち方 | 列挙 `EnemyKind` を作り、`EnemyAgent` に `Kind` を足す。`EnemySpawnAdapter` が、種類ごとに体のプレハブ・体の数・まとめて描画を持つ。移動部位の上限は、出すときに敵の状態へ書いて Job から読む |
+| 1 | 敵の種類の持ち方 | 列挙 `EnemyKind` を作り、`EnemyAgent` に `Kind` を足す。`EnemySpawnAdapter` が、種類ごとに体のプレハブと、体の貸し借り（`EnemyBodyLender`）・まとめて描画（`EnemyCrowdRenderer`）を持つ。移動部位の上限は、出すときに敵の状態へ書いて Job から読む |
 | 2 | 生成情報の編成 | `EnemySpawnInfo` と `EnemyInitialSpawnArea` に「グループの編成」（種類の並び。例：Defender, Attacker×11）を持たせ、その順でグループを埋める。空なら全部 Attacker にして、今のシーンの挙動を変えない |
 | 3 | かくまい方 | シールドを持つ敵をグループの先頭に置く。シールドが残っている間、そのグループのメンバーは交戦に入らず、隊列のまま壁の後ろを進む。壊れたら普通に交戦する。かくまう数は 1 グループ（12 体）。隊列の幅は横 2.5m × 最大 4 列で約 7.5m なので、壁の幅に収まる |
 | 4 | シールドの当たり判定 | シールドに `ArmorPanel`（耐久値 10）、MeshCollider（Armor レイヤー）、Kinematic の Rigidbody を付けて体と一緒に動かす。耐久値は `EnemyAgent` に持ち、体を返しても続くようにする。シールドを持つ敵の、体を貸す距離は 25m 程度にする |

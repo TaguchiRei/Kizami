@@ -46,7 +46,7 @@ flowchart TD
 
 これにより、溶けていく境目が格子の段差にならず、滑らかに後退していく。
 
-> 加熱の本体は [`VoxelHeatJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelHeatJob.cs)<sup>[L16](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelHeatJob.cs#L16)</sup>、呼び出しは [`VoxelVolume.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L147](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L147)</sup> → [`VoxelPiece.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L385](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L385)</sup> で行っている。
+> 加熱の本体は [`VoxelHeatJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelHeatJob.cs)<sup>[L16](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Thermal/VoxelHeatJob.cs#L16)</sup>、呼び出しは [`VoxelVolume.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs)<sup>[L147](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelVolume.cs#L147)</sup> → [`VoxelPiece.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L386](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L386)</sup> で行っている。
 
 ### 粒へのまとめ方
 
@@ -58,7 +58,7 @@ flowchart TD
 ### 融解で塊が分かれた場合
 
 溶けて固体が分かれた場合も、削ったときと同じく切り離し判定をする（[Piece.md](Piece.md) 参照）。
-違いは、**切り離すには小さすぎる塊を、[消さずに溶けた粒として渡す](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L854](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L854)</sup>** こと。溶け残りの小片が突然消えて見えないようにするため。
+違いは、**切り離すには小さすぎる塊を、[消さずに溶けた粒として渡す](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L855](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L855)</sup>** こと。溶け残りの小片が突然消えて見えないようにするため。
 
 ## 4. 冷却
 
@@ -92,7 +92,7 @@ sequenceDiagram
 
 ピースを直接加熱することもできるが、その場合もピースに融解システムが設定されていないと何も起きない（一度だけ警告が出る）。
 
-> シーン全体の加熱は [`VoxelMeltSystem.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs)<sup>[L126](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs#L126)</sup>、個別の加熱は [`VoxelPiece.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L385](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L385)</sup> で行う。
+> シーン全体の加熱は [`VoxelMeltSystem.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs)<sup>[L127](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs#L127)</sup>、個別の加熱は [`VoxelPiece.ApplyHeat`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L386](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L386)</sup> で行う。
 
 ## 6. 設定
 
