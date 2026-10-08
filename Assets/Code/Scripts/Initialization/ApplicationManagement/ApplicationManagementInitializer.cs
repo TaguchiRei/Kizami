@@ -30,8 +30,6 @@ namespace Kizami.Initialization
         [Tooltip("エディタ上でのみ有効。Auto 以外にすると実行環境の判定を無視して固定する。")]
         private BuildModeOverride _editorBuildModeOverride = BuildModeOverride.Auto;
 
-        private BuildModeState _buildModeState;
-
         public override void Initialize(IBlackBoard blackBoard)
         {
             if (!blackBoard.TryGetBoard<AppBoard>(out var appBoard, this))
@@ -40,9 +38,9 @@ namespace Kizami.Initialization
                 return;
             }
 
-            _buildModeState = new BuildModeState();
-            _buildModeState.SetBuildMode(ResolveBuildMode());
-            appBoard.RegisterGameState<IBuildModeState>(_buildModeState);
+            var buildModeState = new BuildModeState();
+            buildModeState.SetBuildMode(ResolveBuildMode());
+            appBoard.RegisterGameState<IBuildModeState>(buildModeState);
 
             base.Initialize(blackBoard);
         }

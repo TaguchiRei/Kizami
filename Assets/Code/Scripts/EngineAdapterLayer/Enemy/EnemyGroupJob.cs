@@ -10,18 +10,10 @@ namespace Kizami.EngineAdapter
     /// あわせて、交戦している敵へ、プレイヤーの周りの螺旋の上の置き場を割り当てる。
     /// 別のグループや別の敵の置き場を見るので、順番に依存しないよう、並列にせず 1 つの Job で回す。
     /// </summary>
-    /// <remarks>
-    /// アンカーは EnemyMoveJob の敵と同じ規則で距離マップを下るが、落ちずに床の高さへ合わせる。速さは敵より遅く、加速度の上限を持つ。
-    /// プレイヤーまでの経路が包囲の距離以下になったアンカーは、プレイヤーを中心にした螺旋の上の置き場のうち、空いていて最も近いものを受け取り、そこへ向かう。
-    /// 置き場はプレイヤーと一緒に動き、置き場が包囲を手放す距離より離れたら手放して、距離マップを下る状態に戻る。
-    /// 先に近づいたグループが内側の置き場を取るので、グループは来た向きのまま、プレイヤーを内側から外側へ囲んでいく。
-    /// 進む・待つの時間は、グループごとに固定の割合でずらし、グループどうしが同時に動き出さないようにする。
-    /// 交戦する敵の置き場も螺旋の上に並べ（UnlimitedKnight の群衆の図）、空いていて敵に最も近いものを割り当てる。置き場は交戦に入る距離より内側だけを使う。
-    /// </remarks>
     [BurstCompile]
     public struct EnemyGroupJob : IJob
     {
-        /// <summary> 進む・待つの時間を、グループごとにずらす割合の幅（±） </summary>
+        /// <summary> 進む・待つの時間を、グループごとにずらす割合の幅（±）。グループどうしが同時に動き出さないようにする </summary>
         private const float PHASE_JITTER = 0.3f;
 
         /// <summary> アンカーが止まっているとみなす速さ（m/s）。待つ番のグループがこれより遅くなると、同じレーンの後ろのグループは待つ </summary>
@@ -77,38 +69,6 @@ namespace Kizami.EngineAdapter
         private static float MoveTowards(float current, float target, float maxDelta)
         {
             return current < target ? math.min(current + maxDelta, target) : math.max(current - maxDelta, target);
-        }
-
-        public void Execute()
-        {
-            var usedEncircleSlots = new NativeArray<bool>(MAX_ENCIRCLE_SLOTS, Allocator.Temp);
-            for (var g = 0; g < Groups.Length; g++)
-            {
-                var group = Groups[g];
-                if (group.IsActive && group.EncircleSlot >= 0) usedEncircleSlots[group.EncircleSlot] = true;
-            }
-
-            for (var g = 0; g < Groups.Length; g++)
-            {
-                var group = Groups[g];
-                if (!group.IsActive) continue;
-
-                if (!HasAliveMember(g, group))
-                {
-                    group.IsActive = false;
-                    Groups[g] = group;
-                    continue;
-                }
-
-                UpdatePhase(g, ref group);
-                MoveAnchor(g, ref group, usedEncircleSlots);
-                RecordPath(g, ref group);
-                UpdateColumnCount(ref group);
-                Groups[g] = group;
-            }
-
-            usedEncircleSlots.Dispose();
-            UpdateEngageSlots();
         }
 
         private bool HasAliveMember(int g, in EnemyGroup group)
@@ -224,6 +184,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 置き場までの直線の距離が包囲を手放す距離を超えたら手放し、置き場がなくプレイヤーまでの経路が包囲の距離以下なら、空いていて最も近い置き場を受け取る。
+        /// 先に近づいたグループが内側の置き場を取るので、グループは来た向きのまま、プレイヤーを内側から外側へ囲んでいく。
         /// </summary>
         private void UpdateEncircleSlot(ref EnemyGroup group, float distance, NativeArray<bool> usedEncircleSlots)
         {
@@ -255,7 +216,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 包囲の置き場の位置（水平）。
+        /// 包囲の置き場の位置（水平）。プレイヤーを中心にした螺旋の上にあり、プレイヤーと一緒に動く。
         /// </summary>
         private float2 GetEncirclePoint(int slot)
         {
@@ -271,8 +232,7 @@ namespace Kizami.EngineAdapter
         {
             heading = toSlot;
             var probe = position.xz + math.normalizesafe(toSlot) * Grid.CellSize;
-            if (Grid.TryGetColumn(new float3(probe.x, height, probe.y), out var probeColumn)
-                && (probeColumn == column || Grid.GetLandingNode(probeColumn, height) >= 0)) return true;
+            if (!Grid.IsBlocked(column, height, probe)) return true;
 
             if (Grid.TryGetColumnToward(column, height, position.xz + toSlot, out var towardColumn)
                 || (!float.IsPositiveInfinity(distance)
@@ -309,10 +269,7 @@ namespace Kizami.EngineAdapter
 
             var toFar = (Grid.GetCellCenter(farColumn, 0f) - position).xz;
             var probe = position.xz + math.normalizesafe(toFar) * Grid.CellSize;
-            if (!Grid.TryGetColumn(new float3(probe.x, height, probe.y), out var probeColumn)) return toNext;
-            if (probeColumn != column && Grid.GetLandingNode(probeColumn, height) < 0) return toNext;
-
-            return toFar;
+            return Grid.IsBlocked(column, height, probe) ? toNext : toFar;
         }
 
         /// <summary>
@@ -387,8 +344,8 @@ namespace Kizami.EngineAdapter
             var maxColumns = group.EncircleSlot >= 0 ? Formation.EncircleColumns : Formation.MaxColumns;
             var right = new float2(math.cos(group.AnchorYaw), -math.sin(group.AnchorYaw));
             var maxSide = (maxColumns - 1) * Formation.LateralSpacing * 0.5f;
-            var width = GetFreeLength(group.AnchorPosition, right, maxSide)
-                        + GetFreeLength(group.AnchorPosition, -right, maxSide);
+            var width = Grid.GetFlatFloorLength(group.AnchorPosition, right, maxSide)
+                        + Grid.GetFlatFloorLength(group.AnchorPosition, -right, maxSide);
             var columnCount = math.clamp(1 + (int)math.floor(width / Formation.LateralSpacing), 1, maxColumns);
 
             if (columnCount == group.ColumnCount)
@@ -410,27 +367,9 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// origin から direction へマスの一辺ずつ進み、origin と同じ高さの床が続く長さ（m）を maxLength まで返す。
-        /// </summary>
-        private float GetFreeLength(float3 origin, float2 direction, float maxLength)
-        {
-            var steps = (int)math.ceil(maxLength / Grid.CellSize);
-            for (var s = 1; s <= steps; s++)
-            {
-                var length = math.min(s * Grid.CellSize, maxLength);
-                var point = origin + new float3(direction.x, 0f, direction.y) * length;
-                if (!Grid.TryGetColumn(point, out var column) || Grid.GetNodeNear(column, origin.y) < 0)
-                {
-                    return (s - 1) * Grid.CellSize;
-                }
-            }
-
-            return maxLength;
-        }
-
-        /// <summary>
         /// 交戦をやめた敵と消えた敵の置き場を空け、置き場を持たない交戦中の敵へ、空いていて最も近い置き場を割り当てる。
-        /// 使う置き場は、プレイヤーからの距離が交戦に入る距離以下のものだけ。空きがなければ、置き場を持たないまま待つ。
+        /// 置き場はプレイヤーを中心にした螺旋の上に並べ（UnlimitedKnight の群衆の図）、使うのは、プレイヤーからの距離が交戦に入る距離以下のものだけ。
+        /// 空きがなければ、置き場を持たないまま待つ。
         /// </summary>
         private void UpdateEngageSlots()
         {
@@ -485,6 +424,38 @@ namespace Kizami.EngineAdapter
             }
 
             usedSlots.Dispose();
+        }
+
+        public void Execute()
+        {
+            var usedEncircleSlots = new NativeArray<bool>(MAX_ENCIRCLE_SLOTS, Allocator.Temp);
+            for (var g = 0; g < Groups.Length; g++)
+            {
+                var group = Groups[g];
+                if (group.IsActive && group.EncircleSlot >= 0) usedEncircleSlots[group.EncircleSlot] = true;
+            }
+
+            for (var g = 0; g < Groups.Length; g++)
+            {
+                var group = Groups[g];
+                if (!group.IsActive) continue;
+
+                if (!HasAliveMember(g, group))
+                {
+                    group.IsActive = false;
+                    Groups[g] = group;
+                    continue;
+                }
+
+                UpdatePhase(g, ref group);
+                MoveAnchor(g, ref group, usedEncircleSlots);
+                RecordPath(g, ref group);
+                UpdateColumnCount(ref group);
+                Groups[g] = group;
+            }
+
+            usedEncircleSlots.Dispose();
+            UpdateEngageSlots();
         }
     }
 }

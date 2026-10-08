@@ -12,8 +12,6 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// プレイヤーの移動・視点・HP・近接切断・チャージ・スキル・スローモード・投擲まわり（Service / State / Adapter）を生成して繋ぐ配線役。インゲームのシーンへ置く。
-    /// 近接切断の結果は、敵の Adapter とかけらの Adapter の両方へ配る。
-    /// チャージには、かけらの Adapter から吸収したかけらの数を、エネルギーの Adapter から崩落で倒した敵の数を受け取る。
     /// 投擲の Adapter は、かけらの Adapter の管理から外せたかけらだけをつかむ。
     /// 操作系ごとの視点の回転のさせ方の違いは、シーンへ置く PlayerMovementAdapterBase の派生が吸収する。
     /// </summary>
@@ -52,48 +50,10 @@ namespace Kizami.Initialization
 
         public override void Initialize(IBlackBoard blackBoard)
         {
-            if (_parameters == null)
+            if (!HasRequiredReferences())
             {
-                UsefulLogger.LogError("PlayerParameterData が設定されていません。", this);
                 base.Initialize(blackBoard);
                 return;
-            }
-
-            var sceneId = gameObject.scene.buildIndex;
-            _movementService = new PlayerMovementService(blackBoard, _parameters, sceneId);
-            _lookService = new PlayerLookService(blackBoard, sceneId);
-            _chargeService = new ChargeService(blackBoard, _parameters, sceneId);
-
-            if (_fragmentOrbAdapter != null)
-            {
-                _fragmentOrbAdapter.Initialize(_chargeService.AddFragments);
-            }
-            else
-            {
-                UsefulLogger.LogError("FragmentOrbAdapter が設定されていません。", this);
-            }
-
-            if (_enemyEnergyAdapter != null)
-            {
-                _enemyEnergyAdapter.Initialize(_chargeService.AddCollapsedEnemies);
-            }
-            else
-            {
-                UsefulLogger.LogError("EnemyEnergyAdapter が設定されていません。", this);
-            }
-
-            if (_enemySpawnAdapter == null)
-            {
-                UsefulLogger.LogError("EnemySpawnAdapter が設定されていません。", this);
-            }
-
-            if (_meleeCutAdapter != null)
-            {
-                _meleeCutAdapter.Initialize(DistributeCutResults);
-            }
-            else
-            {
-                UsefulLogger.LogError("MeleeCutAdapter が設定されていません。", this);
             }
 
             if (_timeScaleController == null)
@@ -101,49 +61,33 @@ namespace Kizami.Initialization
                 UsefulLogger.LogError("ITimeScaleController を受け取れなかった為、スローモードを使えません。", this);
             }
 
+            var sceneId = gameObject.scene.buildIndex;
+            _movementService = new PlayerMovementService(blackBoard, _parameters, sceneId);
+            _lookService = new PlayerLookService(blackBoard, sceneId);
+            _chargeService = new ChargeService(blackBoard, _parameters, sceneId);
+
+            _fragmentOrbAdapter.Initialize(_chargeService.AddFragments);
+            _enemyEnergyAdapter.Initialize(_chargeService.AddCollapsedEnemies);
+            _meleeCutAdapter.Initialize(DistributeCutResults);
+
             // SlowModeService は ChargeState を取得する為、ChargeService の生成より後に生成する
             _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
-
-            _meleeCutService = new MeleeCutService(blackBoard, _parameters,
-                _meleeCutAdapter != null ? _meleeCutAdapter.Swing : null, _slowModeService.TryUseCut, sceneId);
-
-            if (_voxelDestructionAdapter == null)
-            {
-                UsefulLogger.LogError("VoxelDestructionAdapter が設定されていません。", this);
-            }
-
+            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _meleeCutAdapter.Swing,
+                _slowModeService.TryUseCut, sceneId);
             _skillService = new SkillService(blackBoard, _equippedSkills, _chargeService,
-                _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveBeam : null,
-                _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveExplosion : null, sceneId);
+                _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, sceneId);
 
-            if (_fragmentThrowAdapter != null)
-            {
-                _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter != null ? _fragmentOrbAdapter.TryTake : null);
-            }
-            else
-            {
-                UsefulLogger.LogError("FragmentThrowAdapter が設定されていません。", this);
-            }
+            _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake);
 
             // FragmentThrowService は SlowModeState を取得する為、SlowModeService の生成より後に生成する
-            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters,
-                _fragmentThrowAdapter != null ? _fragmentThrowAdapter.TryGrab : null,
-                _fragmentThrowAdapter != null ? _fragmentThrowAdapter.Throw : null,
-                _fragmentThrowAdapter != null ? _fragmentThrowAdapter.TryLoad : null,
-                _fragmentThrowAdapter != null ? _fragmentThrowAdapter.Fire : null);
+            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _fragmentThrowAdapter.TryGrab,
+                _fragmentThrowAdapter.Throw, _fragmentThrowAdapter.TryLoad, _fragmentThrowAdapter.Fire);
 
             // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
             _healthService.Initialize(blackBoard, _parameters, sceneId);
 
             // 以降の Adapter は Service が登録した State を取得する為、Service の生成より後に初期化する
-            if (_movementAdapter != null)
-            {
-                _movementAdapter.Initialize(blackBoard, _movementService.Step);
-            }
-            else
-            {
-                UsefulLogger.LogError("PlayerMovementAdapterBase が設定されていません。", this);
-            }
+            _movementAdapter.Initialize(blackBoard, _movementService.Step);
 
             // カメラの上下方向反映は操作系によっては使わない（例: VR は HMD の姿勢が担う）為、未設定でもエラーにしない
             if (_cameraAdapter != null)
@@ -151,25 +95,28 @@ namespace Kizami.Initialization
                 _cameraAdapter.Initialize(blackBoard);
             }
 
-            if (_meleeCutPreviewAdapter != null)
-            {
-                _meleeCutPreviewAdapter.Initialize(blackBoard);
-            }
-            else
-            {
-                UsefulLogger.LogError("MeleeCutPreviewAdapter が設定されていません。", this);
-            }
-
-            if (_hudAdapter != null)
-            {
-                _hudAdapter.Initialize(blackBoard);
-            }
-            else
-            {
-                UsefulLogger.LogError("PlayerHudAdapter が設定されていません。", this);
-            }
+            _meleeCutPreviewAdapter.Initialize(blackBoard);
+            _hudAdapter.Initialize(blackBoard);
 
             base.Initialize(blackBoard);
+        }
+
+        /// <summary>
+        /// 必須の参照がすべて設定されているかを返す。足りないものは、すべてエラーログに出す。
+        /// </summary>
+        private bool HasRequiredReferences()
+        {
+            var hasAll = this.IsAssigned(_parameters, nameof(PlayerParameterData));
+            hasAll &= this.IsAssigned(_movementAdapter, nameof(PlayerMovementAdapterBase));
+            hasAll &= this.IsAssigned(_meleeCutPreviewAdapter, nameof(MeleeCutPreviewAdapter));
+            hasAll &= this.IsAssigned(_meleeCutAdapter, nameof(MeleeCutAdapter));
+            hasAll &= this.IsAssigned(_fragmentOrbAdapter, nameof(FragmentOrbAdapter));
+            hasAll &= this.IsAssigned(_enemyEnergyAdapter, nameof(EnemyEnergyAdapter));
+            hasAll &= this.IsAssigned(_enemySpawnAdapter, nameof(EnemySpawnAdapter));
+            hasAll &= this.IsAssigned(_voxelDestructionAdapter, nameof(VoxelDestructionAdapter));
+            hasAll &= this.IsAssigned(_hudAdapter, nameof(PlayerHudAdapter));
+            hasAll &= this.IsAssigned(_fragmentThrowAdapter, nameof(FragmentThrowAdapter));
+            return hasAll;
         }
 
         /// <summary>
@@ -178,8 +125,8 @@ namespace Kizami.Initialization
         /// </summary>
         private void DistributeCutResults(MultiCutResult[] results, Plane plane)
         {
-            if (_enemySpawnAdapter != null) _enemySpawnAdapter.ReceiveCutResults(results, plane);
-            if (_fragmentOrbAdapter != null) _fragmentOrbAdapter.ReceiveCutResults(results);
+            _enemySpawnAdapter.ReceiveCutResults(results, plane);
+            _fragmentOrbAdapter.ReceiveCutResults(results);
         }
 
         private void Awake()

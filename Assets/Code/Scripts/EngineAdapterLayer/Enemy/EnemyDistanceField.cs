@@ -14,15 +14,10 @@ namespace Kizami.EngineAdapter
     /// 敵の経路の格子（EnemyNavigationGrid）を作って持ち、プレイヤーからの距離マップを計算する。
     /// </summary>
     /// <remarks>
-    /// 立てる層は、作るときに列ごとに下向きのレイを撃って床の上面を集め、上に敵の背丈の分だけ物が重ならないものを残す。
     /// 頭上の判定をレイでなく箱の重なりで行うのは、レイが始まった位置のコライダーを検出せず、壁の中の地面を立てると判定してしまう為。
-    /// ボクセルの形が変わったら、変わった範囲の列だけを同じ物理のクエリで調べ直す（Watch）。
-    /// 隣のノードからたどり着けるかは、格子を作るときに辺（ノードごとに、そこへ進めるノードを表すビット）として求めておく。
-    /// 距離はプレイヤーのいるノードから辺を逆向きにたどって Job で求める。コストは縦横 10・斜め 14 の整数にし、
-    /// コストの値ごとのバケットに分けて小さい順に確定させる（Dial 法）。辺のコストの最大が 14 なので、バケットは 15 個を使い回せる。
     /// 計算は 2 つの配列を入れ替えて行い、Job が終わるまで前の結果を読めるようにする。Job は複数のフレームにまたがってよい。
     /// </remarks>
-    // TODO: 区間14で、2 段の距離マップと、エディタでの事前の焼き付けを作る
+    // TODO: 2 段の距離マップと、エディタでの事前の焼き付けを作る
     public sealed class EnemyDistanceField : IDisposable
     {
         private const int MAX_LAYERS = EnemyNavigationGrid.MAX_LAYERS;
@@ -178,6 +173,44 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// ローカル空間の範囲を Transform でワールド空間へ移し、8 つの角を囲む範囲を返す。
+        /// </summary>
+        private static Bounds TransformBounds(Transform transform, Bounds localBounds)
+        {
+            var worldBounds = new Bounds(transform.TransformPoint(localBounds.min), Vector3.zero);
+            for (var corner = 1; corner < 8; corner++)
+            {
+                var local = new Vector3(
+                    (corner & 1) == 0 ? localBounds.min.x : localBounds.max.x,
+                    (corner & 2) == 0 ? localBounds.min.y : localBounds.max.y,
+                    (corner & 4) == 0 ? localBounds.min.z : localBounds.max.z);
+                worldBounds.Encapsulate(transform.TransformPoint(local));
+            }
+
+            return worldBounds;
+        }
+
+        private static bool IsMoving(Rigidbody body)
+        {
+            return body != null && !body.isKinematic && !body.IsSleeping();
+        }
+
+        /// <summary>
+        /// 頭上の判定の箱に重なったコライダーが、動いている Rigidbody のものだけなら true。
+        /// </summary>
+        private static bool IsClear(NativeArray<ColliderHit> hits, int start)
+        {
+            for (var h = 0; h < MAX_BOX_HITS; h++)
+            {
+                var collider = hits[start + h].collider;
+                if (collider == null) break;
+                if (!IsMoving(collider.attachedRigidbody)) return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// 毎フレーム呼ぶ。終わった計算の結果を読める側へ移し、形が変わった範囲の列を調べ直す。
         /// 調べ直したか、プレイヤーのいるノードが前の計算と変わっていれば、次の計算を始める。
         /// 格子を書き換えるのは距離の計算が走っていない間だけで、調べ直してから次の計算が終わるまでは、前の距離を読む。
@@ -265,26 +298,6 @@ namespace Kizami.EngineAdapter
                     }
                 }
             }
-        }
-
-        public void Dispose()
-        {
-            _jobHandle.Complete();
-            _recorder.Dispose();
-            foreach (var subscription in _subscriptions)
-            {
-                subscription.Dispose();
-            }
-
-            _subscriptions.Clear();
-            if (_grid.Heights.IsCreated) _grid.Heights.Dispose();
-            if (_grid.LayerCounts.IsCreated) _grid.LayerCounts.Dispose();
-            if (_distances.IsCreated) _distances.Dispose();
-            if (_workingDistances.IsCreated) _workingDistances.Dispose();
-            if (_incomingEdges.IsCreated) _incomingEdges.Dispose();
-            if (_costs.IsCreated) _costs.Dispose();
-            if (_previousInBucket.IsCreated) _previousInBucket.Dispose();
-            if (_nextInBucket.IsCreated) _nextInBucket.Dispose();
         }
 
         /// <summary>
@@ -521,42 +534,24 @@ namespace Kizami.EngineAdapter
             _pendingRegions.Add(new PendingRegion(null, piece.WorldBounds, false));
         }
 
-        /// <summary>
-        /// ローカル空間の範囲を Transform でワールド空間へ移し、8 つの角を囲む範囲を返す。
-        /// </summary>
-        private static Bounds TransformBounds(Transform transform, Bounds localBounds)
+        public void Dispose()
         {
-            var worldBounds = new Bounds(transform.TransformPoint(localBounds.min), Vector3.zero);
-            for (var corner = 1; corner < 8; corner++)
+            _jobHandle.Complete();
+            _recorder.Dispose();
+            foreach (var subscription in _subscriptions)
             {
-                var local = new Vector3(
-                    (corner & 1) == 0 ? localBounds.min.x : localBounds.max.x,
-                    (corner & 2) == 0 ? localBounds.min.y : localBounds.max.y,
-                    (corner & 4) == 0 ? localBounds.min.z : localBounds.max.z);
-                worldBounds.Encapsulate(transform.TransformPoint(local));
+                subscription.Dispose();
             }
 
-            return worldBounds;
-        }
-
-        private static bool IsMoving(Rigidbody body)
-        {
-            return body != null && !body.isKinematic && !body.IsSleeping();
-        }
-
-        /// <summary>
-        /// 頭上の判定の箱に重なったコライダーが、動いている Rigidbody のものだけなら true。
-        /// </summary>
-        private static bool IsClear(NativeArray<ColliderHit> hits, int start)
-        {
-            for (var h = 0; h < MAX_BOX_HITS; h++)
-            {
-                var collider = hits[start + h].collider;
-                if (collider == null) break;
-                if (!IsMoving(collider.attachedRigidbody)) return false;
-            }
-
-            return true;
+            _subscriptions.Clear();
+            if (_grid.Heights.IsCreated) _grid.Heights.Dispose();
+            if (_grid.LayerCounts.IsCreated) _grid.LayerCounts.Dispose();
+            if (_distances.IsCreated) _distances.Dispose();
+            if (_workingDistances.IsCreated) _workingDistances.Dispose();
+            if (_incomingEdges.IsCreated) _incomingEdges.Dispose();
+            if (_costs.IsCreated) _costs.Dispose();
+            if (_previousInBucket.IsCreated) _previousInBucket.Dispose();
+            if (_nextInBucket.IsCreated) _nextInBucket.Dispose();
         }
 
         /// <summary>
@@ -621,7 +616,8 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 始点のノードから、各ノードがそこへたどり着くまでの距離を求める。
+        /// 始点のノードから辺を逆向きにたどり、各ノードがそこへたどり着くまでの距離を求める。
+        /// コストは縦横 STRAIGHT_COST・斜め DIAGONAL_COST の整数にし、コストの値ごとのバケットに分けて小さい順に確定させる（Dial 法）。
         /// 未確定のノードは、コストを BUCKET_COUNT で割った余りのバケット（双方向の連結リスト）に 1 つだけ入れ、コストが下がったら入れ替える。
         /// </summary>
         [BurstCompile]

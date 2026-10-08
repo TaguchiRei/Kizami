@@ -8,7 +8,6 @@ namespace Kizami.EngineAdapter
     /// Burst の Job へ渡して読むための値で、配列の持ち主は EnemyDistanceField。
     /// </summary>
     /// <remarks>
-    /// 敵が高さ h から隣の列へ進むと、その列のうち「h ＋ 登れる高さ」以下で最も高い層に乗る。その層が「h − 降りられる高さ」より低ければ進めない。
     /// 列番号は z × 幅 ＋ x、ノード番号は 列番号 × MAX_LAYERS ＋ 層の番号。
     /// </remarks>
     public struct EnemyNavigationGrid
@@ -178,6 +177,35 @@ namespace Kizami.EngineAdapter
         {
             var node = GetLandingNode(column, fromHeight);
             return node >= 0 && math.abs(Heights[node] - fromHeight) <= ClimbHeight;
+        }
+
+        /// <summary>
+        /// 高さ height で列 column にいるとき、水平の位置 probe の列へ進めないか。同じ列なら進める。
+        /// </summary>
+        public bool IsBlocked(int column, float height, float2 probe)
+        {
+            if (!TryGetColumn(new float3(probe.x, height, probe.y), out var probeColumn)) return true;
+
+            return probeColumn != column && GetLandingNode(probeColumn, height) < 0;
+        }
+
+        /// <summary>
+        /// origin から水平の向き direction へマスの一辺ずつ進み、origin と同じ高さの床が続く長さ（m）を maxLength まで返す。
+        /// </summary>
+        public float GetFlatFloorLength(float3 origin, float2 direction, float maxLength)
+        {
+            var steps = (int)math.ceil(maxLength / CellSize);
+            for (var s = 1; s <= steps; s++)
+            {
+                var length = math.min(s * CellSize, maxLength);
+                var point = origin + new float3(direction.x, 0f, direction.y) * length;
+                if (!TryGetColumn(point, out var column) || GetNodeNear(column, origin.y) < 0)
+                {
+                    return (s - 1) * CellSize;
+                }
+            }
+
+            return maxLength;
         }
     }
 }

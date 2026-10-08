@@ -14,7 +14,7 @@ namespace Kizami.EngineAdapter
         private IDisposable _lookSubscription;
 
         /// <summary>
-        /// PlayerInitializer から呼ばれる。PlayerLookState の登録より後に呼ぶこと。
+        /// PlayerLookState の登録より後に呼ぶこと。
         /// </summary>
         /// <param name="blackBoard">視点ステートの取得元</param>
         public void Initialize(IBlackBoard blackBoard)

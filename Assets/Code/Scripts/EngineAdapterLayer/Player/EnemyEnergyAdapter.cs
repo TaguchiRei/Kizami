@@ -16,12 +16,10 @@ namespace Kizami.EngineAdapter
     /// VFX Graph で受け取るものは次のとおり（名前を変えるときは、グラフの側も合わせる）。
     /// GraphicsBuffer の EnergyPositions（float3 の並び）、int の EnergyPositionCount（その数）、Vector3 の EnergyTarget（吸い込む先）、
     /// イベント OnEnergy（spawnCount に出す粒の数を入れて送る）。
-    /// 粒の時間は VFX Graph の既定どおり Time.deltaTime で進み、スローモード中は一緒に遅くなる。
     /// </remarks>
     public sealed class EnemyEnergyAdapter : InitializableMonoBehaviour
     {
-        private const string ENERGY_EVENT_NAME = "OnEnergy";
-
+        private static readonly int _energyEventId = Shader.PropertyToID("OnEnergy");
         private static readonly int _positionsId = Shader.PropertyToID("EnergyPositions");
         private static readonly int _positionCountId = Shader.PropertyToID("EnergyPositionCount");
         private static readonly int _targetId = Shader.PropertyToID("EnergyTarget");
@@ -44,14 +42,10 @@ namespace Kizami.EngineAdapter
         private Action<int> _onDefeatedCollected;
         private GraphicsBuffer _positionBuffer;
         private VFXEventAttribute _eventAttribute;
-        private int _energyEventId;
 
         /// <summary> このフレームに溜めた、倒した敵の数 </summary>
         private int _pendingCount;
 
-        /// <summary>
-        /// PlayerInitializer から呼ばれる。
-        /// </summary>
         /// <param name="onDefeatedCollected">フレームごとに、そのフレームに倒した敵の数を渡す関数（ChargeService.AddCollapsedEnemies）</param>
         public void Initialize(Action<int> onDefeatedCollected)
         {
@@ -66,7 +60,6 @@ namespace Kizami.EngineAdapter
                 _positionBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, _maxPositionsPerFrame,
                     sizeof(float) * 3);
                 _eventAttribute = _effect.CreateVFXEventAttribute();
-                _energyEventId = Shader.PropertyToID(ENERGY_EVENT_NAME);
             }
 
             base.Initialize();

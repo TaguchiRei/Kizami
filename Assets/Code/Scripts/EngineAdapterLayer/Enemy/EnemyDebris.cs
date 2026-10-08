@@ -84,15 +84,15 @@ namespace Kizami.EngineAdapter
             return _elapsed < lifetime;
         }
 
+        public void OnRecycle()
+        {
+            _gameObject.SetActive(false);
+        }
+
         private void SetDissolveAmount(float amount)
         {
             _propertyBlock.SetFloat(_dissolveAmountId, Mathf.Clamp01(amount));
             _renderer.SetPropertyBlock(_propertyBlock);
-        }
-
-        public void OnRecycle()
-        {
-            _gameObject.SetActive(false);
         }
     }
 }

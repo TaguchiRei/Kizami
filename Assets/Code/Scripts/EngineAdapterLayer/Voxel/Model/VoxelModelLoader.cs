@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
+using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter.Voxel
 {
@@ -180,7 +181,7 @@ namespace Kizami.EngineAdapter.Voxel
         {
             if (_model == null || _quality == null)
             {
-                Debug.LogError("VoxelModelAsset または VoxelQualitySettings が設定されていません。", this);
+                UsefulLogger.LogError("VoxelModelAsset または VoxelQualitySettings が設定されていません。", this);
                 return;
             }
 
@@ -191,7 +192,7 @@ namespace Kizami.EngineAdapter.Voxel
                 var target = string.IsNullOrEmpty(partData.Path) ? transform : transform.Find(partData.Path);
                 if (target == null)
                 {
-                    Debug.LogWarning($"パーツの読み込み先 '{partData.Path}' が見つからない為、読み込みを飛ばします。", this);
+                    UsefulLogger.LogWarning($"パーツの読み込み先 '{partData.Path}' が見つからない為、読み込みを飛ばします。", this);
                     continue;
                 }
 

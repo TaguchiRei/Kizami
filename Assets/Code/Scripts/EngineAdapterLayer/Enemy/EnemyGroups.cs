@@ -9,10 +9,6 @@ namespace Kizami.EngineAdapter
     /// 敵のグループ（EnemyGroup）と、その道筋とメンバーの配列、交戦する敵の置き場の配列を持つ。
     /// EnemySpawnAdapter が、生成した敵を順にグループへ入れ、毎フレーム EnemyGroupJob を回し、グループを 1 つずつ並べ替える。
     /// </summary>
-    /// <remarks>
-    /// グループの数は敵の状態の数と同じだけ用意する。1 体ずつ出した敵がそれぞれ別のグループになっても足りるようにする為。
-    /// 新しいグループの道筋は、アンカーの後ろ（向きと反対側）へまっすぐ伸ばした点で埋め、生成した直後から隊列の位置が決まるようにする。
-    /// </remarks>
     public sealed class EnemyGroups : IDisposable
     {
         /// <summary> グループごとの道筋の点の数。1 列の縦隊の最後尾（人数 × 列の間隔）まで届く長さにする </summary>
@@ -26,7 +22,7 @@ namespace Kizami.EngineAdapter
 
         private NativeArray<EnemyGroup> _groups;
 
-        /// <summary> グループごとに PATH_CAPACITY 個の区画を持つ道筋の点 </summary>
+        /// <summary> グループごとに PATH_CAPACITY 個の区画を持つ道筋の点。区画はリングバッファとして使う </summary>
         private NativeArray<float3> _paths;
 
         /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、メンバーの敵の番号 </summary>
@@ -65,7 +61,7 @@ namespace Kizami.EngineAdapter
             }
         }
 
-        /// <param name="capacity">敵の状態の数。グループの数の上限も同じ数にする</param>
+        /// <param name="capacity">敵の状態の数。1 体ずつ出した敵がそれぞれ別のグループになっても足りるよう、グループの数の上限も同じ数にする</param>
         public EnemyGroups(int capacity)
         {
             _groups = new NativeArray<EnemyGroup>(capacity, Allocator.Persistent);
@@ -165,14 +161,6 @@ namespace Kizami.EngineAdapter
                 Reorder(g, agents, grid, distances);
                 return;
             }
-        }
-
-        public void Dispose()
-        {
-            if (_groups.IsCreated) _groups.Dispose();
-            if (_paths.IsCreated) _paths.Dispose();
-            if (_members.IsCreated) _members.Dispose();
-            if (_engageSlots.IsCreated) _engageSlots.Dispose();
         }
 
         /// <summary>
@@ -296,7 +284,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 空いているグループを使い始め、道筋をアンカーの後ろへまっすぐ伸ばした点で埋める。空きがなければ -1。
+        /// 空いているグループを使い始め、道筋をアンカーの後ろへまっすぐ伸ばした点で埋めて、生成した直後から隊列の位置が決まるようにする。空きがなければ -1。
         /// 待つ状態から始め、phaseTimer の後に進み始める。
         /// </summary>
         private int OpenGroup(float3 anchorPosition, float anchorYaw, float phaseTimer, in EnemyFormationSettings formation)
@@ -332,6 +320,14 @@ namespace Kizami.EngineAdapter
             }
 
             return -1;
+        }
+
+        public void Dispose()
+        {
+            if (_groups.IsCreated) _groups.Dispose();
+            if (_paths.IsCreated) _paths.Dispose();
+            if (_members.IsCreated) _members.Dispose();
+            if (_engageSlots.IsCreated) _engageSlots.Dispose();
         }
     }
 }

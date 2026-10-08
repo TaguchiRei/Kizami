@@ -89,7 +89,7 @@ namespace Kizami.Application
     }
 
     /// <summary>
-    /// シーン遷移の操作面。DI コンテナ経由で配る。
+    /// シーン遷移の操作面。
     /// </summary>
     public interface IGameSceneController
     {

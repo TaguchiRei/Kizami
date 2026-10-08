@@ -54,7 +54,7 @@ namespace Kizami.BlackBoard
         float Scale { get; }
 
         /// <summary>
-        /// 倍率が変化した際に発火するイベントを登録する
+        /// 倍率が変化した際に発火するイベントを登録する。
         /// </summary>
         /// <param name="callback">変化後の倍率を受け取る処理</param>
         IDisposable RegisterOnScaleChanged(Action<float> callback);

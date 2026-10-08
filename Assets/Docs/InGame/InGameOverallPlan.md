@@ -25,6 +25,7 @@
 | [VoxelOverview.md](../Voxel/VoxelOverview.md) | ボクセルを扱う区間（5, 6, 10, 12, 14）で読む |
 | [EnemyCrowdDiscussion.md](EnemyCrowdDiscussion.md) | 敵の群衆 AI・崩落による撃破・エネルギーの議論の記録。敵を扱う区間（4A〜4C、5、9）で読む |
 | UsefulToolkit.MeshCut の README | `Library/PackageCache/com.rei.usefultoolkit.meshcut@*/README.md`。切断を扱う区間（2, 3, 4）で読む |
+| スキル `code-refactoring`・`comment-refactoring` | リファクタリングの区間（8R）で読む。ソースコードの整備、コメントの整備の順で使う |
 
 ### 手本にする既存コード
 
@@ -33,7 +34,7 @@
 | State | [PlayerMovementState](../../Code/Scripts/BlackBoardLayer/Player/Runtime/PlayerMovementState.cs)、[BuildModeState](../../Code/Scripts/BlackBoardLayer/CoreSystem/ApplicationManagement/BuildModeState.cs) | シーンごとの値は `SceneStateBase`、常駐の値は `GameStateBase`。読み取り用に `IStateGetter` を継承したインターフェースを用意し、`[RegisterBoard(typeof(〜Board))]` を付ける |
 | Service（Application） | [PlayerMovementService](../../Code/Scripts/Application/Player/PlayerMovementService.cs) | 具象の State を持つのはこのクラスだけ（Single Writer）。Board へはインターフェースで登録する。`IBlackBoard` をコンストラクタ（DI で先に生成するものは `Initialize`）で受け取り、必要な Board と State は自分で取り出す（[BlackBoardExtensions](../../Code/Scripts/BlackBoardLayer/BlackBoardExtensions.cs)）。入力は `IInputState.RegisterInput` で購読する |
 | Adapter（EngineAdapter） | [PlayerMovementAdapterBase](../../Code/Scripts/EngineAdapterLayer/Player/PlayerMovementAdapterBase.cs) | `InitializableMonoBehaviour` を継承し、`Initialize(IBlackBoard ...)` で受け取った BlackBoard から State を取り出して読む。読む State を登録する Service より後に初期化する。取り出せなかったときは基底の `Initialize()` を呼ばず、Update を止めたままにする |
-| Initializer | [PlayerInitializer](../../Code/Scripts/Initialization/Player/PlayerInitializer.cs)、[ApplicationManagementInitializer](../../Code/Scripts/Initialization/ApplicationManagement/ApplicationManagementInitializer.cs) | Service と Adapter を生成して配線するだけで、ロジックは持たない。State を集めて渡すことはせず、`IBlackBoard` をそのまま渡す |
+| Initializer | [PlayerInitializer](../../Code/Scripts/Initialization/Player/PlayerInitializer.cs)、[ApplicationManagementInitializer](../../Code/Scripts/Initialization/ApplicationManagement/ApplicationManagementInitializer.cs) | Service と Adapter を生成して配線するだけで、ロジックは持たない。State を集めて渡すことはせず、`IBlackBoard` をそのまま渡す。Inspector で受け取る必須の参照は、最初にまとめて確かめ（[InitializerExtensions](../../Code/Scripts/Initialization/InitializerExtensions.cs) の `IsAssigned`）、足りなければ全部をエラーログに出して止める |
 | DI で操作面を渡す | [GameSceneInitializer](../../Code/Scripts/Initialization/Scene/GameSceneInitializer.cs)、[PlayerInputRouteInitializerBase](../../Code/Scripts/Initialization/Input/PlayerInputRouteInitializerBase.cs) | 渡す側は `TryRegisterContent`、受け取る側は `IInjectable<T>` |
 | Application と EngineAdapter の直接配線 | [PlayerInitializer](../../Code/Scripts/Initialization/Player/PlayerInitializer.cs) が `PlayerMovementService.Step` を `PlayerMovementAdapterBase.Initialize` に渡す | 毎ステップ変わる値（視線の向き、経過時間）は引数で渡し、結果（打ち出し速度）は戻り値で返す。続く状態は State で渡す |
 | EngineAdapter が持つ State | [PlayerContactState](../../Code/Scripts/BlackBoardLayer/Player/Runtime/PlayerContactState.cs) | 物理の判定の結果を、物理ステップの後に Adapter が書く。チラつきは Adapter 側で抑える |
@@ -80,7 +81,7 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-08 時点。区間8 の完了まで）
+## 3. 現状（2026-10-08 時点。区間8R の完了まで）
 
 | 分野 | 状態 |
 |---|---|
@@ -97,7 +98,7 @@
 | かけら・オーブ・チャージ | あり（区間3）。InGame の `FragmentOrbAdapter` が、かけらを管理し、寿命（3 秒）が来たらオーブにして、`Camera.main` へ引き寄せて吸収する。吸収した数は `ChargeService.AddFragments` で `IChargeState`（`PlayerBoard`、InGame の SceneState）に加える。スキルの発動で `ChargeService.TryConsume` が消費する（区間6）。かけらは Shard レイヤーで、Shard 同士とプレイヤーとは衝突しない。切ったかけらはぶつかってもオーブにならない（区間7。地面の近くで切ったかけらがすぐオーブになり、スロー中につかめなかった為）。テスト用のステージは `TestWalls/StageBounds` で囲ってある |
 | 画面空間の擬似破壊シェーダー（`Shader/Boolean`、`Shader/Embedded`） | コードは残してあるが、Renderer Feature は Renderer から外してある。ボクセルとメッシュ切断で足りているため使っていない |
 | ステージシーン | あり（区間4A）。`Assets/Level/Scenes/Stage/TestStage/TestStage.unity` にライト・地面・`TestWalls`（`StageBounds`）・`EnemySpawnSystem` を置き、`InGameGroup` は `[TestStage（アクティブ）, InGame]`。TestStage は 200m 四方で、段差・壁・橋（`CrowdTerrain`）と、ボクセルの壁とスロープ付きの橋（`CrowdVoxelTerrain`）を置き、東西南北の 4 か所から 250 体ずつ出す（区間4B・4C）。敵の出し方は 2 つあり、有効な方が使われる：`EnemySpawnSystem_Few`（10 体、北と南に 5 体ずつ。テストプレイ用で既定）と `EnemySpawnSystem_Crowd`（1000 体。群衆の挙動や負荷を見るとき）（区間6） |
-| 敵の体と切断 | あり（区間4A・4B）。InGame の `Enemy`（`EnemyInitializer`、`EnemySpawnAdapter`）が、敵の状態（`EnemyAgent` の NativeArray。ステージシーンの `EnemySpawnSystem` の上限の数）、生成、体のプール（Inspector の数、既定 32）、近くの敵への体の貸し出しと返却、切断の受け取り、見た目用の部位（`EnemyDebris`、ディゾルブ `Kizami/EnemyDissolve`）を持つ。`EnemyBody` は、接続部側を残す、子の部位を失う、役割（核で倒れる・移動部位 4 つで止まる）、倒れたら切断済みはオーブ・切っていない部位は見た目用の物、を行う。部位の状態は体を返しても `EnemyAgent` に持ち続け、短くなった部位の形は `EnemyShapeKeeper` が預かる。攻撃はない |
+| 敵の体と切断 | あり（区間4A・4B）。InGame の `Enemy`（`EnemyInitializer`、`EnemySpawnAdapter`）が、敵の状態（`EnemyAgent` の NativeArray。ステージシーンの `EnemySpawnSystem` の上限の数）と生成を持つ。体のプール（Inspector の数、既定 32）、近くの敵への体の貸し出しと返却、切断の受け取りは `EnemyBodyLender`、見た目用の部位（`EnemyDebris`、ディゾルブ `Kizami/EnemyDissolve`）は `EnemyDebrisSpawner` が受け持ち、どちらも `EnemySpawnAdapter` が持つ（区間8R）。`EnemyBody` は、接続部側を残す、子の部位を失う、役割（核で倒れる・移動部位 4 つで止まる）、倒れたら切断済みはオーブ・切っていない部位は見た目用の物、を行う。部位の状態は体を返しても `EnemyAgent` に持ち続け、短くなった部位の形は `EnemyShapeKeeper` が預かる。攻撃はない |
 | 敵の群衆 | あり（区間4B・4C）。1000 体を `EnemyCrowdRenderer`（`RenderMeshInstanced`）でまとめて描画する。経路は格子と距離マップ（`EnemyDistanceField`。初期化のときに物理のクエリで作り、ボクセルの形が変わったら作り直しのあとで変わった列だけ調べ直す。距離は Dial 法の Job）。敵は 12 体のグループ（`EnemyGroups`、`EnemyGroupJob`）で、アンカーの道筋に沿って 1〜4 列の隊列を組み、交互に進み、プレイヤーを螺旋の置き場で囲む。近づいた敵は交戦の螺旋の置き場へ向かい、離れると隊列に戻る（`EnemyMoveJob`）。撃破の穴詰めと合流、動けない敵、戻れない敵の扱いもある。体を貸した敵は `EnemyLegs`（脚の IK）で歩く。体を貸していない敵は休みの姿勢のまま描く。設定は `EnemySpawnAdapter` の Inspector の「Formation」 |
 | 破壊対象とクリア | あり（区間5）。ステージシーンの `DestructionTarget`（`VoxelModelLoader` と同じ GameObject）が、重要パーツ（`PartPath`）が 1 つずつ必要な割合まで削れたら破壊済みにする。InGame の `Stage`（`StageInitializer`、`StageClearAdapter`）が、すべて破壊済みになったらクリアにして、仮の「STAGE CLEAR」を出す。クリアの State はまだない（区間11）。TestStage に門の形の破壊対象を 2 つ置いた |
 | 崩落による撃破とエネルギー | あり（区間5）。足場ごと 3m 以上落ちた敵（`EnemyMoveJob`）と、落ちてくるボクセルの塊に潰された敵（`EnemyCollapseDetector`）を倒す。かけらは出さない。倒した敵の位置は `EnemyEnergyAdapter`（InGame の `EnemyEnergy`）が GraphicsBuffer で VFX Graph（`EnemyEnergy.vfx`）へ渡し、粒をカメラへ吸い込ませる。チャージは倒したときに `ChargeService.AddCollapsedEnemies` で足す。Enemy と Default のレイヤーは衝突しない（落ちてくる塊が体をすり抜ける為）。TestStage に崩す張り出し（`CrowdVoxelTerrain/Overhang`）を置いた |
@@ -117,7 +118,7 @@
 
 ## 5. 区間一覧
 
-表は実施する順に並べている。区間の番号は識別用。2026-10-05 に、区間4を 4A・4B・4C に分け、区間14を追加し、区間9を区間11のあとへ移した。
+表は実施する順に並べている。区間の番号は識別用。2026-10-05 に、区間4を 4A・4B・4C に分け、区間14を追加し、区間9を区間11のあとへ移した。2026-10-08 に、区間8のあとへリファクタリングの区間8R を足し、区間9を区間10・11の前へ戻した。
 
 | # | 区間 | 主な内容 | 前提 | 目安の時期 | 最速の推定 | 状態 | 計画書 |
 |---|---|---|---|---|---|---|---|
@@ -134,17 +135,20 @@
 | B | マイルストーンB | 1 ステージが最初から最後まで遊べる | | 12/14 | 10/25 | 達成（2026-10-08） | |
 | 7 | スローモード・つかみ・投擲・ランチャー | TimeScale の倍率操作、ゲージ消費、スロー中の切断回数の上限、かけらのつかみ・投擲・ランチャー、粉砕ダメージ | 3, 5 | 12/15〜12/28 | 10/26〜10/29 | 完了（2026-10-08） | [Section07](Sections/Section07_SlowMode.md) |
 | 8 | 装甲 | 耐久値、粉砕タイプで一撃破壊、破壊ダメージの遮断、破壊対象の防御パーツ | 5, 7 | 12/29〜2027/01/04 | 10/30〜10/31 | 完了（2026-10-08） | [Section08](Sections/Section08_Armor.md) |
-| 10 | 強化型スキル・回復 | ダメージタイプのデータと判定の窓口（区間8から持ち越し）、ダメージタイプの付与などの強化型スキル、破壊属性の切断でボクセルを平面で切り分ける、HP を回復するスキル | 6, 7 | 01/05〜01/18 | 11/01〜11/04 | 未着手 | [Section10](Sections/Section10_EnhanceSkill.md) |
-| 11 | ステージ制・インゲームの流れ・HUD | ステージデータ、HUD、失敗（HP 0）、リザルトとスコア、リトライ、アウトゲームとの受け渡し、ポーズ | B | 01/19〜02/01 | 11/05〜11/08 | 未着手 | [Section11](Sections/Section11_StageFlow.md) |
-| 9 | 敵の固有アクション・バリエーション | 雑魚 3 種の固有のアクション（攻撃する敵の攻撃、シールドを持つ敵、吸収型の敵）、特殊部位（敵を生み出す部位など） | 4C, 8, 11 | 02/02〜02/15 | 11/09〜11/12 | 未着手 | [Section09](Sections/Section09_EnemyVariation.md) |
-| 14 | ステージ制作 | チュートリアル、一般戦闘、ギミック戦闘の 3 ステージ（破壊対象、マップ、生成システム、ギミック、チュートリアルの案内）、2 段の距離マップと格子の事前の焼き付け（区間4C から持ち越し） | 9, 11 | 02/16〜03/01 | 11/13〜11/16 | 未着手 | [Section14](Sections/Section14_StageContent.md) |
-| 12 | ボス | ボクセルのパーツをパーツ単位で動かすボス、ボス戦のステージ | 5, 8, 11 | 03/02〜03/22 | 11/17〜11/22 | 未着手 | [Section12](Sections/Section12_Boss.md) |
-| 13 | 仕上げ | 負荷調整、エフェクト、SE、パラメータ調整 | 全部 | 03/23〜04/05 | 11/23〜11/26 | 未着手 | [Section13](Sections/Section13_Polish.md) |
+| 8R | リファクタリング | ソースコードの整備（スキル `code-refactoring`）のあと、コメントの整備（スキル `comment-refactoring`）。挙動は変えない | 8 | 01/05〜01/11 | 10/09〜10/10 | 完了（2026-10-08） | [Section08R](Sections/Section08R_Refactoring.md) |
+| 9 | 敵の固有アクション・バリエーション | 敵の種類と編成、雑魚 3 種の固有のアクション（攻撃する敵の攻撃、シールドを持つ敵、吸収型の敵）、特殊部位（敵を生み出す部位など） | 4C, 8, 8R | 01/12〜01/25 | 10/11〜10/14 | 未着手 | [Section09](Sections/Section09_EnemyVariation.md) |
+| 10 | 強化型スキル・回復 | ダメージタイプのデータと判定の窓口（区間8から持ち越し）、ダメージタイプの付与などの強化型スキル、破壊属性の切断でボクセルを平面で切り分ける、HP を回復するスキル | 6, 7 | 01/26〜02/08 | 10/15〜10/18 | 未着手 | [Section10](Sections/Section10_EnhanceSkill.md) |
+| 11 | ステージ制・インゲームの流れ・HUD | ステージデータ、HUD、失敗（HP 0）、リザルトとスコア、リトライ、アウトゲームとの受け渡し、ポーズ | B | 02/09〜02/22 | 10/19〜10/22 | 未着手 | [Section11](Sections/Section11_StageFlow.md) |
+| 14 | ステージ制作 | チュートリアル、一般戦闘、ギミック戦闘の 3 ステージ（破壊対象、マップ、生成システム、ギミック、チュートリアルの案内）、2 段の距離マップと格子の事前の焼き付け（区間4C から持ち越し） | 9, 11 | 02/23〜03/08 | 10/23〜10/26 | 未着手 | [Section14](Sections/Section14_StageContent.md) |
+| 12 | ボス | ボクセルのパーツをパーツ単位で動かすボス、ボス戦のステージ | 5, 8, 11 | 03/09〜03/29 | 10/27〜11/01 | 未着手 | [Section12](Sections/Section12_Boss.md) |
+| 13 | 仕上げ | 負荷調整、エフェクト、SE、パラメータ調整 | 全部 | 03/30〜04/12 | 11/02〜11/05 | 未着手 | [Section13](Sections/Section13_Polish.md) |
 
-- 目安の時期（2026-10-05 見直し）は、区間0〜3が予定より約 3 週間早く終わったので、区間4以降を前に詰めたもの。区間4（当初 13 日）は 4A・4B・4C の各 2 週間に分け、区間5は崩落とエネルギーの演出を足したので 3 週間にした。区間14は 2 週間。それ以外の区間の長さは、計画当初の見積もりのまま。この結果、完了の目安は当初の 2027/03/07 より遅い 2027/04/05 になった
+- 目安の時期（2026-10-05 見直し）は、区間0〜3が予定より約 3 週間早く終わったので、区間4以降を前に詰めたもの。区間4（当初 13 日）は 4A・4B・4C の各 2 週間に分け、区間5は崩落とエネルギーの演出を足したので 3 週間にした。区間14は 2 週間。それ以外の区間の長さは、計画当初の見積もりのまま。この結果、完了の目安は当初の 2027/03/07 より遅い 2027/04/05 になった。2026-10-08 に区間8R（1 週間）を足し、以降を 1 週間ずつ後ろへずらしたので、完了の目安は 2027/04/12 になった
 - 最速の推定は、区間0〜3の進み方が続いた場合の値。区間0〜3は、計画では 4 週間（28 日）の作業を、2026/09/29〜10/05 の 7 日で終えた（約 4 倍の速さ）。そこで、区間4以降の各区間の長さを 4 で割り、日単位で切り上げた。この進み方が続くとは限らない（8 章の仮定）
-- 区間9（固有のアクション）は「最後の方に作る」方針（2026-10-05）で、区間11のあとに置いた。敵の攻撃は区間9までないので、それまでは HP のデバッグ操作で失敗を確かめる
-- 8・10 と 11 は順番を入れ替えられる
+- 区間4A〜8 は、最速の推定よりさらに早く、2026-10-08 までに終わった。そこで区間8R 以降の最速の推定を、2026-10-09 を起点に同じ割り方（長さを 4 で割り、日単位で切り上げる）で引き直した
+- 区間8R は、区間9で敵の仕組み（`EnemySpawnAdapter` など）に種類と攻撃を足す前に、コード全体を整えるために置いた。今の仕様に対する整理だけを行い、区間9で要る変更は先取りしない
+- 区間9（固有のアクション）は、2026-10-05 に「最後の方に作る」方針で区間11のあとに置いたが、2026-10-08 に区間10・11の前へ戻した。区間11（失敗の流れ）がなくても、区間9の完了条件は確かめられる為。敵の攻撃で HP が 0 になっても、区間11までは何も起きない
+- 10 と 11 は順番を入れ替えられる
 
 依存関係
 
@@ -159,9 +163,9 @@ flowchart LR
     S3 --> S6
     MB --> S11[11 ステージ制・HUD]
     S3 --> S7[7 スロー・投擲]
-    S5 --> S7 --> S8[8 装甲] --> S9[9 固有アクション・バリエーション]
+    S5 --> S7 --> S8[8 装甲] --> S8R[8R リファクタリング] --> S9[9 固有アクション・バリエーション]
     S4C --> S9
-    S11 --> S9
+    S8 --> S9
     S6 --> S10[10 強化型スキル・回復]
     S7 --> S10
     S9 --> S14[14 ステージ制作]
@@ -184,7 +188,7 @@ flowchart LR
 | 敵の脚 | 2 本の骨の IK を自前で解く（区間4C の `EnemyLegs`）。Animation Rigging（TwoBoneIK）は、体ごとに Animator と RigBuilder が要り、足を置く位置の決め方は結局自前で作るので使わない |
 | 計測 | Unity の `ProfilerMarker` と `ProfilerRecorder`（Burst の Job の中の時間も、ワーカースレッドの分まで取れる） |
 | オーブの再利用 | `UnityEngine.Pool.ObjectPool<T>`（区間3の `FragmentOrbAdapter` が使っている） |
-| 散らばる部位の再利用 | UsefulToolkit.framework の `RecycleBuffer<T>`（固定長のリングバッファ）。区間4A の `EnemyDebris`。敵の体のプールは、空きがなければ出さない規則なので、`List` で持つ |
+| 散らばる部位の再利用 | UsefulToolkit.framework の `RecycleBuffer<T>`（固定長のリングバッファ）。区間4A の `EnemyDebris`（区間8R から `EnemyDebrisSpawner` が持つ）。敵の体のプールは、空きがなければ出さない規則なので、`List` で持つ |
 | 部位の役割の選択 | UsefulToolkit.framework の `SubclassSelectorAttribute`（`[SerializeReference]` のフィールドにサブクラスを選ぶ表示を付ける） |
 | かけらの接触 | かけらのプレハブに付けた `FragmentContactReporter`（`OnCollisionEnter`）。接触のコールバックは Rigidbody と同じ GameObject のコンポーネントにしか届かない為。ぶつかったかけらと相手のコライダーを渡す（区間7） |
 | かけらを持つ間に切らせない | UsefulToolkit.MeshCut の `CuttableObject.DisableCutting`（プールへ返すと `OnRecycle` で切れる状態に戻る）（区間7） |
@@ -192,6 +196,7 @@ flowchart LR
 | 速く飛ぶかけらの当たり | 投げた・撃ったかけらは、飛んでいる間だけ `CollisionDetectionMode.ContinuousDynamic` にする。Discrete だと薄い装甲のパネルを 1 ステップで越え、奥の物への接触が先に届く（区間8） |
 | カメラに合わせて物を置く | CinemachineBrain は実行順の指定なしに `LateUpdate` でカメラを動かすので、カメラに合わせる側に `[DefaultExecutionOrder]` で後ろの実行順を付ける（区間7の `FragmentThrowAdapter`） |
 | シーン遷移 | `GameSceneController` / `GameSceneInitializer`、SceneGroup アセット（`GameSceneGroupData`） |
+| ログ | UsefulToolkit の `UsefulLogger`（`LogError` はエディタと Development Build、それ以外はエディタだけで出る）。Voxel の実行時コードも区間8R で揃えた。UsefulToolkit を参照しないエディタ専用の asmdef（ベイク、デバッグツール）は `Debug.Log` |
 | デバッグ表示 | UsefulToolkit.Debugging の `DebugGUI`（`ObserveVariable` で値を画面に出す。シーンへの配置は `UsefulToolkit/ProgramTools/DebugGUI Setup`）、State の `GetLog()` |
 | ポーズ | 常駐の `PauseBoard` と `IPausable`（UsefulToolkit.ProgramTools。中身はまだほぼない） |
 | プレイヤーの物理 | Rigidbody（補間、ContinuousDynamic）、摩擦ゼロの PhysicsMaterial、`Physics.SphereCast`（接地）、`Physics.OverlapCapsuleNonAlloc` と `Collider.ClosestPoint`（壁） |
@@ -217,9 +222,10 @@ flowchart LR
 | 6 | 最初に作る攻撃型スキル、消費量、ダメージのデータと判定の窓口を置く層、破壊ダメージの量と削る形状の大きさの対応（区間5から持ち越し） |
 | 7 | ダメージのデータと判定の窓口を置く層（区間6から持ち越し。区間7で作らず区間8へ持ち越すと決めた）、スローの倍率、初回消費と継続消費、スロー中の切断回数の上限と、部位ごとの切断回数の上限との関係、サウンドのスロー表現 |
 | 8 | 装甲の作り方（メッシュかボクセルか）、耐久値、遮断の判定方法、ダメージ量と耐久値の対応（区間6から持ち越し）、ダメージのデータと判定の窓口を置く層（区間7から持ち越し。区間8で作らず区間10へ持ち越すと決めた） |
+| 8R | 確認項目（過剰な分割、重複、既存機能の再実装、仕様との一致、命名、メンバー順、参照の渡し方）ごとの、直すか残すか |
+| 9 | 敵の種類の持ち方と編成、雑魚 3 種のパラメータと固有のアクション、シールドの当たり判定とかくまい方、特殊部位の種類（着手前の調査の案は区間9の計画書にある） |
 | 10 | ダメージのデータと判定の窓口（区間8から持ち越し）、強化型スキルの一覧、平面で切り分ける範囲、切り分けた側の扱い、回復スキルの中身と分類 |
 | 11 | ステージごとの失敗条件、失敗したあとの表示、スコアの計算式と表示項目、リトライの方法（UsefulToolkit にシーンを読み直す経路を足す）、ポーズを `timeScale = 0` で実装するか、クリアを Application の Service と State に移す（区間5から持ち越し） |
-| 9 | 雑魚 3 種のパラメータと固有のアクション、特殊部位の種類 |
 | 14 | ギミック戦闘ステージのギミック、チュートリアルの進め方、各ステージの破壊対象・マップ・敵の配置、ボクセルの支えの判定、崩落で倒す値の調整（区間5から持ち越し） |
 | 12 | ボスの形、行動、重要パーツ |
 | 13 | 目標のフレームレートと、対象の PC スペック |
@@ -243,5 +249,5 @@ flowchart LR
 - 区間の順番は 5 章のとおり
 - `Assets/Docs/Voxel/Skinning/SkinningPlan.md` には手を付けない
 - 最速の推定は、区間0〜3の速さ（計画の約 4 倍）が続くことを前提にしている。区間0〜3はコードの作業が中心だった。区間12・13・14は、モデル（ボクセルの破壊対象、ボス）とステージの制作、調整の割合が大きいので、同じ速さで進まない可能性がある。区間4B は計測の結果で方式が変わる可能性がある
-- 区間4A・4B・4C、区間5の長さ（2 週間・2 週間・2 週間・3 週間）は、区間を分けたときに仮に置いた値
+- 区間4A・4B・4C、区間5の長さ（2 週間・2 週間・2 週間・3 週間）は、区間を分けたときに仮に置いた値。区間8R の長さ（1 週間）も、足したときに仮に置いた値で、調べた結果の提案の量で変わる
 - アウトゲーム（スキルの購入、装備、通貨、セーブ）を作る作業は、この計画に含めていない。区間11の受け渡しの相手として扱う

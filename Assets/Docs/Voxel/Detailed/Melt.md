@@ -14,7 +14,7 @@
 
 融解システムはシーンに 1 つ置き、融解する全てのピースがそれを共有する。
 
-> この役割は [`VoxelMeltSystem`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs)<sup>[L17](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs#L17)</sup> クラスが担っている。
+> この役割は [`VoxelMeltSystem`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs)<sup>[L18](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs#L18)</sup> クラスが担っている。
 
 ## 2. 粒の一生
 
@@ -54,7 +54,7 @@ flowchart TD
 
 これらはすべて順番につないだジョブとして並列に処理する。
 
-> この流れは [`VoxelMeltSystem`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs)<sup>[L17](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs#L17)</sup> の Update（シミュレーション）と LateUpdate（通知・表示）で行っている。
+> この流れは [`VoxelMeltSystem`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs)<sup>[L18](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Melt/VoxelMeltSystem.cs#L18)</sup> の Update（シミュレーション）と LateUpdate（通知・表示）で行っている。
 
 ### 順番に関わる注意
 

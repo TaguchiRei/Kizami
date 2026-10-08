@@ -41,7 +41,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 実行中に出す敵の情報 1 件。間隔ごとに、生成位置 1 つから上限の数まで出す。
     /// </summary>
-    // TODO: 区間9で、出す敵の種類を持たせる
+    // TODO: 出す敵の種類を持たせる
     [Serializable]
     public sealed class EnemySpawnInfo
     {

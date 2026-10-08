@@ -6,13 +6,6 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 体を貸した敵の脚を、足を置く位置の切り替えと 2 本の骨の IK で歩かせる。敵の体のプレハブの根に付け、EnemySpawnAdapter が毎フレーム呼ぶ。
     /// </summary>
-    /// <remarks>
-    /// 足はふだん地面に置いたまま動かさず、体の根から見た基準の位置との差が踏み出す距離を超えた組から、1 組ずつ交互に運ぶ（四足なら対角の 2 本ずつのトロット）。
-    /// 運ぶ先は、基準の位置に、体の速さで運ぶ時間の半分だけ先回りした位置。地面の高さは経路の格子の立てる層から取り、敵ごとのレイは撃たない。
-    /// IK は体の根の空間で解く。膝は上へ曲げ、腿と脛の向きは休みの姿勢の向きからの最小の回転で決める。
-    /// 脛の長さは毎回メッシュの範囲から求めるので、切られて短くなった脛も、届く所まで伸ばして動く。脛を失った脚は腿だけを足の位置へ向け、腿を失った脚は動かさない。
-    /// 時間は Time.deltaTime で数え、スローモード中は一緒に遅くなる。
-    /// </remarks>
     public sealed class EnemyLegs : MonoBehaviour
     {
         /// <summary> IK で脚を伸ばしきる・畳みきる手前にあける長さ（m）。向きが決まらなくならないようにする </summary>
@@ -178,6 +171,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 運んでいる組がないとき、足と基準の位置の差が最も大きい組を選び、その差が踏み出す距離を超えていれば運び始める。
+        /// 運ぶのは 1 組ずつで、四足なら対角の 2 本ずつのトロットになる。運ぶ先は、基準の位置から体の速さで運ぶ時間の半分だけ先回りした位置。
         /// </summary>
         private void TryStartStep(Vector3 velocity, in EnemyNavigationGrid grid)
         {
@@ -225,6 +219,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 位置の真下の格子の立てる層のうち、体の根との高さの差が登れる高さ以内の層の高さ。なければ体の根の高さ。
+        /// 敵ごとにレイを撃たずに済むよう、地面の高さは経路の格子から取る。
         /// </summary>
         private float GetGroundHeight(Vector3 position, in EnemyNavigationGrid grid)
         {
@@ -241,7 +236,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 足の位置（運んでいる組は、運ぶ前と運ぶ先の間を、持ち上げながら進めた位置）へ、各脚を IK で向ける。
+        /// 足の位置（運んでいる組は、運ぶ前と運ぶ先の間を、持ち上げながら進めた位置）へ、各脚を IK で向ける。腿を失った脚は動かさない。
         /// </summary>
         private void Pose()
         {
@@ -262,7 +257,8 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 脚 i の足先を、体の根の空間の位置 target へ向ける。届かなければ届く所まで伸ばし、近すぎれば畳める所までにする。
-        /// 膝は、腰から足先への向きに対して上側へ曲げる。脛を失っていれば、腿だけを target へ向ける。
+        /// 膝は、腰から足先への向きに対して上側へ曲げ、腿と脛の向きは休みの姿勢の向きからの最小の回転で決める。脛を失っていれば、腿だけを target へ向ける。
+        /// 脛の長さは毎回メッシュの範囲から求めるので、切られて短くなった脛も、届く所まで伸ばして動く。
         /// </summary>
         private void Solve(int i, Vector3 target)
         {

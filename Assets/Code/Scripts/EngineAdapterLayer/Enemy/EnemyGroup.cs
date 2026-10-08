@@ -7,10 +7,6 @@ namespace Kizami.EngineAdapter
     /// グループの先頭（アンカー）は体を持たない仮想の隊長で、距離マップを下って歩き、通った道筋を記録する。メンバーは道筋に沿った隊列の位置を目指す。
     /// プレイヤーに近づいたアンカーは、プレイヤーを囲む螺旋の上の置き場へ向かい、メンバーはアンカーの後ろにまっすぐ並ぶ横隊になる。
     /// </summary>
-    /// <remarks>
-    /// 道筋は、グループごとに EnemyGroups.PATH_CAPACITY 個の区画を持つリングバッファに、PATH_SPACING ごとの点として持つ。
-    /// メンバーは、グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画に、隊列の順番で持つ。
-    /// </remarks>
     public struct EnemyGroup
     {
         /// <summary> 使われているか。メンバーが全員ステージから消えたら false にする </summary>

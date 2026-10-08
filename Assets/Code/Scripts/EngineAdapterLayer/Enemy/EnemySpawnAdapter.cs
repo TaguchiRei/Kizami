@@ -9,7 +9,6 @@ using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 using UsefulToolkit.MeshCut;
-using UsefulToolkit.Utility;
 using Random = UnityEngine.Random;
 
 namespace Kizami.EngineAdapter
@@ -22,15 +21,11 @@ namespace Kizami.EngineAdapter
     /// プレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ生成位置へ戻す。
     /// 足場ごと一定の高さ以上落ちた敵と、ボクセルから切り離されて落ちてくる塊に潰された敵は、崩落で倒す。体を貸していれば返し、かけらは出さない。
     /// 生成した敵は出した順にグループ（EnemyGroups）へ入れ、毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
-    /// 切断できる体（EnemyBody）は、プレイヤーから貸す距離の中にいる敵へ近い順に貸し、返す距離より離れたら返す。返す距離は貸す距離より遠い。貸している体の脚は EnemyLegs で歩かせる。
-    /// 体を返すときは、短くなった部位の形を EnemyShapeKeeper に預け、次に貸すときに戻す。預ける空きがなければ、その敵の体は返さない。
-    /// 体に空きがないときは、切断の届きうる近さ（取り上げる距離）の敵を優先し、その敵より一定以上遠い敵のうち最も遠い敵から体を取り上げる。
-    /// 近接切断の結果は、切られた部位を持つ体へ渡し、体の部位の状態を敵の状態へ書き戻す。体から外れた切っていない部位は、見た目用の物（EnemyDebris）で散らばらせて消す。
-    /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さず、見た目用の物に空きがなければ最も古い物を使い回す。
+    /// 切断できる体（EnemyBody）の貸し借りと近接切断の結果の受け渡しは EnemyBodyLender が、体から外れた切っていない部位の見た目用の物は EnemyDebrisSpawner が行う。
+    /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さない。
     /// </summary>
     /// <remarks>
     /// 敵を出すのは MeshDataCache のストアができてから。体を貸すときに部位を登録し直すのにストアが要る為。
-    /// 生成の間隔、敵の移動、見た目用の物の動きは Time.deltaTime で数え、スローモード中は一緒に遅くなる。
     /// </remarks>
     public sealed class EnemySpawnAdapter : InitializableMonoBehaviour
     {
@@ -53,12 +48,8 @@ namespace Kizami.EngineAdapter
         private static readonly ProfilerMarker _bodyMarker = new(BODY_MARKER_NAME);
         private static readonly ProfilerMarker _renderMarker = new(RENDER_MARKER_NAME);
 
-        private readonly List<EnemyBody> _bodies = new();
         private readonly List<EnemySpawnPoint> _spawnPoints = new();
         private readonly List<EnemyInitialSpawnArea> _initialSpawnAreas = new();
-
-        /// <summary> 部位から、その部位を持つ体の _bodies での番号を引く表 </summary>
-        private readonly Dictionary<CuttableObject, int> _partOwners = new();
 
         /// <summary> カメラの視錐台の面。戻れない敵がカメラに映っているかを調べる作業用の配列 </summary>
         private readonly Plane[] _frustumPlanes = new Plane[6];
@@ -149,7 +140,7 @@ namespace Kizami.EngineAdapter
 
         [SerializeField, Min(0f)]
         [Tooltip("プレイヤーへたどり着けない状態がこの時間（秒）続いた敵は、カメラに映っていなければ生成位置へ戻す。動けない敵と、体を貸している敵は戻さない")]
-        private float _unreachableReturnDelay = 10f;
+        private float _strandedReturnDelay = 10f;
 
         [SerializeField, Min(0f)]
         [Tooltip("この高さ（m）以上落ちて着地した敵を、崩落で倒す。歩いて降りられる高さより高くする")]
@@ -203,11 +194,14 @@ namespace Kizami.EngineAdapter
 
         private EnemyDistanceField _distanceField;
 
-        private EnemyShapeKeeper _shapeKeeper;
-
         private EnemyGroups _groups;
 
         private EnemyCollapseDetector _collapseDetector;
+
+        private EnemyBodyLender _bodyLender;
+
+        /// <summary> 体から外れた部位の見た目用の物。ディゾルブのマテリアルが未設定なら null </summary>
+        private EnemyDebrisSpawner _debrisSpawner;
 
         /// <summary> 崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置 </summary>
         private Action<Vector3> _emitEnergy;
@@ -216,23 +210,6 @@ namespace Kizami.EngineAdapter
         private ProfilerRecorder _moveRecorder;
         private ProfilerRecorder _bodyRecorder;
         private ProfilerRecorder _renderRecorder;
-
-        /// <summary> 体ごとの、貸している敵の _agents での番号。貸していなければ -1。並びは _bodies と同じ </summary>
-        private int[] _bodyAgents;
-
-        /// <summary> 体ごとの脚。脚を持たない体では null。並びは _bodies と同じ </summary>
-        private EnemyLegs[] _bodyLegs;
-
-        /// <summary> 体を貸す候補の敵の、プレイヤーとの距離の 2 乗。並べ替えに使う作業用の配列 </summary>
-        private float[] _lendCandidateDistances;
-
-        /// <summary> 体を貸す候補の敵の _agents での番号。並びは _lendCandidateDistances と同じ </summary>
-        private int[] _lendCandidates;
-
-        /// <summary> 見た目用の部位。並びは _debrisBuffer の RecycleId と同じ </summary>
-        private EnemyDebris[] _debris;
-
-        private RecycleBuffer<EnemyDebris> _debrisBuffer;
 
         /// <summary> 生成情報ごとの、前に出してからの経過時間（秒） </summary>
         private float[] _spawnTimers;
@@ -272,25 +249,13 @@ namespace Kizami.EngineAdapter
         public int GroupCount => _groups?.ActiveCount ?? 0;
 
         /// <summary> 敵に貸している体の数 </summary>
-        public int LentBodyCount
-        {
-            get
-            {
-                var count = 0;
-                foreach (var body in _bodies)
-                {
-                    if (body.IsLent) count++;
-                }
-
-                return count;
-            }
-        }
+        public int LentBodyCount => _bodyLender?.LentBodyCount ?? 0;
 
         /// <summary> 体の数 </summary>
-        public int BodyCount => _bodies.Count;
+        public int BodyCount => _bodyLender?.BodyCount ?? 0;
 
         /// <summary> 体を返した敵から預かっている、短くなった部位の数 </summary>
-        public int KeptShapeCount => _shapeKeeper?.KeptCount ?? 0;
+        public int KeptShapeCount => _bodyLender?.KeptShapeCount ?? 0;
 
         /// <summary> Update 全体にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
         public double UpdateMilliseconds => GetAverageMilliseconds(_updateRecorder);
@@ -327,7 +292,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// EnemyInitializer から呼ばれる。ステージシーンの EnemySpawnSystem を探し、上限の数だけ敵の状態と、体と、見た目用の部位を作る。
+        /// ステージシーンの EnemySpawnSystem を探し、上限の数だけ敵の状態と、体と、見た目用の部位を作る。
         /// 見つからないときは Update を止めたままにする。
         /// </summary>
         /// <param name="spawnOrb">倒れた体に残っていた切断済みの部位を、オーブにする関数。引数はオーブを出す位置</param>
@@ -359,13 +324,8 @@ namespace Kizami.EngineAdapter
             }
             else
             {
-                _debris = new EnemyDebris[_debrisCapacity];
-                for (var i = 0; i < _debris.Length; i++)
-                {
-                    _debris[i] = new EnemyDebris(transform, _debrisMaterial);
-                }
-
-                _debrisBuffer = new RecycleBuffer<EnemyDebris>(_debris);
+                _debrisSpawner = new EnemyDebrisSpawner(transform, _debrisMaterial, _debrisCapacity, _debrisLifetime,
+                    _debrisOutwardSpeed, _debrisUpwardSpeed, _debrisAngularSpeed);
             }
 
             _agents = new NativeArray<EnemyAgent>(_spawnSystem.MaxAliveCount, Allocator.Persistent);
@@ -380,31 +340,15 @@ namespace Kizami.EngineAdapter
                 _collapseDetector.Watch(loader);
             }
 
-            _shapeKeeper = new EnemyShapeKeeper(transform, _shapeKeeperCapacity, _agents.Length, _bodyPrefab.Parts.Count);
             _groups = new EnemyGroups(_agents.Length);
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _bodyRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, BODY_MARKER_NAME, TIMING_SAMPLE_COUNT);
-            _lendCandidateDistances = new float[_agents.Length];
-            _lendCandidates = new int[_agents.Length];
-            _bodyAgents = new int[_bodyCount];
-            _bodyLegs = new EnemyLegs[_bodyCount];
             _renderRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, RENDER_MARKER_NAME, TIMING_SAMPLE_COUNT);
 
-            for (var i = 0; i < _bodyCount; i++)
-            {
-                var body = Instantiate(_bodyPrefab, transform);
-                body.gameObject.SetActive(false);
-                body.Initialize(spawnOrb, SpawnDebris);
-                _bodies.Add(body);
-                _bodyAgents[i] = -1;
-                _bodyLegs[i] = body.GetComponent<EnemyLegs>();
-
-                foreach (var part in body.Parts)
-                {
-                    if (part.Cuttable != null) _partOwners.Add(part.Cuttable, i);
-                }
-            }
+            _bodyLender = new EnemyBodyLender(_bodyPrefab, transform, _bodyCount, _agents.Length,
+                _shapeKeeperCapacity, _fragmentPool, _lendDistance, _returnDistance, _reclaimDistance, _reclaimMargin,
+                spawnOrb, _debrisSpawner != null ? _debrisSpawner.Spawn : null);
 
             base.Initialize();
         }
@@ -419,26 +363,7 @@ namespace Kizami.EngineAdapter
         {
             if (!Initialized || results == null) return;
 
-            foreach (var result in results)
-            {
-                if (result.Original == null || !_partOwners.TryGetValue(result.Original, out var bodyIndex)) continue;
-
-                var agentIndex = _bodyAgents[bodyIndex];
-                if (agentIndex < 0) continue;
-
-                var body = _bodies[bodyIndex];
-                body.ReceiveCut(result, plane, _fragmentPool);
-
-                var agent = _agents[agentIndex];
-                body.WriteState(ref agent);
-                if (!agent.IsAlive)
-                {
-                    agent.BodyIndex = -1;
-                    _bodyAgents[bodyIndex] = -1;
-                }
-
-                _agents[agentIndex] = agent;
-            }
+            _bodyLender.ReceiveCutResults(results, plane, _agents);
         }
 
         private void Update()
@@ -461,7 +386,7 @@ namespace Kizami.EngineAdapter
                 using (_moveMarker.Auto())
                 {
                     MoveAgents();
-                    ReturnUnreachableAgents();
+                    ReturnStrandedAgents();
                     CrushDefeatCount += _collapseDetector.Detect(_agents);
                     CountCollapseDefeats();
                 }
@@ -470,9 +395,10 @@ namespace Kizami.EngineAdapter
                 {
                     using (_bodyMarker.Auto())
                     {
-                        ReturnBodies();
-                        LendBodies(cache);
-                        SyncBodyTransforms();
+                        var target = (float3)_target.position;
+                        _bodyLender.ReturnBodies(_agents, target);
+                        _bodyLender.LendBodies(_agents, target, cache, _distanceField.Grid);
+                        _bodyLender.SyncBodyTransforms(_agents, Time.deltaTime, _distanceField.Grid);
                     }
                 }
 
@@ -481,7 +407,7 @@ namespace Kizami.EngineAdapter
                     _crowdRenderer.Render(_agents);
                 }
 
-                UpdateDebris();
+                _debrisSpawner?.Tick(Time.deltaTime);
             }
         }
 
@@ -560,7 +486,7 @@ namespace Kizami.EngineAdapter
         /// 移した敵は元のグループから抜き、その生成位置で新しいグループにする。部位の状態はそのまま持ち続ける。
         /// 動けない敵は戻さない（同時に存在する数の上限を埋め続ける、仕様の戦略の為）。体を貸している敵も戻さない（プレイヤーの近くにいる為）。
         /// </summary>
-        private void ReturnUnreachableAgents()
+        private void ReturnStrandedAgents()
         {
             var camera = Camera.main;
             if (camera != null) GeometryUtility.CalculateFrustumPlanes(camera, _frustumPlanes);
@@ -571,7 +497,7 @@ namespace Kizami.EngineAdapter
             for (var i = 0; i < _agents.Length; i++)
             {
                 var agent = _agents[i];
-                if (!agent.IsAlive || agent.UnreachableTime < _unreachableReturnDelay) continue;
+                if (!agent.IsAlive || agent.StrandedTime < _strandedReturnDelay) continue;
                 if (agent.BodyIndex >= 0 || agent.BrokenMovePartCount >= brokenMovePartLimit) continue;
 
                 var bounds = new Bounds((Vector3)agent.Position + Vector3.up * VISIBILITY_HEIGHT,
@@ -592,162 +518,13 @@ namespace Kizami.EngineAdapter
                 agent.IsGrounded = false;
                 agent.VerticalSpeed = 0f;
                 agent.FallStartHeight = position.y;
-                agent.UnreachableTime = 0f;
+                agent.StrandedTime = 0f;
                 _groups.TryAdd(i, ref agent, point.transform.position, GetYawToTarget(point.transform.position),
                     Random.Range(0f, _formation.HoldDuration), _formation);
                 _agents[i] = agent;
             }
 
             if (point != null) _groups.CloseGroup();
-        }
-
-        /// <summary>
-        /// 返す距離より離れた敵と、落ちてステージから消えた敵から、体を返す。
-        /// </summary>
-        private void ReturnBodies()
-        {
-            var target = (float3)_target.position;
-            var returnDistanceSq = _returnDistance * _returnDistance;
-
-            for (var bodyIndex = 0; bodyIndex < _bodies.Count; bodyIndex++)
-            {
-                var agentIndex = _bodyAgents[bodyIndex];
-                if (agentIndex < 0) continue;
-
-                var agent = _agents[agentIndex];
-                if (agent.IsAlive && math.distancesq(agent.Position, target) <= returnDistanceSq) continue;
-
-                TryReturnBody(bodyIndex);
-            }
-        }
-
-        /// <summary>
-        /// 貸す距離の中にいる、体を貸していない敵へ、近い順に空いている体を貸す。
-        /// 空きがなければ、取り上げる距離の中の敵に限り、その敵より取り上げの差以上遠い敵のうち最も遠い敵から体を返させて貸す。
-        /// </summary>
-        private void LendBodies(MeshDataCache cache)
-        {
-            var target = (float3)_target.position;
-            var lendDistanceSq = _lendDistance * _lendDistance;
-            var reclaimDistanceSq = _reclaimDistance * _reclaimDistance;
-            var candidateCount = 0;
-
-            for (var i = 0; i < _agents.Length; i++)
-            {
-                var agent = _agents[i];
-                if (!agent.IsAlive || agent.BodyIndex >= 0) continue;
-
-                var distanceSq = math.distancesq(agent.Position, target);
-                if (distanceSq > lendDistanceSq) continue;
-
-                _lendCandidateDistances[candidateCount] = distanceSq;
-                _lendCandidates[candidateCount] = i;
-                candidateCount++;
-            }
-
-            if (candidateCount == 0) return;
-
-            Array.Sort(_lendCandidateDistances, _lendCandidates, 0, candidateCount);
-
-            var nextBody = 0;
-            for (var c = 0; c < candidateCount; c++)
-            {
-                while (nextBody < _bodyAgents.Length && _bodyAgents[nextBody] >= 0) nextBody++;
-
-                var bodyIndex = nextBody;
-                if (bodyIndex == _bodyAgents.Length)
-                {
-                    if (_lendCandidateDistances[c] > reclaimDistanceSq) return;
-
-                    var minDistance = math.sqrt(_lendCandidateDistances[c]) + _reclaimMargin;
-                    bodyIndex = FindFarthestLentBody(target, minDistance * minDistance);
-                    if (bodyIndex < 0 || !TryReturnBody(bodyIndex)) return;
-                }
-
-                LendBody(bodyIndex, _lendCandidates[c], cache);
-            }
-        }
-
-        /// <summary>
-        /// 貸している体のうち、敵がプレイヤーから距離の 2 乗 minDistanceSq より遠く、最も遠いものを返す。なければ -1。
-        /// </summary>
-        private int FindFarthestLentBody(float3 target, float minDistanceSq)
-        {
-            var farthest = -1;
-            var farthestDistanceSq = minDistanceSq;
-
-            for (var bodyIndex = 0; bodyIndex < _bodies.Count; bodyIndex++)
-            {
-                var agentIndex = _bodyAgents[bodyIndex];
-                if (agentIndex < 0) continue;
-
-                var distanceSq = math.distancesq(_agents[agentIndex].Position, target);
-                if (distanceSq <= farthestDistanceSq) continue;
-
-                farthest = bodyIndex;
-                farthestDistanceSq = distanceSq;
-            }
-
-            return farthest;
-        }
-
-        /// <summary>
-        /// 体を敵から返す。生きている敵なら、部位の状態を敵の状態へ書き戻し、短くなった部位の形を預けてから返す。
-        /// 預ける空きがなければ返さず false を返す。
-        /// </summary>
-        private bool TryReturnBody(int bodyIndex)
-        {
-            var agentIndex = _bodyAgents[bodyIndex];
-            var agent = _agents[agentIndex];
-            var body = _bodies[bodyIndex];
-
-            if (agent.IsAlive)
-            {
-                if (!_shapeKeeper.CanKeep(body)) return false;
-
-                body.WriteState(ref agent);
-                _shapeKeeper.Keep(agentIndex, body);
-            }
-
-            if (_bodyLegs[bodyIndex] != null) _bodyLegs[bodyIndex].ResetPose();
-            body.Return();
-
-            agent.BodyIndex = -1;
-            _agents[agentIndex] = agent;
-            _bodyAgents[bodyIndex] = -1;
-            return true;
-        }
-
-        /// <summary>
-        /// 空いている体を敵に貸し、預けていた短くなった部位の形を戻す。足を基準の位置に置く。
-        /// </summary>
-        private void LendBody(int bodyIndex, int agentIndex, MeshDataCache cache)
-        {
-            var agent = _agents[agentIndex];
-            _bodies[bodyIndex].Lend(agent, cache);
-            _shapeKeeper.Restore(agentIndex, _bodies[bodyIndex]);
-            if (_bodyLegs[bodyIndex] != null) _bodyLegs[bodyIndex].ResetFeet(_distanceField.Grid);
-
-            agent.BodyIndex = bodyIndex;
-            _agents[agentIndex] = agent;
-            _bodyAgents[bodyIndex] = agentIndex;
-        }
-
-        /// <summary>
-        /// 貸している体の位置と向きを敵の状態に合わせ、脚を動かす。
-        /// </summary>
-        private void SyncBodyTransforms()
-        {
-            for (var bodyIndex = 0; bodyIndex < _bodies.Count; bodyIndex++)
-            {
-                var agentIndex = _bodyAgents[bodyIndex];
-                if (agentIndex < 0) continue;
-
-                var agent = _agents[agentIndex];
-                _bodies[bodyIndex].transform.SetPositionAndRotation(agent.Position,
-                    Quaternion.Euler(0f, math.degrees(agent.Yaw), 0f));
-                if (_bodyLegs[bodyIndex] != null) _bodyLegs[bodyIndex].UpdateLegs(Time.deltaTime, _distanceField.Grid);
-            }
         }
 
         /// <summary>
@@ -832,7 +609,7 @@ namespace Kizami.EngineAdapter
             {
                 if (_agents[i].IsAlive) continue;
 
-                _shapeKeeper.Discard(i);
+                _bodyLender.DiscardKeptShapes(i);
                 var agent = new EnemyAgent
                 {
                     IsAlive = true,
@@ -858,49 +635,6 @@ namespace Kizami.EngineAdapter
 
             var direction = _target.position - position;
             return direction.x == 0f && direction.z == 0f ? 0f : math.atan2(direction.x, direction.z);
-        }
-
-        /// <summary>
-        /// 部位と同じ形の見た目用の物を出し、体の中心から外向きと上向きに飛ばす。
-        /// </summary>
-        /// <param name="part">体から外れた、切っていない部位</param>
-        /// <param name="origin">散らばる中心（体の位置）</param>
-        private void SpawnDebris(CuttableObject part, Vector3 origin)
-        {
-            if (_debrisBuffer == null || part == null) return;
-
-            var outward = part.transform.position - origin;
-            outward.y = 0f;
-            if (outward.sqrMagnitude > 0f)
-            {
-                outward.Normalize();
-            }
-            else
-            {
-                var circle = Random.insideUnitCircle.normalized;
-                outward = new Vector3(circle.x, 0f, circle.y);
-            }
-
-            var velocity = outward * _debrisOutwardSpeed + Vector3.up * _debrisUpwardSpeed;
-            _debrisBuffer.Get().Show(part, velocity, Random.onUnitSphere * _debrisAngularSpeed);
-        }
-
-        /// <summary>
-        /// 出ている見た目用の部位を動かし、消え終わったものをバッファへ返す。
-        /// </summary>
-        private void UpdateDebris()
-        {
-            if (_debris == null) return;
-
-            var deltaTime = Time.deltaTime;
-
-            foreach (var debris in _debris)
-            {
-                if (!debris.IsActive || debris.Tick(deltaTime, _debrisLifetime)) continue;
-
-                debris.OnRecycle();
-                _debrisBuffer.Release(debris);
-            }
         }
     }
 }

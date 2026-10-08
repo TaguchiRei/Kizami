@@ -111,7 +111,6 @@ namespace Kizami.Application
         /// <returns>このステップで Rigidbody に与える打ち出し速度。ジャンプしたステップだけ値を持つ</returns>
         public Vector3? Step(Vector3 viewDirection, float deltaTime)
         {
-            // 初期化で State を登録できなかったときは何もしない
             if (_settingState == null) return null;
 
             UpdateViewForward(viewDirection);

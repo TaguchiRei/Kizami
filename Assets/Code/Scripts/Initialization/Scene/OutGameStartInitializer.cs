@@ -11,21 +11,21 @@ namespace Kizami.Initialization
     public sealed class OutGameStartInitializer : InitializerBase, IInjectable<IGameSceneController>
     {
         private IGameSceneController _sceneController;
-        private bool _transitioning;
+        private bool _isTransitioning;
 
         private async void OnGUI()
         {
-            if (_sceneController == null || _transitioning) return;
+            if (_sceneController == null || _isTransitioning) return;
 
             var area = new Rect(Screen.width * 0.5f - 100f, Screen.height * 0.5f - 25f, 200f, 50f);
 
             if (!GUI.Button(area, "インゲームへ")) return;
 
-            _transitioning = true;
+            _isTransitioning = true;
             // このオブジェクトは遷移中のアンロードで破棄される。destroyCancellationToken を渡すと
             // アンロードの途中で中断され、SceneState に OutGame がロード済みのまま残る為、トークンは渡さない。
             await _sceneController.GoToInGameAsync();
-            _transitioning = false;
+            _isTransitioning = false;
         }
 
         public void Inject(IGameSceneController instance)

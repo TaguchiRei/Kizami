@@ -10,20 +10,6 @@ namespace Kizami.EngineAdapter
     /// グループを持たない敵は距離マップの値が下がる隣の列へ向かって歩き、立てる層がなくなると落ちる。
     /// 自分の番号の敵だけを書き換え、ほかの敵は見ない。
     /// </summary>
-    /// <remarks>
-    /// プレイヤーまでの経路の長さが交戦に入る距離以下になった敵は隊列から外れ、抜ける距離を超えたら隊列に戻る。
-    /// 交戦中の敵の置き場は EnemyGroupJob が割り当て、プレイヤーと一緒に動く。置き場をまだ持たない間は、その場でプレイヤーを向いて待つ。
-    /// 隊列の位置は、グループの道筋に沿ってアンカーから (列の番号 × 列の間隔) 後ろの点から、道筋の右へ (列の中の位置 × 横の間隔) ずらした点。
-    /// アンカーが包囲の置き場を持つ間は、道筋ではなくアンカーの向きのまっすぐ後ろに並べる（着いたアンカーはプレイヤーを向くので、横隊がプレイヤーを向く）。
-    /// 横へずらす途中でその点と同じ高さの床が途切れたら、その手前で止める（通路では細くなる）。
-    /// 目指す位置へまっすぐ進めない（隣の列に乗れない）ときは、目指す位置に近づく隣の列へ、それもなければ距離マップの値が下がる列へ進む。
-    /// 向きは進む先へ回る速さの上限つきで回し、向いている方へ進む。進む先から外れている間は、そのずれの分だけ遅くなる。
-    /// 隊列の位置に着いたら隊列の向きを、交戦の置き場に着いたらプレイヤーを向く。
-    /// 歩く速さは、敵ごとに ±10% ずらす（全員が同じ速さで動いて見えないようにする為）。
-    /// 進んだ先の列に乗る層がなければ（壁や、降りられる高さを超える崖）、そのフレームは進まない。
-    /// 段差は、登れる高さまでならその場で乗り、少しの下りは床に合わせ、それより低ければ落ちる。
-    /// 壊れた移動部位が上限に達した敵は歩かないが、足場がなくなれば落ちる（グループからは EnemyGroups が抜く）。
-    /// </remarks>
     [BurstCompile]
     public struct EnemyMoveJob : IJobParallelFor
     {
@@ -45,7 +31,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 目指す位置までの距離がこの値（m）より近いと、近さに合わせて遅くなる </summary>
         private const float SLOW_DOWN_DISTANCE = 2f;
 
-        /// <summary> 歩く速さを敵ごとにずらす割合の幅（±） </summary>
+        /// <summary> 歩く速さを敵ごとにずらす割合の幅（±）。全員が同じ速さで動いて見えないようにする </summary>
         private const float SPEED_JITTER = 0.1f;
 
         public NativeArray<EnemyAgent> Agents;
@@ -58,7 +44,7 @@ namespace Kizami.EngineAdapter
         /// <summary> グループごとに EnemyGroups.PATH_CAPACITY 個の区画を持つ道筋の点 </summary>
         [ReadOnly] public NativeArray<float3> Paths;
 
-        /// <summary> 敵ごとの、交戦する敵の置き場の番号。持たなければ -1 </summary>
+        /// <summary> 敵ごとの、交戦する敵の置き場の番号。EnemyGroupJob が割り当て、持たなければ -1 </summary>
         [ReadOnly] public NativeArray<int> EngageSlots;
 
         public EnemyFormationSettings Formation;
@@ -80,7 +66,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 重力の加速度の大きさ（m/s²） </summary>
         public float Gravity;
 
-        /// <summary> 壊れた移動部位がこの数に達した敵は歩かない </summary>
+        /// <summary> 壊れた移動部位がこの数に達した敵は歩かない。足場がなくなれば落ちる </summary>
         public int BrokenMovePartLimit;
 
         /// <summary> この高さ（m）以上落ちて着地した敵は、崩落で倒されたとする </summary>
@@ -100,22 +86,10 @@ namespace Kizami.EngineAdapter
             agent.IsDefeatedByCollapse = true;
         }
 
-        public void Execute(int index)
-        {
-            var agent = Agents[index];
-            if (!agent.IsAlive) return;
-
-            if (agent.IsGrounded && agent.BrokenMovePartCount < BrokenMovePartLimit) Walk(ref agent, index);
-            UpdateVertical(ref agent);
-            UpdateUnreachableTime(ref agent);
-
-            Agents[index] = agent;
-        }
-
         /// <summary>
         /// 立っている層からプレイヤーへたどり着けない（距離マップの値がない）間、その時間を数える。たどり着けたら 0 に戻す。落ちている間は数えたままにする。
         /// </summary>
-        private void UpdateUnreachableTime(ref EnemyAgent agent)
+        private void UpdateStrandedTime(ref EnemyAgent agent)
         {
             if (!agent.IsAlive || !agent.IsGrounded) return;
 
@@ -126,7 +100,7 @@ namespace Kizami.EngineAdapter
                 isReachable = node >= 0 && !float.IsPositiveInfinity(Distances[node]);
             }
 
-            agent.UnreachableTime = isReachable ? 0f : agent.UnreachableTime + DeltaTime;
+            agent.StrandedTime = isReachable ? 0f : agent.StrandedTime + DeltaTime;
         }
 
         private void Walk(ref EnemyAgent agent, int index)
@@ -203,7 +177,7 @@ namespace Kizami.EngineAdapter
 
             speed *= math.saturate(targetDistance / SLOW_DOWN_DISTANCE);
             var probe = agent.Position.xz + toTarget / targetDistance * Grid.CellSize;
-            if (!IsBlocked(column, height, probe))
+            if (!Grid.IsBlocked(column, height, probe))
             {
                 Step(ref agent, column, height, toTarget, speed);
                 return;
@@ -218,7 +192,8 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 向きを toNext の方へ回し、向いている方へ進む。進んだ先の列に乗れなければ進まない。
+        /// 向きを toNext の方へ TurnSpeed を上限に回し、向いている方へ進む。進む先から外れている間は、そのずれの分だけ遅くなる。
+        /// 進んだ先の列に乗れなければ進まない。
         /// </summary>
         private void Step(ref EnemyAgent agent, int column, float height, float2 toNext, float speed)
         {
@@ -242,17 +217,9 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 高さ height で列 column にいる敵が、水平の位置 probe の列へ進めないか。同じ列なら進める。
-        /// </summary>
-        private bool IsBlocked(int column, float height, float2 probe)
-        {
-            if (!Grid.TryGetColumn(new float3(probe.x, height, probe.y), out var probeColumn)) return true;
-
-            return probeColumn != column && Grid.GetLandingNode(probeColumn, height) < 0;
-        }
-
-        /// <summary>
         /// グループに入っている敵の、隊列の位置（水平）と、その位置での隊列の向きを返す。グループを持たなければ false。
+        /// 隊列の位置は、道筋に沿ってアンカーから (列の番号 × 列の間隔) 後ろの点を、列の中の位置に応じて道筋の横へずらした点。
+        /// アンカーが包囲の置き場を持つ間は、道筋ではなくアンカーの向きのまっすぐ後ろに並べる。着いたアンカーはプレイヤーを向くので、横隊がプレイヤーを向く。
         /// </summary>
         private bool TryGetSlotTarget(in EnemyAgent agent, out float2 target, out float yaw)
         {
@@ -327,21 +294,7 @@ namespace Kizami.EngineAdapter
         private float ClampLateral(float3 point, float2 right, float lateral)
         {
             var side = math.sign(lateral);
-            var length = math.abs(lateral);
-            var steps = (int)math.ceil(length / Grid.CellSize);
-
-            for (var s = 1; s <= steps; s++)
-            {
-                var stepLength = math.min(s * Grid.CellSize, length);
-                var probe = point.xz + right * (side * stepLength);
-                if (!Grid.TryGetColumn(new float3(probe.x, point.y, probe.y), out var column)
-                    || Grid.GetNodeNear(column, point.y) < 0)
-                {
-                    return side * (s - 1) * Grid.CellSize;
-                }
-            }
-
-            return lateral;
+            return side * Grid.GetFlatFloorLength(point, right * side, math.abs(lateral));
         }
 
         /// <summary>
@@ -441,6 +394,18 @@ namespace Kizami.EngineAdapter
             var inside = math.clamp(position.xz, cellMin + COLUMN_EDGE_MARGIN, cellMin + Grid.CellSize - COLUMN_EDGE_MARGIN);
             position.x = inside.x;
             position.z = inside.y;
+        }
+
+        public void Execute(int index)
+        {
+            var agent = Agents[index];
+            if (!agent.IsAlive) return;
+
+            if (agent.IsGrounded && agent.BrokenMovePartCount < BrokenMovePartLimit) Walk(ref agent, index);
+            UpdateVertical(ref agent);
+            UpdateStrandedTime(ref agent);
+
+            Agents[index] = agent;
         }
     }
 }

@@ -32,9 +32,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 読み込めた重要パーツの数 </summary>
         public int ImportantPartCount => _importantParts.Count;
 
-        /// <summary>
-        /// 重要パーツがすべて、必要な割合以上削れているか。重要パーツを読み込む前と、体積を測る前は false。
-        /// </summary>
+        /// <summary> 重要パーツがすべて必要な割合以上削れているか。読み込む前と体積を測る前は false </summary>
         public bool IsDestroyed
         {
             get
