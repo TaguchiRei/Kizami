@@ -221,36 +221,38 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 追跡中のアンカーを、目標位置（包囲の置き場、持てなければ使える置き場の最も外のさらに外）へ歩かせる。
+        /// 追跡中のアンカーを、目標位置（包囲の置き場。使える置き場が空いていなければ、その外に続く待つ置き場）へ歩かせる。
         /// プレイヤーまでの経路が「目標位置の半径 ＋ 近づく余裕」より長い間は距離マップの値が下がる方へ、内側では目標位置へ向かう。
         /// 目標位置へまっすぐ向かうと、壁の向こうの目標位置の手前で詰まる為。
         /// 置き場に着いたら止まってプレイヤーを向く。距離マップを下る間は、たどり着けないときと、同じレーンの前で別のグループが待つ番で止まっているときに、止まるまで減速する。
         /// </summary>
         /// <param name="slotPoints">置き場ごとの、立てる列へずらした位置。使えない置き場は NaN</param>
-        /// <param name="outermostRadius">使える置き場のうち、最も外の置き場の螺旋の半径（m）</param>
+        /// <param name="lastUsableSlot">使える置き場のうち、最も外の置き場の番号。これより外の置き場は待つ置き場。なければ -1</param>
         private void MoveAnchor(int g, ref EnemyGroup group, NativeArray<bool> usedEncircleSlots,
-            NativeArray<float2> slotPoints, float outermostRadius)
+            NativeArray<float2> slotPoints, int lastUsableSlot)
         {
             if (!TryFitToFloor(ref group, out var column, out var node)) return;
 
             var height = Grid.Heights[node];
             var distance = group.AnchorDistance;
-            UpdateEncircleSlot(ref group, usedEncircleSlots, slotPoints);
+            UpdateEncircleSlot(ref group, usedEncircleSlots, slotPoints, lastUsableSlot);
 
             var hasSlot = group.EncircleSlot >= 0;
+            var isWaitingSlot = group.EncircleSlot > lastUsableSlot;
             float2 target;
-            float targetRadius;
             if (hasSlot)
             {
                 target = slotPoints[group.EncircleSlot];
-                targetRadius = GetEncircleRadius(group.EncircleSlot);
             }
             else
             {
-                targetRadius = outermostRadius + Formation.EncircleLoopSpacing;
+                // 置き場がすべて埋まっているときは、最も外の使える置き場のさらに 1 周外で、来た向きに待つ
+                var outermostRadius = lastUsableSlot >= 0 ? GetEncircleRadius(lastUsableSlot) : Formation.EncircleInnerRadius;
                 var fromPlayer = math.normalizesafe(group.AnchorPosition.xz - PlayerPosition.xz, new float2(0f, 1f));
-                target = PlayerPosition.xz + fromPlayer * targetRadius;
+                target = PlayerPosition.xz + fromPlayer * (outermostRadius + Formation.EncircleLoopSpacing);
             }
+
+            var targetRadius = math.distance(target, PlayerPosition.xz);
 
             var targetSpeed = 0f;
             var hasHeading = false;
@@ -274,7 +276,7 @@ namespace Kizami.EngineAdapter
                 var targetDistance = math.length(toTarget);
                 if (targetDistance <= ANCHOR_ARRIVE_DISTANCE)
                 {
-                    group.HasArrived = hasSlot;
+                    group.HasArrived = hasSlot && !isWaitingSlot;
                     heading = (PlayerPosition - group.AnchorPosition).xz;
                     hasHeading = true;
                 }
@@ -425,25 +427,47 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 置き場を持っていて、それが使えなくなっていれば手放す。持っていなければ、空いている使える置き場のうち
+        /// 置き場を持っていれば、使える置き場はそのまま持ち続け、使えなくなった置き場は手放す。待つ置き場を持っていれば、使える置き場が空いたら移る。
+        /// 持っていなければ、空いている使える置き場から、それもなければ待つ置き場から、
         /// 「周の番号 × 90° ＋ プレイヤーから見たアンカーの角度との差（ラジアン）」が最も小さいものを受け取る。
         /// 内側の周から埋まり、来た向きから外れた（グループどうしの道が交差しやすい）置き場は取りにくくなる。
         /// 受け取った置き場は、帰還で手放すまで持ち続ける。
         /// </summary>
-        private void UpdateEncircleSlot(ref EnemyGroup group, NativeArray<bool> usedEncircleSlots, NativeArray<float2> slotPoints)
+        private void UpdateEncircleSlot(ref EnemyGroup group, NativeArray<bool> usedEncircleSlots, NativeArray<float2> slotPoints,
+            int lastUsableSlot)
         {
-            if (group.EncircleSlot >= 0)
-            {
-                if (!math.any(math.isnan(slotPoints[group.EncircleSlot]))) return;
+            var slot = group.EncircleSlot;
+            if (slot >= 0 && slot <= lastUsableSlot && !math.any(math.isnan(slotPoints[slot]))) return;
 
-                usedEncircleSlots[group.EncircleSlot] = false;
+            if (slot >= 0 && (slot <= lastUsableSlot || math.any(math.isnan(slotPoints[slot]))))
+            {
+                usedEncircleSlots[slot] = false;
                 group.EncircleSlot = -1;
+                slot = -1;
             }
 
+            var best = FindFreeSlot(group, usedEncircleSlots, slotPoints, 0, lastUsableSlot);
+            if (best < 0 && slot >= 0) return;
+            if (best < 0) best = FindFreeSlot(group, usedEncircleSlots, slotPoints, lastUsableSlot + 1, MAX_ENCIRCLE_SLOTS - 1);
+            if (best < 0) return;
+
+            if (slot >= 0) usedEncircleSlots[slot] = false;
+            usedEncircleSlots[best] = true;
+            group.EncircleSlot = best;
+        }
+
+        /// <summary>
+        /// 番号 first〜last の置き場のうち、空いていて位置のあるもので、
+        /// 「周の番号 × 90° ＋ プレイヤーから見たアンカーの角度との差（ラジアン）」が最も小さいものを返す。なければ -1。
+        /// </summary>
+        private int FindFreeSlot(in EnemyGroup group, NativeArray<bool> usedEncircleSlots, NativeArray<float2> slotPoints,
+            int first, int last)
+        {
             var fromPlayer = group.AnchorPosition.xz - PlayerPosition.xz;
             var groupAngle = math.atan2(fromPlayer.x, fromPlayer.y);
+            var best = -1;
             var bestCost = float.MaxValue;
-            for (var slot = 0; slot < MAX_ENCIRCLE_SLOTS; slot++)
+            for (var slot = first; slot <= last; slot++)
             {
                 if (usedEncircleSlots[slot] || math.any(math.isnan(slotPoints[slot]))) continue;
 
@@ -456,10 +480,10 @@ namespace Kizami.EngineAdapter
                 if (cost >= bestCost) continue;
 
                 bestCost = cost;
-                group.EncircleSlot = slot;
+                best = slot;
             }
 
-            if (group.EncircleSlot >= 0) usedEncircleSlots[group.EncircleSlot] = true;
+            return best;
         }
 
         /// <summary>
@@ -473,16 +497,18 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 置き場ごとに、プレイヤーを中心にした螺旋の上の位置を、プレイヤーへたどり着ける立てる層のある列へずらして slotPoints に書き、
-        /// 使える置き場のうち最も外の置き場の螺旋の半径を返す。建物の中や穴の上など、周り SLOT_SHIFT_RADIUS に立てる列がない置き場は NaN にする。
+        /// 使える置き場のうち最も外の置き場の番号を返す（なければ -1）。
+        /// それより内側で、周り SLOT_SHIFT_RADIUS に立てる列がない置き場（建物の中や穴の上）は NaN にする。
+        /// それより外の置き場は、置き場を持てないグループが待つ置き場にする。追跡範囲の外に出る位置は範囲の中へ寄せてから、立てる列へずらす
+        /// （ずらせなければ寄せた位置のまま）。待つグループどうしも、置き場と同じ間隔をあける為。
         /// </summary>
-        private float BuildSlotPoints(NativeArray<float2> slotPoints)
+        private int BuildSlotPoints(NativeArray<float2> slotPoints)
         {
-            var outermostRadius = Formation.EncircleInnerRadius;
+            var lastUsableSlot = -1;
             var searchRadius = (int)math.ceil(SLOT_SHIFT_RADIUS / Grid.CellSize);
             for (var slot = 0; slot < MAX_ENCIRCLE_SLOTS; slot++)
             {
-                var point = PlayerPosition.xz + EnemyFormationSettings.GetSpiralOffset(slot, Formation.EncircleInnerRadius,
-                    Formation.EncircleLoopSpacing, Formation.EncircleSlotSpacing);
+                var point = GetSpiralPoint(slot);
                 if (!TryShiftToReachableColumn(point, searchRadius, out var shifted))
                 {
                     slotPoints[slot] = new float2(float.NaN);
@@ -490,10 +516,27 @@ namespace Kizami.EngineAdapter
                 }
 
                 slotPoints[slot] = shifted;
-                outermostRadius = math.max(outermostRadius, GetEncircleRadius(slot));
+                lastUsableSlot = slot;
             }
 
-            return outermostRadius;
+            var areaMin = Grid.Origin.xz + ((float2)TrackingMin + 0.5f) * Grid.CellSize;
+            var areaMax = Grid.Origin.xz + ((float2)TrackingMax + 0.5f) * Grid.CellSize;
+            for (var slot = lastUsableSlot + 1; slot < MAX_ENCIRCLE_SLOTS; slot++)
+            {
+                var point = math.clamp(GetSpiralPoint(slot), areaMin, areaMax);
+                slotPoints[slot] = TryShiftToReachableColumn(point, searchRadius, out var shifted) ? shifted : point;
+            }
+
+            return lastUsableSlot;
+        }
+
+        /// <summary>
+        /// プレイヤーを中心にした螺旋の上の、置き場の位置（水平）。
+        /// </summary>
+        private float2 GetSpiralPoint(int slot)
+        {
+            return PlayerPosition.xz + EnemyFormationSettings.GetSpiralOffset(slot, Formation.EncircleInnerRadius,
+                Formation.EncircleLoopSpacing, Formation.EncircleSlotSpacing);
         }
 
         /// <summary>
@@ -756,7 +799,7 @@ namespace Kizami.EngineAdapter
         {
             var usedEncircleSlots = new NativeArray<bool>(MAX_ENCIRCLE_SLOTS, Allocator.Temp);
             var slotPoints = new NativeArray<float2>(MAX_ENCIRCLE_SLOTS, Allocator.Temp);
-            var outermostRadius = BuildSlotPoints(slotPoints);
+            var lastUsableSlot = BuildSlotPoints(slotPoints);
             for (var g = 0; g < Groups.Length; g++)
             {
                 var group = Groups[g];
@@ -780,7 +823,7 @@ namespace Kizami.EngineAdapter
                 {
                     case EnemyGroupState.Tracking:
                         UpdatePhase(g, ref group);
-                        MoveAnchor(g, ref group, usedEncircleSlots, slotPoints, outermostRadius);
+                        MoveAnchor(g, ref group, usedEncircleSlots, slotPoints, lastUsableSlot);
                         RecordReturnPath(g, ref group);
                         break;
                     case EnemyGroupState.Returning:
