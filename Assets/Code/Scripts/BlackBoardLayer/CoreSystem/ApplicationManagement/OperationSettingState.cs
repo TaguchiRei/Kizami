@@ -5,12 +5,8 @@ namespace Kizami.BlackBoard
 {
     /// <summary>
     /// 操作に関わる設定（ダッシュ入力の受け付け方・切断面の回転角度・視点操作の感度）を保持するゲームステート。シーンを跨いで保たれる。
+    /// 感度は基準を 1.0 とする倍率で、生の視点入力の単位が経路ごとに違う（PC / スマホはスクリーン座標の delta、VR はスティックの -1〜1）ため、基準スケールは各入力経路・適用側が定数として持つ。
     /// </summary>
-    /// <remarks>
-    /// 感度は基準を 1.0 とする倍率。
-    /// 生の視点入力は経路ごとに単位が違う（PC / スマホはスクリーン座標の delta、VR はスティックの -1〜1）ため、
-    /// 基準スケールはこの State に持たせず、各入力経路・適用側が定数として持つ。
-    /// </remarks>
     [RegisterBoard(typeof(AppBoard))]
     public sealed class OperationSettingState : GameStateBase, IOperationSettingState
     {
