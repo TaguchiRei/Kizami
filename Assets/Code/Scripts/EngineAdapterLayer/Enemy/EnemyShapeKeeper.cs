@@ -9,9 +9,7 @@ namespace Kizami.EngineAdapter
     /// 形は、初期化のときに作った保管用の CuttableObject（非アクティブのまま使う）に、CuttableObject.AdoptCutShape で移して持つ。
     /// </summary>
     /// <remarks>
-    /// 形を移すと、メッシュの持ち主、マテリアル（切断面を含む）、切断回数、切れるかどうかが一緒に移る。
     /// 保管用の物は移した先として MeshDataCache の利用者に登録されるので、ストアを作り直しても形のデータは残る。
-    /// 実行中は保管用の物を作らないので、空きが足りないときは預からない（呼び出し側が体を返さない）。
     /// </remarks>
     public sealed class EnemyShapeKeeper
     {

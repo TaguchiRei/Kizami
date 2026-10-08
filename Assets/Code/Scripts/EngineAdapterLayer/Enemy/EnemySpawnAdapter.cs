@@ -26,7 +26,6 @@ namespace Kizami.EngineAdapter
     /// </summary>
     /// <remarks>
     /// 敵を出すのは MeshDataCache のストアができてから。体を貸すときに部位を登録し直すのにストアが要る為。
-    /// 生成の間隔、敵の移動、見た目用の物の動きは Time.deltaTime で数え、スローモード中は一緒に遅くなる。
     /// </remarks>
     public sealed class EnemySpawnAdapter : InitializableMonoBehaviour
     {

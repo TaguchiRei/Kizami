@@ -214,10 +214,6 @@ namespace Kizami.EngineAdapter
         /// 中心から見た、アルキメデスの螺旋（半径 = 内側の半径 ＋ 1 周ごとの広がり × 角度 / 2π）の上の slot 番目の置き場の位置（水平）。
         /// 置き場は螺旋に沿って slotSpacing ずつ並ぶ。0 番目は +Z の向きの内側の端で、番号が大きいほど外側になる。
         /// </summary>
-        /// <remarks>
-        /// 螺旋に沿った長さ s は、角度 θ について s ≒ 内側の半径 × θ ＋ 広がり × θ² / 4π なので、これを θ について解く。
-        /// このとき、半径は √(内側の半径² ＋ 広がり × s / π) になる。
-        /// </remarks>
         public static float2 GetSpiralOffset(int slot, float innerRadius, float loopSpacing, float slotSpacing)
         {
             var radius = GetSpiralRadius(slot, innerRadius, loopSpacing, slotSpacing);
@@ -230,6 +226,8 @@ namespace Kizami.EngineAdapter
         /// </summary>
         public static float GetSpiralRadius(int slot, float innerRadius, float loopSpacing, float slotSpacing)
         {
+            // 螺旋に沿った長さ s は、角度 θ について s ≒ 内側の半径 × θ ＋ 広がり × θ² / 4π なので、
+            // θ について解くと、半径は √(内側の半径² ＋ 広がり × s / π) になる
             return math.sqrt(innerRadius * innerRadius + loopSpacing * slot * slotSpacing / math.PI);
         }
     }

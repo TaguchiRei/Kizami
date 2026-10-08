@@ -8,7 +8,6 @@ namespace Kizami.EngineAdapter
     /// Burst の Job へ渡して読むための値で、配列の持ち主は EnemyDistanceField。
     /// </summary>
     /// <remarks>
-    /// 敵が高さ h から隣の列へ進むと、その列のうち「h ＋ 登れる高さ」以下で最も高い層に乗る。その層が「h − 降りられる高さ」より低ければ進めない。
     /// 列番号は z × 幅 ＋ x、ノード番号は 列番号 × MAX_LAYERS ＋ 層の番号。
     /// </remarks>
     public struct EnemyNavigationGrid
