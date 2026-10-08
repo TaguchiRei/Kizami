@@ -458,7 +458,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// ワールド空間の位置における、表面までの符号付き距離（ワールド空間, m）。負なら内側。
-        /// 表面から切り詰め距離（ボクセル 4 つ分）より離れた位置では、その距離で頭打ちになる。
+        /// 表面から切り詰め距離（VoxelVolume.TRUNCATION_VOXELS ボクセル分）より離れた位置では、その距離で頭打ちになる。
         /// ボリュームが無ければ正の無限大。
         /// </summary>
         public float SampleDistance(Vector3 worldPosition)
