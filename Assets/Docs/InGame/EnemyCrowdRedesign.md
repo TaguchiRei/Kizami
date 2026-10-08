@@ -3,7 +3,7 @@
 | 項目 | 内容 |
 |---|---|
 | 状態 | 仕様確定（2026-10-09）。Notion と計画書への反映は未 |
-| 置く区間 | 区間4D（仮）として、区間9の前に置く |
+| 置く区間 | 区間4D（区間9の前）。計画書は [Section04D_CrowdRedesign.md](Sections/Section04D_CrowdRedesign.md) |
 | 関連 | [EnemyCrowdDiscussion.md](EnemyCrowdDiscussion.md)、[Section04C_CrowdAI.md](Sections/Section04C_CrowdAI.md)、[Section09_EnemyVariation.md](Sections/Section09_EnemyVariation.md)、[LargeObjectVoxel.md](../Voxel/LargeObjectVoxel.md) |
 
 区間4C で作った群衆の動きを、二重のアルキメデス螺旋の形に作り直す。あわせて、距離場を区画に分け、遠くの敵はプレイヤーを追わない形にする。
@@ -69,7 +69,7 @@
 
 ### 区間の範囲
 
-21. 区間4D に、待機・追跡・帰還の状態、区画に分けた距離場、二重螺旋、交戦の廃止を入れる。弾・バリア・吸収型の敵は区間9、ボクセルの建物は別の区間にする
+21. 区間4D に、待機・追跡・帰還の状態、区画に分けた距離場、二重螺旋、交戦の廃止を入れる。弾・バリア・吸収型の敵は区間9、ボクセルの建物は区間15にする
 22. ボクセルの建物の傷を残す範囲は、追跡範囲と同じにする（[LargeObjectVoxel.md](../Voxel/LargeObjectVoxel.md)）。敵が通る範囲で穴が消えると、敵が壁を貫通して見える為
 
 ## 区間9に関わること
