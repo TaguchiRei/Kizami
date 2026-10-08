@@ -1809,6 +1809,7 @@ MonoBehaviour:
   _navigationBounds:
     m_Center: {x: 0, y: 9.5, z: 0}
     m_Extent: {x: 100, y: 14.5, z: 100}
+  _sectionSize: 50
 --- !u!4 &814657261
 Transform:
   m_ObjectHideFlags: 0
@@ -1929,6 +1930,7 @@ MonoBehaviour:
   _navigationBounds:
     m_Center: {x: 0, y: 9.5, z: 0}
     m_Extent: {x: 100, y: 14.5, z: 100}
+  _sectionSize: 50
 --- !u!4 &927238640
 Transform:
   m_ObjectHideFlags: 0

@@ -38,6 +38,12 @@ namespace Kizami.EngineAdapter
         public EnemyNavigationGrid Grid;
         [ReadOnly] public NativeArray<float> Distances;
 
+        /// <summary> Distances を計算した追跡範囲の、最小の列 (x, z) </summary>
+        public int2 TrackingMin;
+
+        /// <summary> Distances を計算した追跡範囲の、最大の列 (x, z)。この列も含む </summary>
+        public int2 TrackingMax;
+
         /// <summary> グループの状態 </summary>
         [ReadOnly] public NativeArray<EnemyGroup> Groups;
 
@@ -87,20 +93,28 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 立っている層からプレイヤーへたどり着けない（距離マップの値がない）間、その時間を数える。たどり着けたら 0 に戻す。落ちている間は数えたままにする。
+        /// 追跡範囲の中で、立っている層からプレイヤーへたどり着けない（距離マップの値がない）間、その時間を数える。
+        /// たどり着けるか、追跡範囲の外にいれば 0 に戻す。範囲の外の層は距離を持たない為。格子の範囲の外にいる間は数え、落ちている間は数えた時間をそのまま持つ。
         /// </summary>
         private void UpdateStrandedTime(ref EnemyAgent agent)
         {
             if (!agent.IsAlive || !agent.IsGrounded) return;
 
-            var isReachable = Grid.TryGetColumn(agent.Position, out var column);
-            if (isReachable)
+            var isStranded = !Grid.TryGetColumn(agent.Position, out var column);
+            if (!isStranded && IsInTrackingRange(column))
             {
                 var node = Grid.GetHighestNodeBelow(column, agent.Position.y + GROUND_TOLERANCE);
-                isReachable = node >= 0 && !float.IsPositiveInfinity(Distances[node]);
+                isStranded = node < 0 || float.IsPositiveInfinity(Distances[node]);
             }
 
-            agent.StrandedTime = isReachable ? 0f : agent.StrandedTime + DeltaTime;
+            agent.StrandedTime = isStranded ? agent.StrandedTime + DeltaTime : 0f;
+        }
+
+        private bool IsInTrackingRange(int column)
+        {
+            var x = column % Grid.Width;
+            var z = column / Grid.Width;
+            return x >= TrackingMin.x && x <= TrackingMax.x && z >= TrackingMin.y && z <= TrackingMax.y;
         }
 
         private void Walk(ref EnemyAgent agent, int index)

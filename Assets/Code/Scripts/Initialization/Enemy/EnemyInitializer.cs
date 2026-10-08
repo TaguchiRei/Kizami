@@ -38,6 +38,7 @@ namespace Kizami.Initialization
                 () => $"update {_spawnAdapter.UpdateMilliseconds:F2} / move {_spawnAdapter.MoveMilliseconds:F2} / body {_spawnAdapter.BodyMilliseconds:F2} / render {_spawnAdapter.RenderMilliseconds:F2}");
             DebugGUI.ObserveVariable("Bodies", () => $"{_spawnAdapter.LentBodyCount} / {_spawnAdapter.BodyCount} (kept shapes {_spawnAdapter.KeptShapeCount})");
             DebugGUI.ObserveVariable("Distance Field", GetDistanceFieldText);
+            DebugGUI.ObserveVariable("Tracking", GetTrackingText);
 #endif
 
             base.Initialize(blackBoard);
@@ -63,6 +64,21 @@ namespace Kizami.Initialization
             if (field == null) return "-";
 
             return $"nodes {field.NodeCount} (overflow {field.OverflowColumnCount}) / bake {field.BakeMilliseconds:F1} / compute {field.ComputeMilliseconds:F2} / rebake {field.RebakeMilliseconds:F2}";
+        }
+
+        /// <summary>
+        /// 距離マップを計算した追跡範囲（ワールド座標の x・z の範囲、m）と、その立てる層の数、起点がプレイヤーの足元か周りかを並べる。
+        /// </summary>
+        private string GetTrackingText()
+        {
+            var field = _spawnAdapter.DistanceField;
+            if (field == null) return "-";
+
+            var area = field.TrackingArea;
+            if (area.width <= 0f) return "-";
+
+            var start = field.UsesNearbyStart ? "nearby" : "player";
+            return $"x {area.xMin:F0}~{area.xMax:F0} z {area.yMin:F0}~{area.yMax:F0} / nodes {field.TrackingNodeCount} / start {start}";
         }
 
         /// <summary>
