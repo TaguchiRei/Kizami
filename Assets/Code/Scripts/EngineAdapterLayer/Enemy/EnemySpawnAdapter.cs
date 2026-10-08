@@ -478,7 +478,6 @@ namespace Kizami.EngineAdapter
                 TrackingMax = _distanceField.TrackingMax,
                 Groups = _groups.Groups,
                 Paths = _groups.Paths,
-                EngageSlots = _groups.EngageSlots,
                 Formation = _formation,
                 PlayerPosition = playerPosition,
                 DeltaTime = deltaTime,

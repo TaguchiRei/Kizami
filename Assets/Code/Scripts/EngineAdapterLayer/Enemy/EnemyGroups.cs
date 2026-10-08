@@ -6,7 +6,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵のグループ（EnemyGroup）と、その道筋・帰りの道筋・メンバーの配列、交戦する敵の置き場の配列を持つ。
+    /// 敵のグループ（EnemyGroup）と、その道筋・帰りの道筋・メンバーの配列を持つ。
     /// EnemySpawnAdapter が、生成した敵を順にグループへ入れ、毎フレーム EnemyGroupJob を回し、グループを 1 つずつ並べ替える。
     /// </summary>
     public sealed class EnemyGroups : IDisposable
@@ -37,9 +37,6 @@ namespace Kizami.EngineAdapter
         /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、メンバーの敵の番号 </summary>
         private NativeArray<int> _members;
 
-        /// <summary> 敵ごとの、交戦する敵の置き場の番号。持たなければ -1。EnemyGroupJob が割り当てる </summary>
-        private NativeArray<int> _engageSlots;
-
         /// <summary> 生成した敵を入れていくグループ。次に入れる敵で新しいグループを作るなら -1 </summary>
         private int _openGroup = -1;
 
@@ -51,9 +48,6 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 道筋の点。EnemyMoveJob が読む </summary>
         public NativeArray<float3> Paths => _paths;
-
-        /// <summary> 敵ごとの、交戦する敵の置き場の番号。EnemyMoveJob が読む </summary>
-        public NativeArray<int> EngageSlots => _engageSlots;
 
         /// <summary> 使われているグループの数 </summary>
         public int ActiveCount
@@ -77,8 +71,6 @@ namespace Kizami.EngineAdapter
             _paths = new NativeArray<float3>(capacity * PATH_CAPACITY, Allocator.Persistent);
             _returnPaths = new NativeArray<float3>(capacity * RETURN_PATH_CAPACITY, Allocator.Persistent);
             _members = new NativeArray<int>(capacity * EnemyFormationSettings.MAX_GROUP_SIZE, Allocator.Persistent);
-            _engageSlots = new NativeArray<int>(capacity, Allocator.Persistent);
-            for (var i = 0; i < capacity; i++) _engageSlots[i] = -1;
         }
 
         /// <summary>
@@ -122,7 +114,6 @@ namespace Kizami.EngineAdapter
         public static void Leave(ref EnemyAgent agent)
         {
             agent.GroupIndex = -1;
-            agent.IsEngaged = false;
         }
 
         /// <summary>
@@ -203,7 +194,6 @@ namespace Kizami.EngineAdapter
                 Paths = _paths,
                 ReturnPaths = _returnPaths,
                 Members = _members,
-                EngageSlots = _engageSlots,
                 Agents = agents,
                 Grid = grid,
                 Distances = distances,
@@ -222,6 +212,7 @@ namespace Kizami.EngineAdapter
         /// メンバーが合流する数以下に減っていれば、近くの空きのあるグループへ合流させる。
         /// 合流しなければ、メンバーの隊列の順番を、向かう先に近い順に並べ替える（先頭の列に向かう先に近いメンバーが来て、隊列の位置へ向かうメンバーどうしが交差しにくくなる）。
         /// 向かう先に近い順は、帰還中は持ち場までの直線の距離、それ以外はプレイヤーまでの経路の長さで決める。
+        /// 置き場に着いて螺旋に並んでいるグループは並べ替えない。順番が螺旋の上の位置なので、入れ替えると並び直しが続く為。
         /// </summary>
         /// <param name="brokenMovePartLimit">壊れた移動部位がこの数に達した敵は動けないので、グループから抜いてその場に残す</param>
         public void MaintainNext(NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances,
@@ -237,14 +228,14 @@ namespace Kizami.EngineAdapter
                 if (!_groups[g].IsActive) return;
                 if (_groups[g].MemberCount <= formation.MergeSize && TryMerge(g, agents, formation)) return;
 
-                Reorder(g, agents, grid, distances);
+                if (!_groups[g].HasArrived) Reorder(g, agents, grid, distances);
                 return;
             }
         }
 
         /// <summary>
         /// 倒れた敵、ほかのグループへ移った敵、動けなくなった敵を区画から抜き、残りを順番を保って前へ詰める。
-        /// 動けなくなった敵はグループから抜いて交戦もやめさせ、その場に残す。残りがいなければグループを空ける。
+        /// 動けなくなった敵はグループから抜いて、その場に残す。残りがいなければグループを空ける。
         /// </summary>
         private void Compact(int g, NativeArray<EnemyAgent> agents, int brokenMovePartLimit)
         {
@@ -419,7 +410,6 @@ namespace Kizami.EngineAdapter
             if (_paths.IsCreated) _paths.Dispose();
             if (_returnPaths.IsCreated) _returnPaths.Dispose();
             if (_members.IsCreated) _members.Dispose();
-            if (_engageSlots.IsCreated) _engageSlots.Dispose();
         }
     }
 }

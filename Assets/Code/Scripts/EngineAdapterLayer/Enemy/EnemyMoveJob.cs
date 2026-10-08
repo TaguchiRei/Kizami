@@ -6,7 +6,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 出ている敵を 1 体ずつ動かす。交戦中の敵はプレイヤーの周りの置き場へ、グループに入っている敵は隊列の位置へ、
+    /// 出ている敵を 1 体ずつ動かす。グループに入っている敵は隊列の位置（置き場に着いたグループでは、グループの中心の周りの螺旋の上の位置）へ、
     /// グループを持たない敵は距離マップの値が下がる隣の列へ向かって歩き、立てる層がなくなると落ちる。
     /// 自分の番号の敵だけを書き換え、ほかの敵は見ない。
     /// </summary>
@@ -50,12 +50,9 @@ namespace Kizami.EngineAdapter
         /// <summary> グループごとに EnemyGroups.PATH_CAPACITY 個の区画を持つ道筋の点 </summary>
         [ReadOnly] public NativeArray<float3> Paths;
 
-        /// <summary> 敵ごとの、交戦する敵の置き場の番号。EnemyGroupJob が割り当て、持たなければ -1 </summary>
-        [ReadOnly] public NativeArray<int> EngageSlots;
-
         public EnemyFormationSettings Formation;
 
-        /// <summary> プレイヤーの位置。交戦の置き場の中心 </summary>
+        /// <summary> プレイヤーの位置。着いたグループのメンバーと、近づきすぎて止まった敵が向く </summary>
         public float3 PlayerPosition;
 
         public float DeltaTime;
@@ -126,7 +123,6 @@ namespace Kizami.EngineAdapter
 
             var height = Grid.Heights[node];
             var distance = Distances[node];
-            UpdateEngagement(ref agent, distance);
 
             var toPlayer = (PlayerPosition - agent.Position).xz;
             var yawToPlayer = math.atan2(toPlayer.x, toPlayer.y);
@@ -138,21 +134,6 @@ namespace Kizami.EngineAdapter
 
             var speed = MoveSpeed * (1f + SPEED_JITTER * (2f * GetAgentRandom(index) - 1f));
 
-            if (agent.IsEngaged)
-            {
-                var slot = EngageSlots[index];
-                if (slot < 0)
-                {
-                    Turn(ref agent, yawToPlayer);
-                    return;
-                }
-
-                var spiralPoint = PlayerPosition.xz + EnemyFormationSettings.GetSpiralOffset(slot, Formation.SpiralInnerRadius,
-                    Formation.SpiralLoopSpacing, Formation.SpiralSlotSpacing);
-                MoveToward(ref agent, column, height, distance, spiralPoint, yawToPlayer, speed);
-                return;
-            }
-
             if (TryGetSlotTarget(agent, out var target, out var slotYaw))
             {
                 MoveToward(ref agent, column, height, distance, target, slotYaw, speed);
@@ -163,15 +144,6 @@ namespace Kizami.EngineAdapter
             if (!Grid.TryGetDownhillColumn(column, height, distance, Distances, out var nextColumn)) return;
 
             Step(ref agent, column, height, (Grid.GetCellCenter(nextColumn, 0f) - agent.Position).xz, speed);
-        }
-
-        /// <summary>
-        /// プレイヤーまでの経路の長さが交戦に入る距離以下なら交戦に入り、抜ける距離を超えたら（たどり着けなくなったときも）抜ける。
-        /// </summary>
-        private void UpdateEngagement(ref EnemyAgent agent, float distance)
-        {
-            if (!agent.IsEngaged && distance <= Formation.EngageEnterDistance) agent.IsEngaged = true;
-            else if (agent.IsEngaged && distance > Formation.EngageExitDistance) agent.IsEngaged = false;
         }
 
         /// <summary>
@@ -233,7 +205,10 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// グループに入っている敵の、隊列の位置（水平）と、その位置での隊列の向きを返す。グループを持たなければ false。
         /// 隊列の位置は、道筋に沿ってアンカーから (列の番号 × 列の間隔) 後ろの点を、列の中の位置に応じて道筋の横へずらした点。
-        /// アンカーが包囲の置き場を持つ間は、道筋ではなくアンカーの向きのまっすぐ後ろに並べる。着いたアンカーはプレイヤーを向くので、横隊がプレイヤーを向く。
+        /// 置き場に着いたグループでは、グループの中心（アンカー）を中心にした螺旋の上の、隊列の順番の位置にし、プレイヤーを向く。
+        /// 螺旋の 0 番はグループの中心で、螺旋は 0 番から外側へ向かう向きがプレイヤーへの向きになるよう回す。
+        /// 螺旋の上の位置が壁の向こうや穴の上に来たら、中心からその向きへ同じ高さの床が続く所まで縮める。
+        /// 移動中は、道筋に沿って並ぶ（曲がり角で壁に詰まらない為）。
         /// </summary>
         private bool TryGetSlotTarget(in EnemyAgent agent, out float2 target, out float yaw)
         {
@@ -244,6 +219,20 @@ namespace Kizami.EngineAdapter
             var group = Groups[agent.GroupIndex];
             if (!group.IsActive) return false;
 
+            if (group.HasArrived)
+            {
+                var toPlayer = math.normalizesafe((PlayerPosition - group.AnchorPosition).xz, new float2(0f, 1f));
+                var offset = EnemyFormationSettings.GetSpiralOffset(agent.SlotIndex, 0f, Formation.MemberLoopSpacing,
+                    Formation.MemberSlotSpacing);
+                var side = new float2(toPlayer.y, -toPlayer.x);
+                var fromCenter = side * offset.x + toPlayer * offset.y;
+                var length = math.length(fromCenter);
+                var direction = length > 0f ? fromCenter / length : float2.zero;
+                target = group.AnchorPosition.xz + direction * Grid.GetFlatFloorLength(group.AnchorPosition, direction, length);
+                yaw = math.atan2((PlayerPosition.xz - target).x, (PlayerPosition.xz - target).y);
+                return true;
+            }
+
             var columnCount = math.max(1, group.ColumnCount);
             var row = agent.SlotIndex / columnCount;
             var lane = agent.SlotIndex % columnCount;
@@ -251,17 +240,7 @@ namespace Kizami.EngineAdapter
             var lateral = (lane - (lanesInRow - 1) * 0.5f) * Formation.LateralSpacing;
             var back = row * Formation.RowSpacing;
 
-            float3 point;
-            float2 tangent;
-            if (group.EncircleSlot >= 0)
-            {
-                tangent = new float2(math.sin(group.AnchorYaw), math.cos(group.AnchorYaw));
-                point = group.AnchorPosition - new float3(tangent.x, 0f, tangent.y) * back;
-            }
-            else
-            {
-                EnemyGroups.SamplePath(Paths, agent.GroupIndex, group, back, out point, out tangent);
-            }
+            EnemyGroups.SamplePath(Paths, agent.GroupIndex, group, back, out var point, out var tangent);
 
             var right = new float2(tangent.y, -tangent.x);
             target = point.xz + right * ClampLateral(point, right, lateral);

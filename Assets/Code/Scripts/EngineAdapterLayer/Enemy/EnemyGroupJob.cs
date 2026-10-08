@@ -8,7 +8,6 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 敵のグループを 1 つずつ更新する。待機・追跡・帰還の切り替え、進む・待つの切り替え、アンカーの移動と道筋・帰りの道筋の記録、隊列の 1 列の数、包囲の置き場の割り当てを行う。
     /// 持ち場が追跡範囲（距離マップを計算した範囲）に入れば追跡に、外れれば帰還にする。範囲が変わるのは区画の切り替えのときだけなので、毎フレーム調べても切り替えのときだけ変わる。
-    /// あわせて、交戦している敵へ、プレイヤーの周りの螺旋の上の置き場を割り当てる。
     /// 別のグループや別の敵の置き場を見るので、順番に依存しないよう、並列にせず 1 つの Job で回す。
     /// </summary>
     [BurstCompile]
@@ -28,9 +27,6 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 置き場が立てる層のない列に来たときに、ずらす先の列を探す半径（m） </summary>
         private const float SLOT_SHIFT_RADIUS = 10f;
-
-        /// <summary> 交戦する敵の置き場の数の上限。実際に使うのは、交戦に入る距離より内側の置き場だけ </summary>
-        private const int MAX_ENGAGE_SLOTS = 64;
 
         /// <summary> アンカーが包囲の置き場にこの距離（m）まで近づいたら、着いたとみなす </summary>
         private const float ANCHOR_ARRIVE_DISTANCE = 1f;
@@ -55,9 +51,6 @@ namespace Kizami.EngineAdapter
         /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、メンバーの敵の番号 </summary>
         [ReadOnly] public NativeArray<int> Members;
 
-        /// <summary> 敵ごとの、交戦する敵の置き場の番号。持たなければ -1 </summary>
-        public NativeArray<int> EngageSlots;
-
         [ReadOnly] public NativeArray<EnemyAgent> Agents;
         public EnemyNavigationGrid Grid;
         [ReadOnly] public NativeArray<float> Distances;
@@ -70,7 +63,7 @@ namespace Kizami.EngineAdapter
 
         public EnemyFormationSettings Formation;
 
-        /// <summary> プレイヤーの位置。包囲と交戦の螺旋の中心 </summary>
+        /// <summary> プレイヤーの位置。グループの置き場の螺旋の中心 </summary>
         public float3 PlayerPosition;
 
         /// <summary> 敵が歩く速さ（m/s） </summary>
@@ -222,9 +215,10 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 追跡中のアンカーを、目標位置（包囲の置き場。使える置き場が空いていなければ、その外に続く待つ置き場）へ歩かせる。
-        /// プレイヤーまでの経路が「目標位置の半径 ＋ 近づく余裕」より長い間は距離マップの値が下がる方へ、内側では目標位置へ向かう。
-        /// 目標位置へまっすぐ向かうと、壁の向こうの目標位置の手前で詰まる為。
-        /// 置き場に着いたら止まってプレイヤーを向く。距離マップを下る間は、たどり着けないときと、同じレーンの前で別のグループが待つ番で止まっているときに、止まるまで減速する。
+        /// プレイヤーまでの経路が「目標位置のプレイヤーまでの経路 ＋ 近づく余裕」より長い間は距離マップの値が下がる方へ、内側では目標位置へ向かう。
+        /// 目標位置へまっすぐ向かうと、壁の向こうの目標位置の手前で詰まる為。経路の長さで比べるので、壁を回り込んでから目標位置へ向かう。
+        /// 置き場に着いたら止まってプレイヤーを向き、メンバーはグループの中心の周りの螺旋に並ぶ。置き場が FollowDistance 動くまでは、並んだままついていく。
+        /// 距離マップを下る間は、たどり着けないときと、同じレーンの前で別のグループが待つ番で止まっているときに、止まるまで減速する。
         /// </summary>
         /// <param name="slotPoints">置き場ごとの、立てる列へずらした位置。使えない置き場は NaN</param>
         /// <param name="lastUsableSlot">使える置き場のうち、最も外の置き場の番号。これより外の置き場は待つ置き場。なければ -1</param>
@@ -252,14 +246,30 @@ namespace Kizami.EngineAdapter
                 target = PlayerPosition.xz + fromPlayer * (outermostRadius + Formation.EncircleLoopSpacing);
             }
 
-            var targetRadius = math.distance(target, PlayerPosition.xz);
-
+            var targetPathDistance = GetPathDistance(target);
             var targetSpeed = 0f;
             var hasHeading = false;
             var heading = float2.zero;
-            group.HasArrived = false;
+            var toTarget = target - group.AnchorPosition.xz;
+            var targetDistance = math.length(toTarget);
 
-            if (distance > targetRadius + Formation.EncircleApproachMargin)
+            // 着いたグループは、置き場が FollowDistance 動くまでは螺旋に並んだまま、置き場へついていく
+            if (group.HasArrived && hasSlot && !isWaitingSlot && targetDistance < Formation.FollowDistance)
+            {
+                if (targetDistance > ANCHOR_ARRIVE_DISTANCE
+                    && TryGetHeadingToward(group.AnchorPosition, column, height, distance, toTarget, out heading))
+                {
+                    hasHeading = true;
+                    targetSpeed = MoveSpeed * Formation.AnchorSpeedRate * math.saturate(targetDistance / ANCHOR_SLOW_DOWN_DISTANCE);
+                }
+
+                Advance(ref group, column, node, hasHeading, heading, targetSpeed);
+                return;
+            }
+
+            if (group.HasArrived) LeaveSpiral(g, ref group, toTarget);
+
+            if (distance > targetPathDistance + Formation.EncircleApproachMargin)
             {
                 var nextColumn = -1;
                 hasHeading = !float.IsPositiveInfinity(distance)
@@ -272,8 +282,6 @@ namespace Kizami.EngineAdapter
             }
             else
             {
-                var toTarget = target - group.AnchorPosition.xz;
-                var targetDistance = math.length(toTarget);
                 if (targetDistance <= ANCHOR_ARRIVE_DISTANCE)
                 {
                     group.HasArrived = hasSlot && !isWaitingSlot;
@@ -292,6 +300,29 @@ namespace Kizami.EngineAdapter
             }
 
             Advance(ref group, column, node, hasHeading, heading, targetSpeed);
+        }
+
+        /// <summary>
+        /// 螺旋に並んでいたグループを、隊列に戻す。道筋を、向かう先 toTarget と逆向きにアンカーからまっすぐ伸ばして作り直し、メンバーが新しい隊列の位置へ向かえるようにする。
+        /// 着いている間は道筋を記録していないので、そのままでは古い道筋に沿って並ぶ為。
+        /// </summary>
+        private void LeaveSpiral(int g, ref EnemyGroup group, float2 toTarget)
+        {
+            group.HasArrived = false;
+            var yaw = math.lengthsq(toTarget) > 0f ? math.atan2(toTarget.x, toTarget.y) : group.AnchorYaw;
+            var backward = -new float3(math.sin(yaw), 0f, math.cos(yaw));
+            var count = math.min(EnemyGroups.PATH_CAPACITY,
+                (int)math.ceil(GetFormationLength(group) / EnemyGroups.PATH_SPACING) + 1);
+            var offset = g * EnemyGroups.PATH_CAPACITY;
+            for (var i = 0; i < count; i++)
+            {
+                // 最も古い点が最も後ろになるよう、区画の先頭から後ろの点を並べる
+                Paths[offset + i] = group.AnchorPosition + backward * ((count - 1 - i) * EnemyGroups.PATH_SPACING);
+            }
+
+            group.PathHead = count - 1;
+            group.PathCount = count;
+            group.AnchorYaw = yaw;
         }
 
         /// <summary>
@@ -581,6 +612,23 @@ namespace Kizami.EngineAdapter
             return false;
         }
 
+        /// <summary>
+        /// 水平の位置 point の列の、プレイヤーまでの経路の長さ（m）。列に複数の層があれば最も短いもの。格子の外か、たどり着ける層がなければ、プレイヤーまでの直線の距離。
+        /// </summary>
+        private float GetPathDistance(float2 point)
+        {
+            var fallback = math.distance(point, PlayerPosition.xz);
+            if (!Grid.TryGetColumn(new float3(point.x, 0f, point.y), out var column)) return fallback;
+
+            var best = float.PositiveInfinity;
+            for (var k = 0; k < Grid.LayerCounts[column]; k++)
+            {
+                best = math.min(best, Distances[column * EnemyNavigationGrid.MAX_LAYERS + k]);
+            }
+
+            return float.IsPositiveInfinity(best) ? fallback : best;
+        }
+
         private bool HasReachableNode(int column)
         {
             for (var k = 0; k < Grid.LayerCounts[column]; k++)
@@ -705,12 +753,12 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// アンカーの位置から左右へ、アンカーと同じ高さの床が続く幅を調べ、1 列に並べる数を決める。上限は、包囲の間は EncircleColumns、それ以外は MaxColumns。
+        /// アンカーの位置から左右へ、アンカーと同じ高さの床が続く幅を調べ、1 列に並べる数を決める。上限は MaxColumns。
         /// 新しい数が ColumnChangeDelay の間続いたら変える。
         /// </summary>
         private void UpdateColumnCount(ref EnemyGroup group)
         {
-            var maxColumns = group.EncircleSlot >= 0 ? Formation.EncircleColumns : Formation.MaxColumns;
+            var maxColumns = Formation.MaxColumns;
             var right = new float2(math.cos(group.AnchorYaw), -math.sin(group.AnchorYaw));
             var maxSide = (maxColumns - 1) * Formation.LateralSpacing * 0.5f;
             var width = Grid.GetFlatFloorLength(group.AnchorPosition, right, maxSide)
@@ -733,66 +781,6 @@ namespace Kizami.EngineAdapter
 
             group.PendingColumnTime += DeltaTime;
             if (group.PendingColumnTime >= Formation.ColumnChangeDelay) group.ColumnCount = columnCount;
-        }
-
-        /// <summary>
-        /// 交戦をやめた敵と消えた敵の置き場を空け、置き場を持たない交戦中の敵へ、空いていて最も近い置き場を割り当てる。
-        /// 置き場はプレイヤーを中心にした螺旋の上に並べ（UnlimitedKnight の群衆の図）、使うのは、プレイヤーからの距離が交戦に入る距離以下のものだけ。
-        /// 空きがなければ、置き場を持たないまま待つ。
-        /// </summary>
-        private void UpdateEngageSlots()
-        {
-            var slotCount = 0;
-            while (slotCount < MAX_ENGAGE_SLOTS
-                   && EnemyFormationSettings.GetSpiralRadius(slotCount, Formation.SpiralInnerRadius,
-                       Formation.SpiralLoopSpacing, Formation.SpiralSlotSpacing) <= Formation.EngageEnterDistance)
-            {
-                slotCount++;
-            }
-
-            var usedSlots = new NativeArray<bool>(MAX_ENGAGE_SLOTS, Allocator.Temp);
-            for (var i = 0; i < Agents.Length; i++)
-            {
-                var slot = EngageSlots[i];
-                if (slot < 0) continue;
-
-                var agent = Agents[i];
-                if (!agent.IsAlive || !agent.IsEngaged || slot >= slotCount || usedSlots[slot])
-                {
-                    EngageSlots[i] = -1;
-                    continue;
-                }
-
-                usedSlots[slot] = true;
-            }
-
-            for (var i = 0; i < Agents.Length; i++)
-            {
-                var agent = Agents[i];
-                if (!agent.IsAlive || !agent.IsEngaged || EngageSlots[i] >= 0) continue;
-
-                var best = -1;
-                var bestDistanceSq = float.MaxValue;
-                for (var slot = 0; slot < slotCount; slot++)
-                {
-                    if (usedSlots[slot]) continue;
-
-                    var point = PlayerPosition.xz + EnemyFormationSettings.GetSpiralOffset(slot, Formation.SpiralInnerRadius,
-                        Formation.SpiralLoopSpacing, Formation.SpiralSlotSpacing);
-                    var distanceSq = math.distancesq(point, agent.Position.xz);
-                    if (distanceSq >= bestDistanceSq) continue;
-
-                    bestDistanceSq = distanceSq;
-                    best = slot;
-                }
-
-                if (best < 0) break;
-
-                usedSlots[best] = true;
-                EngageSlots[i] = best;
-            }
-
-            usedSlots.Dispose();
         }
 
         public void Execute()
@@ -841,7 +829,6 @@ namespace Kizami.EngineAdapter
 
             usedEncircleSlots.Dispose();
             slotPoints.Dispose();
-            UpdateEngageSlots();
         }
     }
 }
