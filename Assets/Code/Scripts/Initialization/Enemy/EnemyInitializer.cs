@@ -9,7 +9,6 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// 敵の生成と体のプール（EnemySpawnAdapter）を初期化し、出ている敵とグループの数、崩落で倒した敵の数、生成位置の有効・無効、敵の処理にかかった時間を画面に出す配線役。インゲームのシーンへ置く。
-    /// 倒れた体に残っていた切断済みの部位は、FragmentOrbAdapter でオーブにする。崩落で倒した敵のエネルギーは、EnemyEnergyAdapter で出す。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
     public sealed class EnemyInitializer : InitializerBase
