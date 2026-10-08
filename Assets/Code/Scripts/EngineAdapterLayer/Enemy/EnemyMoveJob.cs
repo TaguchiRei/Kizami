@@ -260,46 +260,13 @@ namespace Kizami.EngineAdapter
             }
             else
             {
-                SamplePath(agent.GroupIndex, group, back, out point, out tangent);
+                EnemyGroups.SamplePath(Paths, agent.GroupIndex, group, back, out point, out tangent);
             }
 
             var right = new float2(tangent.y, -tangent.x);
             target = point.xz + right * ClampLateral(point, right, lateral);
             yaw = math.atan2(tangent.x, tangent.y);
             return true;
-        }
-
-        /// <summary>
-        /// グループの道筋を、アンカーから back（m）だけ後ろへたどった点と、そこでの進む向き（水平の単位ベクトル）を返す。
-        /// 道筋が足りなければ、最も古い点を返す。
-        /// </summary>
-        private void SamplePath(int groupIndex, in EnemyGroup group, float back, out float3 point, out float2 tangent)
-        {
-            var offset = groupIndex * EnemyGroups.PATH_CAPACITY;
-            var current = group.AnchorPosition;
-            tangent = new float2(math.sin(group.AnchorYaw), math.cos(group.AnchorYaw));
-            var remaining = back;
-
-            for (var k = 0; k < group.PathCount; k++)
-            {
-                var older = Paths[offset + (group.PathHead - k + EnemyGroups.PATH_CAPACITY) % EnemyGroups.PATH_CAPACITY];
-                var segment = (current - older).xz;
-                var length = math.length(segment);
-                if (length < 1e-4f) continue;
-
-                tangent = segment / length;
-                if (length >= remaining)
-                {
-                    point = current - new float3(tangent.x, 0f, tangent.y) * remaining;
-                    point.y = math.lerp(current.y, older.y, remaining / length);
-                    return;
-                }
-
-                remaining -= length;
-                current = older;
-            }
-
-            point = current;
         }
 
         /// <summary>

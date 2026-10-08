@@ -384,6 +384,21 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 位置の真下の列が追跡範囲の中にあり、そこに立てる層がないか、その層からプレイヤーへたどり着けなければ true。
+        /// </summary>
+        public bool IsCutOff(float3 position)
+        {
+            if (!_grid.TryGetColumn(position, out var column)) return false;
+
+            var x = column % _grid.Width;
+            var z = column / _grid.Width;
+            if (x < _distancesMin.x || x > _distancesMax.x || z < _distancesMin.y || z > _distancesMax.y) return false;
+
+            var node = _grid.GetHighestNodeBelow(column, position.y + _grid.ClimbHeight);
+            return node < 0 || float.IsPositiveInfinity(_distances[node]);
+        }
+
+        /// <summary>
         /// ボクセルのモデルを見張り、読み込み・削る編集・塊の分離で形が変わった範囲の列を、そのピースのメッシュと当たり判定の作り直しが済んでから調べ直す。
         /// 通知を受けた時点では当たり判定が古い形のままなので、作り直しを待つ。
         /// </summary>

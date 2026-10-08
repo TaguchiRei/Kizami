@@ -6,7 +6,8 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵のグループを 1 つずつ更新する。進む・待つの切り替え、アンカーの移動と道筋の記録、隊列の 1 列の数、包囲の置き場の割り当てを行う。
+    /// 敵のグループを 1 つずつ更新する。待機・追跡・帰還の切り替え、進む・待つの切り替え、アンカーの移動と道筋・帰りの道筋の記録、隊列の 1 列の数、包囲の置き場の割り当てを行う。
+    /// 持ち場が追跡範囲（距離マップを計算した範囲）に入れば追跡に、外れれば帰還にする。範囲が変わるのは区画の切り替えのときだけなので、毎フレーム調べても切り替えのときだけ変わる。
     /// あわせて、交戦している敵へ、プレイヤーの周りの螺旋の上の置き場を割り当てる。
     /// 別のグループや別の敵の置き場を見るので、順番に依存しないよう、並列にせず 1 つの Job で回す。
     /// </summary>
@@ -34,10 +35,19 @@ namespace Kizami.EngineAdapter
         /// <summary> アンカーが包囲の置き場までの距離がこの値（m）より近いと、近さに合わせて遅くなる </summary>
         private const float ANCHOR_SLOW_DOWN_DISTANCE = 4f;
 
+        /// <summary> 帰還中のアンカーが帰りの道筋の点にこの距離（m）まで近づいたら、その点を捨てて次の点へ向かう </summary>
+        private const float RETURN_POINT_REACH_DISTANCE = 2f;
+
+        /// <summary> 帰還中のアンカーが進めない状態がこの時間（秒）続いたら、その位置を新しい持ち場にする </summary>
+        private const float RETURN_BLOCKED_DURATION = 5f;
+
         public NativeArray<EnemyGroup> Groups;
 
         /// <summary> グループごとに EnemyGroups.PATH_CAPACITY 個の区画を持つ道筋の点 </summary>
         public NativeArray<float3> Paths;
+
+        /// <summary> グループごとに EnemyGroups.RETURN_PATH_CAPACITY 個の区画を持つ帰りの道筋の点 </summary>
+        public NativeArray<float3> ReturnPaths;
 
         /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、メンバーの敵の番号 </summary>
         [ReadOnly] public NativeArray<int> Members;
@@ -48,6 +58,13 @@ namespace Kizami.EngineAdapter
         [ReadOnly] public NativeArray<EnemyAgent> Agents;
         public EnemyNavigationGrid Grid;
         [ReadOnly] public NativeArray<float> Distances;
+
+        /// <summary> Distances を計算した追跡範囲の、最小の列 (x, z) </summary>
+        public int2 TrackingMin;
+
+        /// <summary> Distances を計算した追跡範囲の、最大の列 (x, z)。この列も含む </summary>
+        public int2 TrackingMax;
+
         public EnemyFormationSettings Formation;
 
         /// <summary> プレイヤーの位置。包囲と交戦の螺旋の中心 </summary>
@@ -93,29 +110,118 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// アンカーを床の高さへ合わせ、進んでいる間は、包囲の置き場があればそこへ、なければ距離マップの値が下がる方へ歩かせる。
+        /// 持ち場が追跡範囲に入ったら追跡に、外れたら帰還にする。
+        /// 追跡を始めるときは、帰りの道筋が空なら持ち場を最初の点にする。帰還を始めるときは包囲の置き場を手放す。
+        /// どちらも、アンカーが向かう先と逆を向いていれば、隊列を前後に入れ替える。
+        /// </summary>
+        private void UpdateState(int g, ref EnemyGroup group, NativeArray<bool> usedEncircleSlots)
+        {
+            var isHomeTracked = IsTracked(group.HomePosition);
+
+            if (group.State != EnemyGroupState.Tracking && isHomeTracked)
+            {
+                group.State = EnemyGroupState.Tracking;
+                group.BlockedTime = 0f;
+                if (group.ReturnCount == 0) PushReturnPoint(g, ref group, group.HomePosition);
+
+                FaceFormation(g, ref group, (PlayerPosition - group.AnchorPosition).xz);
+                return;
+            }
+
+            if (group.State != EnemyGroupState.Tracking || isHomeTracked) return;
+
+            group.State = EnemyGroupState.Returning;
+            group.BlockedTime = 0f;
+            group.HasArrived = false;
+            if (group.EncircleSlot >= 0)
+            {
+                usedEncircleSlots[group.EncircleSlot] = false;
+                group.EncircleSlot = -1;
+            }
+
+            FaceFormation(g, ref group, (GetReturnTarget(g, group) - group.AnchorPosition).xz);
+        }
+
+        /// <summary>
+        /// 位置の真下の列が、距離マップを計算した追跡範囲の中にあるか。
+        /// </summary>
+        private bool IsTracked(float3 position)
+        {
+            if (!Grid.TryGetColumn(position, out var column)) return false;
+
+            var x = column % Grid.Width;
+            var z = column / Grid.Width;
+            return x >= TrackingMin.x && x <= TrackingMax.x && z >= TrackingMin.y && z <= TrackingMax.y;
+        }
+
+        /// <summary>
+        /// アンカーの向きが direction と逆（内積が負）なら、仮想のアンカーを隊列の最後尾へ移し、道筋を前後逆に作り直して、隊列を前後に入れ替える。
+        /// 道筋は後ろへたどって隊列を並べるので、そのまま向きを変えると、隊列の位置がアンカーの前へ折り返す為。
+        /// メンバーの順番は、EnemyGroups.MaintainNext の並べ替えで向かう先に近い順になる。
+        /// </summary>
+        private void FaceFormation(int g, ref EnemyGroup group, float2 direction)
+        {
+            var forward = new float2(math.sin(group.AnchorYaw), math.cos(group.AnchorYaw));
+            if (math.dot(forward, direction) >= 0f) return;
+
+            var length = GetFormationLength(group);
+            var count = math.min(EnemyGroups.PATH_CAPACITY, (int)math.ceil(length / EnemyGroups.PATH_SPACING) + 1);
+            var samples = new NativeArray<float3>(count, Allocator.Temp);
+            for (var i = 0; i < count; i++)
+            {
+                EnemyGroups.SamplePath(Paths, g, group, math.min(i * EnemyGroups.PATH_SPACING, length), out var point, out _);
+                samples[i] = point;
+            }
+
+            // 元のアンカーの位置を最も古い点に、元の最後尾を最も新しい点（新しいアンカー）にする
+            var offset = g * EnemyGroups.PATH_CAPACITY;
+            for (var i = 0; i < count; i++) Paths[offset + i] = samples[i];
+
+            group.PathHead = count - 1;
+            group.PathCount = count;
+            group.AnchorPosition = samples[count - 1];
+            group.AnchorSpeed = 0f;
+            group.AnchorYaw = count > 1
+                ? math.atan2(samples[count - 1].x - samples[count - 2].x, samples[count - 1].z - samples[count - 2].z)
+                : group.AnchorYaw + math.PI;
+            samples.Dispose();
+        }
+
+        /// <summary>
+        /// アンカーを床の高さへ合わせ、立っている列とノード、そのノードのプレイヤーまでの経路の長さを書く。乗れる層がなければ止めて false。
+        /// </summary>
+        private bool TryFitToFloor(ref EnemyGroup group, out int column, out int node)
+        {
+            node = -1;
+            if (!Grid.TryGetColumn(group.AnchorPosition, out column))
+            {
+                group.AnchorSpeed = 0f;
+                return false;
+            }
+
+            node = Grid.GetHighestNodeBelow(column, group.AnchorPosition.y + Grid.ClimbHeight);
+            if (node < 0)
+            {
+                group.AnchorSpeed = 0f;
+                return false;
+            }
+
+            group.AnchorPosition.y = Grid.Heights[node];
+            group.AnchorDistance = Distances[node];
+            return true;
+        }
+
+        /// <summary>
+        /// 追跡中のアンカーを、進んでいる間は、包囲の置き場があればそこへ、なければ距離マップの値が下がる方へ歩かせる。
         /// 置き場に着いたら止まってプレイヤーを向く。
         /// 距離マップを下る間は、止まる距離に着いたとき、たどり着けないとき、同じレーンの前で別のグループが待つ番で止まっているときに、止まるまで減速する。
         /// </summary>
         private void MoveAnchor(int g, ref EnemyGroup group, NativeArray<bool> usedEncircleSlots)
         {
-            if (!Grid.TryGetColumn(group.AnchorPosition, out var column))
-            {
-                group.AnchorSpeed = 0f;
-                return;
-            }
-
-            var node = Grid.GetHighestNodeBelow(column, group.AnchorPosition.y + Grid.ClimbHeight);
-            if (node < 0)
-            {
-                group.AnchorSpeed = 0f;
-                return;
-            }
+            if (!TryFitToFloor(ref group, out var column, out var node)) return;
 
             var height = Grid.Heights[node];
-            var distance = Distances[node];
-            group.AnchorPosition.y = height;
-            group.AnchorDistance = distance;
+            var distance = group.AnchorDistance;
             UpdateEncircleSlot(ref group, distance, usedEncircleSlots);
 
             var targetSpeed = 0f;
@@ -156,6 +262,83 @@ namespace Kizami.EngineAdapter
                 }
             }
 
+            Advance(ref group, column, node, hasHeading, heading, targetSpeed);
+        }
+
+        /// <summary>
+        /// 帰還中のアンカーを、帰りの道筋の最も新しい点へ、点がなくなったら持ち場へ歩かせる。点に近づいたら、その点を捨てる。
+        /// 持ち場に着いたら待機にする。
+        /// </summary>
+        private void MoveHome(int g, ref EnemyGroup group)
+        {
+            if (!TryFitToFloor(ref group, out var column, out var node))
+            {
+                UpdateBlockedTime(ref group, true);
+                return;
+            }
+
+            var toTarget = (GetReturnTarget(g, group) - group.AnchorPosition).xz;
+            var targetDistance = math.length(toTarget);
+            while (group.ReturnCount > 0 && targetDistance <= RETURN_POINT_REACH_DISTANCE)
+            {
+                group.ReturnHead = (group.ReturnHead - 1 + EnemyGroups.RETURN_PATH_CAPACITY) % EnemyGroups.RETURN_PATH_CAPACITY;
+                group.ReturnCount--;
+                toTarget = (GetReturnTarget(g, group) - group.AnchorPosition).xz;
+                targetDistance = math.length(toTarget);
+            }
+
+            if (group.ReturnCount == 0 && targetDistance <= ANCHOR_ARRIVE_DISTANCE)
+            {
+                group.State = EnemyGroupState.Waiting;
+                group.AnchorSpeed = 0f;
+                group.BlockedTime = 0f;
+                return;
+            }
+
+            var height = Grid.Heights[node];
+            var hasHeading = TryGetHeadingToward(group.AnchorPosition, column, height, group.AnchorDistance, toTarget,
+                out var heading);
+            var isSlowingDown = group.ReturnCount == 0 && targetDistance < ANCHOR_SLOW_DOWN_DISTANCE;
+            var targetSpeed = hasHeading
+                ? MoveSpeed * Formation.AnchorSpeedRate * (isSlowingDown ? targetDistance / ANCHOR_SLOW_DOWN_DISTANCE : 1f)
+                : 0f;
+            Advance(ref group, column, node, hasHeading, heading, targetSpeed);
+
+            UpdateBlockedTime(ref group, !isSlowingDown && group.AnchorSpeed < STOPPED_SPEED);
+        }
+
+        /// <summary>
+        /// 帰還中に進めない時間を数え、RETURN_BLOCKED_DURATION を超えたら、アンカーの位置を新しい持ち場にして待機にする。持ち場が追跡範囲の中なら、次のフレームで追跡に戻る。
+        /// 元の持ち場へ移さないのは、持ち場が埋まっていることがあり、プレイヤーが敵を分断する遊び（橋を切るなど）を残す為。
+        /// </summary>
+        private void UpdateBlockedTime(ref EnemyGroup group, bool isBlocked)
+        {
+            group.BlockedTime = isBlocked ? group.BlockedTime + DeltaTime : 0f;
+            if (group.BlockedTime < RETURN_BLOCKED_DURATION) return;
+
+            group.HomePosition = group.AnchorPosition;
+            group.ReturnCount = 0;
+            group.BlockedTime = 0f;
+            group.State = EnemyGroupState.Waiting;
+        }
+
+        /// <summary>
+        /// 待機中のアンカーを、床の高さに合わせたまま止める。
+        /// </summary>
+        private void HoldAnchor(ref EnemyGroup group)
+        {
+            group.HasArrived = false;
+            if (!TryFitToFloor(ref group, out _, out _)) return;
+
+            group.AnchorSpeed = MoveTowards(group.AnchorSpeed, 0f, Formation.AnchorAcceleration * DeltaTime);
+        }
+
+        /// <summary>
+        /// アンカーの速さを targetSpeed へ近づけ、向きを heading の方へ回し、向いている方へ進める。進んだ先の列に乗れなければ止める。
+        /// </summary>
+        private void Advance(ref EnemyGroup group, int column, int node, bool hasHeading, float2 heading, float targetSpeed)
+        {
+            var height = Grid.Heights[node];
             group.AnchorSpeed = MoveTowards(group.AnchorSpeed, targetSpeed, Formation.AnchorAcceleration * DeltaTime);
 
             if (hasHeading && math.lengthsq(heading) > 0f)
@@ -180,6 +363,38 @@ namespace Kizami.EngineAdapter
             }
 
             group.AnchorPosition = new float3(next.x, Grid.Heights[landing], next.z);
+        }
+
+        /// <summary>
+        /// 帰還中のアンカーが向かう点。帰りの道筋の最も新しい点で、点がなければ持ち場。
+        /// </summary>
+        private float3 GetReturnTarget(int g, in EnemyGroup group)
+        {
+            return group.ReturnCount > 0
+                ? ReturnPaths[g * EnemyGroups.RETURN_PATH_CAPACITY + group.ReturnHead]
+                : group.HomePosition;
+        }
+
+        /// <summary>
+        /// 追跡中のアンカーが帰りの道筋の最も新しい点から RETURN_PATH_SPACING 以上離れたら、点を足す。
+        /// </summary>
+        private void RecordReturnPath(int g, ref EnemyGroup group)
+        {
+            if (group.ReturnCount > 0
+                && math.distancesq(GetReturnTarget(g, group), group.AnchorPosition)
+                < EnemyGroups.RETURN_PATH_SPACING * EnemyGroups.RETURN_PATH_SPACING) return;
+
+            PushReturnPoint(g, ref group, group.AnchorPosition);
+        }
+
+        /// <summary>
+        /// 帰りの道筋に点を積む。あふれたら最も古い点を捨てる。
+        /// </summary>
+        private void PushReturnPoint(int g, ref EnemyGroup group, float3 point)
+        {
+            group.ReturnHead = (group.ReturnHead + 1) % EnemyGroups.RETURN_PATH_CAPACITY;
+            ReturnPaths[g * EnemyGroups.RETURN_PATH_CAPACITY + group.ReturnHead] = point;
+            group.ReturnCount = math.min(group.ReturnCount + 1, EnemyGroups.RETURN_PATH_CAPACITY);
         }
 
         /// <summary>
@@ -275,7 +490,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 同じレーンの前で、待つ番で止まっている別のグループがあるか。
         /// 同じレーンとは、このアンカーの前方で、相手の最後尾までがグループの間隔より近く、横のずれが 2 つの隊列の幅の半分の和より小さいこと。
-        /// 前を行く相手が待つ番で止まったら、その後ろで止まる。着いて止まったグループ、詰まって止まったグループ、包囲の置き場を持つグループの後ろでは待たない（待ちが後ろへ連鎖して、全体が止まらないようにする為）。
+        /// 前を行く相手が待つ番で止まったら、その後ろで止まる。着いて止まったグループ、詰まって止まったグループ、包囲の置き場を持つグループ、追跡していないグループの後ろでは待たない（待ちが後ろへ連鎖して、全体が止まらないようにする為）。
         /// 前後は、プレイヤーまでの経路が短い方を前とし、同じなら番号の小さい方を前とする。
         /// </summary>
         private bool IsBlockedByGroupAhead(int g, in EnemyGroup group)
@@ -288,7 +503,7 @@ namespace Kizami.EngineAdapter
                 if (h == g) continue;
 
                 var other = Groups[h];
-                if (!other.IsActive || other.EncircleSlot >= 0 || other.IsAdvancing || other.AnchorSpeed > STOPPED_SPEED) continue;
+                if (!other.IsActive || other.State != EnemyGroupState.Tracking || other.EncircleSlot >= 0 || other.IsAdvancing || other.AnchorSpeed > STOPPED_SPEED) continue;
                 if (other.AnchorDistance > group.AnchorDistance
                     || (other.AnchorDistance == group.AnchorDistance && h > g)) continue;
 
@@ -447,8 +662,22 @@ namespace Kizami.EngineAdapter
                     continue;
                 }
 
-                UpdatePhase(g, ref group);
-                MoveAnchor(g, ref group, usedEncircleSlots);
+                UpdateState(g, ref group, usedEncircleSlots);
+                switch (group.State)
+                {
+                    case EnemyGroupState.Tracking:
+                        UpdatePhase(g, ref group);
+                        MoveAnchor(g, ref group, usedEncircleSlots);
+                        RecordReturnPath(g, ref group);
+                        break;
+                    case EnemyGroupState.Returning:
+                        MoveHome(g, ref group);
+                        break;
+                    default:
+                        HoldAnchor(ref group);
+                        break;
+                }
+
                 RecordPath(g, ref group);
                 UpdateColumnCount(ref group);
                 Groups[g] = group;

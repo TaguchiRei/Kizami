@@ -39,6 +39,7 @@ namespace Kizami.Initialization
             DebugGUI.ObserveVariable("Bodies", () => $"{_spawnAdapter.LentBodyCount} / {_spawnAdapter.BodyCount} (kept shapes {_spawnAdapter.KeptShapeCount})");
             DebugGUI.ObserveVariable("Distance Field", GetDistanceFieldText);
             DebugGUI.ObserveVariable("Tracking", GetTrackingText);
+            DebugGUI.ObserveVariable("Group States", GetGroupStateText);
 #endif
 
             base.Initialize(blackBoard);
@@ -79,6 +80,15 @@ namespace Kizami.Initialization
 
             var start = field.UsesNearbyStart ? "nearby" : "player";
             return $"x {area.xMin:F0}~{area.xMax:F0} z {area.yMin:F0}~{area.yMax:F0} / nodes {field.TrackingNodeCount} / start {start}";
+        }
+
+        /// <summary>
+        /// 使われているグループの、待機・追跡・帰還の数を並べる。
+        /// </summary>
+        private string GetGroupStateText()
+        {
+            _spawnAdapter.CountGroupStates(out var waiting, out var tracking, out var returning);
+            return $"waiting {waiting} / tracking {tracking} / returning {returning}";
         }
 
         /// <summary>

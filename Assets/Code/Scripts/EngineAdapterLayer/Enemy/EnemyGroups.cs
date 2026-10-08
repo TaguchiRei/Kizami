@@ -6,7 +6,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵のグループ（EnemyGroup）と、その道筋とメンバーの配列、交戦する敵の置き場の配列を持つ。
+    /// 敵のグループ（EnemyGroup）と、その道筋・帰りの道筋・メンバーの配列、交戦する敵の置き場の配列を持つ。
     /// EnemySpawnAdapter が、生成した敵を順にグループへ入れ、毎フレーム EnemyGroupJob を回し、グループを 1 つずつ並べ替える。
     /// </summary>
     public sealed class EnemyGroups : IDisposable
@@ -17,6 +17,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 道筋に点を足す間隔（m） </summary>
         public const float PATH_SPACING = 1f;
 
+        /// <summary> グループごとの帰りの道筋の点の数。追跡範囲（100m の区画で 300m 四方）を往復できる長さにする </summary>
+        public const int RETURN_PATH_CAPACITY = 64;
+
+        /// <summary> 帰りの道筋に点を足す間隔（m） </summary>
+        public const float RETURN_PATH_SPACING = 5f;
+
         /// <summary> 合流する先のグループの、アンカーどうしの距離の上限（m） </summary>
         private const float MERGE_DISTANCE = 40f;
 
@@ -24,6 +30,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> グループごとに PATH_CAPACITY 個の区画を持つ道筋の点。区画はリングバッファとして使う </summary>
         private NativeArray<float3> _paths;
+
+        /// <summary> グループごとに RETURN_PATH_CAPACITY 個の区画を持つ帰りの道筋の点。区画はリングバッファのスタックとして使い、あふれたら古い点を捨てる </summary>
+        private NativeArray<float3> _returnPaths;
 
         /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、メンバーの敵の番号 </summary>
         private NativeArray<int> _members;
@@ -66,9 +75,45 @@ namespace Kizami.EngineAdapter
         {
             _groups = new NativeArray<EnemyGroup>(capacity, Allocator.Persistent);
             _paths = new NativeArray<float3>(capacity * PATH_CAPACITY, Allocator.Persistent);
+            _returnPaths = new NativeArray<float3>(capacity * RETURN_PATH_CAPACITY, Allocator.Persistent);
             _members = new NativeArray<int>(capacity * EnemyFormationSettings.MAX_GROUP_SIZE, Allocator.Persistent);
             _engageSlots = new NativeArray<int>(capacity, Allocator.Persistent);
             for (var i = 0; i < capacity; i++) _engageSlots[i] = -1;
+        }
+
+        /// <summary>
+        /// グループの道筋を、アンカーから back（m）だけ後ろへたどった点と、そこでの進む向き（水平の単位ベクトル）を返す。
+        /// 道筋が足りなければ、最も古い点を返す。
+        /// </summary>
+        /// <param name="paths">グループごとに PATH_CAPACITY 個の区画を持つ道筋の点</param>
+        public static void SamplePath(NativeArray<float3> paths, int groupIndex, in EnemyGroup group, float back,
+            out float3 point, out float2 tangent)
+        {
+            var offset = groupIndex * PATH_CAPACITY;
+            var current = group.AnchorPosition;
+            tangent = new float2(math.sin(group.AnchorYaw), math.cos(group.AnchorYaw));
+            var remaining = back;
+
+            for (var k = 0; k < group.PathCount; k++)
+            {
+                var older = paths[offset + (group.PathHead - k + PATH_CAPACITY) % PATH_CAPACITY];
+                var segment = (current - older).xz;
+                var length = math.length(segment);
+                if (length < 1e-4f) continue;
+
+                tangent = segment / length;
+                if (length >= remaining)
+                {
+                    point = current - new float3(tangent.x, 0f, tangent.y) * remaining;
+                    point.y = math.lerp(current.y, older.y, remaining / length);
+                    return;
+                }
+
+                remaining -= length;
+                current = older;
+            }
+
+            point = current;
         }
 
         /// <summary>
@@ -78,6 +123,33 @@ namespace Kizami.EngineAdapter
         {
             agent.GroupIndex = -1;
             agent.IsEngaged = false;
+        }
+
+        /// <summary>
+        /// 使われているグループを、状態ごとに数える。
+        /// </summary>
+        public void CountStates(out int waiting, out int tracking, out int returning)
+        {
+            waiting = 0;
+            tracking = 0;
+            returning = 0;
+            foreach (var group in _groups)
+            {
+                if (!group.IsActive) continue;
+
+                switch (group.State)
+                {
+                    case EnemyGroupState.Waiting:
+                        waiting++;
+                        break;
+                    case EnemyGroupState.Tracking:
+                        tracking++;
+                        break;
+                    case EnemyGroupState.Returning:
+                        returning++;
+                        break;
+                }
+            }
         }
 
         /// <summary>
@@ -94,7 +166,7 @@ namespace Kizami.EngineAdapter
         /// </summary>
         /// <param name="agentIndex">敵の状態の番号</param>
         /// <param name="agent">入れる敵。GroupIndex と SlotIndex を書く</param>
-        /// <param name="anchorPosition">新しいグループを作るときの、アンカーの位置</param>
+        /// <param name="anchorPosition">新しいグループを作るときの、アンカーの位置。持ち場にもする</param>
         /// <param name="anchorYaw">新しいグループを作るときの、アンカーの向き</param>
         /// <param name="phaseTimer">新しいグループを作るときの、最初に進み始めるまでの時間（秒）</param>
         /// <param name="formation">隊列の設定</param>
@@ -119,18 +191,24 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// グループを 1 つずつ更新する Job を回す。
         /// </summary>
+        /// <param name="trackingMin">distances を計算した追跡範囲の、最小の列 (x, z)</param>
+        /// <param name="trackingMax">distances を計算した追跡範囲の、最大の列 (x, z)。この列も含む</param>
         public JobHandle Schedule(NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances,
-            in EnemyFormationSettings formation, float3 playerPosition, float moveSpeed, float deltaTime)
+            int2 trackingMin, int2 trackingMax, in EnemyFormationSettings formation, float3 playerPosition, float moveSpeed,
+            float deltaTime)
         {
             return new EnemyGroupJob
             {
                 Groups = _groups,
                 Paths = _paths,
+                ReturnPaths = _returnPaths,
                 Members = _members,
                 EngageSlots = _engageSlots,
                 Agents = agents,
                 Grid = grid,
                 Distances = distances,
+                TrackingMin = trackingMin,
+                TrackingMax = trackingMax,
                 Formation = formation,
                 PlayerPosition = playerPosition,
                 MoveSpeed = moveSpeed,
@@ -142,7 +220,8 @@ namespace Kizami.EngineAdapter
         /// 使われているグループを 1 つ順番に選んで整える。毎フレーム 1 グループずつ呼ぶ。Job が走っていない間に呼ぶ。
         /// 倒れた敵、ほかのグループへ移った敵、動けなくなった敵を隊列から抜いて順番を詰め（穴を後ろへずらす）、
         /// メンバーが合流する数以下に減っていれば、近くの空きのあるグループへ合流させる。
-        /// 合流しなければ、メンバーの隊列の順番を、プレイヤーまでの経路が短い順に並べ替える（先頭の列にプレイヤーに近いメンバーが来て、隊列の位置へ向かうメンバーどうしが交差しにくくなる）。
+        /// 合流しなければ、メンバーの隊列の順番を、向かう先に近い順に並べ替える（先頭の列に向かう先に近いメンバーが来て、隊列の位置へ向かうメンバーどうしが交差しにくくなる）。
+        /// 向かう先に近い順は、帰還中は持ち場までの直線の距離、それ以外はプレイヤーまでの経路の長さで決める。
         /// </summary>
         /// <param name="brokenMovePartLimit">壊れた移動部位がこの数に達した敵は動けないので、グループから抜いてその場に残す</param>
         public void MaintainNext(NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances,
@@ -243,14 +322,24 @@ namespace Kizami.EngineAdapter
         private void Reorder(int g, NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances)
         {
             var offset = g * EnemyFormationSettings.MAX_GROUP_SIZE;
-            var count = _groups[g].MemberCount;
+            var group = _groups[g];
+            var count = group.MemberCount;
+            var isReturning = group.State == EnemyGroupState.Returning;
             Span<float> keys = stackalloc float[EnemyFormationSettings.MAX_GROUP_SIZE];
 
             for (var i = 0; i < count; i++)
             {
                 var agent = agents[_members[offset + i]];
                 keys[i] = float.MaxValue;
-                if (!agent.IsAlive || agent.GroupIndex != g || !grid.TryGetColumn(agent.Position, out var column)) continue;
+                if (!agent.IsAlive || agent.GroupIndex != g) continue;
+
+                if (isReturning)
+                {
+                    keys[i] = math.distancesq(agent.Position.xz, group.HomePosition.xz);
+                    continue;
+                }
+
+                if (!grid.TryGetColumn(agent.Position, out var column)) continue;
 
                 var node = grid.GetHighestNodeBelow(column, agent.Position.y + grid.ClimbHeight);
                 if (node >= 0) keys[i] = distances[node];
@@ -285,7 +374,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 空いているグループを使い始め、道筋をアンカーの後ろへまっすぐ伸ばした点で埋めて、生成した直後から隊列の位置が決まるようにする。空きがなければ -1。
-        /// 待つ状態から始め、phaseTimer の後に進み始める。
+        /// アンカーの位置を持ち場にし、待機の状態から始める。進む・待つの交互は、待つ番から始め、phaseTimer の後に進み始める。
         /// </summary>
         private int OpenGroup(float3 anchorPosition, float anchorYaw, float phaseTimer, in EnemyFormationSettings formation)
         {
@@ -305,6 +394,8 @@ namespace Kizami.EngineAdapter
                 _groups[g] = new EnemyGroup
                 {
                     IsActive = true,
+                    State = EnemyGroupState.Waiting,
+                    HomePosition = anchorPosition,
                     AnchorPosition = anchorPosition,
                     AnchorYaw = anchorYaw,
                     AnchorDistance = float.PositiveInfinity,
@@ -326,6 +417,7 @@ namespace Kizami.EngineAdapter
         {
             if (_groups.IsCreated) _groups.Dispose();
             if (_paths.IsCreated) _paths.Dispose();
+            if (_returnPaths.IsCreated) _returnPaths.Dispose();
             if (_members.IsCreated) _members.Dispose();
             if (_engageSlots.IsCreated) _engageSlots.Dispose();
         }

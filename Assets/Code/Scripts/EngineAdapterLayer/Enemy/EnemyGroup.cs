@@ -6,11 +6,27 @@ namespace Kizami.EngineAdapter
     /// 敵のグループ 1 つの状態。EnemyGroups が NativeArray に持ち、EnemyGroupJob が更新し、EnemyMoveJob が読む。
     /// グループの先頭（アンカー）は体を持たない仮想の隊長で、距離マップを下って歩き、通った道筋を記録する。メンバーは道筋に沿った隊列の位置を目指す。
     /// プレイヤーに近づいたアンカーは、プレイヤーを囲む螺旋の上の置き場へ向かい、メンバーはアンカーの後ろにまっすぐ並ぶ横隊になる。
+    /// 持ち場が追跡範囲の外なら持ち場で待ち、中なら追い、外れたら追跡の間に記録した帰りの道筋を逆にたどって持ち場へ戻る。
     /// </summary>
     public struct EnemyGroup
     {
         /// <summary> 使われているか。メンバーが全員ステージから消えたら false にする </summary>
         public bool IsActive;
+
+        /// <summary> 待機・追跡・帰還の状態 </summary>
+        public EnemyGroupState State;
+
+        /// <summary> 持ち場。グループを作ったときのアンカーの位置で、帰還の途中で進めなくなったらその位置に変える </summary>
+        public float3 HomePosition;
+
+        /// <summary> 帰りの道筋の最も新しい点の、区画の中の番号 </summary>
+        public int ReturnHead;
+
+        /// <summary> 帰りの道筋に残っている点の数 </summary>
+        public int ReturnCount;
+
+        /// <summary> 帰還の途中で進めない状態が続いている時間（秒） </summary>
+        public float BlockedTime;
 
         /// <summary> アンカーの位置 </summary>
         public float3 AnchorPosition;

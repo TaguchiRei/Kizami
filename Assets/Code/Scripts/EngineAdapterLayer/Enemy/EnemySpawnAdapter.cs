@@ -18,7 +18,7 @@ namespace Kizami.EngineAdapter
     /// 敵の状態の数は EnemySpawnSystem の同時に存在する数の上限で、出ている敵は EnemyCrowdRenderer でまとめて描画する。
     /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、ステージのボクセルのモデルの形が変わったら、その範囲を調べ直す。
     /// 距離マップは、プレイヤーの近く（追跡範囲。区画の大きさは EnemySpawnSystem の設定）だけを、プレイヤーのいるノードか追跡範囲が変わるか、格子を調べ直すたびに計算し直す。
-    /// 追跡範囲の中でプレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ生成位置へ戻す。
+    /// 追跡範囲の中でプレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ自分のグループの持ち場へ戻す。
     /// 足場ごと一定の高さ以上落ちた敵と、ボクセルから切り離されて落ちてくる塊に潰された敵は、崩落で倒す。体を貸していれば返し、かけらは出さない。
     /// 生成した敵は出した順にグループ（EnemyGroups）へ入れ、毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
     /// 切断できる体（EnemyBody）の貸し借りと近接切断の結果の受け渡しは EnemyBodyLender が、体から外れた切っていない部位の見た目用の物は EnemyDebrisSpawner が行う。
@@ -139,7 +139,7 @@ namespace Kizami.EngineAdapter
         private float _groupSpawnRadius = 4f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("追跡範囲の中でプレイヤーへたどり着けない状態がこの時間（秒）続いた敵は、カメラに映っていなければ生成位置へ戻す。動けない敵と、体を貸している敵は戻さない")]
+        [Tooltip("追跡範囲の中でプレイヤーへたどり着けない状態がこの時間（秒）続いた敵は、カメラに映っていなければ自分のグループの持ち場へ戻す。動けない敵と、体を貸している敵は戻さない")]
         private float _strandedReturnDelay = 10f;
 
         [SerializeField, Min(0f)]
@@ -354,6 +354,15 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 使われているグループを、待機・追跡・帰還の状態ごとに数える。初期化の前は 0。
+        /// </summary>
+        public void CountGroupStates(out int waiting, out int tracking, out int returning)
+        {
+            waiting = tracking = returning = 0;
+            _groups?.CountStates(out waiting, out tracking, out returning);
+        }
+
+        /// <summary>
         /// 切断の結果のうち、敵の部位を元の対象とするものを、その部位を持つ体へ渡し、体の部位の状態を敵の状態へ書き戻す。
         /// 体が倒れたら、敵をステージから消して体を空ける。
         /// </summary>
@@ -438,8 +447,8 @@ namespace Kizami.EngineAdapter
         {
             var deltaTime = Time.deltaTime;
             var playerPosition = _target != null ? (float3)_target.position : float3.zero;
-            var groupHandle = _groups.Schedule(_agents, _distanceField.Grid, _distanceField.Distances, _formation,
-                playerPosition, _moveSpeed, deltaTime);
+            var groupHandle = _groups.Schedule(_agents, _distanceField.Grid, _distanceField.Distances,
+                _distanceField.TrackingMin, _distanceField.TrackingMax, _formation, playerPosition, _moveSpeed, deltaTime);
 
             new EnemyMoveJob
             {
@@ -484,8 +493,9 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// プレイヤーへたどり着けない状態が戻す時間を超えた敵のうち、カメラに映っていない敵を、次の有効な生成位置へ移す。
-        /// 移した敵は元のグループから抜き、その生成位置で新しいグループにする。部位の状態はそのまま持ち続ける。
+        /// 追跡範囲の中でプレイヤーへたどり着けない状態が戻す時間を超えた敵のうち、カメラに映っていない敵を、自分のグループの持ち場の周りへ移す。
+        /// グループを持たない敵は、次の有効な生成位置へ移す。移した敵は元のグループから抜き、持ち場ごとに新しいグループにする（持ち場は引き継ぐ）。部位の状態はそのまま持ち続ける。
+        /// 持ち場が追跡範囲の中で、そこからもプレイヤーへたどり着けない（分断されている）ときは戻さない。
         /// 動けない敵は戻さない（同時に存在する数の上限を埋め続ける、仕様の戦略の為）。体を貸している敵も戻さない（プレイヤーの近くにいる為）。
         /// </summary>
         private void ReturnStrandedAgents()
@@ -493,7 +503,8 @@ namespace Kizami.EngineAdapter
             var camera = Camera.main;
             if (camera != null) GeometryUtility.CalculateFrustumPlanes(camera, _frustumPlanes);
 
-            EnemySpawnPoint point = null;
+            var hasOpenGroup = false;
+            var openHome = Vector3.zero;
             var brokenMovePartLimit = _bodyPrefab.BrokenMovePartLimit;
 
             for (var i = 0; i < _agents.Length; i++)
@@ -506,27 +517,50 @@ namespace Kizami.EngineAdapter
                     Vector3.one * VISIBILITY_SIZE);
                 if (camera != null && GeometryUtility.TestPlanesAABB(_frustumPlanes, bounds)) continue;
 
-                if (point == null)
-                {
-                    if (!TryGetNextSpawnPoint(out point)) return;
+                if (!TryGetReturnHome(agent, out var home, out var spawnPoint)) continue;
 
+                if (!hasOpenGroup || home != openHome)
+                {
                     _groups.CloseGroup();
+                    hasOpenGroup = true;
+                    openHome = home;
                 }
 
                 EnemyGroups.Leave(ref agent);
-                var position = point.GetSpawnPosition();
+                var offset = Random.insideUnitCircle * _groupSpawnRadius;
+                var position = spawnPoint != null ? spawnPoint.GetSpawnPosition() : home + new Vector3(offset.x, 0f, offset.y);
                 agent.Position = position;
                 agent.Yaw = GetYawToTarget(position);
                 agent.IsGrounded = false;
                 agent.VerticalSpeed = 0f;
                 agent.FallStartHeight = position.y;
                 agent.StrandedTime = 0f;
-                _groups.TryAdd(i, ref agent, point.transform.position, GetYawToTarget(point.transform.position),
-                    Random.Range(0f, _formation.HoldDuration), _formation);
+                _groups.TryAdd(i, ref agent, home, GetYawToTarget(home), Random.Range(0f, _formation.HoldDuration),
+                    _formation);
                 _agents[i] = agent;
             }
 
-            if (point != null) _groups.CloseGroup();
+            if (hasOpenGroup) _groups.CloseGroup();
+        }
+
+        /// <summary>
+        /// 戻れない敵を戻す持ち場を返す。グループを持てばその持ち場、持たなければ次の有効な生成位置（spawnPoint に入れる）。
+        /// 持ち場が追跡範囲の中でプレイヤーへたどり着けないとき、生成位置がないときは false。
+        /// </summary>
+        private bool TryGetReturnHome(in EnemyAgent agent, out Vector3 home, out EnemySpawnPoint spawnPoint)
+        {
+            spawnPoint = null;
+            if (agent.GroupIndex >= 0 && _groups.Groups[agent.GroupIndex].IsActive)
+            {
+                home = _groups.Groups[agent.GroupIndex].HomePosition;
+                return !_distanceField.IsCutOff(home);
+            }
+
+            home = Vector3.zero;
+            if (!TryGetNextSpawnPoint(out spawnPoint)) return false;
+
+            home = spawnPoint.transform.position;
+            return true;
         }
 
         /// <summary>
