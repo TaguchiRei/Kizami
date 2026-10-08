@@ -5,7 +5,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 敵のグループ 1 つの状態。EnemyGroups が NativeArray に持ち、EnemyGroupJob が更新し、EnemyMoveJob が読む。
     /// グループの先頭（アンカー）は体を持たない仮想の隊長で、距離マップを下って歩き、通った道筋を記録する。メンバーは道筋に沿った隊列の位置を目指す。
-    /// プレイヤーに近づいたアンカーは、プレイヤーを囲む螺旋の上の置き場へ向かい、メンバーはアンカーの後ろにまっすぐ並ぶ横隊になる。
+    /// 追跡中のアンカーは、プレイヤーを囲む螺旋の上の置き場（グループの目標位置）へ向かい、メンバーはアンカーの後ろにまっすぐ並ぶ横隊になる。
     /// 持ち場が追跡範囲の外なら持ち場で待ち、中なら追い、外れたら追跡の間に記録した帰りの道筋を逆にたどって持ち場へ戻る。
     /// </summary>
     public struct EnemyGroup
@@ -43,7 +43,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 進んでいる間か。false の間は止まって待つ </summary>
         public bool IsAdvancing;
 
-        /// <summary> プレイヤーを囲む螺旋の上の置き場の番号。置き場を持たず、距離マップを下っている間は -1 </summary>
+        /// <summary> プレイヤーを囲む螺旋の上の置き場（グループの目標位置）の番号。追跡していないか、使える置き場が空いていなければ -1 </summary>
         public int EncircleSlot;
 
         /// <summary> アンカーが包囲の置き場に着いているか </summary>

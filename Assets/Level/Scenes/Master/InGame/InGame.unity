@@ -1135,6 +1135,7 @@ MonoBehaviour:
     m_Bits: 513
   _drawDistanceField: 0
   _distanceGizmoRadius: 25
+  _countsOverlaps: 0
   _moveSpeed: 3
   _turnSpeed: 180
   _stopDistance: 6
@@ -1144,6 +1145,7 @@ MonoBehaviour:
     _anchorAcceleration: 1.5
     _anchorTurnSpeed: 90
     _anchorStopDistance: 12
+    _usesAlternatingAdvance: 0
     _advanceDuration: 4
     _holdDuration: 2
     _groupSpacing: 4
@@ -1152,11 +1154,10 @@ MonoBehaviour:
     _maxColumns: 4
     _columnChangeDelay: 1
     _mergeSize: 4
-    _encircleDistance: 40
-    _encircleLeaveDistance: 30
-    _encircleInnerRadius: 15
-    _encircleLoopSpacing: 12
-    _encircleSlotSpacing: 18
+    _encircleApproachMargin: 15
+    _encircleInnerRadius: 25
+    _encircleLoopSpacing: 25
+    _encircleSlotSpacing: 25
     _encircleColumns: 6
     _engageEnterDistance: 12
     _engageExitDistance: 18

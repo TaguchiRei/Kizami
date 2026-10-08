@@ -26,6 +26,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 包囲の置き場の数 </summary>
         private const int MAX_ENCIRCLE_SLOTS = 128;
 
+        /// <summary> 置き場が立てる層のない列に来たときに、ずらす先の列を探す半径（m） </summary>
+        private const float SLOT_SHIFT_RADIUS = 10f;
+
         /// <summary> 交戦する敵の置き場の数の上限。実際に使うのは、交戦に入る距離より内側の置き場だけ </summary>
         private const int MAX_ENGAGE_SLOTS = 64;
 
@@ -101,6 +104,12 @@ namespace Kizami.EngineAdapter
 
         private void UpdatePhase(int g, ref EnemyGroup group)
         {
+            if (!Formation.UsesAlternatingAdvance)
+            {
+                group.IsAdvancing = true;
+                return;
+            }
+
             group.PhaseTimer -= DeltaTime;
             if (group.PhaseTimer > 0f) return;
 
@@ -212,53 +221,71 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 追跡中のアンカーを、進んでいる間は、包囲の置き場があればそこへ、なければ距離マップの値が下がる方へ歩かせる。
-        /// 置き場に着いたら止まってプレイヤーを向く。
-        /// 距離マップを下る間は、止まる距離に着いたとき、たどり着けないとき、同じレーンの前で別のグループが待つ番で止まっているときに、止まるまで減速する。
+        /// 追跡中のアンカーを、目標位置（包囲の置き場、持てなければ使える置き場の最も外のさらに外）へ歩かせる。
+        /// プレイヤーまでの経路が「目標位置の半径 ＋ 近づく余裕」より長い間は距離マップの値が下がる方へ、内側では目標位置へ向かう。
+        /// 目標位置へまっすぐ向かうと、壁の向こうの目標位置の手前で詰まる為。
+        /// 置き場に着いたら止まってプレイヤーを向く。距離マップを下る間は、たどり着けないときと、同じレーンの前で別のグループが待つ番で止まっているときに、止まるまで減速する。
         /// </summary>
-        private void MoveAnchor(int g, ref EnemyGroup group, NativeArray<bool> usedEncircleSlots)
+        /// <param name="slotPoints">置き場ごとの、立てる列へずらした位置。使えない置き場は NaN</param>
+        /// <param name="outermostRadius">使える置き場のうち、最も外の置き場の螺旋の半径（m）</param>
+        private void MoveAnchor(int g, ref EnemyGroup group, NativeArray<bool> usedEncircleSlots,
+            NativeArray<float2> slotPoints, float outermostRadius)
         {
             if (!TryFitToFloor(ref group, out var column, out var node)) return;
 
             var height = Grid.Heights[node];
             var distance = group.AnchorDistance;
-            UpdateEncircleSlot(ref group, distance, usedEncircleSlots);
+            UpdateEncircleSlot(ref group, usedEncircleSlots, slotPoints);
+
+            var hasSlot = group.EncircleSlot >= 0;
+            float2 target;
+            float targetRadius;
+            if (hasSlot)
+            {
+                target = slotPoints[group.EncircleSlot];
+                targetRadius = GetEncircleRadius(group.EncircleSlot);
+            }
+            else
+            {
+                targetRadius = outermostRadius + Formation.EncircleLoopSpacing;
+                var fromPlayer = math.normalizesafe(group.AnchorPosition.xz - PlayerPosition.xz, new float2(0f, 1f));
+                target = PlayerPosition.xz + fromPlayer * targetRadius;
+            }
 
             var targetSpeed = 0f;
             var hasHeading = false;
             var heading = float2.zero;
+            group.HasArrived = false;
 
-            if (group.EncircleSlot >= 0)
+            if (distance > targetRadius + Formation.EncircleApproachMargin)
             {
-                var toSlot = GetEncirclePoint(group.EncircleSlot) - group.AnchorPosition.xz;
-                var slotDistance = math.length(toSlot);
-                group.HasArrived = slotDistance <= ANCHOR_ARRIVE_DISTANCE;
-
-                if (group.HasArrived)
-                {
-                    heading = (PlayerPosition - group.AnchorPosition).xz;
-                    hasHeading = true;
-                }
-                else if (TryGetHeadingToward(group.AnchorPosition, column, height, distance, toSlot, out heading))
-                {
-                    hasHeading = true;
-                    if (group.IsAdvancing)
-                    {
-                        targetSpeed = MoveSpeed * Formation.AnchorSpeedRate
-                                      * math.saturate(slotDistance / ANCHOR_SLOW_DOWN_DISTANCE);
-                    }
-                }
-            }
-            else
-            {
-                group.HasArrived = false;
                 var nextColumn = -1;
-                hasHeading = distance > Formation.AnchorStopDistance && !float.IsPositiveInfinity(distance)
+                hasHeading = !float.IsPositiveInfinity(distance)
                              && Grid.TryGetDownhillColumn(column, height, distance, Distances, out nextColumn);
                 if (hasHeading)
                 {
                     heading = GetDownhillHeading(group.AnchorPosition, column, height, nextColumn);
                     if (group.IsAdvancing && !IsBlockedByGroupAhead(g, group)) targetSpeed = MoveSpeed * Formation.AnchorSpeedRate;
+                }
+            }
+            else
+            {
+                var toTarget = target - group.AnchorPosition.xz;
+                var targetDistance = math.length(toTarget);
+                if (targetDistance <= ANCHOR_ARRIVE_DISTANCE)
+                {
+                    group.HasArrived = hasSlot;
+                    heading = (PlayerPosition - group.AnchorPosition).xz;
+                    hasHeading = true;
+                }
+                else if (TryGetHeadingToward(group.AnchorPosition, column, height, distance, toTarget, out heading))
+                {
+                    hasHeading = true;
+                    if (group.IsAdvancing)
+                    {
+                        targetSpeed = MoveSpeed * Formation.AnchorSpeedRate
+                                      * math.saturate(targetDistance / ANCHOR_SLOW_DOWN_DISTANCE);
+                    }
                 }
             }
 
@@ -398,32 +425,37 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 置き場までの直線の距離が包囲を手放す距離を超えたら手放し、置き場がなくプレイヤーまでの経路が包囲の距離以下なら、空いていて最も近い置き場を受け取る。
-        /// 先に近づいたグループが内側の置き場を取るので、グループは来た向きのまま、プレイヤーを内側から外側へ囲んでいく。
+        /// 置き場を持っていて、それが使えなくなっていれば手放す。持っていなければ、空いている使える置き場のうち
+        /// 「周の番号 × 90° ＋ プレイヤーから見たアンカーの角度との差（ラジアン）」が最も小さいものを受け取る。
+        /// 内側の周から埋まり、来た向きから外れた（グループどうしの道が交差しやすい）置き場は取りにくくなる。
+        /// 受け取った置き場は、帰還で手放すまで持ち続ける。
         /// </summary>
-        private void UpdateEncircleSlot(ref EnemyGroup group, float distance, NativeArray<bool> usedEncircleSlots)
+        private void UpdateEncircleSlot(ref EnemyGroup group, NativeArray<bool> usedEncircleSlots, NativeArray<float2> slotPoints)
         {
             if (group.EncircleSlot >= 0)
             {
-                var leaveSq = Formation.EncircleLeaveDistance * Formation.EncircleLeaveDistance;
-                if (math.distancesq(GetEncirclePoint(group.EncircleSlot), group.AnchorPosition.xz) <= leaveSq) return;
+                if (!math.any(math.isnan(slotPoints[group.EncircleSlot]))) return;
 
                 usedEncircleSlots[group.EncircleSlot] = false;
                 group.EncircleSlot = -1;
-                group.HasArrived = false;
             }
 
-            if (distance > Formation.EncircleDistance) return;
-
-            var bestDistanceSq = float.MaxValue;
+            var fromPlayer = group.AnchorPosition.xz - PlayerPosition.xz;
+            var groupAngle = math.atan2(fromPlayer.x, fromPlayer.y);
+            var bestCost = float.MaxValue;
             for (var slot = 0; slot < MAX_ENCIRCLE_SLOTS; slot++)
             {
-                if (usedEncircleSlots[slot]) continue;
+                if (usedEncircleSlots[slot] || math.any(math.isnan(slotPoints[slot]))) continue;
 
-                var distanceSq = math.distancesq(GetEncirclePoint(slot), group.AnchorPosition.xz);
-                if (distanceSq >= bestDistanceSq) continue;
+                var offset = EnemyFormationSettings.GetSpiralOffset(slot, Formation.EncircleInnerRadius,
+                    Formation.EncircleLoopSpacing, Formation.EncircleSlotSpacing);
+                var angle = math.atan2(offset.x, offset.y);
+                var angleDifference = math.abs(math.atan2(math.sin(angle - groupAngle), math.cos(angle - groupAngle)));
+                var ring = math.floor((GetEncircleRadius(slot) - Formation.EncircleInnerRadius) / Formation.EncircleLoopSpacing);
+                var cost = ring * (math.PI * 0.5f) + angleDifference;
+                if (cost >= bestCost) continue;
 
-                bestDistanceSq = distanceSq;
+                bestCost = cost;
                 group.EncircleSlot = slot;
             }
 
@@ -431,12 +463,89 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 包囲の置き場の位置（水平）。プレイヤーを中心にした螺旋の上にあり、プレイヤーと一緒に動く。
+        /// 包囲の置き場の、プレイヤーからの螺旋の半径（m）。
         /// </summary>
-        private float2 GetEncirclePoint(int slot)
+        private float GetEncircleRadius(int slot)
         {
-            return PlayerPosition.xz + EnemyFormationSettings.GetSpiralOffset(slot, Formation.EncircleInnerRadius,
-                Formation.EncircleLoopSpacing, Formation.EncircleSlotSpacing);
+            return EnemyFormationSettings.GetSpiralRadius(slot, Formation.EncircleInnerRadius, Formation.EncircleLoopSpacing,
+                Formation.EncircleSlotSpacing);
+        }
+
+        /// <summary>
+        /// 置き場ごとに、プレイヤーを中心にした螺旋の上の位置を、プレイヤーへたどり着ける立てる層のある列へずらして slotPoints に書き、
+        /// 使える置き場のうち最も外の置き場の螺旋の半径を返す。建物の中や穴の上など、周り SLOT_SHIFT_RADIUS に立てる列がない置き場は NaN にする。
+        /// </summary>
+        private float BuildSlotPoints(NativeArray<float2> slotPoints)
+        {
+            var outermostRadius = Formation.EncircleInnerRadius;
+            var searchRadius = (int)math.ceil(SLOT_SHIFT_RADIUS / Grid.CellSize);
+            for (var slot = 0; slot < MAX_ENCIRCLE_SLOTS; slot++)
+            {
+                var point = PlayerPosition.xz + EnemyFormationSettings.GetSpiralOffset(slot, Formation.EncircleInnerRadius,
+                    Formation.EncircleLoopSpacing, Formation.EncircleSlotSpacing);
+                if (!TryShiftToReachableColumn(point, searchRadius, out var shifted))
+                {
+                    slotPoints[slot] = new float2(float.NaN);
+                    continue;
+                }
+
+                slotPoints[slot] = shifted;
+                outermostRadius = math.max(outermostRadius, GetEncircleRadius(slot));
+            }
+
+            return outermostRadius;
+        }
+
+        /// <summary>
+        /// point の列から searchRadius 列までを近い順に調べ、プレイヤーへたどり着ける層のある最初の周の中で、point に最も近い列の中心を返す。
+        /// point の列にあれば point をそのまま返す。
+        /// </summary>
+        private bool TryShiftToReachableColumn(float2 point, int searchRadius, out float2 shifted)
+        {
+            shifted = point;
+            var origin = Grid.Origin.xz;
+            var x = (int)math.floor((point.x - origin.x) / Grid.CellSize);
+            var z = (int)math.floor((point.y - origin.y) / Grid.CellSize);
+
+            for (var radius = 0; radius <= searchRadius; radius++)
+            {
+                var bestDistanceSq = float.MaxValue;
+                for (var dz = -radius; dz <= radius; dz++)
+                {
+                    for (var dx = -radius; dx <= radius; dx++)
+                    {
+                        if (math.max(math.abs(dx), math.abs(dz)) != radius) continue;
+
+                        var nx = x + dx;
+                        var nz = z + dz;
+                        if (nx < TrackingMin.x || nx > TrackingMax.x || nz < TrackingMin.y || nz > TrackingMax.y) continue;
+
+                        var column = nz * Grid.Width + nx;
+                        if (!HasReachableNode(column)) continue;
+
+                        var center = Grid.GetCellCenter(column, 0f).xz;
+                        var distanceSq = math.distancesq(center, point);
+                        if (distanceSq >= bestDistanceSq) continue;
+
+                        bestDistanceSq = distanceSq;
+                        shifted = radius == 0 ? point : center;
+                    }
+                }
+
+                if (bestDistanceSq < float.MaxValue) return true;
+            }
+
+            return false;
+        }
+
+        private bool HasReachableNode(int column)
+        {
+            for (var k = 0; k < Grid.LayerCounts[column]; k++)
+            {
+                if (!float.IsPositiveInfinity(Distances[column * EnemyNavigationGrid.MAX_LAYERS + k])) return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -495,6 +604,8 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private bool IsBlockedByGroupAhead(int g, in EnemyGroup group)
         {
+            if (!Formation.UsesAlternatingAdvance) return false;
+
             var forward = new float2(math.sin(group.AnchorYaw), math.cos(group.AnchorYaw));
             var halfWidth = GetFormationHalfWidth(group);
 
@@ -644,6 +755,8 @@ namespace Kizami.EngineAdapter
         public void Execute()
         {
             var usedEncircleSlots = new NativeArray<bool>(MAX_ENCIRCLE_SLOTS, Allocator.Temp);
+            var slotPoints = new NativeArray<float2>(MAX_ENCIRCLE_SLOTS, Allocator.Temp);
+            var outermostRadius = BuildSlotPoints(slotPoints);
             for (var g = 0; g < Groups.Length; g++)
             {
                 var group = Groups[g];
@@ -667,7 +780,7 @@ namespace Kizami.EngineAdapter
                 {
                     case EnemyGroupState.Tracking:
                         UpdatePhase(g, ref group);
-                        MoveAnchor(g, ref group, usedEncircleSlots);
+                        MoveAnchor(g, ref group, usedEncircleSlots, slotPoints, outermostRadius);
                         RecordReturnPath(g, ref group);
                         break;
                     case EnemyGroupState.Returning:
@@ -684,6 +797,7 @@ namespace Kizami.EngineAdapter
             }
 
             usedEncircleSlots.Dispose();
+            slotPoints.Dispose();
             UpdateEngageSlots();
         }
     }

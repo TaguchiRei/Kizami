@@ -33,6 +33,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("アンカーは、プレイヤーまでの経路の長さがこの値（m）以下になったら止まる")]
         private float _anchorStopDistance;
 
+        [SerializeField]
+        [Tooltip("グループが進む・待つを交互に繰り返し、同じレーンの前で待っているグループの後ろで待つか。切ると、グループは止まらずに進む")]
+        private bool _usesAlternatingAdvance;
+
         [SerializeField, Min(0.1f)]
         [Tooltip("グループが進み続ける時間（秒）。グループごとに ±30% ずらす")]
         private float _advanceDuration;
@@ -66,23 +70,19 @@ namespace Kizami.EngineAdapter
         private int _mergeSize;
 
         [SerializeField, Min(0f)]
-        [Tooltip("アンカーは、プレイヤーまでの経路の長さがこの値（m）以下になったら、プレイヤーを囲む螺旋の上の置き場を受け取り、そこへ向かう")]
-        private float _encircleDistance;
+        [Tooltip("追跡中のアンカーは、プレイヤーまでの経路の長さが「置き場の螺旋の半径 ＋ この値（m）」より長い間は距離マップを下り、内側で置き場へまっすぐ向かう")]
+        private float _encircleApproachMargin;
 
         [SerializeField, Min(0f)]
-        [Tooltip("置き場までの直線の距離がこの値（m）より離れたら（プレイヤーが遠ざかったら）、置き場を手放して距離マップを下る")]
-        private float _encircleLeaveDistance;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("グループの置き場の螺旋の、内側の半径（m）。交戦する敵の螺旋より外にする")]
+        [Tooltip("グループの置き場の螺旋の、内側の半径（m）。着いたグループの螺旋の半径と、プレイヤーとの間をあける距離より大きくする")]
         private float _encircleInnerRadius;
 
         [SerializeField, Min(0.1f)]
-        [Tooltip("グループの置き場の螺旋の、1 周ごとに広がる半径（m）。囲んだ隊列の奥行きより大きくする")]
+        [Tooltip("グループの置き場の螺旋の、1 周ごとに広がる半径（m）。着いたグループの螺旋の直径より大きくする")]
         private float _encircleLoopSpacing;
 
         [SerializeField, Min(0.1f)]
-        [Tooltip("グループの置き場の、螺旋に沿った間隔（m）。囲んだ隊列の幅より大きくする")]
+        [Tooltip("グループの置き場の、螺旋に沿った間隔（m）。着いたグループの螺旋の直径より大きくする")]
         private float _encircleSlotSpacing;
 
         [SerializeField, Range(1, MAX_GROUP_SIZE)]
@@ -124,6 +124,9 @@ namespace Kizami.EngineAdapter
         /// <summary> アンカーが止まる、プレイヤーまでの経路の長さ（m） </summary>
         public float AnchorStopDistance => _anchorStopDistance;
 
+        /// <summary> グループが進む・待つを交互に繰り返し、同じレーンの前で待っているグループの後ろで待つか </summary>
+        public bool UsesAlternatingAdvance => _usesAlternatingAdvance;
+
         /// <summary> グループが進み続ける時間（秒） </summary>
         public float AdvanceDuration => _advanceDuration;
 
@@ -148,11 +151,8 @@ namespace Kizami.EngineAdapter
         /// <summary> 近くのグループへ合流する、メンバーの数の上限 </summary>
         public int MergeSize => _mergeSize;
 
-        /// <summary> アンカーが包囲の置き場を受け取る、プレイヤーまでの経路の長さ（m） </summary>
-        public float EncircleDistance => _encircleDistance;
-
-        /// <summary> アンカーが包囲の置き場を手放す、置き場までの直線の距離（m） </summary>
-        public float EncircleLeaveDistance => _encircleLeaveDistance;
+        /// <summary> 追跡中のアンカーが距離マップを下るのをやめ、置き場へまっすぐ向かい始める、置き場の螺旋の半径からの経路の長さの余裕（m） </summary>
+        public float EncircleApproachMargin => _encircleApproachMargin;
 
         /// <summary> グループの置き場の螺旋の、内側の半径（m） </summary>
         public float EncircleInnerRadius => _encircleInnerRadius;
@@ -197,11 +197,10 @@ namespace Kizami.EngineAdapter
             _maxColumns = 4,
             _columnChangeDelay = 1f,
             _mergeSize = 4,
-            _encircleDistance = 40f,
-            _encircleLeaveDistance = 30f,
-            _encircleInnerRadius = 15f,
-            _encircleLoopSpacing = 12f,
-            _encircleSlotSpacing = 18f,
+            _encircleApproachMargin = 15f,
+            _encircleInnerRadius = 25f,
+            _encircleLoopSpacing = 25f,
+            _encircleSlotSpacing = 25f,
             _encircleColumns = 6,
             _engageEnterDistance = 12f,
             _engageExitDistance = 18f,
