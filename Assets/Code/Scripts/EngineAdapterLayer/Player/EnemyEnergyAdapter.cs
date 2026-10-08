@@ -16,7 +16,6 @@ namespace Kizami.EngineAdapter
     /// VFX Graph で受け取るものは次のとおり（名前を変えるときは、グラフの側も合わせる）。
     /// GraphicsBuffer の EnergyPositions（float3 の並び）、int の EnergyPositionCount（その数）、Vector3 の EnergyTarget（吸い込む先）、
     /// イベント OnEnergy（spawnCount に出す粒の数を入れて送る）。
-    /// 粒の時間は VFX Graph の既定どおり Time.deltaTime で進み、スローモード中は一緒に遅くなる。
     /// </remarks>
     public sealed class EnemyEnergyAdapter : InitializableMonoBehaviour
     {

@@ -15,8 +15,6 @@ namespace Kizami.EngineAdapter
     /// </summary>
     /// <remarks>
     /// かけらのプールは空きがなくなると古いかけらを使い回すので、運んでいるかけらと飛んでいるかけらが回収されたら手放し、物理の設定を戻す。
-    /// 飛んでいるかけらの時間は Time.time で数え、スローモード中は一緒に遅くなる。
-    /// 運んでいるかけらは、CinemachineBrain が LateUpdate でカメラを動かした後に合わせるよう、実行順を後ろにする。
     /// 飛んでいるかけらは連続の衝突判定にする。薄い装甲のパネルを 1 ステップで越えると奥の物にも同時に触れ、奥の物への接触が先に届くとパネルを壊さずにプールへ返る為。
     /// </remarks>
     [DefaultExecutionOrder(EXECUTION_ORDER)]

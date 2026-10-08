@@ -14,7 +14,6 @@ namespace Kizami.EngineAdapter
     /// どの UI の上でドラッグが始まったかの判定と、指ごとの追跡は EventSystem のドラッグ通知に任せる。
     /// </summary>
     /// <remarks>
-    /// 書き込んだ値は仮想デバイスを経由して、スロットをバインドした InputAction として発火する。
     /// 仮想デバイスは次に書き込むまで値を保持するので、指が止まっているフレームと指を離したときはゼロを書き込む。
     /// EventSystem は Update でドラッグを通知するので、そのフレームの移動量の合計は LateUpdate で書き込む。
     /// </remarks>

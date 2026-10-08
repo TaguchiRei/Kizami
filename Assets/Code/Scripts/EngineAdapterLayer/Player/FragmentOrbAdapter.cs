@@ -16,7 +16,6 @@ namespace Kizami.EngineAdapter
     /// <remarks>
     /// 切り直されている途中のかけらは ExecuteCut が先に非アクティブにし、切断の結果が届くまで管理に残るので、
     /// 非アクティブなかけらはオーブにしない。
-    /// かけらとオーブの時間は Time.time / Time.deltaTime で数え、スローモード中は一緒に遅くなる。
     /// </remarks>
     public sealed class FragmentOrbAdapter : InitializableMonoBehaviour
     {

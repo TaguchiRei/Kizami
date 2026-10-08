@@ -8,8 +8,7 @@ namespace Kizami.EngineAdapter
     /// 壊れたパネルは非アクティブにする。残りの耐久値の割合で色を変える。
     /// </summary>
     /// <remarks>
-    /// 耐久値は当たった回数で数え、攻撃の種類や大きさによらない。何度も当たる攻撃は、当たった回数だけ ApplyHit を呼ぶ。
-    /// 奥への遮断は、パネルのコライダーが攻撃のレイを止めることで判定する。破壊対象とのひも付けは持たない。
+    /// 奥への遮断は、パネルのコライダーが攻撃のレイを止めることで判定する。
     /// </remarks>
     public sealed class ArmorPanel : MonoBehaviour
     {
@@ -44,6 +43,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 攻撃タイプか破壊タイプの攻撃が 1 回当たったとして耐久値を 1 減らし、0 になったら壊す。
+        /// 減らす量は攻撃の種類や大きさによらず 1 で、何度も当たる攻撃は当たった回数だけ呼ぶ。
         /// </summary>
         public void ApplyHit()
         {
