@@ -16,7 +16,7 @@ namespace Kizami.EngineAdapter
         private EnemyLeg[] _legs;
 
         [SerializeField, Range(0f, 1f)]
-        [Tooltip("足を置く基準の位置を、腰から脚の向き（前後）へ、脚の長さのこの割合だけ離す")]
+        [Tooltip("足を置く基準の位置を、腰から休みの姿勢の足先の水平の向きへ、その水平の距離のこの割合だけ離す")]
         private float _reachRate = 0.7f;
 
         [SerializeField]
@@ -38,8 +38,11 @@ namespace Kizami.EngineAdapter
         /// <summary> 脚ごとの、腰の位置（体の根の空間） </summary>
         private Vector3[] _hips;
 
-        /// <summary> 脚ごとの、休みの姿勢で腰から足先へ向かう向き（体の根の空間、単位ベクトル） </summary>
+        /// <summary> 脚ごとの、休みの姿勢で腰から膝へ向かう向き（体の根の空間、単位ベクトル） </summary>
         private Vector3[] _axes;
+
+        /// <summary> 脚ごとの、休みの姿勢で膝から脛の先へ向かう向き（体の根の空間、単位ベクトル） </summary>
+        private Vector3[] _lowerAxes;
 
         /// <summary> 脚ごとの、腿の長さ（腰から膝まで） </summary>
         private float[] _upperLengths;
@@ -68,14 +71,16 @@ namespace Kizami.EngineAdapter
         private Vector3 _previousRootPosition;
 
         /// <summary>
-        /// メッシュの範囲のうち、基準点から向き axis（前後）へ最も遠い所までの長さ。メッシュがなければ 0。
+        /// メッシュの範囲のうち、基準点から向き axis（単位ベクトル）へ最も遠い所までの長さ。メッシュがなければ 0。
         /// </summary>
         private static float GetMeshLength(MeshFilter meshFilter, Vector3 axis)
         {
             if (meshFilter == null || meshFilter.sharedMesh == null) return 0f;
 
             var bounds = meshFilter.sharedMesh.bounds;
-            return Mathf.Abs(axis.z >= 0f ? bounds.max.z : bounds.min.z);
+            var extents = bounds.extents;
+            return Mathf.Max(0f, Vector3.Dot(bounds.center, axis) + Mathf.Abs(axis.x) * extents.x +
+                                 Mathf.Abs(axis.y) * extents.y + Mathf.Abs(axis.z) * extents.z);
         }
 
         /// <summary>
@@ -139,6 +144,7 @@ namespace Kizami.EngineAdapter
             var count = _legs.Length;
             _hips = new Vector3[count];
             _axes = new Vector3[count];
+            _lowerAxes = new Vector3[count];
             _upperLengths = new float[count];
             _homes = new Vector3[count];
             _upperMeshes = new MeshFilter[count];
@@ -159,13 +165,16 @@ namespace Kizami.EngineAdapter
                 var knee = leg.Lower.localPosition;
                 _hips[i] = leg.Upper.localPosition;
                 _axes[i] = knee.normalized;
+                _lowerAxes[i] = leg.LowerRestDirection == Vector3.zero ? _axes[i] : leg.LowerRestDirection.normalized;
                 _upperLengths[i] = knee.magnitude;
                 _upperMeshes[i] = leg.Upper.GetComponent<MeshFilter>();
                 _lowerMeshes[i] = leg.Lower.GetComponent<MeshFilter>();
 
-                var reach = (_upperLengths[i] + GetMeshLength(_lowerMeshes[i], _axes[i])) * _reachRate;
+                // 休みの姿勢の足先の、腰から見た位置
+                var restFoot = knee + _lowerAxes[i] * GetMeshLength(_lowerMeshes[i], _lowerAxes[i]);
                 var side = Mathf.Sign(_hips[i].x) * _splay;
-                _homes[i] = new Vector3(_hips[i].x + side, 0f, _hips[i].z + _axes[i].z * reach);
+                _homes[i] = new Vector3(_hips[i].x + restFoot.x * _reachRate + side, 0f,
+                    _hips[i].z + restFoot.z * _reachRate);
             }
         }
 
@@ -273,8 +282,9 @@ namespace Kizami.EngineAdapter
                 return;
             }
 
+            var lowerAxis = _lowerAxes[i];
             var upperLength = _upperLengths[i];
-            var lowerLength = Mathf.Max(GetMeshLength(_lowerMeshes[i], axis), REACH_MARGIN);
+            var lowerLength = Mathf.Max(GetMeshLength(_lowerMeshes[i], lowerAxis), REACH_MARGIN);
             var distance = Mathf.Clamp(toTarget.magnitude, Mathf.Abs(upperLength - lowerLength) + REACH_MARGIN,
                 upperLength + lowerLength - REACH_MARGIN);
             var direction = toTarget.sqrMagnitude > 0f ? toTarget.normalized : axis;
@@ -291,7 +301,7 @@ namespace Kizami.EngineAdapter
 
             var upperRotation = Quaternion.FromToRotation(axis, knee - hip);
             leg.Upper.localRotation = upperRotation;
-            leg.Lower.localRotation = Quaternion.Inverse(upperRotation) * Quaternion.FromToRotation(axis, foot - knee);
+            leg.Lower.localRotation = Quaternion.Inverse(upperRotation) * Quaternion.FromToRotation(lowerAxis, foot - knee);
         }
     }
 }
