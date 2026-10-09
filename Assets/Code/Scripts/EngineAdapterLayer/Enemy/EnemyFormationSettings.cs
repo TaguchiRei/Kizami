@@ -93,6 +93,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("置き場に着いたグループは、置き場がこの距離（m）より離れるまで、螺旋に並んだままついていく。離れたら隊列に戻して移動する")]
         private float _followDistance;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("バリアを張っているグループは、プレイヤーとの距離が張ったときの距離よりこの値（m）以上広がるまで、置き場が動いてもその位置に留まる")]
+        private float _barrierLeaveMargin;
+
         /// <summary> 1 グループの人数 </summary>
         public int GroupSize => _groupSize;
 
@@ -153,6 +157,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 置き場に着いたグループが、螺旋に並んだままついていく置き場までの距離の上限（m） </summary>
         public float FollowDistance => _followDistance;
 
+        /// <summary> バリアを張っているグループが位置に留まる、張ったときのプレイヤーとの距離からの余裕（m） </summary>
+        public float BarrierLeaveMargin => _barrierLeaveMargin;
+
         /// <summary> 既定の値（仮の値） </summary>
         public static EnemyFormationSettings Default => new()
         {
@@ -174,7 +181,8 @@ namespace Kizami.EngineAdapter
             _encircleSlotSpacing = 25f,
             _memberLoopSpacing = 6f,
             _memberSlotSpacing = 6f,
-            _followDistance = 10f
+            _followDistance = 10f,
+            _barrierLeaveMargin = 10f
         };
 
         /// <summary>

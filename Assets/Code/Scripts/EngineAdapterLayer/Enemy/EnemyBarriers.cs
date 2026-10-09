@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 
@@ -12,6 +13,7 @@ namespace Kizami.EngineAdapter
     /// バリアの物（当たり判定と ArmorPanel を持つ球）は初期化のときにプールに作り、張っているグループにだけ貸すので、体を貸していない遠くのグループにも当たり判定がある。
     /// 当たった攻撃の数はグループの状態（EnemyGroup.BarrierHitCount）に持ち、物を返しても続く。壊れたバリアは張り直さない。崩落は防がない。
     /// 張っている間、体を貸しているディフェンダーは前脚の足を体の前で合わせる。
+    /// 張っているかと、張ったときのアンカーとプレイヤーの距離をグループの状態に書き、EnemyGroupJob はそれを見て、プレイヤーが近づく分には群れをその位置に留める。
     /// </summary>
     /// <remarks>
     /// バリアの物は Barrier レイヤーに置く。物理でぶつかるのは Player（乗れる・入れない）と Shard（投げたかけらで割る）だけで、崩落の塊や敵の体は素通りする（崩落を防がない為）。
@@ -173,6 +175,15 @@ namespace Kizami.EngineAdapter
                 else if (barrier >= 0)
                 {
                     _barrierBodies[barrier].MovePosition(agents[defender].Position);
+                }
+
+                var isRaised = barrier >= 0;
+                if (isRaised != group.IsBarrierRaised)
+                {
+                    group.IsBarrierRaised = isRaised;
+                    var toTarget = ((float3)targetBounds.center - group.AnchorPosition).xz;
+                    group.BarrierStayDistance = isRaised ? math.length(toTarget) : 0f;
+                    groupStates[g] = group;
                 }
 
                 if (hasDefender && defenderLender != null && agents[defender].BodyIndex >= 0)

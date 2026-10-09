@@ -224,6 +224,7 @@ namespace Kizami.EngineAdapter
         /// プレイヤーまでの経路が「目標位置のプレイヤーまでの経路 ＋ 近づく余裕」より長い間は距離マップの値が下がる方へ、内側では目標位置へ向かう。
         /// 目標位置へまっすぐ向かうと、壁の向こうの目標位置の手前で詰まる為。経路の長さで比べるので、壁を回り込んでから目標位置へ向かう。
         /// 置き場に着いたら止まってプレイヤーを向き、メンバーはグループの中心の周りの螺旋に並ぶ。置き場が FollowDistance 動くまでは、並んだままついていく。
+        /// バリアを張っている間は、プレイヤーとの距離が張ったときの距離 ＋ BarrierLeaveMargin を超えるまで、置き場が動いてもついていかずに留まる。
         /// 距離マップを下る間は、たどり着けないときと、同じレーンの前で別のグループが待つ番で止まっているときに、止まるまで減速する。
         /// </summary>
         /// <param name="slotPoints">置き場ごとの、立てる列へずらした位置。使えない置き場は NaN</param>
@@ -259,8 +260,17 @@ namespace Kizami.EngineAdapter
             var toTarget = target - group.AnchorPosition.xz;
             var targetDistance = math.length(toTarget);
 
+            // バリアを張っているグループは、プレイヤーが近づく分には置き場が動いても位置に留まり、プレイヤーを向く
+            var isGuarding = group.HasArrived && group.IsBarrierRaised;
+            if (isGuarding && math.distance(PlayerPosition.xz, group.AnchorPosition.xz)
+                <= group.BarrierStayDistance + Formation.BarrierLeaveMargin)
+            {
+                Advance(ref group, column, node, true, (PlayerPosition - group.AnchorPosition).xz, 0f);
+                return;
+            }
+
             // 着いたグループは、置き場が FollowDistance 動くまでは螺旋に並んだまま、置き場へついていく
-            if (group.HasArrived && hasSlot && !isWaitingSlot && targetDistance < Formation.FollowDistance)
+            if (group.HasArrived && !isGuarding && hasSlot && !isWaitingSlot && targetDistance < Formation.FollowDistance)
             {
                 if (targetDistance > ANCHOR_ARRIVE_DISTANCE
                     && TryGetHeadingToward(group.AnchorPosition, column, height, distance, toTarget, out heading))

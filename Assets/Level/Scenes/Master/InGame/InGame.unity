@@ -1415,6 +1415,7 @@ MonoBehaviour:
     _memberLoopSpacing: 6
     _memberSlotSpacing: 6
     _followDistance: 10
+    _barrierLeaveMargin: 10
   _groupSpawnRadius: 4
   _strandedReturnDelay: 10
   _fallDefeatHeight: 3
@@ -1459,7 +1460,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyShooter
   _effect: {fileID: 1064112299}
-  _range: 50
+  _range: 100
   _speed: 20
   _damage: 5
   _interval: 3
@@ -1506,7 +1507,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyFinisherAttack
   _effect: {fileID: 63719071}
   _beams: {fileID: 1539543163}
-  _range: 50
+  _range: 100
   _hoverHeight: 1
   _openDuration: 0.4
   _openReach: 3.5
