@@ -23,6 +23,7 @@ namespace Kizami.EngineAdapter
     /// 足場ごと一定の高さ以上落ちた敵と、ボクセルから切り離されて落ちてくる塊に潰された敵は、崩落で倒す。体を貸していれば返し、かけらは出さない。
     /// 生成した敵は出した順にグループ（EnemyGroups）へ入れ、毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
     /// 切断できる体（EnemyBody）の貸し借りと近接切断の結果の受け渡しは敵の種類ごとの EnemyBodyLender が、体から外れた切っていない部位の見た目用の物は EnemyDebrisSpawner が行う。
+    /// アタッカーの弾は、同じ GameObject の EnemyShooter が扱う。
     /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さない。
     /// </summary>
     /// <remarks>
@@ -91,6 +92,10 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("かけらのプール。体に残す側のかけらを返す先")]
         private MeshCutObjectPool _fragmentPool;
+
+        [SerializeField]
+        [Tooltip("アタッカーの弾を扱う EnemyShooter。未設定ならアタッカーは撃たない")]
+        private EnemyShooter _shooter;
 
         [SerializeField]
         [Tooltip("敵が向かう先（プレイヤー）。距離マップはここからの距離を持つ")]
@@ -321,7 +326,8 @@ namespace Kizami.EngineAdapter
         /// </summary>
         /// <param name="spawnOrb">倒れた体に残っていた切断済みの部位を、オーブにする関数。引数はオーブを出す位置</param>
         /// <param name="emitEnergy">崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置</param>
-        public void Initialize(Action<Vector3> spawnOrb, Action<Vector3> emitEnergy)
+        /// <param name="applyDamage">敵の攻撃がプレイヤーに当たったときにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
+        public void Initialize(Action<Vector3> spawnOrb, Action<Vector3> emitEnergy, Action<int> applyDamage)
         {
             _emitEnergy = emitEnergy;
 
@@ -383,6 +389,15 @@ namespace Kizami.EngineAdapter
                 _bodyLenders[(int)kind] = new EnemyBodyLender(kind, settings.BodyPrefab, transform, settings.BodyCount,
                     _agents.Length, _shapeKeeperCapacity, _fragmentPool, _lendDistance, _returnDistance,
                     _reclaimDistance, _reclaimMargin, spawnOrb, _debrisSpawner != null ? _debrisSpawner.Spawn : null);
+            }
+
+            if (_shooter == null)
+            {
+                UsefulLogger.LogWarning("EnemyShooter が設定されていない為、アタッカーは撃ちません。", this);
+            }
+            else
+            {
+                _shooter.Initialize(_bodyPrefabs[(int)EnemyKind.Attacker], _target, applyDamage);
             }
 
             base.Initialize();
@@ -453,6 +468,8 @@ namespace Kizami.EngineAdapter
                         }
                     }
                 }
+
+                if (_shooter != null) _shooter.Tick(_agents, Time.deltaTime);
 
                 using (_renderMarker.Auto())
                 {

@@ -293,17 +293,15 @@ MonoBehaviour:
   - _cuttable: {fileID: 6170856892598330292}
     _jointDistance: 0.3
     _role:
-      rid: -2
+      rid: 8226038210120122651
   - _cuttable: {fileID: 5505983852874233367}
     _jointDistance: 0.3
     _role:
-      rid: -2
+      rid: 8226038210120122652
   _brokenMovePartLimit: 4
   references:
     version: 2
     RefIds:
-    - rid: -2
-      type: {class: , ns: , asm: }
     - rid: 8226038166398435415
       type: {class: MovePartRole, ns: Kizami.EngineAdapter, asm: Kizami.EngineAdapter.Runtime}
       data: 
@@ -331,6 +329,12 @@ MonoBehaviour:
     - rid: 8226038166398435423
       type: {class: MovePartRole, ns: Kizami.EngineAdapter, asm: Kizami.EngineAdapter.Runtime}
       data: 
+    - rid: 8226038210120122651
+      type: {class: AttackPartRole, ns: Kizami.EngineAdapter, asm: Kizami.EngineAdapter.Runtime}
+      data: 
+    - rid: 8226038210120122652
+      type: {class: AttackPartRole, ns: Kizami.EngineAdapter, asm: Kizami.EngineAdapter.Runtime}
+      data: 
 --- !u!114 &4095957035178863860
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -346,15 +350,19 @@ MonoBehaviour:
   _legs:
   - _upper: {fileID: 2217370737834281202}
     _lower: {fileID: 5461933232232365365}
+    _lowerRestDirection: {x: 0, y: 0, z: 0}
     _pair: 0
   - _upper: {fileID: 3295671259875217660}
     _lower: {fileID: 8412428872730284341}
+    _lowerRestDirection: {x: 0, y: 0, z: 0}
     _pair: 0
   - _upper: {fileID: 1064845312762087278}
     _lower: {fileID: 4100255294271074136}
+    _lowerRestDirection: {x: 0, y: 0, z: 0}
     _pair: 1
   - _upper: {fileID: 8901087811011621733}
     _lower: {fileID: 259607693237171716}
+    _lowerRestDirection: {x: 0, y: 0, z: 0}
     _pair: 1
   _reachRate: 0.7
   _splay: 0.7

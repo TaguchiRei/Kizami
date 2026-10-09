@@ -1,4 +1,5 @@
 using System.Text;
+using Kizami.Application;
 using Kizami.EngineAdapter;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
@@ -8,16 +9,18 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// 敵の生成と体のプール（EnemySpawnAdapter）を初期化し、出ている敵とグループの数、崩落で倒した敵の数、生成位置の有効・無効、敵の処理にかかった時間を画面に出す配線役。インゲームのシーンへ置く。
+    /// 敵の生成と体のプール（EnemySpawnAdapter）を、プレイヤーへのダメージの関数（PlayerHealthService.ApplyDamage）を渡して初期化し、出ている敵とグループの数、崩落で倒した敵の数、生成位置の有効・無効、敵の処理にかかった時間を画面に出す配線役。インゲームのシーンへ置く。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
-    public sealed class EnemyInitializer : InitializerBase
+    public sealed class EnemyInitializer : InitializerBase, IInjectable<PlayerHealthService>
     {
         private readonly StringBuilder _spawnPointText = new();
 
         [SerializeField] private EnemySpawnAdapter _spawnAdapter;
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
         [SerializeField] private EnemyEnergyAdapter _energyAdapter;
+
+        private PlayerHealthService _healthService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -27,7 +30,8 @@ namespace Kizami.Initialization
                 return;
             }
 
-            _spawnAdapter.Initialize(_fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit);
+            _spawnAdapter.Initialize(_fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit,
+                _healthService != null ? _healthService.ApplyDamage : null);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             DebugGUI.ObserveVariable("Enemies",
                 () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity} (groups {_spawnAdapter.GroupCount})");
@@ -117,6 +121,11 @@ namespace Kizami.Initialization
             }
 
             return _spawnPointText.ToString();
+        }
+
+        public void Inject(PlayerHealthService instance)
+        {
+            _healthService = instance;
         }
     }
 }

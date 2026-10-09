@@ -97,7 +97,7 @@
 
 | # | 項目 | 決めたこと |
 |---|---|---|
-| 6 | 弾 | タレットの先から、弾速のある球を撃つ。位置・速度・寿命を NativeArray に持って Burst の Job で進め、前のフレームの位置から今の位置までを `SpherecastCommand` で調べて、壁と装甲で止める。プレイヤーへの当たりは、プレイヤーのカプセルとの距離で Job の中で計算する。描画は `EnemyEnergyAdapter` と同じく、GraphicsBuffer で位置を VFX Graph へ渡す。撃つ条件は、射程 50m 以内・タレットからプレイヤーまで壁がない（`RaycastCommand`）・攻撃部位が残っている・同時に撃つ敵の数の上限（仮 4）。仮の値は秒速 20m、ダメージ 5、間隔 3 秒 ±30%、半径 0.3m。体を貸していない遠くの敵も、`EnemyAgent` の値だけで撃つ |
+| 6 | 弾 | タレットの先から、弾速のある球を撃つ。位置・速度・寿命を NativeArray に持って Burst の Job で進め、前のフレームの位置から今の位置までを `SpherecastCommand` で調べて、壁と装甲で止める。プレイヤーへの当たりは、プレイヤーのカプセルとの距離で Job の中で計算する。描画は `EnemyEnergyAdapter` と同じく、GraphicsBuffer で位置を VFX Graph へ渡す。撃つ条件は、射程 50m 以内・タレットからプレイヤーまで壁がない（`RaycastCommand`）・攻撃部位が残っている・同時に撃つ敵の数の上限（仮 4）。仮の値は秒速 20m、ダメージ 5、間隔 3 秒 ±30%、半径 0.3m。体を貸していない遠くの敵も、`EnemyAgent` の値だけで撃つ。同時に撃つ敵の数の上限は、同時に飛んでいる弾の数の上限として持つ（1 体が 1 発ずつ撃つ為）。銃口は、攻撃部位をまとめた範囲の前の端。壁にさえぎられた敵は 0.5 秒後に調べ直す。弾の VFX Graph はユーザーが [Section09_BulletVfxGraph.md](Section09_BulletVfxGraph.md) の手順で組む（グラフをスクリプトから組む公開の方法がない為） |
 
 ### ディフェンダーのバリア
 
@@ -138,7 +138,7 @@
 | `EnemyKind`（列挙） | EngineAdapter | 編成、`EnemyAgent`、`EnemySpawnAdapter` |
 | `EnemyKindSettings`（仮。Serializable） | EngineAdapter | `EnemySpawnAdapter` の Inspector（3 種で 3 件） |
 | `AttackPartRole` | EngineAdapter | アタッカーの `GunTurret`・`Gun`。撃つ判定が壊れた部位のビットと照らし合わせる |
-| `EnemyShooter`（仮） | EngineAdapter | `EnemySpawnAdapter`。撃つ敵を選び、弾の NativeArray・Job・`SpherecastCommand`・VFX へ渡す GraphicsBuffer を持つ |
+| `EnemyShooter` | EngineAdapter | `EnemySpawnAdapter`。撃つ敵を選び、弾の NativeArray・Job・`SpherecastCommand`・VFX へ渡す GraphicsBuffer を持つ。設定と VisualEffect の参照を自分で持つよう、`EnemySpawnAdapter` と同じ GameObject のコンポーネントにした（コミット 4） |
 | `EnemyBarriers`（仮） | EngineAdapter | `EnemySpawnAdapter`。バリアのプール、耐久値の受け渡し、打ち上げの判定 |
 | `EnemyFinisherAttack`（仮） | EngineAdapter | `EnemySpawnAdapter`。吸収、分身のプール、デカール、ビーム、冷却 |
 

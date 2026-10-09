@@ -8,6 +8,7 @@
     "com.rei.usefultoolkit.input": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.input",
     "com.rei.usefultoolkit.meshcut": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.meshcut",
     "com.rei.usefultoolkit.programtools": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.programtools",
+    "com.rei.usefultoolkit.worktrack": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.worktrack",
     "com.unity.ai.navigation": "2.0.10",
     "com.unity.cinemachine": "3.1.7",
     "com.unity.collab-proxy": "2.11.3",
