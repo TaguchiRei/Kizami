@@ -1325,6 +1325,7 @@ GameObject:
   - component: {fileID: 1539543160}
   - component: {fileID: 1539543161}
   - component: {fileID: 1539543162}
+  - component: {fileID: 1539543163}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -1503,6 +1504,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyFinisherAttack
   _effect: {fileID: 63719071}
+  _beams: {fileID: 1539543163}
   _range: 50
   _hoverHeight: 4
   _grabDuration: 0.5
@@ -1514,6 +1516,40 @@ MonoBehaviour:
   _particlesPerPart: 4
   _burstInterval: 0.1
   _maxBurstPositions: 32
+--- !u!114 &1539543163
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1539543156}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36b6c3ddb34b87844adb3289eeae309e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyFinisherBeams
+  _clonePrefab: {fileID: 7733473083201751770, guid: aeda01e63a8a04d4688a990727ab32de, type: 3}
+  _cloneCount: 4
+  _beamMaterial: {fileID: 2100000, guid: f1ee0f09a79d09a49809cb68c0313769, type: 2}
+  _decalPrefab: {fileID: 6800740689205450650, guid: 781d0116b3e61944fb6b90e99c7294d7, type: 3}
+  _height: 25
+  _lockDistance: 3
+  _bodyCenterHeight: 3
+  _orbitRadius: 8
+  _orbitSpeed: 60
+  _spreadDuration: 1
+  _telegraphDuration: 2
+  _giantRadius: 4
+  _giantDamage: 40
+  _giantDuration: 0.5
+  _trackingRadius: 1
+  _trackingDamage: 10
+  _trackingInterval: 0.5
+  _trackingDuration: 4
+  _trackingSpeed: 4
+  _blockLayers:
+    serializedVersion: 2
+    m_Bits: 1537
 --- !u!1 &1579939515
 GameObject:
   m_ObjectHideFlags: 0

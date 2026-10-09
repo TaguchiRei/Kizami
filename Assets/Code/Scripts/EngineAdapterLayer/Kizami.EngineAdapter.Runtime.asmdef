@@ -15,6 +15,7 @@
         "Unity.Collections",
         "Unity.InputSystem",
         "Unity.Mathematics",
+        "Unity.RenderPipelines.Universal.Runtime",
         "UnityEngine.UI"
     ],
     "includePlatforms": [],

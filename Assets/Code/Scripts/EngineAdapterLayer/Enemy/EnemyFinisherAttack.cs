@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Mathematics;
@@ -11,8 +12,8 @@ namespace Kizami.EngineAdapter
     /// フィニッシャーの攻撃を扱う。EnemySpawnAdapter と同じ GameObject に置き、EnemySpawnAdapter が初期化と毎フレームの更新を呼ぶ。
     /// 攻撃するのはマップ全体で 1 体まで。グループが螺旋に並んでいて（EnemyGroup.HasArrived）、プレイヤーが射程の中にいる、冷却を終えたフィニッシャーが始める。
     /// 同じグループの最も近いメンバーを吸収の対象に選んで止め、その上へ飛んで腕を伸ばし、対象をディゾルブで消しながら粒を吸い込む。
-    /// 吸収された敵はオーブもチャージも出さない。吸収したあとは冷却に入り、飛び立った位置へ戻る。
-    /// 吸収する前に対象が倒れるか、グループの並びが解けたら、冷却に入って戻る。フィニッシャーが倒れたら、対象を放してやめる。
+    /// 吸収された敵はオーブもチャージも出さない。吸収したあとは分身してビームを撃ち（EnemyFinisherBeams）、撃ち終えたら冷却に入って、飛び立った位置へ戻る。
+    /// 吸収する前に対象が倒れるか、グループの並びが解けたら、冷却に入って戻る。フィニッシャーが倒れたら、対象を放し、分身・ビーム・デカールを消してやめる。
     /// 吸収を始めたあとにフィニッシャーが倒れたときは、対象もそのまま消す。消えかけた体を元に戻して歩かせることはしない。
     /// </summary>
     /// <remarks>
@@ -36,6 +37,10 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("吸収の粒を出す VisualEffect。VFX Graph は崩落のエネルギーと同じ EnemyEnergy.vfx")]
         private VisualEffect _effect;
+
+        [SerializeField]
+        [Tooltip("吸収したあとの分身とビームを扱う EnemyFinisherBeams。未設定なら吸収したあとすぐに戻る")]
+        private EnemyFinisherBeams _beams;
 
         [SerializeField, Min(0f)]
         [Tooltip("プレイヤーがこの距離（m）以内にいると、攻撃を始める")]
@@ -101,6 +106,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> フィニッシャーが飛び立った位置。戻るときはここへ降りる </summary>
         private float3 _homePosition;
+
+        /// <summary> 分身とビームを使えるか </summary>
+        private bool _hasBeams;
 
         private bool _isReady;
 
@@ -190,7 +198,8 @@ namespace Kizami.EngineAdapter
         /// </summary>
         /// <param name="target">プレイヤー</param>
         /// <param name="dissolveMaterial">吸収された敵を消すディゾルブのマテリアル。null なら対象はディゾルブせずに消える</param>
-        public void Initialize(Transform target, Material dissolveMaterial)
+        /// <param name="applyDamage">ビームがプレイヤーに当たったときにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
+        public void Initialize(Transform target, Material dissolveMaterial, Action<int> applyDamage)
         {
             if (target == null)
             {
@@ -200,6 +209,15 @@ namespace Kizami.EngineAdapter
 
             _target = target;
             _dissolveMaterial = dissolveMaterial;
+
+            if (_beams == null)
+            {
+                UsefulLogger.LogWarning("EnemyFinisherBeams が設定されていない為、フィニッシャーは吸収したあと分身せずに戻ります。", this);
+            }
+            else
+            {
+                _hasBeams = _beams.Initialize(target, applyDamage);
+            }
 
             if (_effect == null || !_effect.HasGraphicsBuffer(_positionsId) || !_effect.HasInt(_positionCountId) ||
                 !_effect.HasVector3(_targetId))
@@ -269,6 +287,9 @@ namespace Kizami.EngineAdapter
                     }
 
                     UpdateAbsorb(agents, lenders, finisherLegs, deltaTime);
+                    break;
+                case Phase.Barrage:
+                    UpdateBarrage(agents, finisherLegs, deltaTime);
                     break;
                 case Phase.Returning:
                     UpdateReturn(agents, finisherLegs, grid);
@@ -400,9 +421,34 @@ namespace Kizami.EngineAdapter
             // 体は、次の EnemyBodyLender.ReturnBodies で返る。倒れたことにしないので、オーブもチャージも出ない
             target.IsAlive = false;
             agents[_absorbTarget] = target;
+            _absorbTarget = -1;
 
-            // TODO: 吸収したあとに分身し、予兆とビームを出す（区間9 のコミット 8）
-            StartReturn(agents);
+            if (!_hasBeams)
+            {
+                StartReturn(agents);
+                return;
+            }
+
+            _beams.Begin(agents[_finisher].Position);
+            SetPhase(Phase.Barrage);
+        }
+
+        /// <summary>
+        /// 分身とビームの段階を進め、本体を EnemyFinisherBeams の示す位置へ飛ばす。撃ち終えたら冷却に入って戻る。飛んでいる間、腕は垂らす。
+        /// </summary>
+        private void UpdateBarrage(NativeArray<EnemyAgent> agents, EnemyLegs finisherLegs, float deltaTime)
+        {
+            HangArms(finisherLegs);
+
+            var agent = agents[_finisher];
+            if (!_beams.Tick(agent.Position, deltaTime, out var flyTarget))
+            {
+                StartReturn(agents);
+                return;
+            }
+
+            agent.FlyTarget = flyTarget;
+            agents[_finisher] = agent;
         }
 
         /// <summary>
@@ -451,10 +497,12 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// フィニッシャーが倒れたときに呼ぶ。吸収の対象を放してやめる。吸収を始めていれば、対象も消す。
+        /// フィニッシャーが倒れたときに呼ぶ。吸収の対象を放してやめる。吸収を始めていれば、対象も消す。分身・ビーム・デカールを消す。
         /// </summary>
         private void Abort(NativeArray<EnemyAgent> agents)
         {
+            if (_hasBeams) _beams.Stop();
+
             if (_phase == Phase.Absorbing)
             {
                 var target = agents[_absorbTarget];
@@ -564,6 +612,9 @@ namespace Kizami.EngineAdapter
 
             /// <summary> 腕でつかんで、対象を消している </summary>
             Absorbing,
+
+            /// <summary> 分身してプレイヤーの上へ向かい、ビームを撃っている </summary>
+            Barrage,
 
             /// <summary> 冷却に入り、飛び立った位置へ戻っている </summary>
             Returning

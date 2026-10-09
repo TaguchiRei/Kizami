@@ -429,7 +429,7 @@ namespace Kizami.EngineAdapter
             }
             else
             {
-                _finisherAttack.Initialize(_target, _debrisMaterial);
+                _finisherAttack.Initialize(_target, _debrisMaterial, applyDamage);
             }
 
             base.Initialize();

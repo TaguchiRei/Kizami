@@ -117,9 +117,9 @@
 | 11 | 吸収 | 同じグループの最も近いメンバーを選ぶ。選ばれた敵はその場で止まる。フィニッシャーは飛んでいる状態になり（地面に立つ処理と重力を止める）、対象の上 4m（仮）へ移る。腕の先を対象へ伸ばし（`EnemyLegs` の足の行き先の上書き）、1 秒（仮）で吸収する。吸収された敵は、切っていない部位も切った部位もディゾルブで消え（オーブもチャージも出さない）、エネルギーの VFX Graph を別の VisualEffect で使って、小さな粒をフィニッシャーへ吸い込ませる。止まる・飛ぶは `EnemyAgent.MoveMode`（`EnemyMoveMode` の Walking・Held・Flying）で持ち、移動の Job が読む。飛んでいる間、腕は休みの姿勢の足先の位置に留めて垂らす。ディゾルブは、体の全レンダラーのマテリアルを、区間5の見た目用の部位と同じディゾルブのマテリアルに差し替えて行い、体を返すときに戻す。消えている途中の体は切れなくする（かけらにディゾルブのマテリアルが写る為）。吸収を始めたあとにフィニッシャーが倒れたら、対象もそのまま消す（消えかけた体を戻して歩かせない）。止められたアタッカーは撃たない（コミット 7） |
 | 12 | 行動中の敵の体 | 攻撃中のフィニッシャーと選ばれた敵には、距離によらず体を貸す（優先して貸す）。腕でつかむ動きとディゾルブを、遠くでも見せる為。空きがなければ、ほかの敵から体を取り上げて貸す。行動中の敵の体は、離れても返させず、取り上げの相手にもしない。行動中の敵は、戻れない敵を持ち場へ戻す処理の対象にもしない（コミット 7） |
 | 13 | 特殊部位（9-5） | 作らずに持ち越す。仕様が「検討中」で、届いたモデルに当てはまる部位がなく、完了条件にも入っていない為 |
-| 14 | 分身 | 吸収したあと、本体と 4 体の分身がプレイヤーの上 25m（仮）へ移る。本体が中心で、分身は周りを回る。分身はフィニッシャーの見た目を色違いのマテリアルにしたプレハブで、プールから出す。当たり判定（Armor レイヤー）と `ArmorPanel`（耐久値 3、仮）を持ち、装甲と同じく壊せる。グループにも移動にも敵の数にも入らない。壊れた分身のビームは止まる |
-| 15 | 予兆と特大のビーム | 地面に URP の Decal Projector で攻撃の範囲を出し、2 秒（仮）後に、本体が上から特大のビーム（半径 4m、ダメージ 40、仮）を撃つ。見た目は円柱 |
-| 16 | 追いかけるビーム | 分身 4 体が、細いビーム（半径 1m、0.5 秒ごとにダメージ 10、4 秒、仮）を撃つ。ビームの当たる所は、秒速 4m（仮）でプレイヤーを追う。当たる所にもデカールを出す |
+| 14 | 分身 | 吸収したあと、本体と 4 体の分身がプレイヤーの上 25m（仮）へ移る。本体が中心で、分身は周りを回る。分身はフィニッシャーの見た目を色違いのマテリアルにしたプレハブで、プールから出す。当たり判定（Armor レイヤー）と `ArmorPanel`（耐久値 3、仮）を持ち、装甲と同じく壊せる。グループにも移動にも敵の数にも入らない。壊れた分身のビームは止まる。分身は本体の周りを半径 8m・秒速 60 度（仮）で回り、出してから 1 秒で広がる。本体はプレイヤーの上を狙い直しながら飛び、3m まで近づいたら位置を決める（動くプレイヤーを追い続けると、飛ぶ先に着かない為）（コミット 8） |
+| 15 | 予兆と特大のビーム | 地面に URP の Decal Projector で攻撃の範囲を出し、2 秒（仮）後に、本体が上から特大のビーム（半径 4m、ダメージ 40、仮）を撃つ。見た目は円柱。範囲は本体の真下でビームが止まる所に出す（赤い円のテクスチャは仮）。ビームは 0.5 秒（仮）出し、その間に 1 回だけダメージを与える。範囲が広いので、屋根の下かは、撃つ所の高さからプレイヤーの頭まで真下へ調べて決める。撃つ所を包む物は調べ始めに重なるので数えない（TestStage の見えない天井 `Ceiling` が、本体の浮く高さと重なる為）（コミット 8） |
+| 16 | 追いかけるビーム | 分身 4 体が、細いビーム（半径 1m、0.5 秒ごとにダメージ 10、4 秒、仮）を撃つ。ビームの当たる所は、秒速 4m（仮）でプレイヤーを追う。当たる所にもデカールを出す。特大のビームと同時に撃ち始め、当たる所は各分身の真下から始める。ビームは分身から当たる所までの斜めの円柱で、間に物があればそこで止まる。当たりは円柱とプレイヤーのカプセルの距離で決める（コミット 8） |
 | 17 | ビームを止める物 | ビームは上から下へ撃ち、最初に当たった物（Default・Wall・Armor のレイヤー）で止まる。円柱の長さもそこまでにする。屋根の下に隠れるか、横への移動とワープでよける |
 | 18 | 冷却と中断 | 撃ち終えたら 15 秒（仮）は攻撃しない。分身とデカールは消え、本体は飛び立った位置へ飛んで降り、そこから歩いて自分の螺旋の位置へ戻る（コミット 7）。吸収する前に選ばれた敵が倒れたら、冷却に入って戻る。本体が倒れたら、分身・ビーム・デカールを消す |
 
@@ -141,14 +141,17 @@
 | `EnemyShooter` | EngineAdapter | `EnemySpawnAdapter`。撃つ敵を選び、弾の NativeArray・Job・`SpherecastCommand`・VFX へ渡す GraphicsBuffer を持つ。設定と VisualEffect の参照を自分で持つよう、`EnemySpawnAdapter` と同じ GameObject のコンポーネントにした（コミット 4） |
 | `EnemyBarriers` | EngineAdapter | `EnemySpawnAdapter`。バリアのプール、当たった数の受け渡し、前脚を合わせる姿勢、打ち上げの判定（コミット 6）。`EnemyShooter` と同じく、`EnemySpawnAdapter` と同じ GameObject のコンポーネントにした（コミット 5） |
 | `EnemyMoveMode`（列挙） | EngineAdapter | `EnemyAgent`、`EnemyMoveJob`、`EnemyBodyLender`、`EnemyFinisherAttack`。歩く・止まる・飛ぶ（コミット 7） |
-| `EnemyFinisherAttack` | EngineAdapter | `EnemySpawnAdapter`。吸収、分身のプール、デカール、ビーム、冷却。`EnemyShooter` と同じく、`EnemySpawnAdapter` と同じ GameObject のコンポーネントにした。攻撃の段階と時間は、`EnemyAgent` ではなくここに持つ（攻撃するのはマップ全体で 1 体だけの為）（コミット 7） |
+| `EnemyFinisherBeams` | EngineAdapter | `EnemyFinisherAttack`。分身のプール、予兆のデカール、特大のビームと追いかけるビーム。`EnemyFinisherAttack` が大きくなりすぎない為に分け、同じ GameObject のコンポーネントにした（コミット 8） |
+| `EnemyBeam` | EngineAdapter | `EnemyFinisherBeams`。ビーム 1 本の見た目（円柱とデカール）（コミット 8） |
+| `CapsuleGeometry` | EngineAdapter | `EnemyShooter`・`EnemyBarriers`・`EnemyFinisherBeams`。プレイヤーのカプセルの軸と、線分どうしの距離。3 か所目の利用者ができたので、弾とバリアにあった同じ計算をまとめた（コミット 8） |
+| `EnemyFinisherAttack` | EngineAdapter | `EnemySpawnAdapter`。吸収、冷却。`EnemyShooter` と同じく、`EnemySpawnAdapter` と同じ GameObject のコンポーネントにした。攻撃の段階と時間は、`EnemyAgent` ではなくここに持つ（攻撃するのはマップ全体で 1 体だけの為）（コミット 7） |
 
 - 弾・バリア・フィニッシャーの 3 つは、どれも利用者が `EnemySpawnAdapter` だけ。区間8R で `EnemyBodyLender`・`EnemyDebrisSpawner` を切り出したのと同じ理由で、`EnemySpawnAdapter` に書かずに分ける
 - 作らないもの：敵の State・Event・Service、シールドの役割のクラス、弾 1 発ごとの MonoBehaviour、分身を描くための新しい描画の仕組み
 
 拡張する型：`EnemyAgent`（種類、移動部位の上限、動き方と飛ぶ先）、`EnemySpawnSystem`（`EnemySpawnInfo` の編成）、`EnemyInitialSpawnArea`（編成）、`EnemySpawnAdapter`、`EnemyBodyLender`（種類で絞る、行動中の敵に優先して貸す）、`EnemyCrowdRenderer`（種類で絞る）、`EnemyBody`（吸収で消す）、`EnemyLeg`・`EnemyLegs`（脛の休みの向き、足の行き先の上書き、休みの姿勢の足先）、`EnemyShooter`（止められた敵は撃たない）、`EnemyGroup`（バリアの耐久値）、`EnemyGroups`（ディフェンダーを 0 番に保つ）、`EnemyMoveJob`（敵ごとの移動部位の上限、飛んでいる敵と止まった敵）、`ArmorPanel`（耐久値を戻す口。壊れたことは `IsBroken` を毎フレーム読んで知るので、知らせる口は作らなかった）、`MeleeCutAdapter`（装甲の奥を切らない）、`PlayerMovementService`（打ち上げの要求、生成と初期化を分ける）、`PlayerInitializer`（登録）、`EnemyInitializer`（注入）
 
-作るアセット：`DefenderEnemy.prefab`、`FinisherEnemy.prefab`、分身のプレハブ、バリアのプレハブ、弾の VFX Graph、バリア・分身・デカール・ビームの仮のマテリアル
+作るアセット：`DefenderEnemy.prefab`、`FinisherEnemy.prefab`、分身のプレハブ（`FinisherClone.prefab`）、バリアのプレハブ、弾の VFX Graph、予兆のデカールのプレハブ（`BeamTelegraph.prefab`）と円のテクスチャ、バリア・分身・デカール・ビームの仮のマテリアル。`Kizami.EngineAdapter.Runtime` の asmdef に `Unity.RenderPipelines.Universal.Runtime` の参照を足した（Decal Projector を使う為）
 
 ### コミットの分け方
 
