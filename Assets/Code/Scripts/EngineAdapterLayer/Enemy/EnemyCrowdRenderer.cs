@@ -10,7 +10,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 体を貸していない敵の状態から部位ごとの行列を Job で作り、Graphics.RenderMeshInstanced で部位ごとにまとめて描画する。体から外れた部位は描かない。
-    /// 部位のメッシュ・マテリアル・体の根から見た位置は、体のプレハブから初期化のときに読む。
+    /// 敵の種類ごとに 1 つ作り、その種類の敵だけを描く。部位のメッシュ・マテリアル・体の根から見た位置は、その種類の体のプレハブから初期化のときに読む。
     /// </summary>
     /// <remarks>
     /// マテリアルは GPU インスタンシングを有効にしておく必要がある。
@@ -26,6 +26,9 @@ namespace Kizami.EngineAdapter
 
         private readonly Mesh[] _meshes;
 
+        /// <summary> 描く敵の種類 </summary>
+        private readonly EnemyKind _kind;
+
         /// <summary> 部位ごとの、サブメッシュごとの描画の設定 </summary>
         private readonly RenderParams[][] _renderParams;
 
@@ -38,10 +41,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 部位ごとの、区画に書いた行列の数 </summary>
         private NativeArray<int> _counts;
 
-        /// <param name="bodyPrefab">部位のメッシュ・マテリアル・位置を読む体のプレハブ</param>
+        /// <param name="kind">描く敵の種類</param>
+        /// <param name="bodyPrefab">部位のメッシュ・マテリアル・位置を読む、その種類の体のプレハブ</param>
         /// <param name="capacity">敵の状態の数</param>
-        public EnemyCrowdRenderer(EnemyBody bodyPrefab, int capacity)
+        public EnemyCrowdRenderer(EnemyKind kind, EnemyBody bodyPrefab, int capacity)
         {
+            _kind = kind;
             var parts = bodyPrefab.Parts;
             var rootWorldToLocal = bodyPrefab.transform.worldToLocalMatrix;
 
@@ -76,13 +81,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// ステージに出ていて体を貸していない敵の、残っている部位を、このフレームの描画に出す。
+        /// ステージに出ていて体を貸していない、この種類の敵の、残っている部位を、このフレームの描画に出す。
         /// </summary>
         public void Render(NativeArray<EnemyAgent> agents)
         {
             new BuildMatricesJob
             {
                 Agents = agents,
+                Kind = _kind,
                 PartLocalMatrices = _partLocalMatrices,
                 Matrices = _matrices,
                 Counts = _counts
@@ -124,6 +130,9 @@ namespace Kizami.EngineAdapter
             [ReadOnly] public NativeArray<EnemyAgent> Agents;
             [ReadOnly] public NativeArray<float4x4> PartLocalMatrices;
 
+            /// <summary> 描く敵の種類 </summary>
+            public EnemyKind Kind;
+
             /// <summary> 部位ごとの区画には、その部位の Execute だけが書く </summary>
             [NativeDisableParallelForRestriction] public NativeArray<float4x4> Matrices;
 
@@ -140,7 +149,7 @@ namespace Kizami.EngineAdapter
                 for (var i = 0; i < Agents.Length; i++)
                 {
                     var agent = Agents[i];
-                    if (!agent.IsAlive || agent.BodyIndex >= 0 || (agent.LostParts & partBit) != 0) continue;
+                    if (!agent.IsAlive || agent.Kind != Kind || agent.BodyIndex >= 0 || (agent.LostParts & partBit) != 0) continue;
 
                     var root = float4x4.TRS(agent.Position, quaternion.RotateY(agent.Yaw), new float3(1f));
                     Matrices[regionStart + count] = math.mul(root, local);

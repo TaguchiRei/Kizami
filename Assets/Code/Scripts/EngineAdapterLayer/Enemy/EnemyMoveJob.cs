@@ -69,9 +69,6 @@ namespace Kizami.EngineAdapter
         /// <summary> 重力の加速度の大きさ（m/s²） </summary>
         public float Gravity;
 
-        /// <summary> 壊れた移動部位がこの数に達した敵は歩かない。足場がなくなれば落ちる </summary>
-        public int BrokenMovePartLimit;
-
         /// <summary> この高さ（m）以上落ちて着地した敵は、崩落で倒されたとする </summary>
         public float FallDefeatHeight;
 
@@ -361,7 +358,8 @@ namespace Kizami.EngineAdapter
             var agent = Agents[index];
             if (!agent.IsAlive) return;
 
-            if (agent.IsGrounded && agent.BrokenMovePartCount < BrokenMovePartLimit) Walk(ref agent, index);
+            // 壊れた移動部位が上限に達した敵は歩かない。足場がなくなれば落ちる
+            if (agent.IsGrounded && agent.BrokenMovePartCount < agent.BrokenMovePartLimit) Walk(ref agent, index);
             UpdateVertical(ref agent);
             UpdateStrandedTime(ref agent);
 

@@ -16,13 +16,13 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 敵の状態（EnemyAgent）の配列と体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出す Adapter。インゲームのシーンへ置く。
-    /// 敵の状態の数は EnemySpawnSystem の同時に存在する数の上限で、出ている敵は EnemyCrowdRenderer でまとめて描画する。
+    /// 敵の状態の数は EnemySpawnSystem の同時に存在する数の上限で、出ている敵は敵の種類ごとの EnemyCrowdRenderer でまとめて描画する。
     /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、ステージのボクセルのモデルの形が変わったら、その範囲を調べ直す。
     /// 距離マップは、プレイヤーの近く（追跡範囲。区画の大きさは EnemySpawnSystem の設定）だけを、プレイヤーのいるノードか追跡範囲が変わるか、格子を調べ直すたびに計算し直す。
     /// 追跡範囲の中でプレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ自分のグループの持ち場へ戻す。
     /// 足場ごと一定の高さ以上落ちた敵と、ボクセルから切り離されて落ちてくる塊に潰された敵は、崩落で倒す。体を貸していれば返し、かけらは出さない。
     /// 生成した敵は出した順にグループ（EnemyGroups）へ入れ、毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
-    /// 切断できる体（EnemyBody）の貸し借りと近接切断の結果の受け渡しは EnemyBodyLender が、体から外れた切っていない部位の見た目用の物は EnemyDebrisSpawner が行う。
+    /// 切断できる体（EnemyBody）の貸し借りと近接切断の結果の受け渡しは敵の種類ごとの EnemyBodyLender が、体から外れた切っていない部位の見た目用の物は EnemyDebrisSpawner が行う。
     /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さない。
     /// </summary>
     /// <remarks>
@@ -55,6 +55,9 @@ namespace Kizami.EngineAdapter
         private static readonly ProfilerMarker _bodyMarker = new(BODY_MARKER_NAME);
         private static readonly ProfilerMarker _renderMarker = new(RENDER_MARKER_NAME);
 
+        /// <summary> 敵の種類の数。種類ごとの配列の長さ </summary>
+        private static readonly int _kindCount = Enum.GetValues(typeof(EnemyKind)).Length;
+
         private readonly List<EnemySpawnPoint> _spawnPoints = new();
         private readonly List<EnemyInitialSpawnArea> _initialSpawnAreas = new();
 
@@ -62,12 +65,8 @@ namespace Kizami.EngineAdapter
         private readonly Plane[] _frustumPlanes = new Plane[6];
 
         [SerializeField]
-        [Tooltip("敵の体のプレハブ。まとめて描画する部位のメッシュ・マテリアル・位置もここから読む")]
-        private EnemyBody _bodyPrefab;
-
-        [SerializeField, Min(0)]
-        [Tooltip("体の数。近くの敵に貸す切断できる体で、初期化のときにこの数だけ作る")]
-        private int _bodyCount = 32;
+        [Tooltip("敵の種類ごとの体の設定。種類 1 つにつき 1 件。設定のない種類の敵は出さない")]
+        private EnemyKindSettings[] _kindSettings = Array.Empty<EnemyKindSettings>();
 
         [SerializeField, Min(0f)]
         [Tooltip("プレイヤーとの距離がこの値（m）以下の敵に、体を貸す")]
@@ -86,7 +85,7 @@ namespace Kizami.EngineAdapter
         private float _reclaimMargin = 3f;
 
         [SerializeField, Min(0)]
-        [Tooltip("体を返した敵の、短くなった部位の形を預かれる数。初期化のときにこの数だけ保管用の物を作る")]
+        [Tooltip("体を返した敵の、短くなった部位の形を預かれる数（敵の種類ごと）。初期化のときに種類ごとにこの数だけ保管用の物を作る")]
         private int _shapeKeeperCapacity = 64;
 
         [SerializeField]
@@ -201,15 +200,20 @@ namespace Kizami.EngineAdapter
 
         private NativeArray<EnemyAgent> _agents;
 
-        private EnemyCrowdRenderer _crowdRenderer;
+        /// <summary> 敵の種類ごとの体のプレハブ。番号は EnemyKind の値で、設定のない種類は null </summary>
+        private EnemyBody[] _bodyPrefabs;
+
+        /// <summary> 敵の種類ごとのまとめて描画。番号は EnemyKind の値で、設定のない種類は null </summary>
+        private EnemyCrowdRenderer[] _crowdRenderers;
+
+        /// <summary> 敵の種類ごとの体の貸し借り。番号は EnemyKind の値で、設定のない種類は null </summary>
+        private EnemyBodyLender[] _bodyLenders;
 
         private EnemyDistanceField _distanceField;
 
         private EnemyGroups _groups;
 
         private EnemyCollapseDetector _collapseDetector;
-
-        private EnemyBodyLender _bodyLender;
 
         /// <summary> 体から外れた部位の見た目用の物。ディゾルブのマテリアルが未設定なら null </summary>
         private EnemyDebrisSpawner _debrisSpawner;
@@ -262,14 +266,14 @@ namespace Kizami.EngineAdapter
         /// <summary> 使われているグループの数 </summary>
         public int GroupCount => _groups?.ActiveCount ?? 0;
 
-        /// <summary> 敵に貸している体の数 </summary>
-        public int LentBodyCount => _bodyLender?.LentBodyCount ?? 0;
+        /// <summary> 敵に貸している体の数（全種類の合計） </summary>
+        public int LentBodyCount => SumOverLenders(lender => lender.LentBodyCount);
 
-        /// <summary> 体の数 </summary>
-        public int BodyCount => _bodyLender?.BodyCount ?? 0;
+        /// <summary> 体の数（全種類の合計） </summary>
+        public int BodyCount => SumOverLenders(lender => lender.BodyCount);
 
-        /// <summary> 体を返した敵から預かっている、短くなった部位の数 </summary>
-        public int KeptShapeCount => _bodyLender?.KeptShapeCount ?? 0;
+        /// <summary> 体を返した敵から預かっている、短くなった部位の数（全種類の合計） </summary>
+        public int KeptShapeCount => SumOverLenders(lender => lender.KeptShapeCount);
 
         /// <summary> Update 全体にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
         public double UpdateMilliseconds => GetAverageMilliseconds(_updateRecorder);
@@ -321,11 +325,13 @@ namespace Kizami.EngineAdapter
         {
             _emitEnergy = emitEnergy;
 
-            if (_bodyPrefab == null || _fragmentPool == null)
+            if (_fragmentPool == null)
             {
-                UsefulLogger.LogError("敵の体のプレハブか、かけらのプールが設定されていません。", this);
+                UsefulLogger.LogError("かけらのプールが設定されていません。", this);
                 return;
             }
+
+            if (!TryCollectBodyPrefabs()) return;
 
             _spawnSystem = FindAnyObjectByType<EnemySpawnSystem>();
             if (_spawnSystem == null)
@@ -349,7 +355,6 @@ namespace Kizami.EngineAdapter
             }
 
             _agents = new NativeArray<EnemyAgent>(_spawnSystem.MaxAliveCount, Allocator.Persistent);
-            _crowdRenderer = new EnemyCrowdRenderer(_bodyPrefab, _agents.Length);
             _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
                 _dropHeight, _groundLayers, _spawnSystem.SectionSize);
             _collapseDetector = new EnemyCollapseDetector(_crushMinFallSpeed, _crushMinVolume, _crushBodyCenterHeight,
@@ -368,9 +373,16 @@ namespace Kizami.EngineAdapter
             _bodyRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, BODY_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _renderRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, RENDER_MARKER_NAME, TIMING_SAMPLE_COUNT);
 
-            _bodyLender = new EnemyBodyLender(_bodyPrefab, transform, _bodyCount, _agents.Length,
-                _shapeKeeperCapacity, _fragmentPool, _lendDistance, _returnDistance, _reclaimDistance, _reclaimMargin,
-                spawnOrb, _debrisSpawner != null ? _debrisSpawner.Spawn : null);
+            _crowdRenderers = new EnemyCrowdRenderer[_kindCount];
+            _bodyLenders = new EnemyBodyLender[_kindCount];
+            foreach (var settings in _kindSettings)
+            {
+                var kind = settings.Kind;
+                _crowdRenderers[(int)kind] = new EnemyCrowdRenderer(kind, settings.BodyPrefab, _agents.Length);
+                _bodyLenders[(int)kind] = new EnemyBodyLender(kind, settings.BodyPrefab, transform, settings.BodyCount,
+                    _agents.Length, _shapeKeeperCapacity, _fragmentPool, _lendDistance, _returnDistance,
+                    _reclaimDistance, _reclaimMargin, spawnOrb, _debrisSpawner != null ? _debrisSpawner.Spawn : null);
+            }
 
             base.Initialize();
         }
@@ -394,7 +406,10 @@ namespace Kizami.EngineAdapter
         {
             if (!Initialized || results == null) return;
 
-            _bodyLender.ReceiveCutResults(results, plane, _agents);
+            foreach (var lender in _bodyLenders)
+            {
+                lender?.ReceiveCutResults(results, plane, _agents);
+            }
         }
 
         private void Update()
@@ -427,15 +442,23 @@ namespace Kizami.EngineAdapter
                     using (_bodyMarker.Auto())
                     {
                         var target = (float3)_target.position;
-                        _bodyLender.ReturnBodies(_agents, target);
-                        _bodyLender.LendBodies(_agents, target, cache, _distanceField.Grid);
-                        _bodyLender.SyncBodyTransforms(_agents, Time.deltaTime, _distanceField.Grid);
+                        foreach (var lender in _bodyLenders)
+                        {
+                            if (lender == null) continue;
+
+                            lender.ReturnBodies(_agents, target);
+                            lender.LendBodies(_agents, target, cache, _distanceField.Grid);
+                            lender.SyncBodyTransforms(_agents, Time.deltaTime, _distanceField.Grid);
+                        }
                     }
                 }
 
                 using (_renderMarker.Auto())
                 {
-                    _crowdRenderer.Render(_agents);
+                    foreach (var crowdRenderer in _crowdRenderers)
+                    {
+                        crowdRenderer?.Render(_agents);
+                    }
                 }
 
                 _debrisSpawner?.Tick(Time.deltaTime);
@@ -444,7 +467,14 @@ namespace Kizami.EngineAdapter
 
         private void OnDestroy()
         {
-            _crowdRenderer?.Dispose();
+            if (_crowdRenderers != null)
+            {
+                foreach (var crowdRenderer in _crowdRenderers)
+                {
+                    crowdRenderer?.Dispose();
+                }
+            }
+
             _distanceField?.Dispose();
             _collapseDetector?.Dispose();
             _groups?.Dispose();
@@ -461,6 +491,55 @@ namespace Kizami.EngineAdapter
             if (!_drawDistanceField || _distanceField == null || _target == null) return;
 
             _distanceField.DrawGizmos(_target.position, _distanceGizmoRadius);
+        }
+
+        /// <summary>
+        /// 種類ごとの体の設定を、EnemyKind の値を番号にした体のプレハブの配列にまとめる。
+        /// 空の設定、プレハブのない設定、同じ種類の設定が 2 件以上あるとき、設定が 1 件もないときは、すべてエラーログに出して false を返す。
+        /// </summary>
+        private bool TryCollectBodyPrefabs()
+        {
+            _bodyPrefabs = new EnemyBody[_kindCount];
+            var isValid = _kindSettings.Length > 0;
+            if (!isValid) UsefulLogger.LogError("敵の種類ごとの体の設定が 1 件もありません。", this);
+
+            for (var i = 0; i < _kindSettings.Length; i++)
+            {
+                var settings = _kindSettings[i];
+                if (settings == null || settings.BodyPrefab == null)
+                {
+                    UsefulLogger.LogError($"敵の種類ごとの体の設定 {i} 番に、体のプレハブが設定されていません。", this);
+                    isValid = false;
+                    continue;
+                }
+
+                if (_bodyPrefabs[(int)settings.Kind] != null)
+                {
+                    UsefulLogger.LogError($"敵の種類 {settings.Kind} の体の設定が 2 件以上あります。", this);
+                    isValid = false;
+                    continue;
+                }
+
+                _bodyPrefabs[(int)settings.Kind] = settings.BodyPrefab;
+            }
+
+            return isValid;
+        }
+
+        /// <summary>
+        /// 種類ごとの体の貸し借りの値を合計する。初期化の前は 0。
+        /// </summary>
+        private int SumOverLenders(Func<EnemyBodyLender, int> select)
+        {
+            if (_bodyLenders == null) return 0;
+
+            var total = 0;
+            foreach (var lender in _bodyLenders)
+            {
+                if (lender != null) total += select(lender);
+            }
+
+            return total;
         }
 
         /// <summary>
@@ -489,12 +568,10 @@ namespace Kizami.EngineAdapter
                 TurnSpeed = math.radians(_turnSpeed),
                 StopDistance = _stopDistance,
                 Gravity = -Physics.gravity.y,
-                BrokenMovePartLimit = _bodyPrefab.BrokenMovePartLimit,
                 FallDefeatHeight = _fallDefeatHeight
             }.Schedule(_agents.Length, 64, groupHandle).Complete();
 
-            _groups.MaintainNext(_agents, _distanceField.Grid, _distanceField.Distances, _formation,
-                _bodyPrefab.BrokenMovePartLimit);
+            _groups.MaintainNext(_agents, _distanceField.Grid, _distanceField.Distances, _formation);
 
             if (_countsOverlaps)
             {
@@ -538,13 +615,12 @@ namespace Kizami.EngineAdapter
 
             var hasOpenGroup = false;
             var openHome = Vector3.zero;
-            var brokenMovePartLimit = _bodyPrefab.BrokenMovePartLimit;
 
             for (var i = 0; i < _agents.Length; i++)
             {
                 var agent = _agents[i];
                 if (!agent.IsAlive || agent.StrandedTime < _strandedReturnDelay) continue;
-                if (agent.BodyIndex >= 0 || agent.BrokenMovePartCount >= brokenMovePartLimit) continue;
+                if (agent.BodyIndex >= 0 || agent.BrokenMovePartCount >= agent.BrokenMovePartLimit) continue;
 
                 var bounds = new Bounds((Vector3)agent.Position + Vector3.up * VISIBILITY_HEIGHT,
                     Vector3.one * VISIBILITY_SIZE);
@@ -630,7 +706,7 @@ namespace Kizami.EngineAdapter
                         var offset = Random.insideUnitCircle * _groupSpawnRadius;
                         return groupCenter + new Vector3(offset.x, 0f, offset.y);
                     }, center);
-                    if (!TrySpawn(position, center)) return;
+                    if (!TrySpawn(EnemyKind.Attacker, position, center)) return;
                 }
             }
 
@@ -657,7 +733,8 @@ namespace Kizami.EngineAdapter
                 _groups.CloseGroup();
                 for (var n = 0; n < info.MaxCountPerSpawn; n++)
                 {
-                    if (!TrySpawn(PickStandablePosition(point.GetSpawnPosition, point.transform.position),
+                    if (!TrySpawn(EnemyKind.Attacker,
+                            PickStandablePosition(point.GetSpawnPosition, point.transform.position),
                             point.transform.position)) break;
                 }
 
@@ -735,20 +812,31 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 空いている敵の状態を使い、目標の方を向けて出し、生成中のグループの隊列の最後に入れる。空きがなければ出さない。
+        /// 空いている敵の状態を使い、目標の方を向けて出し、生成中のグループの隊列の最後に入れる。空きがないか、種類の設定がなければ出さない。
         /// </summary>
+        /// <param name="kind">出す敵の種類</param>
         /// <param name="position">出す位置</param>
         /// <param name="groupCenter">新しいグループを作るときの、アンカーの位置</param>
-        private bool TrySpawn(Vector3 position, Vector3 groupCenter)
+        private bool TrySpawn(EnemyKind kind, Vector3 position, Vector3 groupCenter)
         {
+            var bodyPrefab = _bodyPrefabs[(int)kind];
+            if (bodyPrefab == null) return false;
+
             for (var i = 0; i < _agents.Length; i++)
             {
                 if (_agents[i].IsAlive) continue;
 
-                _bodyLender.DiscardKeptShapes(i);
+                // この状態を前に使っていた敵は別の種類のことがあるので、すべての種類の預かり分を捨てる
+                foreach (var lender in _bodyLenders)
+                {
+                    lender?.DiscardKeptShapes(i);
+                }
+
                 var agent = new EnemyAgent
                 {
                     IsAlive = true,
+                    Kind = kind,
+                    BrokenMovePartLimit = bodyPrefab.BrokenMovePartLimit,
                     Position = position,
                     FallStartHeight = position.y,
                     Yaw = GetYawToTarget(position),

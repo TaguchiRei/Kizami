@@ -214,9 +214,8 @@ namespace Kizami.EngineAdapter
         /// 向かう先に近い順は、帰還中は持ち場までの直線の距離、それ以外はプレイヤーまでの経路の長さで決める。
         /// 置き場に着いて螺旋に並んでいるグループは並べ替えない。順番が螺旋の上の位置なので、入れ替えると並び直しが続く為。
         /// </summary>
-        /// <param name="brokenMovePartLimit">壊れた移動部位がこの数に達した敵は動けないので、グループから抜いてその場に残す</param>
         public void MaintainNext(NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances,
-            in EnemyFormationSettings formation, int brokenMovePartLimit)
+            in EnemyFormationSettings formation)
         {
             for (var attempt = 0; attempt < _groups.Length; attempt++)
             {
@@ -224,7 +223,7 @@ namespace Kizami.EngineAdapter
                 _maintainCursor = (_maintainCursor + 1) % _groups.Length;
                 if (!_groups[g].IsActive) continue;
 
-                Compact(g, agents, brokenMovePartLimit);
+                Compact(g, agents);
                 if (!_groups[g].IsActive) return;
                 if (_groups[g].MemberCount <= formation.MergeSize && TryMerge(g, agents, formation)) return;
 
@@ -235,9 +234,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 倒れた敵、ほかのグループへ移った敵、動けなくなった敵を区画から抜き、残りを順番を保って前へ詰める。
-        /// 動けなくなった敵はグループから抜いて、その場に残す。残りがいなければグループを空ける。
+        /// 動けなくなった敵（壊れた移動部位が上限に達した敵）はグループから抜いて、その場に残す。残りがいなければグループを空ける。
         /// </summary>
-        private void Compact(int g, NativeArray<EnemyAgent> agents, int brokenMovePartLimit)
+        private void Compact(int g, NativeArray<EnemyAgent> agents)
         {
             var offset = g * EnemyFormationSettings.MAX_GROUP_SIZE;
             var group = _groups[g];
@@ -249,7 +248,7 @@ namespace Kizami.EngineAdapter
                 var agent = agents[index];
                 if (!agent.IsAlive || agent.GroupIndex != g) continue;
 
-                if (agent.BrokenMovePartCount >= brokenMovePartLimit)
+                if (agent.BrokenMovePartCount >= agent.BrokenMovePartLimit)
                 {
                     Leave(ref agent);
                     agents[index] = agent;

@@ -1117,8 +1117,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 17727373e75728e4a956bcb9bf8a8947, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemySpawnAdapter
-  _bodyPrefab: {fileID: 1602327258362906900, guid: abba11fae2f3aaa4a8b4ecdfe95fc600, type: 3}
-  _bodyCount: 32
+  _kindSettings:
+  - _kind: 0
+    _bodyPrefab: {fileID: 1602327258362906900, guid: abba11fae2f3aaa4a8b4ecdfe95fc600, type: 3}
+    _bodyCount: 32
   _lendDistance: 12
   _returnDistance: 18
   _reclaimDistance: 9

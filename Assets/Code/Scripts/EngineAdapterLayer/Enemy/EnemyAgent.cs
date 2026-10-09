@@ -12,6 +12,9 @@ namespace Kizami.EngineAdapter
         /// <summary> ステージに出ているか </summary>
         public bool IsAlive;
 
+        /// <summary> 敵の種類 </summary>
+        public EnemyKind Kind;
+
         /// <summary> 体の根の位置 </summary>
         public float3 Position;
 
@@ -30,7 +33,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 崩落（足場ごとの落下、落ちてくる塊）で倒されたか。EnemySpawnAdapter が数えたら false に戻す </summary>
         public bool IsDefeatedByCollapse;
 
-        /// <summary> 貸している体の、EnemySpawnAdapter の体の一覧での番号。貸していなければ -1 </summary>
+        /// <summary> 貸している体の、その種類の EnemyBodyLender の体の一覧での番号。貸していなければ -1 </summary>
         public int BodyIndex;
 
         /// <summary> 所属するグループの、EnemyGroups での番号。グループを持たなければ -1 で、距離マップを下って歩く </summary>
@@ -50,5 +53,8 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 壊れた移動部位の数 </summary>
         public int BrokenMovePartCount;
+
+        /// <summary> 壊れた移動部位がこの数に達すると、移動しなくなる。出すときに体のプレハブの値を書く </summary>
+        public int BrokenMovePartLimit;
     }
 }
