@@ -38,6 +38,9 @@ namespace Kizami.Initialization
                 () => $"update {_spawnAdapter.UpdateMilliseconds:F2} / move {_spawnAdapter.MoveMilliseconds:F2} / body {_spawnAdapter.BodyMilliseconds:F2} / render {_spawnAdapter.RenderMilliseconds:F2}");
             DebugGUI.ObserveVariable("Bodies", () => $"{_spawnAdapter.LentBodyCount} / {_spawnAdapter.BodyCount} (kept shapes {_spawnAdapter.KeptShapeCount})");
             DebugGUI.ObserveVariable("Distance Field", GetDistanceFieldText);
+            DebugGUI.ObserveVariable("Tracking", GetTrackingText);
+            DebugGUI.ObserveVariable("Group States", GetGroupStateText);
+            DebugGUI.ObserveVariable("Overlaps", GetOverlapText);
 #endif
 
             base.Initialize(blackBoard);
@@ -63,6 +66,39 @@ namespace Kizami.Initialization
             if (field == null) return "-";
 
             return $"nodes {field.NodeCount} (overflow {field.OverflowColumnCount}) / bake {field.BakeMilliseconds:F1} / compute {field.ComputeMilliseconds:F2} / rebake {field.RebakeMilliseconds:F2}";
+        }
+
+        /// <summary>
+        /// 距離マップを計算した追跡範囲（ワールド座標の x・z の範囲、m）と、その立てる層の数、起点がプレイヤーの足元か周りかを並べる。
+        /// </summary>
+        private string GetTrackingText()
+        {
+            var field = _spawnAdapter.DistanceField;
+            if (field == null) return "-";
+
+            var area = field.TrackingArea;
+            if (area.width <= 0f) return "-";
+
+            var start = field.UsesNearbyStart ? "nearby" : "player";
+            return $"x {area.xMin:F0}~{area.xMax:F0} z {area.yMin:F0}~{area.yMax:F0} / nodes {field.TrackingNodeCount} / start {start}";
+        }
+
+        /// <summary>
+        /// 使われているグループの、待機・追跡・帰還の数を並べる。
+        /// </summary>
+        private string GetGroupStateText()
+        {
+            _spawnAdapter.CountGroupStates(out var waiting, out var tracking, out var returning);
+            return $"waiting {waiting} / tracking {tracking} / returning {returning}";
+        }
+
+        /// <summary>
+        /// 別のグループの敵どうしが 2m 以内に重なる組の数を、移動中と着いたあとに分けて並べる。数えていなければ「off」。
+        /// </summary>
+        private string GetOverlapText()
+        {
+            var moving = _spawnAdapter.MovingOverlapCount;
+            return moving < 0 ? "off" : $"moving {moving} / arrived {_spawnAdapter.ArrivedOverlapCount}";
         }
 
         /// <summary>

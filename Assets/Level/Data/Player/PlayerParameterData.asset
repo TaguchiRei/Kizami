@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 207ee3e16aa1915488780453dd94e986, type: 3}
   m_Name: PlayerParameterData
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.PlayerParameterData
-  _walkSpeed: 5
-  _sprintSpeed: 9
-  _jumpHeight: 1.5
-  _wallRunSpeed: 9
+  _walkSpeed: 20
+  _sprintSpeed: 25
+  _jumpHeight: 4
+  _wallRunSpeed: 30
   _wallRunDuration: 10
   _wallDetachAngle: 45
   _wallDetachTime: 0.5
-  _wallJumpHorizontalSpeed: 6
+  _wallJumpHorizontalSpeed: 10
   _wallJumpInputInfluence: 0.5
   _warpDistance: 8
   _warpDuration: 0.15
@@ -28,3 +28,14 @@ MonoBehaviour:
   _maxHealth: 100
   _warpDamageReduction: 100
   _meleeAttackInterval: 0.3
+  _chargePerFragment: 1
+  _chargePerCollapsedEnemy: 1
+  _maxCharge: 100
+  _slowModeTimeScale: 0.25
+  _slowModeActivationCost: 20
+  _slowModeDrainPerSecond: 5
+  _slowModeCutLimit: 5
+  _grabRange: 6
+  _grabRadius: 0.5
+  _throwSpeed: 25
+  _launcherSpeed: 60

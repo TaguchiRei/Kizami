@@ -29,9 +29,9 @@ namespace Kizami.EngineAdapter
         [Tooltip("アンカーが向きを変える速さ（度/秒）")]
         private float _anchorTurnSpeed;
 
-        [SerializeField, Min(0f)]
-        [Tooltip("アンカーは、プレイヤーまでの経路の長さがこの値（m）以下になったら止まる")]
-        private float _anchorStopDistance;
+        [SerializeField]
+        [Tooltip("グループが進む・待つを交互に繰り返し、同じレーンの前で待っているグループの後ろで待つか。切ると、グループは止まらずに進む")]
+        private bool _usesAlternatingAdvance;
 
         [SerializeField, Min(0.1f)]
         [Tooltip("グループが進み続ける時間（秒）。グループごとに ±30% ずらす")]
@@ -66,48 +66,32 @@ namespace Kizami.EngineAdapter
         private int _mergeSize;
 
         [SerializeField, Min(0f)]
-        [Tooltip("アンカーは、プレイヤーまでの経路の長さがこの値（m）以下になったら、プレイヤーを囲む螺旋の上の置き場を受け取り、そこへ向かう")]
-        private float _encircleDistance;
+        [Tooltip("追跡中のアンカーは、プレイヤーまでの経路の長さが「置き場のプレイヤーまでの経路の長さ ＋ この値（m）」より長い間は距離マップを下り、内側で置き場へまっすぐ向かう")]
+        private float _encircleApproachMargin;
 
         [SerializeField, Min(0f)]
-        [Tooltip("置き場までの直線の距離がこの値（m）より離れたら（プレイヤーが遠ざかったら）、置き場を手放して距離マップを下る")]
-        private float _encircleLeaveDistance;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("グループの置き場の螺旋の、内側の半径（m）。交戦する敵の螺旋より外にする")]
+        [Tooltip("グループの置き場の螺旋の、内側の半径（m）。着いたグループの螺旋の半径と、プレイヤーとの間をあける距離より大きくする")]
         private float _encircleInnerRadius;
 
         [SerializeField, Min(0.1f)]
-        [Tooltip("グループの置き場の螺旋の、1 周ごとに広がる半径（m）。囲んだ隊列の奥行きより大きくする")]
+        [Tooltip("グループの置き場の螺旋の、1 周ごとに広がる半径（m）。着いたグループの螺旋の直径より大きくする")]
         private float _encircleLoopSpacing;
 
         [SerializeField, Min(0.1f)]
-        [Tooltip("グループの置き場の、螺旋に沿った間隔（m）。囲んだ隊列の幅より大きくする")]
+        [Tooltip("グループの置き場の、螺旋に沿った間隔（m）。着いたグループの螺旋の直径より大きくする")]
         private float _encircleSlotSpacing;
 
-        [SerializeField, Range(1, MAX_GROUP_SIZE)]
-        [Tooltip("置き場へ向かう間と着いたあとの、1 列に並べる数（横隊）")]
-        private int _encircleColumns;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("敵は、プレイヤーまでの経路の長さがこの値（m）以下になったら隊列から外れて交戦する")]
-        private float _engageEnterDistance;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("交戦中の敵は、プレイヤーまでの経路の長さがこの値（m）を超えたら隊列に戻る。入る距離より大きくする")]
-        private float _engageExitDistance;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("交戦する敵の置き場の螺旋の、内側の半径（m）")]
-        private float _spiralInnerRadius;
+        [SerializeField, Min(0.1f)]
+        [Tooltip("置き場に着いたグループのメンバーを並べる螺旋（中心はグループの中心）の、1 周ごとに広がる半径（m）。体の前後の長さより短くし、脚の重なりを少し許す")]
+        private float _memberLoopSpacing;
 
         [SerializeField, Min(0.1f)]
-        [Tooltip("交戦する敵の置き場の螺旋の、1 周ごとに広がる半径（m）")]
-        private float _spiralLoopSpacing;
+        [Tooltip("置き場に着いたグループのメンバーの、螺旋に沿った間隔（m）")]
+        private float _memberSlotSpacing;
 
-        [SerializeField, Min(0.1f)]
-        [Tooltip("交戦する敵の置き場の、螺旋に沿った間隔（m）")]
-        private float _spiralSlotSpacing;
+        [SerializeField, Min(0f)]
+        [Tooltip("置き場に着いたグループは、置き場がこの距離（m）より離れるまで、螺旋に並んだままついていく。離れたら隊列に戻して移動する")]
+        private float _followDistance;
 
         /// <summary> 1 グループの人数 </summary>
         public int GroupSize => _groupSize;
@@ -121,8 +105,8 @@ namespace Kizami.EngineAdapter
         /// <summary> アンカーが向きを変える速さ（度/秒） </summary>
         public float AnchorTurnSpeed => _anchorTurnSpeed;
 
-        /// <summary> アンカーが止まる、プレイヤーまでの経路の長さ（m） </summary>
-        public float AnchorStopDistance => _anchorStopDistance;
+        /// <summary> グループが進む・待つを交互に繰り返し、同じレーンの前で待っているグループの後ろで待つか </summary>
+        public bool UsesAlternatingAdvance => _usesAlternatingAdvance;
 
         /// <summary> グループが進み続ける時間（秒） </summary>
         public float AdvanceDuration => _advanceDuration;
@@ -148,11 +132,8 @@ namespace Kizami.EngineAdapter
         /// <summary> 近くのグループへ合流する、メンバーの数の上限 </summary>
         public int MergeSize => _mergeSize;
 
-        /// <summary> アンカーが包囲の置き場を受け取る、プレイヤーまでの経路の長さ（m） </summary>
-        public float EncircleDistance => _encircleDistance;
-
-        /// <summary> アンカーが包囲の置き場を手放す、置き場までの直線の距離（m） </summary>
-        public float EncircleLeaveDistance => _encircleLeaveDistance;
+        /// <summary> 追跡中のアンカーが距離マップを下るのをやめ、置き場へまっすぐ向かい始める、置き場のプレイヤーまでの経路の長さからの余裕（m） </summary>
+        public float EncircleApproachMargin => _encircleApproachMargin;
 
         /// <summary> グループの置き場の螺旋の、内側の半径（m） </summary>
         public float EncircleInnerRadius => _encircleInnerRadius;
@@ -163,23 +144,14 @@ namespace Kizami.EngineAdapter
         /// <summary> グループの置き場の、螺旋に沿った間隔（m） </summary>
         public float EncircleSlotSpacing => _encircleSlotSpacing;
 
-        /// <summary> 包囲の間の、1 列に並べる数 </summary>
-        public int EncircleColumns => _encircleColumns;
+        /// <summary> 置き場に着いたグループのメンバーを並べる螺旋の、1 周ごとに広がる半径（m） </summary>
+        public float MemberLoopSpacing => _memberLoopSpacing;
 
-        /// <summary> 敵が交戦に入る、プレイヤーまでの経路の長さ（m） </summary>
-        public float EngageEnterDistance => _engageEnterDistance;
+        /// <summary> 置き場に着いたグループのメンバーの、螺旋に沿った間隔（m） </summary>
+        public float MemberSlotSpacing => _memberSlotSpacing;
 
-        /// <summary> 交戦中の敵が隊列に戻る、プレイヤーまでの経路の長さ（m） </summary>
-        public float EngageExitDistance => _engageExitDistance;
-
-        /// <summary> 交戦する敵の置き場の螺旋の、内側の半径（m） </summary>
-        public float SpiralInnerRadius => _spiralInnerRadius;
-
-        /// <summary> 交戦する敵の置き場の螺旋の、1 周ごとに広がる半径（m） </summary>
-        public float SpiralLoopSpacing => _spiralLoopSpacing;
-
-        /// <summary> 交戦する敵の置き場の、螺旋に沿った間隔（m） </summary>
-        public float SpiralSlotSpacing => _spiralSlotSpacing;
+        /// <summary> 置き場に着いたグループが、螺旋に並んだままついていく置き場までの距離の上限（m） </summary>
+        public float FollowDistance => _followDistance;
 
         /// <summary> 既定の値（仮の値） </summary>
         public static EnemyFormationSettings Default => new()
@@ -188,7 +160,6 @@ namespace Kizami.EngineAdapter
             _anchorSpeedRate = 0.8f,
             _anchorAcceleration = 1.5f,
             _anchorTurnSpeed = 90f,
-            _anchorStopDistance = 12f,
             _advanceDuration = 4f,
             _holdDuration = 2f,
             _groupSpacing = 4f,
@@ -197,17 +168,13 @@ namespace Kizami.EngineAdapter
             _maxColumns = 4,
             _columnChangeDelay = 1f,
             _mergeSize = 4,
-            _encircleDistance = 40f,
-            _encircleLeaveDistance = 30f,
-            _encircleInnerRadius = 15f,
-            _encircleLoopSpacing = 12f,
-            _encircleSlotSpacing = 18f,
-            _encircleColumns = 6,
-            _engageEnterDistance = 12f,
-            _engageExitDistance = 18f,
-            _spiralInnerRadius = 7f,
-            _spiralLoopSpacing = 6f,
-            _spiralSlotSpacing = 2.5f
+            _encircleApproachMargin = 5f,
+            _encircleInnerRadius = 25f,
+            _encircleLoopSpacing = 25f,
+            _encircleSlotSpacing = 25f,
+            _memberLoopSpacing = 6f,
+            _memberSlotSpacing = 6f,
+            _followDistance = 10f
         };
 
         /// <summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Kizami.EngineAdapter.Voxel;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -17,8 +18,8 @@ namespace Kizami.EngineAdapter
     /// 敵の状態（EnemyAgent）の配列と体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出す Adapter。インゲームのシーンへ置く。
     /// 敵の状態の数は EnemySpawnSystem の同時に存在する数の上限で、出ている敵は EnemyCrowdRenderer でまとめて描画する。
     /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、ステージのボクセルのモデルの形が変わったら、その範囲を調べ直す。
-    /// 距離マップは、プレイヤーのいるノードが変わるか、格子を調べ直すたびに計算し直す。
-    /// プレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ生成位置へ戻す。
+    /// 距離マップは、プレイヤーの近く（追跡範囲。区画の大きさは EnemySpawnSystem の設定）だけを、プレイヤーのいるノードか追跡範囲が変わるか、格子を調べ直すたびに計算し直す。
+    /// 追跡範囲の中でプレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ自分のグループの持ち場へ戻す。
     /// 足場ごと一定の高さ以上落ちた敵と、ボクセルから切り離されて落ちてくる塊に潰された敵は、崩落で倒す。体を貸していれば返し、かけらは出さない。
     /// 生成した敵は出した順にグループ（EnemyGroups）へ入れ、毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
     /// 切断できる体（EnemyBody）の貸し借りと近接切断の結果の受け渡しは EnemyBodyLender が、体から外れた切っていない部位の見た目用の物は EnemyDebrisSpawner が行う。
@@ -37,6 +38,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 戻れない敵がカメラに映っているかを調べる箱の一辺（m）。体の前後の長さ（約 10.5m）を囲む </summary>
         private const float VISIBILITY_SIZE = 11f;
+
+        /// <summary> 生成する位置が立てる所に来るまで、選び直す回数の上限 </summary>
+        private const int SPAWN_POSITION_ATTEMPTS = 16;
+
+        /// <summary> 別のグループの敵どうしが重なっているとみなす、水平の距離（m） </summary>
+        private const float OVERLAP_DISTANCE = 2f;
 
         private const string UPDATE_MARKER_NAME = "Kizami.Enemy.Update";
         private const string MOVE_MARKER_NAME = "Kizami.Enemy.Move";
@@ -118,6 +125,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("距離マップをギズモで描く、プレイヤーからの半径（m）")]
         private float _distanceGizmoRadius = 25f;
 
+        [SerializeField]
+        [Tooltip("別のグループの敵どうしが 2m 以内に重なる組の数を毎フレーム数える（デバッグ表示用）。敵の数の 2 乗に比例して重いので、計測のときは切る")]
+        private bool _countsOverlaps;
+
         [SerializeField, Min(0f)]
         [Tooltip("敵が歩く速さ（m/s）")]
         private float _moveSpeed = 3f;
@@ -139,7 +150,7 @@ namespace Kizami.EngineAdapter
         private float _groupSpawnRadius = 4f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("プレイヤーへたどり着けない状態がこの時間（秒）続いた敵は、カメラに映っていなければ生成位置へ戻す。動けない敵と、体を貸している敵は戻さない")]
+        [Tooltip("追跡範囲の中でプレイヤーへたどり着けない状態がこの時間（秒）続いた敵は、カメラに映っていなければ自分のグループの持ち場へ戻す。動けない敵と、体を貸している敵は戻さない")]
         private float _strandedReturnDelay = 10f;
 
         [SerializeField, Min(0f)]
@@ -206,6 +217,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置 </summary>
         private Action<Vector3> _emitEnergy;
 
+        /// <summary> 重なる組の数の Job の結果。移動中の組と、両方のグループが着いた組 </summary>
+        private NativeArray<int> _overlapCounts;
+
         private ProfilerRecorder _updateRecorder;
         private ProfilerRecorder _moveRecorder;
         private ProfilerRecorder _bodyRecorder;
@@ -269,6 +283,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 体の貸し出し・返却と位置の同期にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
         public double BodyMilliseconds => GetAverageMilliseconds(_bodyRecorder);
 
+        /// <summary> 別のグループの敵どうしが重なる組のうち、どちらかのグループが移動中の組の数。数えていなければ -1 </summary>
+        public int MovingOverlapCount => _countsOverlaps && _overlapCounts.IsCreated ? _overlapCounts[0] : -1;
+
+        /// <summary> 別のグループの敵どうしが重なる組のうち、両方のグループが置き場に着いている組の数。数えていなければ -1 </summary>
+        public int ArrivedOverlapCount => _countsOverlaps && _overlapCounts.IsCreated ? _overlapCounts[1] : -1;
+
         /// <summary> 経路の格子と距離マップ。初期化の前は null </summary>
         public EnemyDistanceField DistanceField => _distanceField;
 
@@ -331,7 +351,7 @@ namespace Kizami.EngineAdapter
             _agents = new NativeArray<EnemyAgent>(_spawnSystem.MaxAliveCount, Allocator.Persistent);
             _crowdRenderer = new EnemyCrowdRenderer(_bodyPrefab, _agents.Length);
             _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
-                _dropHeight, _groundLayers);
+                _dropHeight, _groundLayers, _spawnSystem.SectionSize);
             _collapseDetector = new EnemyCollapseDetector(_crushMinFallSpeed, _crushMinVolume, _crushBodyCenterHeight,
                 _crushSurfaceMargin);
             foreach (var loader in FindObjectsByType<VoxelModelLoader>(FindObjectsSortMode.None))
@@ -341,6 +361,8 @@ namespace Kizami.EngineAdapter
             }
 
             _groups = new EnemyGroups(_agents.Length);
+            WarnUnstandableSpawnPoints();
+            _overlapCounts = new NativeArray<int>(2, Allocator.Persistent);
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _bodyRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, BODY_MARKER_NAME, TIMING_SAMPLE_COUNT);
@@ -351,6 +373,15 @@ namespace Kizami.EngineAdapter
                 spawnOrb, _debrisSpawner != null ? _debrisSpawner.Spawn : null);
 
             base.Initialize();
+        }
+
+        /// <summary>
+        /// 使われているグループを、待機・追跡・帰還の状態ごとに数える。初期化の前は 0。
+        /// </summary>
+        public void CountGroupStates(out int waiting, out int tracking, out int returning)
+        {
+            waiting = tracking = returning = 0;
+            _groups?.CountStates(out waiting, out tracking, out returning);
         }
 
         /// <summary>
@@ -418,6 +449,7 @@ namespace Kizami.EngineAdapter
             _collapseDetector?.Dispose();
             _groups?.Dispose();
             if (_agents.IsCreated) _agents.Dispose();
+            if (_overlapCounts.IsCreated) _overlapCounts.Dispose();
             _updateRecorder.Dispose();
             _moveRecorder.Dispose();
             _bodyRecorder.Dispose();
@@ -438,17 +470,18 @@ namespace Kizami.EngineAdapter
         {
             var deltaTime = Time.deltaTime;
             var playerPosition = _target != null ? (float3)_target.position : float3.zero;
-            var groupHandle = _groups.Schedule(_agents, _distanceField.Grid, _distanceField.Distances, _formation,
-                playerPosition, _moveSpeed, deltaTime);
+            var groupHandle = _groups.Schedule(_agents, _distanceField.Grid, _distanceField.Distances,
+                _distanceField.TrackingMin, _distanceField.TrackingMax, _formation, playerPosition, _moveSpeed, deltaTime);
 
             new EnemyMoveJob
             {
                 Agents = _agents,
                 Grid = _distanceField.Grid,
                 Distances = _distanceField.Distances,
+                TrackingMin = _distanceField.TrackingMin,
+                TrackingMax = _distanceField.TrackingMax,
                 Groups = _groups.Groups,
                 Paths = _groups.Paths,
-                EngageSlots = _groups.EngageSlots,
                 Formation = _formation,
                 PlayerPosition = playerPosition,
                 DeltaTime = deltaTime,
@@ -462,6 +495,17 @@ namespace Kizami.EngineAdapter
 
             _groups.MaintainNext(_agents, _distanceField.Grid, _distanceField.Distances, _formation,
                 _bodyPrefab.BrokenMovePartLimit);
+
+            if (_countsOverlaps)
+            {
+                new OverlapCountJob
+                {
+                    Agents = _agents,
+                    Groups = _groups.Groups,
+                    OverlapDistanceSq = OVERLAP_DISTANCE * OVERLAP_DISTANCE,
+                    Counts = _overlapCounts
+                }.Schedule().Complete();
+            }
         }
 
         /// <summary>
@@ -482,8 +526,9 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// プレイヤーへたどり着けない状態が戻す時間を超えた敵のうち、カメラに映っていない敵を、次の有効な生成位置へ移す。
-        /// 移した敵は元のグループから抜き、その生成位置で新しいグループにする。部位の状態はそのまま持ち続ける。
+        /// 追跡範囲の中でプレイヤーへたどり着けない状態が戻す時間を超えた敵のうち、カメラに映っていない敵を、自分のグループの持ち場の周りへ移す。
+        /// グループを持たない敵は、次の有効な生成位置へ移す。移した敵は元のグループから抜き、持ち場ごとに新しいグループにする（持ち場は引き継ぐ）。部位の状態はそのまま持ち続ける。
+        /// 持ち場が追跡範囲の中で、そこからもプレイヤーへたどり着けない（分断されている）ときは戻さない。
         /// 動けない敵は戻さない（同時に存在する数の上限を埋め続ける、仕様の戦略の為）。体を貸している敵も戻さない（プレイヤーの近くにいる為）。
         /// </summary>
         private void ReturnStrandedAgents()
@@ -491,7 +536,8 @@ namespace Kizami.EngineAdapter
             var camera = Camera.main;
             if (camera != null) GeometryUtility.CalculateFrustumPlanes(camera, _frustumPlanes);
 
-            EnemySpawnPoint point = null;
+            var hasOpenGroup = false;
+            var openHome = Vector3.zero;
             var brokenMovePartLimit = _bodyPrefab.BrokenMovePartLimit;
 
             for (var i = 0; i < _agents.Length; i++)
@@ -504,47 +550,87 @@ namespace Kizami.EngineAdapter
                     Vector3.one * VISIBILITY_SIZE);
                 if (camera != null && GeometryUtility.TestPlanesAABB(_frustumPlanes, bounds)) continue;
 
-                if (point == null)
-                {
-                    if (!TryGetNextSpawnPoint(out point)) return;
+                if (!TryGetReturnHome(agent, out var home, out var spawnPoint)) continue;
 
+                if (!hasOpenGroup || home != openHome)
+                {
                     _groups.CloseGroup();
+                    hasOpenGroup = true;
+                    openHome = home;
                 }
 
                 EnemyGroups.Leave(ref agent);
-                var position = point.GetSpawnPosition();
+                var offset = Random.insideUnitCircle * _groupSpawnRadius;
+                var position = spawnPoint != null
+                    ? PickStandablePosition(spawnPoint.GetSpawnPosition, home)
+                    : home + new Vector3(offset.x, 0f, offset.y);
                 agent.Position = position;
                 agent.Yaw = GetYawToTarget(position);
                 agent.IsGrounded = false;
                 agent.VerticalSpeed = 0f;
                 agent.FallStartHeight = position.y;
                 agent.StrandedTime = 0f;
-                _groups.TryAdd(i, ref agent, point.transform.position, GetYawToTarget(point.transform.position),
-                    Random.Range(0f, _formation.HoldDuration), _formation);
+                _groups.TryAdd(i, ref agent, home, GetYawToTarget(home), Random.Range(0f, _formation.HoldDuration),
+                    _formation);
                 _agents[i] = agent;
             }
 
-            if (point != null) _groups.CloseGroup();
+            if (hasOpenGroup) _groups.CloseGroup();
+        }
+
+        /// <summary>
+        /// 戻れない敵を戻す持ち場を返す。グループを持てばその持ち場、持たなければ次の有効な生成位置（spawnPoint に入れる）。
+        /// 持ち場が追跡範囲の中でプレイヤーへたどり着けないとき、生成位置がないときは false。
+        /// </summary>
+        private bool TryGetReturnHome(in EnemyAgent agent, out Vector3 home, out EnemySpawnPoint spawnPoint)
+        {
+            spawnPoint = null;
+            if (agent.GroupIndex >= 0 && _groups.Groups[agent.GroupIndex].IsActive)
+            {
+                home = _groups.Groups[agent.GroupIndex].HomePosition;
+                return !_distanceField.IsCutOff(home);
+            }
+
+            home = Vector3.zero;
+            if (!TryGetNextSpawnPoint(out spawnPoint)) return false;
+
+            home = spawnPoint.transform.position;
+            return true;
         }
 
         /// <summary>
         /// 初期生成情報の範囲に、決まった数の敵を置く。グループの人数ずつ、範囲から選んだ中心の周りにまとめて置く。
+        /// 中心とメンバーの位置は、立てる所（IsStandable）に来るまで選び直す。中心が見つからないグループは置かず、警告を出す。
         /// </summary>
         private void SpawnInitial()
         {
             foreach (var area in _initialSpawnAreas)
             {
                 var center = Vector3.zero;
+                var hasCenter = false;
                 for (var i = 0; i < area.Count; i++)
                 {
                     if (i % _formation.GroupSize == 0)
                     {
-                        center = area.GetSpawnPosition();
                         _groups.CloseGroup();
+                        hasCenter = TryPickStandablePosition(area.GetSpawnPosition, out center);
+                        if (!hasCenter)
+                        {
+                            UsefulLogger.LogWarning(
+                                $"初期生成の範囲 {area.name} から、敵が立てる所を {SPAWN_POSITION_ATTEMPTS} 回で選べなかった為、1 グループ分を置きません。範囲を床の上へ動かしてください。",
+                                area);
+                        }
                     }
 
-                    var offset = Random.insideUnitCircle * _groupSpawnRadius;
-                    if (!TrySpawn(center + new Vector3(offset.x, 0f, offset.y), center)) return;
+                    if (!hasCenter) continue;
+
+                    var groupCenter = center;
+                    var position = PickStandablePosition(() =>
+                    {
+                        var offset = Random.insideUnitCircle * _groupSpawnRadius;
+                        return groupCenter + new Vector3(offset.x, 0f, offset.y);
+                    }, center);
+                    if (!TrySpawn(position, center)) return;
                 }
             }
 
@@ -571,10 +657,60 @@ namespace Kizami.EngineAdapter
                 _groups.CloseGroup();
                 for (var n = 0; n < info.MaxCountPerSpawn; n++)
                 {
-                    if (!TrySpawn(point.GetSpawnPosition(), point.transform.position)) break;
+                    if (!TrySpawn(PickStandablePosition(point.GetSpawnPosition, point.transform.position),
+                            point.transform.position)) break;
                 }
 
                 _groups.CloseGroup();
+            }
+        }
+
+        /// <summary>
+        /// 位置の真下に、その高さから乗れる立てる層があるか。グループのアンカーが床に乗る規則（EnemyGroupJob.TryFitToFloor）と同じ。
+        /// 橋のスロープの中のように、上に床があって足元に立てる層がない所を、生成する位置に選ばない為。
+        /// </summary>
+        private bool IsStandable(Vector3 position)
+        {
+            var grid = _distanceField.Grid;
+            return grid.TryGetColumn(position, out var column)
+                   && grid.GetHighestNodeBelow(column, position.y + grid.ClimbHeight) >= 0;
+        }
+
+        /// <summary>
+        /// pick で選んだ位置が立てる所に来るまで、SPAWN_POSITION_ATTEMPTS 回まで選び直す。見つからなければ false。
+        /// </summary>
+        private bool TryPickStandablePosition(Func<Vector3> pick, out Vector3 position)
+        {
+            for (var attempt = 0; attempt < SPAWN_POSITION_ATTEMPTS; attempt++)
+            {
+                position = pick();
+                if (IsStandable(position)) return true;
+            }
+
+            position = default;
+            return false;
+        }
+
+        /// <summary>
+        /// pick で選んだ位置が立てる所に来るまで選び直し、見つからなければ fallback を返す。
+        /// </summary>
+        private Vector3 PickStandablePosition(Func<Vector3> pick, Vector3 fallback)
+        {
+            return TryPickStandablePosition(pick, out var position) ? position : fallback;
+        }
+
+        /// <summary>
+        /// 中心が立てる所にない生成位置を、名前つきで警告する。その生成位置から出したグループのアンカーは床に乗れず、動かない為。
+        /// </summary>
+        private void WarnUnstandableSpawnPoints()
+        {
+            foreach (var point in _spawnPoints)
+            {
+                if (point == null || IsStandable(point.transform.position)) continue;
+
+                UsefulLogger.LogWarning(
+                    $"生成位置 {point.name} の中心に、敵が立てる所がありません。そこから出したグループは動けないので、床の上へ動かしてください。",
+                    point);
             }
         }
 
@@ -635,6 +771,45 @@ namespace Kizami.EngineAdapter
 
             var direction = _target.position - position;
             return direction.x == 0f && direction.z == 0f ? 0f : math.atan2(direction.x, direction.z);
+        }
+
+        /// <summary>
+        /// 別のグループに入っている出ている敵どうしで、水平の距離が OverlapDistanceSq の平方根より近い組を数える。
+        /// 両方のグループが置き場に着いている組と、それ以外（移動中）の組に分ける。総当たりなので、デバッグ表示のときだけ回す。
+        /// </summary>
+        [BurstCompile]
+        private struct OverlapCountJob : IJob
+        {
+            [ReadOnly] public NativeArray<EnemyAgent> Agents;
+            [ReadOnly] public NativeArray<EnemyGroup> Groups;
+            public float OverlapDistanceSq;
+
+            /// <summary> 0 番に移動中の組、1 番に着いた組の数を書く </summary>
+            public NativeArray<int> Counts;
+
+            public void Execute()
+            {
+                var moving = 0;
+                var arrived = 0;
+                for (var i = 0; i < Agents.Length; i++)
+                {
+                    var a = Agents[i];
+                    if (!a.IsAlive || a.GroupIndex < 0) continue;
+
+                    for (var j = i + 1; j < Agents.Length; j++)
+                    {
+                        var b = Agents[j];
+                        if (!b.IsAlive || b.GroupIndex < 0 || b.GroupIndex == a.GroupIndex) continue;
+                        if (math.distancesq(a.Position.xz, b.Position.xz) >= OverlapDistanceSq) continue;
+
+                        if (Groups[a.GroupIndex].HasArrived && Groups[b.GroupIndex].HasArrived) arrived++;
+                        else moving++;
+                    }
+                }
+
+                Counts[0] = moving;
+                Counts[1] = arrived;
+            }
         }
     }
 }

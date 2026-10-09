@@ -11,16 +11,46 @@ using UnityEngine;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵の経路の格子（EnemyNavigationGrid）を作って持ち、プレイヤーからの距離マップを計算する。
+    /// 敵の経路の格子（EnemyNavigationGrid）を作って持ち、プレイヤーからの距離マップを、プレイヤーの近く（追跡範囲）だけ計算する。
     /// </summary>
     /// <remarks>
     /// 頭上の判定をレイでなく箱の重なりで行うのは、レイが始まった位置のコライダーを検出せず、壁の中の地面を立てると判定してしまう為。
     /// 計算は 2 つの配列を入れ替えて行い、Job が終わるまで前の結果を読めるようにする。Job は複数のフレームにまたがってよい。
+    /// 追跡範囲は、格子を区画に分けたうちの、プレイヤーのいる区画とその周りの 3×3。範囲の外のノードは距離を持たない（正の無限大）。
+    /// 区画は、格子の範囲の中心が区画の中心に来るように並べる。プレイヤーが区画の境目を SECTION_SWITCH_MARGIN 越えてから範囲を変え、境目を行き来するたびに範囲が切り替わらないようにする。
+    /// プレイヤーの足元から敵がたどり着けないとき（敵が上れない台地や箱の上、屋上）は、周りの立てる層から数え直し、敵がプレイヤーの下に集まるようにする。
     /// </remarks>
-    // TODO: 2 段の距離マップと、エディタでの事前の焼き付けを作る
+    // TODO: エディタでの事前の焼き付けを作る
     public sealed class EnemyDistanceField : IDisposable
     {
         private const int MAX_LAYERS = EnemyNavigationGrid.MAX_LAYERS;
+
+        /// <summary> プレイヤーが区画の境目をこの距離（m）越えたら、追跡範囲の中心をその区画へ移す。区画の一辺の半分を上限にし、プレイヤーが追跡範囲の外へ出ないようにする </summary>
+        private const float SECTION_SWITCH_MARGIN = 20f;
+
+        /// <summary> プレイヤーの層からたどれた層が、追跡範囲の立てる層のこの割合より少なければ、プレイヤーは敵の来られない所にいるとみなす </summary>
+        private const float ISOLATED_NODE_RATE = 0.25f;
+
+        /// <summary> プレイヤーの足元から敵がたどり着けないときに、代わりの起点を探す半径（m） </summary>
+        private const float NEARBY_START_RADIUS = 20f;
+
+        /// <summary> 計算を頼んだ起点の値のうち、次の Update で必ず計算し直すことを表す値 </summary>
+        private const int NO_START_KEY = int.MinValue;
+
+        /// <summary> 距離の Job の結果の配列の、起点の種類の位置 </summary>
+        private const int RESULT_START_KIND = 0;
+
+        /// <summary> 距離の Job の結果の配列の、追跡範囲の立てる層の数の位置 </summary>
+        private const int RESULT_NODE_COUNT = 1;
+
+        /// <summary> 起点の種類：起点が見つからず、計算していない </summary>
+        private const int START_NONE = 0;
+
+        /// <summary> 起点の種類：プレイヤーの足元の層 </summary>
+        private const int START_PLAYER = 1;
+
+        /// <summary> 起点の種類：プレイヤーの周りの、プレイヤーの層からたどれなかった層 </summary>
+        private const int START_NEARBY = 2;
 
         private const int STRAIGHT_COST = 10;
         private const int DIAGONAL_COST = 14;
@@ -72,6 +102,15 @@ namespace Kizami.EngineAdapter
         /// <summary> 下向きのレイの長さ（格子の範囲の高さ） </summary>
         private readonly float _rayLength;
 
+        /// <summary> 区画の一辺（m） </summary>
+        private readonly float _sectionSize;
+
+        /// <summary> 番号 (0, 0) の区画の最小の角（ワールド座標の x, z） </summary>
+        private readonly float2 _sectionOrigin;
+
+        /// <summary> 追跡範囲の中心を移すまでに、プレイヤーが区画の境目を越える距離（m） </summary>
+        private readonly float _sectionSwitchMargin;
+
         private EnemyNavigationGrid _grid;
 
         /// <summary> 計算の済んだ、ノードごとのプレイヤーまでの距離（m）。たどり着けないノードは正の無限大 </summary>
@@ -92,22 +131,70 @@ namespace Kizami.EngineAdapter
         /// <summary> 距離の Job の作業用の、同じバケットの次のノード </summary>
         private NativeArray<int> _nextInBucket;
 
+        /// <summary> 距離の Job の結果。起点の種類と、追跡範囲の立てる層の数 </summary>
+        private NativeArray<int> _jobResult;
+
         private JobHandle _jobHandle;
         private bool _isRunning;
 
-        /// <summary> 計算中の Job の始点のノード </summary>
-        private int _runningStartNode = -1;
+        /// <summary> 最後に計算を頼んだ起点。プレイヤーの足元の層があればそのノード、なければ -1 − 列 </summary>
+        private int _requestedKey = NO_START_KEY;
 
-        /// <summary> _distances の始点のノード。まだ計算していなければ -1 </summary>
-        private int _startNode = -1;
+        /// <summary> 最後に計算を頼んだ追跡範囲の、最小の列 (x, z) </summary>
+        private int2 _requestedMin;
+
+        /// <summary> 最後に計算を頼んだ追跡範囲の、最大の列 (x, z) </summary>
+        private int2 _requestedMax;
+
+        /// <summary> _distances を計算した追跡範囲の、最小の列 (x, z) </summary>
+        private int2 _distancesMin;
+
+        /// <summary> _distances を計算した追跡範囲の、最大の列 (x, z)。まだ計算していなければ _distancesMin より小さい </summary>
+        private int2 _distancesMax;
+
+        /// <summary> _workingDistances に距離を書いた範囲の、最小の列 (x, z) </summary>
+        private int2 _workingMin;
+
+        /// <summary> _workingDistances に距離を書いた範囲の、最大の列 (x, z)。書いていなければ _workingMin より小さい </summary>
+        private int2 _workingMax;
+
+        /// <summary> 追跡範囲の中心の区画の番号 </summary>
+        private int2 _centerSection;
+
+        private bool _hasCenterSection;
 
         private ProfilerRecorder _recorder;
 
         /// <summary> 経路の格子 </summary>
         public EnemyNavigationGrid Grid => _grid;
 
-        /// <summary> 計算の済んだ、ノードごとのプレイヤーまでの距離（m）。たどり着けないノードは正の無限大。次の Update までに読み終える </summary>
+        /// <summary> 計算の済んだ、ノードごとのプレイヤーまでの距離（m）。たどり着けないノードと追跡範囲の外のノードは正の無限大。次の Update までに読み終える </summary>
         public NativeArray<float> Distances => _distances;
+
+        /// <summary> Distances を計算した追跡範囲の、最小の列 (x, z) </summary>
+        public int2 TrackingMin => _distancesMin;
+
+        /// <summary> Distances を計算した追跡範囲の、最大の列 (x, z)。この列も含む。まだ計算していなければ TrackingMin より小さい </summary>
+        public int2 TrackingMax => _distancesMax;
+
+        /// <summary> Distances を計算した追跡範囲（ワールド座標の x・z、m）。まだ計算していなければ大きさ 0 </summary>
+        public Rect TrackingArea
+        {
+            get
+            {
+                if (math.any(_distancesMin > _distancesMax)) return default;
+
+                var min = _grid.Origin.xz + (float2)_distancesMin * _grid.CellSize;
+                var max = _grid.Origin.xz + (float2)(_distancesMax + 1) * _grid.CellSize;
+                return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+            }
+        }
+
+        /// <summary> Distances を計算した追跡範囲の、立てる層の数 </summary>
+        public int TrackingNodeCount { get; private set; }
+
+        /// <summary> Distances を、プレイヤーの足元ではなく周りの立てる層から数えたか </summary>
+        public bool UsesNearbyStart { get; private set; }
 
         /// <summary> 立てる層の総数 </summary>
         public int NodeCount { get; private set; }
@@ -118,7 +205,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 格子を作るのにかかった時間（ms） </summary>
         public double BakeMilliseconds { get; private set; }
 
-        /// <summary> 最後に行った距離の計算 1 回にかかった時間（ms）。計算はプレイヤーのいるノードが変わったときだけ行うので、最後の値を残す </summary>
+        /// <summary> 最後に行った距離の計算 1 回にかかった時間（ms）。計算はプレイヤーのいるノードか追跡範囲が変わったときだけ行うので、最後の値を残す </summary>
         public double ComputeMilliseconds { get; private set; }
 
         /// <summary> 最後に形が変わった範囲の列を調べ直したフレームで、調べ直しにかかった時間（ms） </summary>
@@ -133,8 +220,9 @@ namespace Kizami.EngineAdapter
         /// <param name="climbHeight">登れる段差の高さ（m）</param>
         /// <param name="dropHeight">歩いて降りられる段差の高さ（m）</param>
         /// <param name="groundLayers">床と障害物のレイヤー</param>
+        /// <param name="sectionSize">距離マップを計算する区画の一辺（m）</param>
         public EnemyDistanceField(Bounds bounds, float cellSize, float enemyHeight, float climbHeight, float dropHeight,
-            LayerMask groundLayers)
+            LayerMask groundLayers, float sectionSize)
         {
             var width = math.max(1, (int)math.ceil(bounds.size.x / cellSize));
             var depth = math.max(1, (int)math.ceil(bounds.size.z / cellSize));
@@ -157,13 +245,26 @@ namespace Kizami.EngineAdapter
             _costs = new NativeArray<int>(nodeCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
             _previousInBucket = new NativeArray<int>(nodeCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
             _nextInBucket = new NativeArray<int>(nodeCount, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-            for (var i = 0; i < nodeCount; i++) _distances[i] = float.PositiveInfinity;
+            _jobResult = new NativeArray<int>(2, Allocator.Persistent);
+
+            // 距離の Job は追跡範囲の中だけを書くので、範囲の外が距離なしと読めるよう、両方の配列を埋めておく
+            for (var i = 0; i < nodeCount; i++)
+            {
+                _distances[i] = float.PositiveInfinity;
+                _workingDistances[i] = float.PositiveInfinity;
+            }
+
+            _distancesMax = new int2(-1);
+            _workingMax = new int2(-1);
 
             _isOverflowColumn = new bool[width * depth];
             _enemyHeight = enemyHeight;
             _groundLayers = groundLayers;
             _rayTop = bounds.max.y;
             _rayLength = bounds.size.y;
+            _sectionSize = sectionSize;
+            _sectionOrigin = ((float3)bounds.center).xz - sectionSize * 0.5f;
+            _sectionSwitchMargin = math.min(SECTION_SWITCH_MARGIN, sectionSize * 0.5f);
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             BakeColumns(int2.zero, new int2(width - 1, depth - 1));
@@ -211,10 +312,10 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 毎フレーム呼ぶ。終わった計算の結果を読める側へ移し、形が変わった範囲の列を調べ直す。
-        /// 調べ直したか、プレイヤーのいるノードが前の計算と変わっていれば、次の計算を始める。
+        /// 毎フレーム呼ぶ。終わった計算の結果を読める側へ移し、形が変わった範囲の列を調べ直し、追跡範囲を更新する。
+        /// 調べ直したか、プレイヤーのいるノード（足元に立てる層がなければ列）か追跡範囲が前に頼んだ計算と変わっていれば、次の計算を始める。
         /// 格子を書き換えるのは距離の計算が走っていない間だけで、調べ直してから次の計算が終わるまでは、前の距離を読む。
-        /// プレイヤーの足元に立てる層がないとき（空中、壁走り、範囲の外）は、前の結果を使い続ける。
+        /// 起点が見つからなかった計算（足元にも周りにも立てる層がない）と、プレイヤーが格子の範囲の外にいる間は、前の結果を使い続ける。
         /// </summary>
         public void Update(float3 playerPosition)
         {
@@ -228,32 +329,73 @@ namespace Kizami.EngineAdapter
                 if (!_jobHandle.IsCompleted) return;
 
                 _jobHandle.Complete();
-                (_distances, _workingDistances) = (_workingDistances, _distances);
-                _startNode = _runningStartNode;
                 _isRunning = false;
+                _workingMin = _requestedMin;
+                _workingMax = _requestedMax;
+
+                var startKind = _jobResult[RESULT_START_KIND];
+                if (startKind != START_NONE)
+                {
+                    (_distances, _workingDistances) = (_workingDistances, _distances);
+                    (_distancesMin, _workingMin) = (_workingMin, _distancesMin);
+                    (_distancesMax, _workingMax) = (_workingMax, _distancesMax);
+                    TrackingNodeCount = _jobResult[RESULT_NODE_COUNT];
+                    UsesNearbyStart = startKind == START_NEARBY;
+                }
             }
 
-            if (RebakeReadyRegions()) _startNode = -1;
+            if (RebakeReadyRegions()) _requestedKey = NO_START_KEY;
 
             if (!_grid.TryGetColumn(playerPosition, out var column)) return;
 
-            var node = _grid.GetHighestNodeBelow(column, playerPosition.y + STANDING_TOLERANCE);
-            if (node < 0 || node == _startNode) return;
+            UpdateCenterSection(playerPosition.xz);
+            GetTrackingRect(out var min, out var max);
+
+            var maxStartHeight = playerPosition.y + STANDING_TOLERANCE;
+            var node = _grid.GetHighestNodeBelow(column, maxStartHeight);
+            var key = node >= 0 ? node : -1 - column;
+            if (key == _requestedKey && math.all(min == _requestedMin) && math.all(max == _requestedMax)) return;
 
             _jobHandle = new DistanceJob
             {
+                Grid = _grid,
                 IncomingEdges = _incomingEdges,
-                Width = _grid.Width,
                 MetersPerCost = _grid.CellSize / STRAIGHT_COST,
                 Distances = _workingDistances,
                 Costs = _costs,
                 PreviousInBucket = _previousInBucket,
                 NextInBucket = _nextInBucket,
+                ClearMin = _workingMin,
+                ClearMax = _workingMax,
+                RectMin = min,
+                RectMax = max,
                 StartNode = node,
+                PlayerColumn = column,
+                MaxStartHeight = maxStartHeight,
+                NearbyRadius = (int)math.ceil(NEARBY_START_RADIUS / _grid.CellSize),
+                IsolatedNodeRate = ISOLATED_NODE_RATE,
+                Result = _jobResult,
                 Marker = _marker
             }.Schedule();
-            _runningStartNode = node;
+            _requestedKey = key;
+            _requestedMin = min;
+            _requestedMax = max;
             _isRunning = true;
+        }
+
+        /// <summary>
+        /// 位置の真下の列が追跡範囲の中にあり、そこに立てる層がないか、その層からプレイヤーへたどり着けなければ true。
+        /// </summary>
+        public bool IsCutOff(float3 position)
+        {
+            if (!_grid.TryGetColumn(position, out var column)) return false;
+
+            var x = column % _grid.Width;
+            var z = column / _grid.Width;
+            if (x < _distancesMin.x || x > _distancesMax.x || z < _distancesMin.y || z > _distancesMax.y) return false;
+
+            var node = _grid.GetHighestNodeBelow(column, position.y + _grid.ClimbHeight);
+            return node < 0 || float.IsPositiveInfinity(_distances[node]);
         }
 
         /// <summary>
@@ -271,11 +413,20 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 中心から半径の中にある立てる層を、プレイヤーまでの距離の色（近いほど赤、遠いほど青、たどり着けなければ灰）でギズモに描く。
+        /// 中心から半径の中にある立てる層を、プレイヤーまでの距離の色（近いほど赤、遠いほど青、たどり着けないか追跡範囲の外なら灰）でギズモに描く。
+        /// 追跡範囲の外枠も、中心の高さに描く。
         /// </summary>
         public void DrawGizmos(Vector3 center, float radius)
         {
             var cellSize = _grid.CellSize;
+            var area = TrackingArea;
+            if (area.width > 0f)
+            {
+                Gizmos.color = Color.yellow;
+                Gizmos.DrawWireCube(new Vector3(area.center.x, center.y, area.center.y),
+                    new Vector3(area.width, 0.1f, area.height));
+            }
+
             var size = new Vector3(cellSize * CLEARANCE_HALF_WIDTH_RATE, 0.05f, cellSize * CLEARANCE_HALF_WIDTH_RATE);
             var minX = math.max(0, (int)((center.x - radius - _grid.Origin.x) / cellSize));
             var maxX = math.min(_grid.Width - 1, (int)((center.x + radius - _grid.Origin.x) / cellSize));
@@ -449,6 +600,36 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// プレイヤーが追跡範囲の中心の区画の境目を _sectionSwitchMargin 越えたら、中心をプレイヤーのいる区画へ移す。最初の呼び出しでは、プレイヤーのいる区画を中心にする。
+        /// </summary>
+        /// <param name="position">プレイヤーの水平の位置</param>
+        private void UpdateCenterSection(float2 position)
+        {
+            if (_hasCenterSection)
+            {
+                var min = _sectionOrigin + (float2)_centerSection * _sectionSize - _sectionSwitchMargin;
+                var max = min + _sectionSize + 2f * _sectionSwitchMargin;
+                if (math.all(position >= min & position <= max)) return;
+            }
+
+            _centerSection = (int2)math.floor((position - _sectionOrigin) / _sectionSize);
+            _hasCenterSection = true;
+        }
+
+        /// <summary>
+        /// 追跡範囲（中心の区画とその周りの 3×3）に中心が入る列の範囲を、格子の範囲に収めて返す。
+        /// </summary>
+        /// <param name="min">最小の列 (x, z)</param>
+        /// <param name="max">最大の列 (x, z)。この列も含む</param>
+        private void GetTrackingRect(out int2 min, out int2 max)
+        {
+            var worldMin = _sectionOrigin + (float2)(_centerSection - 1) * _sectionSize - _grid.Origin.xz;
+            var worldMax = worldMin + 3f * _sectionSize;
+            min = math.max((int2)math.ceil(worldMin / _grid.CellSize - 0.5f), 0);
+            max = math.min((int2)math.ceil(worldMax / _grid.CellSize - 0.5f) - 1, new int2(_grid.Width - 1, _grid.Depth - 1));
+        }
+
+        /// <summary>
         /// 調べ直しを待っている範囲のうち、ピースの作り直しが済んだものの列を調べ直す。調べ直したら true。
         /// </summary>
         private bool RebakeReadyRegions()
@@ -552,6 +733,7 @@ namespace Kizami.EngineAdapter
             if (_costs.IsCreated) _costs.Dispose();
             if (_previousInBucket.IsCreated) _previousInBucket.Dispose();
             if (_nextInBucket.IsCreated) _nextInBucket.Dispose();
+            if (_jobResult.IsCreated) _jobResult.Dispose();
         }
 
         /// <summary>
@@ -616,15 +798,17 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 始点のノードから辺を逆向きにたどり、各ノードがそこへたどり着くまでの距離を求める。
+        /// 追跡範囲の中で、始点のノードから辺を逆向きにたどり、各ノードがそこへたどり着くまでの距離を求める。範囲の外のノードはたどらない。
         /// コストは縦横 STRAIGHT_COST・斜め DIAGONAL_COST の整数にし、コストの値ごとのバケットに分けて小さい順に確定させる（Dial 法）。
         /// 未確定のノードは、コストを BUCKET_COUNT で割った余りのバケット（双方向の連結リスト）に 1 つだけ入れ、コストが下がったら入れ替える。
+        /// たどれた層が範囲の立てる層の IsolatedNodeRate より少なければ（始点がないときも）、プレイヤーの周りでたどれなかった最も近い層から、もう一度たどる。
+        /// 2 回目の始点は 1 つにする。バケットは今のコストから DIAGONAL_COST までしか持てず、離れたコストの始点を並べて入れられない為。
         /// </summary>
         [BurstCompile]
         private struct DistanceJob : IJob
         {
+            public EnemyNavigationGrid Grid;
             [ReadOnly] public NativeArray<uint> IncomingEdges;
-            public int Width;
 
             /// <summary> 整数のコスト 1 あたりの距離（m） </summary>
             public float MetersPerCost;
@@ -633,25 +817,105 @@ namespace Kizami.EngineAdapter
             public NativeArray<int> Costs;
             public NativeArray<int> PreviousInBucket;
             public NativeArray<int> NextInBucket;
+
+            /// <summary> Distances に前に距離を書いた範囲の、最小の列 (x, z)。距離なしに戻す </summary>
+            public int2 ClearMin;
+
+            /// <summary> Distances に前に距離を書いた範囲の、最大の列 (x, z)。この列も含む </summary>
+            public int2 ClearMax;
+
+            /// <summary> 追跡範囲の最小の列 (x, z) </summary>
+            public int2 RectMin;
+
+            /// <summary> 追跡範囲の最大の列 (x, z)。この列も含む </summary>
+            public int2 RectMax;
+
+            /// <summary> プレイヤーの足元の層。なければ -1 </summary>
             public int StartNode;
+
+            /// <summary> プレイヤーのいる列 </summary>
+            public int PlayerColumn;
+
+            /// <summary> 2 回目の始点にする層の高さの上限（m） </summary>
+            public float MaxStartHeight;
+
+            /// <summary> 2 回目の始点を探す、プレイヤーの列の周りの列の数 </summary>
+            public int NearbyRadius;
+
+            /// <summary> たどれた層がこの割合より少なければ、2 回目をたどる </summary>
+            public float IsolatedNodeRate;
+
+            /// <summary> 起点の種類と、追跡範囲の立てる層の数を書く </summary>
+            public NativeArray<int> Result;
+
             public ProfilerMarker Marker;
 
             public void Execute()
             {
                 using var scope = Marker.Auto();
 
-                for (var i = 0; i < Distances.Length; i++)
-                {
-                    Distances[i] = float.PositiveInfinity;
-                    Costs[i] = int.MaxValue;
-                }
+                ResetRect(ClearMin, ClearMax);
+                var nodeCount = ResetRect(RectMin, RectMax);
 
                 var heads = new NativeArray<int>(BUCKET_COUNT, Allocator.Temp);
                 for (var b = 0; b < BUCKET_COUNT; b++) heads[b] = -1;
 
-                Costs[StartNode] = 0;
-                Insert(ref heads, StartNode, 0);
+                var startKind = START_NONE;
+                var reachedCount = 0;
+                if (StartNode >= 0)
+                {
+                    reachedCount = Solve(ref heads, StartNode);
+                    startKind = START_PLAYER;
+                }
+
+                if (reachedCount < nodeCount * IsolatedNodeRate)
+                {
+                    var nearbyStart = FindNearbyStart();
+                    if (nearbyStart >= 0)
+                    {
+                        Solve(ref heads, nearbyStart);
+                        startKind = START_NEARBY;
+                    }
+                }
+
+                heads.Dispose();
+                Result[RESULT_START_KIND] = startKind;
+                Result[RESULT_NODE_COUNT] = nodeCount;
+            }
+
+            /// <summary>
+            /// 範囲の列のノードを、距離なし・コスト未定に戻し、範囲の立てる層の数を返す。範囲が空なら何もしない。
+            /// </summary>
+            private int ResetRect(int2 min, int2 max)
+            {
+                var nodeCount = 0;
+                for (var z = min.y; z <= max.y; z++)
+                {
+                    for (var x = min.x; x <= max.x; x++)
+                    {
+                        var column = z * Grid.Width + x;
+                        nodeCount += Grid.LayerCounts[column];
+                        for (var k = 0; k < MAX_LAYERS; k++)
+                        {
+                            Distances[column * MAX_LAYERS + k] = float.PositiveInfinity;
+                            Costs[column * MAX_LAYERS + k] = int.MaxValue;
+                        }
+                    }
+                }
+
+                return nodeCount;
+            }
+
+            /// <summary>
+            /// start から辺を逆向きにたどって距離を確定させ、確定させたノードの数を返す。
+            /// 前にたどって確定したノードは、コストが下がらないので、そのまま残る。
+            /// </summary>
+            private int Solve(ref NativeArray<int> heads, int start)
+            {
+                Costs[start] = 0;
+                Insert(ref heads, start, 0);
                 var queuedCount = 1;
+                var settledCount = 0;
 
                 for (var cost = 0; queuedCount > 0; cost++)
                 {
@@ -661,24 +925,81 @@ namespace Kizami.EngineAdapter
                         var node = heads[bucket];
                         Remove(ref heads, node, bucket);
                         queuedCount--;
+                        settledCount++;
 
                         Distances[node] = cost * MetersPerCost;
                         Relax(ref heads, node, cost, ref queuedCount);
                     }
                 }
 
-                heads.Dispose();
+                return settledCount;
             }
 
             /// <summary>
-            /// 確定したノードへ進める隣のノードのコストを、cost ＋ 辺のコストまで下げる。
+            /// プレイヤーの列の周り NearbyRadius 列までを近い順に調べ、追跡範囲の中で、まだたどれていない層のうち MaxStartHeight 以下で最も高いものを返す。
+            /// 最初に見つかった周の中では、プレイヤーの列に最も近い列を選ぶ。なければ -1。
+            /// </summary>
+            private int FindNearbyStart()
+            {
+                var x = PlayerColumn % Grid.Width;
+                var z = PlayerColumn / Grid.Width;
+
+                for (var radius = 0; radius <= NearbyRadius; radius++)
+                {
+                    var best = -1;
+                    var bestDistanceSq = int.MaxValue;
+                    for (var dz = -radius; dz <= radius; dz++)
+                    {
+                        for (var dx = -radius; dx <= radius; dx++)
+                        {
+                            if (math.max(math.abs(dx), math.abs(dz)) != radius) continue;
+
+                            var nx = x + dx;
+                            var nz = z + dz;
+                            if (nx < RectMin.x || nx > RectMax.x || nz < RectMin.y || nz > RectMax.y) continue;
+
+                            var distanceSq = dx * dx + dz * dz;
+                            if (distanceSq >= bestDistanceSq) continue;
+
+                            var node = GetHighestUnreachedNode(nz * Grid.Width + nx);
+                            if (node < 0) continue;
+
+                            best = node;
+                            bestDistanceSq = distanceSq;
+                        }
+                    }
+
+                    if (best >= 0) return best;
+                }
+
+                return -1;
+            }
+
+            /// <summary>
+            /// 列のうち、まだたどれていない層で、MaxStartHeight 以下で最も高いもの。なければ -1。
+            /// </summary>
+            private int GetHighestUnreachedNode(int column)
+            {
+                for (var k = Grid.LayerCounts[column] - 1; k >= 0; k--)
+                {
+                    var node = column * MAX_LAYERS + k;
+                    if (Grid.Heights[node] > MaxStartHeight || Costs[node] != int.MaxValue) continue;
+
+                    return node;
+                }
+
+                return -1;
+            }
+
+            /// <summary>
+            /// 確定したノードへ進める、追跡範囲の中の隣のノードのコストを、cost ＋ 辺のコストまで下げる。
             /// 辺のコストは 10 以上なので、確定したノードのコストが下がることはない。
             /// </summary>
             private void Relax(ref NativeArray<int> heads, int node, int cost, ref int queuedCount)
             {
                 var column = node / MAX_LAYERS;
-                var x = column % Width;
-                var z = column / Width;
+                var x = column % Grid.Width;
+                var z = column / Grid.Width;
                 var edges = IncomingEdges[node];
 
                 while (edges != 0u)
@@ -687,7 +1008,11 @@ namespace Kizami.EngineAdapter
                     edges &= edges - 1u;
 
                     var offset = EnemyNavigationGrid.GetNeighborOffset(bit / MAX_LAYERS);
-                    var from = ((z + offset.y) * Width + x + offset.x) * MAX_LAYERS + bit % MAX_LAYERS;
+                    var fromX = x + offset.x;
+                    var fromZ = z + offset.y;
+                    if (fromX < RectMin.x || fromX > RectMax.x || fromZ < RectMin.y || fromZ > RectMax.y) continue;
+
+                    var from = (fromZ * Grid.Width + fromX) * MAX_LAYERS + bit % MAX_LAYERS;
                     var newCost = cost + (offset.x != 0 && offset.y != 0 ? DIAGONAL_COST : STRAIGHT_COST);
                     if (newCost >= Costs[from]) continue;
 
