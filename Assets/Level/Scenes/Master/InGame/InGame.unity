@@ -959,7 +959,7 @@ MonoBehaviour:
     m_Bits: 4294967295
   _armorLayers:
     serializedVersion: 2
-    m_Bits: 1024
+    m_Bits: 3072
 --- !u!4 &1212232925
 Transform:
   m_ObjectHideFlags: 0
@@ -1468,7 +1468,7 @@ MonoBehaviour:
   _maxBullets: 4
   _blockLayers:
     serializedVersion: 2
-    m_Bits: 1537
+    m_Bits: 3585
 --- !u!114 &1539543161
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1491,7 +1491,7 @@ MonoBehaviour:
   _launchMargin: 2
   _ceilingLayers:
     serializedVersion: 2
-    m_Bits: 1537
+    m_Bits: 3585
 --- !u!114 &1539543162
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1554,7 +1554,7 @@ MonoBehaviour:
   _trackingSpeed: 4
   _blockLayers:
     serializedVersion: 2
-    m_Bits: 1537
+    m_Bits: 3585
 --- !u!1 &1579939515
 GameObject:
   m_ObjectHideFlags: 0
@@ -1895,7 +1895,7 @@ MonoBehaviour:
     m_Bits: 4294966835
   _armorLayers:
     serializedVersion: 2
-    m_Bits: 1024
+    m_Bits: 3072
 --- !u!4 &1734900003
 Transform:
   m_ObjectHideFlags: 0

@@ -14,6 +14,8 @@ namespace Kizami.EngineAdapter
     /// 張っている間、体を貸しているディフェンダーは前脚の足を体の前で合わせる。
     /// </summary>
     /// <remarks>
+    /// バリアの物は Barrier レイヤーに置く。物理でぶつかるのは Player（乗れる・入れない）と Shard（投げたかけらで割る）だけで、崩落の塊や敵の体は素通りする（崩落を防がない為）。
+    /// 剣・スキル・敵の弾・ビームを止める判定は、それぞれのレイの対象のレイヤーに Barrier を入れて行う。
     /// プレイヤーが球の中にいる間は張らない。張った瞬間に、プレイヤーが当たり判定の中に閉じ込められる為。
     /// 代わりにプレイヤーを球の面より上へ打ち上げ、外へ出てから張る。真上に天井があれば打ち上げず、プレイヤーが自分で外へ出るまで張らない。
     /// </remarks>
@@ -24,7 +26,7 @@ namespace Kizami.EngineAdapter
         private readonly Stack<int> _freeBarriers = new();
 
         [SerializeField]
-        [Tooltip("バリアの物のプレハブ。根に ArmorPanel、SphereCollider（半径 0.5、Armor レイヤー）、Kinematic の Rigidbody を付け、直径 1 の球で作る")]
+        [Tooltip("バリアの物のプレハブ。根に ArmorPanel、SphereCollider（半径 0.5、Barrier レイヤー）、Kinematic の Rigidbody を付け、直径 1 の球で作る")]
         private ArmorPanel _barrierPrefab;
 
         [SerializeField, Min(1)]
