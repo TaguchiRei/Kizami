@@ -57,7 +57,7 @@
 | `EnemyGroups.MaintainNext`（[EnemyGroups.cs:227〜313](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyGroups.cs)） | 穴詰め（`Compact`）、合流（`TryMerge`。ほかのグループの最後に付け足す）、移動中の並べ替え（`Reorder`。螺旋に並んでいる間はしない） | ディフェンダーを 0 番に保つ（決めたことの 4） |
 | `MeleeCutAdapter.CollectTargets`（[MeleeCutAdapter.cs:126](../../../Code/Scripts/EngineAdapterLayer/Player/MeleeCutAdapter.cs)） | 装甲と切る対象を同じ箱で別々に集める。装甲の奥の敵も切れる（区間8から持ち越し） | 装甲の奥の対象を切らない（決めたことの 8） |
 | `ArmorPanel.Awake`・`Break`（[ArmorPanel.cs:75・88](../../../Code/Scripts/EngineAdapterLayer/Stage/ArmorPanel.cs)） | 耐久値は Awake で最大にし、壊れたら非アクティブにする。外から耐久値を戻せない | プールで使い回すバリアと分身のために、耐久値を戻す口と、壊れたことを知らせる口を足す |
-| `PlayerMovementService.Step`（[PlayerMovementService.cs:112](../../../Code/Scripts/Application/Player/PlayerMovementService.cs)） | ジャンプの打ち出し速度を戻り値で返し、Adapter が Rigidbody に与える。Compositor の注入の対象ではない | 打ち上げの要求を足し、次の `Step` で返す。`PlayerInitializer` で登録する（決めたことの 9） |
+| `PlayerMovementService.Step`（[PlayerMovementService.cs:112](../../../Code/Scripts/Application/Player/PlayerMovementService.cs)） | ジャンプの打ち出し速度を戻り値で返し、Adapter が Rigidbody に与える。Compositor の注入の対象ではない | 打ち上げの要求を足し、次の `Step` で返す。`PlayerInitializer` で登録する（決めたことの 9）。登録は Compositor の収集の段階（`Awake`）に限られるので、`PlayerHealthService` と同じく生成と `Initialize` を分けた（コミット 6） |
 | `InGameCompositor` | 生成物。`PlayerHealthService` を `PlayerDebugInitializer` へ注入している | `EnemyInitializer` に `IInjectable` を足したら、UsefulToolkit のメニューで作り直す。手では直さない |
 | `PC_Renderer`・`Mobile_Renderer` | Renderer Feature は SSAO だけ | Decal Renderer Feature を足す（ユーザーの了承済み） |
 | `EnemyEnergyAdapter`（[EnemyEnergyAdapter.cs:83](../../../Code/Scripts/EngineAdapterLayer/Player/EnemyEnergyAdapter.cs)） | 吸い込む先（`EnergyTarget`）は毎フレーム MainCamera | 同じ VFX Graph を別の VisualEffect で使い、吸い込む先をフィニッシャーにする（決めたことの 11） |
@@ -107,7 +107,7 @@
 | 8 | 当たり判定と効き方 | 張っているバリアの数だけ、球のバリアの物（SphereCollider を Armor レイヤーに置き、Kinematic の Rigidbody と `ArmorPanel` を付けたもの）をプールから貸す。耐久値（10）は `EnemyGroup` に持ち、貸し借りしても続く。壊れたバリアは張り直さない（仮）。効き方は装甲と同じ（剣は 1 回で 1 減り、投げたかけらで一撃、スキルのビームは止まる）。剣は、切る対象の中心とカメラの間に Armor レイヤーへレイを撃ち、当たったら切らない（`VoxelDestructionAdapter.IsBehindArmor` と同じ判定）。崩落は防がない |
 | 8a | 割れたとき | 割れたことを知らせる口を作り、音は `// TODO:` で残す（基盤はユーザーがあとで用意する）。割れる演出の作り込みは区間13 |
 | 8b | 敵の弾とバリア | 弾の `SpherecastCommand` は、調べ始めに重なっている当たり判定には当たらないので、内から外へは抜け、外から内へは止まる見込み。コミット 5 で確かめる |
-| 9 | プレイヤーの打ち上げ | バリアを張るときにプレイヤーが球の中にいたら、球の面の高さに余裕を足した高さまで、プレイヤーのカプセルを上へ SphereCast で調べる。さえぎる物がなければ打ち上げ、プレイヤーが球の外へ出たら張る。さえぎる物があれば何もせず、プレイヤーが外へ出るまで張らない。打ち上げは `PlayerMovementService` に要求として渡し、次の `Step` でジャンプと同じく打ち出し速度として返す |
+| 9 | プレイヤーの打ち上げ | バリアを張るときにプレイヤーが球の中にいたら、球の面の高さに余裕を足した高さまで、プレイヤーのカプセルを上へ CapsuleCast で調べる。さえぎる物がなければ打ち上げ、プレイヤーが球の外へ出たら張る。さえぎる物があれば何もせず、プレイヤーが外へ出るまで張らない。打ち上げは `PlayerMovementService` に要求として渡し、次の `Step` でジャンプと同じく打ち出し速度として返す。プレイヤーが要る速度の 9 割以上で上がっている間（打ち上げたあと）は要求し直さない。打ち上げは壁走りとジャンプより優先し、ワープ中は捨てる。壁に触れたまま打ち上げられても壁走りに戻らないよう、壁ジャンプ後と同じく再突入を止める（コミット 6） |
 
 ### フィニッシャーの吸収とビーム
 
@@ -145,7 +145,7 @@
 - 弾・バリア・フィニッシャーの 3 つは、どれも利用者が `EnemySpawnAdapter` だけ。区間8R で `EnemyBodyLender`・`EnemyDebrisSpawner` を切り出したのと同じ理由で、`EnemySpawnAdapter` に書かずに分ける
 - 作らないもの：敵の State・Event・Service、シールドの役割のクラス、弾 1 発ごとの MonoBehaviour、分身を描くための新しい描画の仕組み
 
-拡張する型：`EnemyAgent`（種類、移動部位の上限、行動の段階と時間）、`EnemySpawnSystem`（`EnemySpawnInfo` の編成）、`EnemyInitialSpawnArea`（編成）、`EnemySpawnAdapter`、`EnemyBodyLender`（種類で絞る、行動中の敵に優先して貸す）、`EnemyCrowdRenderer`（種類で絞る）、`EnemyBody`（吸収で消す）、`EnemyLeg`・`EnemyLegs`（脛の休みの向き、足の行き先の上書き）、`EnemyGroup`（バリアの耐久値）、`EnemyGroups`（ディフェンダーを 0 番に保つ）、`EnemyMoveJob`（敵ごとの移動部位の上限、飛んでいる敵と止まった敵）、`ArmorPanel`（耐久値を戻す口。壊れたことは `IsBroken` を毎フレーム読んで知るので、知らせる口は作らなかった）、`MeleeCutAdapter`（装甲の奥を切らない）、`PlayerMovementService`（打ち上げの要求）、`PlayerInitializer`（登録）、`EnemyInitializer`（注入）
+拡張する型：`EnemyAgent`（種類、移動部位の上限、行動の段階と時間）、`EnemySpawnSystem`（`EnemySpawnInfo` の編成）、`EnemyInitialSpawnArea`（編成）、`EnemySpawnAdapter`、`EnemyBodyLender`（種類で絞る、行動中の敵に優先して貸す）、`EnemyCrowdRenderer`（種類で絞る）、`EnemyBody`（吸収で消す）、`EnemyLeg`・`EnemyLegs`（脛の休みの向き、足の行き先の上書き）、`EnemyGroup`（バリアの耐久値）、`EnemyGroups`（ディフェンダーを 0 番に保つ）、`EnemyMoveJob`（敵ごとの移動部位の上限、飛んでいる敵と止まった敵）、`ArmorPanel`（耐久値を戻す口。壊れたことは `IsBroken` を毎フレーム読んで知るので、知らせる口は作らなかった）、`MeleeCutAdapter`（装甲の奥を切らない）、`PlayerMovementService`（打ち上げの要求、生成と初期化を分ける）、`PlayerInitializer`（登録）、`EnemyInitializer`（注入）
 
 作るアセット：`DefenderEnemy.prefab`、`FinisherEnemy.prefab`、分身のプレハブ、バリアのプレハブ、弾の VFX Graph、バリア・分身・デカール・ビームの仮のマテリアル
 

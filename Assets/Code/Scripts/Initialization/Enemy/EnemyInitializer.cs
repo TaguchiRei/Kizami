@@ -9,10 +9,11 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// 敵の生成と体のプール（EnemySpawnAdapter）を、プレイヤーへのダメージの関数（PlayerHealthService.ApplyDamage）を渡して初期化し、出ている敵とグループの数、崩落で倒した敵の数、生成位置の有効・無効、敵の処理にかかった時間を画面に出す配線役。インゲームのシーンへ置く。
+    /// 敵の生成と体のプール（EnemySpawnAdapter）を、プレイヤーへのダメージの関数（PlayerHealthService.ApplyDamage）と打ち上げの要求の関数（PlayerMovementService.RequestLaunch）を渡して初期化し、出ている敵とグループの数、崩落で倒した敵の数、生成位置の有効・無効、敵の処理にかかった時間を画面に出す配線役。インゲームのシーンへ置く。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
-    public sealed class EnemyInitializer : InitializerBase, IInjectable<PlayerHealthService>
+    public sealed class EnemyInitializer : InitializerBase, IInjectable<PlayerHealthService>,
+        IInjectable<PlayerMovementService>
     {
         private readonly StringBuilder _spawnPointText = new();
 
@@ -21,6 +22,7 @@ namespace Kizami.Initialization
         [SerializeField] private EnemyEnergyAdapter _energyAdapter;
 
         private PlayerHealthService _healthService;
+        private PlayerMovementService _movementService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -31,7 +33,8 @@ namespace Kizami.Initialization
             }
 
             _spawnAdapter.Initialize(_fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit,
-                _healthService != null ? _healthService.ApplyDamage : null);
+                _healthService != null ? _healthService.ApplyDamage : null,
+                _movementService != null ? _movementService.RequestLaunch : null);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             DebugGUI.ObserveVariable("Enemies",
                 () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity} (groups {_spawnAdapter.GroupCount})");
@@ -126,6 +129,11 @@ namespace Kizami.Initialization
         public void Inject(PlayerHealthService instance)
         {
             _healthService = instance;
+        }
+
+        public void Inject(PlayerMovementService instance)
+        {
+            _movementService = instance;
         }
     }
 }

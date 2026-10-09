@@ -331,7 +331,9 @@ namespace Kizami.EngineAdapter
         /// <param name="spawnOrb">倒れた体に残っていた切断済みの部位を、オーブにする関数。引数はオーブを出す位置</param>
         /// <param name="emitEnergy">崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置</param>
         /// <param name="applyDamage">敵の攻撃がプレイヤーに当たったときにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
-        public void Initialize(Action<Vector3> spawnOrb, Action<Vector3> emitEnergy, Action<int> applyDamage)
+        /// <param name="requestLaunch">プレイヤーを真上へ打ち上げる関数（PlayerMovementService.RequestLaunch）。引数は上向きの打ち出し速度（m/s）</param>
+        public void Initialize(Action<Vector3> spawnOrb, Action<Vector3> emitEnergy, Action<int> applyDamage,
+            Action<float> requestLaunch)
         {
             _emitEnergy = emitEnergy;
 
@@ -410,7 +412,7 @@ namespace Kizami.EngineAdapter
             }
             else
             {
-                _barriers.Initialize(_target, _groups.Groups.Length);
+                _barriers.Initialize(_target, _groups.Groups.Length, requestLaunch);
             }
 
             base.Initialize();

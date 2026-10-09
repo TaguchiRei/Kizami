@@ -1364,6 +1364,10 @@ MonoBehaviour:
   _guardFootPositions:
   - {x: -0.35, y: 1.6, z: 3}
   - {x: 0.35, y: 1.6, z: 3}
+  _launchMargin: 2
+  _ceilingLayers:
+    serializedVersion: 2
+    m_Bits: 1537
 --- !u!1 &1579939515
 GameObject:
   m_ObjectHideFlags: 0

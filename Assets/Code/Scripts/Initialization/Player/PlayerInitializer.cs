@@ -18,6 +18,7 @@ namespace Kizami.Initialization
     public sealed class PlayerInitializer : InitializerBase, IInjectable<ITimeScaleController>
     {
         private readonly PlayerHealthService _healthService = new();
+        private readonly PlayerMovementService _movementService = new();
 
         [SerializeField]
         [Tooltip("プレイヤーの移動・HP・近接切断・チャージのパラメータ")]
@@ -39,7 +40,6 @@ namespace Kizami.Initialization
         [Tooltip("スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
         private SkillData[] _equippedSkills = new SkillData[SkillService.SLOT_COUNT];
 
-        private PlayerMovementService _movementService;
         private PlayerLookService _lookService;
         private MeleeCutService _meleeCutService;
         private ChargeService _chargeService;
@@ -62,7 +62,7 @@ namespace Kizami.Initialization
             }
 
             var sceneId = gameObject.scene.buildIndex;
-            _movementService = new PlayerMovementService(blackBoard, _parameters, sceneId);
+            _movementService.Initialize(blackBoard, _parameters, sceneId);
             _lookService = new PlayerLookService(blackBoard, sceneId);
             _chargeService = new ChargeService(blackBoard, _parameters, sceneId);
 
@@ -83,7 +83,7 @@ namespace Kizami.Initialization
             _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _fragmentThrowAdapter.TryGrab,
                 _fragmentThrowAdapter.Throw, _fragmentThrowAdapter.TryLoad, _fragmentThrowAdapter.Fire);
 
-            // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の生成より後に初期化する
+            // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の初期化より後に初期化する
             _healthService.Initialize(blackBoard, _parameters, sceneId);
 
             // 以降の Adapter は Service が登録した State を取得する為、Service の生成より後に初期化する
@@ -132,11 +132,12 @@ namespace Kizami.Initialization
         private void Awake()
         {
             InGameCompositor.TryRegisterContent(_healthService);
+            InGameCompositor.TryRegisterContent(_movementService);
         }
 
         private void OnDestroy()
         {
-            _movementService?.Dispose();
+            _movementService.Dispose();
             _lookService?.Dispose();
             _meleeCutService?.Dispose();
             _skillService?.Dispose();

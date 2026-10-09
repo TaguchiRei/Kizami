@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Unity.Collections;
 using UnityEngine;
@@ -14,6 +15,7 @@ namespace Kizami.EngineAdapter
     /// </summary>
     /// <remarks>
     /// プレイヤーが球の中にいる間は張らない。張った瞬間に、プレイヤーが当たり判定の中に閉じ込められる為。
+    /// 代わりにプレイヤーを球の面より上へ打ち上げ、外へ出てから張る。真上に天井があれば打ち上げず、プレイヤーが自分で外へ出るまで張らない。
     /// </remarks>
     public sealed class EnemyBarriers : MonoBehaviour
     {
@@ -41,10 +43,22 @@ namespace Kizami.EngineAdapter
         [Tooltip("前で合わせる足を伸ばす先（ディフェンダーの体の根の空間）。並びは _guardLegs と同じ")]
         private Vector3[] _guardFootPositions = { new(-0.35f, 1.6f, 3f), new(0.35f, 1.6f, 3f) };
 
+        [SerializeField, Min(0f)]
+        [Tooltip("打ち上げで、プレイヤーの足元が球の面の最も高い所からさらに上がる高さ（m）")]
+        private float _launchMargin = 2f;
+
+        [SerializeField]
+        [Tooltip("打ち上げをさえぎる天井として調べるレイヤー。プレイヤー自身のレイヤーは外す")]
+        private LayerMask _ceilingLayers;
+
         /// <summary> グループごとの、貸しているバリアの _barriers での番号。貸していなければ -1 </summary>
         private int[] _groupBarriers;
 
-        private Collider _targetCollider;
+        private CapsuleCollider _targetCollider;
+        private Rigidbody _targetBody;
+
+        /// <summary> プレイヤーを真上へ打ち上げる関数。引数は上向きの打ち出し速度（m/s）。null なら打ち上げない </summary>
+        private Action<float> _requestLaunch;
 
         /// <summary> バリアの耐久値の最大。プレハブの ArmorPanel から読む </summary>
         private int _maxDurability;
@@ -59,13 +73,21 @@ namespace Kizami.EngineAdapter
         /// </summary>
         /// <param name="target">プレイヤー。子に当たり判定を持つ</param>
         /// <param name="groupCapacity">グループの数（EnemyGroups.Groups の長さ）</param>
-        public void Initialize(Transform target, int groupCapacity)
+        /// <param name="requestLaunch">プレイヤーを真上へ打ち上げる関数（PlayerMovementService.RequestLaunch）。引数は上向きの打ち出し速度（m/s）</param>
+        public void Initialize(Transform target, int groupCapacity, Action<float> requestLaunch)
         {
             _targetCollider = target != null ? target.GetComponentInChildren<CapsuleCollider>() : null;
             if (_barrierPrefab == null || _targetCollider == null)
             {
                 UsefulLogger.LogWarning("バリアのプレハブか、プレイヤーの CapsuleCollider がない為、バリアを張りません。", this);
                 return;
+            }
+
+            _targetBody = _targetCollider.attachedRigidbody;
+            _requestLaunch = requestLaunch;
+            if (_requestLaunch == null || _targetBody == null)
+            {
+                UsefulLogger.LogWarning("打ち上げの関数か、プレイヤーの Rigidbody がない為、バリアの中のプレイヤーを打ち上げません。", this);
             }
 
             _maxDurability = _barrierPrefab.MaxDurability;
@@ -87,6 +109,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// グループごとに、バリアを張るかを決めて物を貸し借りし、張っているバリアをディフェンダーへ動かす。当たった攻撃の数をグループの状態へ書き戻す。
+        /// 張りたいときにプレイヤーが球の中にいれば、物を貸さずに打ち上げを要求する。
         /// EnemySpawnAdapter が毎フレーム、敵を動かして体の位置を合わせたあとに呼ぶ。
         /// </summary>
         /// <param name="agents">敵の状態</param>
@@ -131,7 +154,14 @@ namespace Kizami.EngineAdapter
                 if (wantsBarrier && barrier < 0)
                 {
                     var center = (Vector3)agents[defender].Position;
-                    if (targetBounds.SqrDistance(center) > _radius * _radius) barrier = Lend(g, center, group.BarrierHitCount);
+                    if (targetBounds.SqrDistance(center) > _radius * _radius)
+                    {
+                        barrier = Lend(g, center, group.BarrierHitCount);
+                    }
+                    else
+                    {
+                        TryLaunch(center);
+                    }
                 }
                 else if (!wantsBarrier && barrier >= 0)
                 {
@@ -164,6 +194,43 @@ namespace Kizami.EngineAdapter
             panel.SetDurability(_maxDurability - hitCount);
             _groupBarriers[g] = barrier;
             return barrier;
+        }
+
+        /// <summary>
+        /// 中心が center の球の面の最も高い所より _launchMargin だけ上へ、プレイヤーの足元が届く速度で打ち上げを要求する。
+        /// プレイヤーがすでにその速度近くで上がっているとき（打ち上げたあと）と、届く高さまでの間にカプセルが天井に当たるときは要求しない。
+        /// </summary>
+        private void TryLaunch(Vector3 center)
+        {
+            if (_requestLaunch == null || _targetBody == null) return;
+
+            GetTargetCapsule(out var bottomSphereCenter, out var topSphereCenter, out var radius);
+            var height = center.y + _radius + _launchMargin - (bottomSphereCenter.y - radius);
+            if (height <= 0f) return;
+
+            // 高さ h まで上がる初速は v = √(2gh)。打ち上げたあとは上がるほど要る速度も同じだけ減るので、要る速度の 9 割を保つ間は要求し直さない
+            var speed = Mathf.Sqrt(2f * Mathf.Abs(Physics.gravity.y) * height);
+            if (_targetBody.linearVelocity.y >= speed * 0.9f) return;
+
+            if (Physics.CapsuleCast(bottomSphereCenter, topSphereCenter, radius, Vector3.up, height, _ceilingLayers,
+                    QueryTriggerInteraction.Ignore)) return;
+
+            _requestLaunch(speed);
+        }
+
+        /// <summary>
+        /// プレイヤーのカプセルの、下側と上側の球の中心（ワールド座標）と半径を求める。
+        /// </summary>
+        private void GetTargetCapsule(out Vector3 bottomSphereCenter, out Vector3 topSphereCenter, out float radius)
+        {
+            var colliderTransform = _targetCollider.transform;
+            var scale = colliderTransform.lossyScale;
+            radius = _targetCollider.radius * Mathf.Max(scale.x, scale.z);
+            var halfHeight = Mathf.Max(_targetCollider.height * 0.5f * scale.y, radius);
+
+            var center = colliderTransform.TransformPoint(_targetCollider.center);
+            bottomSphereCenter = center + Vector3.down * (halfHeight - radius);
+            topSphereCenter = center + Vector3.up * (halfHeight - radius);
         }
 
         /// <summary>

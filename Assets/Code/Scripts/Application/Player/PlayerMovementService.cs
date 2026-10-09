@@ -11,17 +11,17 @@ namespace Kizami.Application
 {
     /// <summary>
     /// 入力と視線の向き、触れている物から、プレイヤーの移動モード・ワールド空間の目標速度・ジャンプを決めるユースケース。
-    /// 入力イベントでは入力値を記録し、判定と State の更新は Step で行う。
+    /// 入力イベントと打ち上げの要求では値を記録し、判定と State の更新は Step で行う。
     /// 物理への反映と加減速の補間は PlayerMovementAdapterBase が行う。
     /// </summary>
     public sealed class PlayerMovementService : IDisposable
     {
         private readonly PlayerMovementState _state = new();
-        private readonly IOperationSettingState _settingState;
-        private readonly PlayerParameterData _parameters;
         private readonly List<IDisposable> _subscriptions = new();
-        private readonly IDisposable _contactStateWaiter;
 
+        private IOperationSettingState _settingState;
+        private PlayerParameterData _parameters;
+        private IDisposable _contactStateWaiter;
         private IPlayerContactState _contactState;
 
         /// <summary> 移動入力。x が右、y が前を正とし、長さは 1 以下 </summary>
@@ -44,6 +44,9 @@ namespace Kizami.Application
 
         /// <summary> 壁ジャンプ後、壁との接触が一度切れるまで true になり、その間は壁走りへの再突入を止める </summary>
         private bool _isWaitingWallRelease;
+
+        /// <summary> 次の Step で処理する打ち上げの上向きの打ち出し速度（m/s）。要求がなければ 0 </summary>
+        private float _launchSpeed;
 
         /// <summary> 次の Step で処理するワープ入力があるか </summary>
         private bool _isWarpRequested;
@@ -69,10 +72,13 @@ namespace Kizami.Application
         private bool IsTouchingWallInAir => _contactState != null && !IsGrounded &&
                                             (_contactState.Contacts & PlayerContact.Wall) != 0;
 
+        /// <summary>
+        /// PlayerMovementState を PlayerBoard へ登録し、入力を受け取り始める。Initialize より前の Step は何もしない。
+        /// </summary>
         /// <param name="blackBoard">PlayerMovementState の登録先と、入力・ダッシュ入力の受け付け方・触れている物の取得元</param>
         /// <param name="parameters">移動のパラメータ</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
-        public PlayerMovementService(IBlackBoard blackBoard, PlayerParameterData parameters, int sceneId)
+        public void Initialize(IBlackBoard blackBoard, PlayerParameterData parameters, int sceneId)
         {
             _parameters = parameters;
             _wallRunTimeRemaining = parameters.WallRunDuration;
@@ -101,14 +107,23 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// 次の Step でプレイヤーを真上へ打ち上げるよう要求する。同じステップに複数の要求があれば、最も速いものを使う。
+        /// </summary>
+        /// <param name="speed">上向きの打ち出し速度（m/s）</param>
+        public void RequestLaunch(float speed)
+        {
+            _launchSpeed = Mathf.Max(_launchSpeed, speed);
+        }
+
+        /// <summary>
         /// EngineAdapterLayer の FixedUpdate から物理の 1 ステップごとに呼ばれ、記録済みの入力と視線の向き、
         /// 触れている物から移動モードと目標速度を決めて State に書き込む。
-        /// ジャンプ入力とワープ入力はこのステップで処理し、行えなければ捨てる。
-        /// ワープ中はジャンプ入力も壁走りに入る判定も無視する。
+        /// ジャンプ入力・ワープ入力・打ち上げの要求はこのステップで処理し、行えなければ捨てる。
+        /// ワープ中はジャンプ入力も打ち上げも壁走りに入る判定も無視する。打ち上げは壁走りとジャンプより優先する。
         /// </summary>
         /// <param name="viewDirection">ワールド空間の視線の向き</param>
         /// <param name="deltaTime">このステップの経過時間（秒）</param>
-        /// <returns>このステップで Rigidbody に与える打ち出し速度。ジャンプしたステップだけ値を持つ</returns>
+        /// <returns>このステップで Rigidbody に与える打ち出し速度。ジャンプか打ち上げをしたステップだけ値を持つ</returns>
         public Vector3? Step(Vector3 viewDirection, float deltaTime)
         {
             if (_settingState == null) return null;
@@ -120,6 +135,8 @@ namespace Kizami.Application
             _isJumpRequested = false;
             var isWarpRequested = _isWarpRequested;
             _isWarpRequested = false;
+            var launchSpeed = _launchSpeed;
+            _launchSpeed = 0f;
 
             if (_state.Mode == PlayerMoveMode.Warping)
             {
@@ -142,6 +159,17 @@ namespace Kizami.Application
                     AdvanceWarp(deltaTime);
                     return null;
                 }
+            }
+
+            var speed = IsSprinting ? _parameters.SprintSpeed : _parameters.WalkSpeed;
+
+            if (launchSpeed > 0f)
+            {
+                // 壁に触れたまま打ち上げられても、壁走りに入って上向きの速度を失わないよう、壁ジャンプ後と同じく再突入を止める
+                _state.SetMode(PlayerMoveMode.Normal);
+                _isWaitingWallRelease = true;
+                _state.SetTargetVelocity(worldInput * speed);
+                return Vector3.up * launchSpeed;
             }
 
             if (IsGrounded)
@@ -181,7 +209,6 @@ namespace Kizami.Application
                 return null;
             }
 
-            var speed = IsSprinting ? _parameters.SprintSpeed : _parameters.WalkSpeed;
             _state.SetTargetVelocity(worldInput * speed);
 
             if (!isJumpRequested || !IsGrounded) return null;
