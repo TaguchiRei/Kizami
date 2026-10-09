@@ -69,5 +69,8 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 道筋に記録した点の数 </summary>
         public int PathCount;
+
+        /// <summary> ディフェンダーのバリアに当たった攻撃の数。粉砕タイプで壊れたときは耐久値の最大にする。バリアの物を返しても持ち続ける </summary>
+        public int BarrierHitCount;
     }
 }

@@ -839,6 +839,9 @@ MonoBehaviour:
   _targetLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+  _armorLayers:
+    serializedVersion: 2
+    m_Bits: 1024
 --- !u!4 &1212232925
 Transform:
   m_ObjectHideFlags: 0
@@ -1202,6 +1205,7 @@ GameObject:
   - component: {fileID: 1539543158}
   - component: {fileID: 1539543157}
   - component: {fileID: 1539543160}
+  - component: {fileID: 1539543161}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -1253,6 +1257,7 @@ MonoBehaviour:
   _shapeKeeperCapacity: 64
   _fragmentPool: {fileID: 608286024}
   _shooter: {fileID: 1539543160}
+  _barriers: {fileID: 1539543161}
   _target: {fileID: 903436366}
   _cellSize: 1
   _enemyHeight: 4
@@ -1340,6 +1345,25 @@ MonoBehaviour:
   _blockLayers:
     serializedVersion: 2
     m_Bits: 1537
+--- !u!114 &1539543161
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1539543156}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a4e99c91d7b157d42a2b3aa63dabfae0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyBarriers
+  _barrierPrefab: {fileID: 3689327128998704385, guid: be3208b75839fec48b40a1da160cc78f, type: 3}
+  _capacity: 16
+  _radius: 17
+  _guardLegs: 0000000002000000
+  _guardFootPositions:
+  - {x: -0.35, y: 1.6, z: 3}
+  - {x: 0.35, y: 1.6, z: 3}
 --- !u!1 &1579939515
 GameObject:
   m_ObjectHideFlags: 0

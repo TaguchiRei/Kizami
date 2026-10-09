@@ -23,7 +23,7 @@ namespace Kizami.EngineAdapter
     /// 足場ごと一定の高さ以上落ちた敵と、ボクセルから切り離されて落ちてくる塊に潰された敵は、崩落で倒す。体を貸していれば返し、かけらは出さない。
     /// 生成した敵は出した順にグループ（EnemyGroups）へ入れ、毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
     /// 切断できる体（EnemyBody）の貸し借りと近接切断の結果の受け渡しは敵の種類ごとの EnemyBodyLender が、体から外れた切っていない部位の見た目用の物は EnemyDebrisSpawner が行う。
-    /// アタッカーの弾は、同じ GameObject の EnemyShooter が扱う。
+    /// アタッカーの弾は同じ GameObject の EnemyShooter が、ディフェンダーのバリアは EnemyBarriers が扱う。
     /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さない。
     /// </summary>
     /// <remarks>
@@ -96,6 +96,10 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("アタッカーの弾を扱う EnemyShooter。未設定ならアタッカーは撃たない")]
         private EnemyShooter _shooter;
+
+        [SerializeField]
+        [Tooltip("ディフェンダーのバリアを扱う EnemyBarriers。未設定ならバリアを張らない")]
+        private EnemyBarriers _barriers;
 
         [SerializeField]
         [Tooltip("敵が向かう先（プレイヤー）。距離マップはここからの距離を持つ")]
@@ -400,6 +404,15 @@ namespace Kizami.EngineAdapter
                 _shooter.Initialize(_bodyPrefabs[(int)EnemyKind.Attacker], _target, applyDamage);
             }
 
+            if (_barriers == null)
+            {
+                UsefulLogger.LogWarning("EnemyBarriers が設定されていない為、ディフェンダーはバリアを張りません。", this);
+            }
+            else
+            {
+                _barriers.Initialize(_target, _groups.Groups.Length);
+            }
+
             base.Initialize();
         }
 
@@ -467,6 +480,11 @@ namespace Kizami.EngineAdapter
                             lender.SyncBodyTransforms(_agents, Time.deltaTime, _distanceField.Grid);
                         }
                     }
+                }
+
+                if (_barriers != null)
+                {
+                    _barriers.Tick(_agents, _groups, _bodyLenders[(int)EnemyKind.Defender], _distanceField.Grid);
                 }
 
                 if (_shooter != null) _shooter.Tick(_agents, Time.deltaTime);

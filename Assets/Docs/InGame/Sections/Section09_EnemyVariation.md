@@ -139,13 +139,13 @@
 | `EnemyKindSettings`（仮。Serializable） | EngineAdapter | `EnemySpawnAdapter` の Inspector（3 種で 3 件） |
 | `AttackPartRole` | EngineAdapter | アタッカーの `GunTurret`・`Gun`。撃つ判定が壊れた部位のビットと照らし合わせる |
 | `EnemyShooter` | EngineAdapter | `EnemySpawnAdapter`。撃つ敵を選び、弾の NativeArray・Job・`SpherecastCommand`・VFX へ渡す GraphicsBuffer を持つ。設定と VisualEffect の参照を自分で持つよう、`EnemySpawnAdapter` と同じ GameObject のコンポーネントにした（コミット 4） |
-| `EnemyBarriers`（仮） | EngineAdapter | `EnemySpawnAdapter`。バリアのプール、耐久値の受け渡し、打ち上げの判定 |
+| `EnemyBarriers` | EngineAdapter | `EnemySpawnAdapter`。バリアのプール、当たった数の受け渡し、前脚を合わせる姿勢、打ち上げの判定（コミット 6）。`EnemyShooter` と同じく、`EnemySpawnAdapter` と同じ GameObject のコンポーネントにした（コミット 5） |
 | `EnemyFinisherAttack`（仮） | EngineAdapter | `EnemySpawnAdapter`。吸収、分身のプール、デカール、ビーム、冷却 |
 
 - 弾・バリア・フィニッシャーの 3 つは、どれも利用者が `EnemySpawnAdapter` だけ。区間8R で `EnemyBodyLender`・`EnemyDebrisSpawner` を切り出したのと同じ理由で、`EnemySpawnAdapter` に書かずに分ける
 - 作らないもの：敵の State・Event・Service、シールドの役割のクラス、弾 1 発ごとの MonoBehaviour、分身を描くための新しい描画の仕組み
 
-拡張する型：`EnemyAgent`（種類、移動部位の上限、行動の段階と時間）、`EnemySpawnSystem`（`EnemySpawnInfo` の編成）、`EnemyInitialSpawnArea`（編成）、`EnemySpawnAdapter`、`EnemyBodyLender`（種類で絞る、行動中の敵に優先して貸す）、`EnemyCrowdRenderer`（種類で絞る）、`EnemyBody`（吸収で消す）、`EnemyLeg`・`EnemyLegs`（脛の休みの向き、足の行き先の上書き）、`EnemyGroup`（バリアの耐久値）、`EnemyGroups`（ディフェンダーを 0 番に保つ）、`EnemyMoveJob`（敵ごとの移動部位の上限、飛んでいる敵と止まった敵）、`ArmorPanel`（耐久値を戻す口、壊れたことを知らせる口）、`MeleeCutAdapter`（装甲の奥を切らない）、`PlayerMovementService`（打ち上げの要求）、`PlayerInitializer`（登録）、`EnemyInitializer`（注入）
+拡張する型：`EnemyAgent`（種類、移動部位の上限、行動の段階と時間）、`EnemySpawnSystem`（`EnemySpawnInfo` の編成）、`EnemyInitialSpawnArea`（編成）、`EnemySpawnAdapter`、`EnemyBodyLender`（種類で絞る、行動中の敵に優先して貸す）、`EnemyCrowdRenderer`（種類で絞る）、`EnemyBody`（吸収で消す）、`EnemyLeg`・`EnemyLegs`（脛の休みの向き、足の行き先の上書き）、`EnemyGroup`（バリアの耐久値）、`EnemyGroups`（ディフェンダーを 0 番に保つ）、`EnemyMoveJob`（敵ごとの移動部位の上限、飛んでいる敵と止まった敵）、`ArmorPanel`（耐久値を戻す口。壊れたことは `IsBroken` を毎フレーム読んで知るので、知らせる口は作らなかった）、`MeleeCutAdapter`（装甲の奥を切らない）、`PlayerMovementService`（打ち上げの要求）、`PlayerInitializer`（登録）、`EnemyInitializer`（注入）
 
 作るアセット：`DefenderEnemy.prefab`、`FinisherEnemy.prefab`、分身のプレハブ、バリアのプレハブ、弾の VFX Graph、バリア・分身・デカール・ビームの仮のマテリアル
 
@@ -168,7 +168,8 @@
 
 - 基準1：種類ごとの「貸す距離」は持たない。バリアの当たり判定を体に付けない形になったので、要るのは「行動中の敵に優先して貸す」だけになった（決めたことの 12）
 - 基準1：分身は見た目だけの `EnemyAgent` にせず、当たり判定と `ArmorPanel` を持つプレハブにした。壊せる仕様で、どのみち GameObject が要る為
-- 基準1：`EnemyLegs` の足の行き先の上書きは、ディフェンダーの前脚とフィニッシャーの腕の 2 つが使う。`ArmorPanel` の耐久値を戻す口は、バリアと分身の 2 つが使う
+- 基準1：`EnemyLegs` の足の行き先の上書き（`HoldFoot`・`ReleaseFoot`。行き先はワールド座標）は、ディフェンダーの前脚とフィニッシャーの腕の 2 つが使う。`ArmorPanel` の耐久値を戻す口（`SetDurability`）は、バリアと分身の 2 つが使う
+- 基準1：バリアの当たった数は、耐久値ではなく当たった数（`EnemyGroup.BarrierHitCount`）で持つ。グループを作るときに耐久値の最大を知らなくても 0 から始められる為
 - 基準2：打ち上げは、敵の側からプレイヤーの Rigidbody を書き換えず、ジャンプと同じ経路（`PlayerMovementService.Step` の戻り値）で渡す
 - 基準3：フィニッシャーの腕の IK（決めたことの 3）とディフェンダーの位置（4）は、9-4 と 9-1 の実装に直接かかわるので計画に入れた
 - 基準4：弾がバリアを内から外へ抜けること（8b）は確かめていないので、コミット 5 の確かめることに入れた

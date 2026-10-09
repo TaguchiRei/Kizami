@@ -235,6 +235,15 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 体の脚を返す。脚を持たない体では null。
+        /// </summary>
+        /// <param name="bodyIndex">体の番号（EnemyAgent.BodyIndex）</param>
+        public EnemyLegs GetLegs(int bodyIndex)
+        {
+            return _bodyLegs[bodyIndex];
+        }
+
+        /// <summary>
         /// 敵の分として預かっている形を捨てる。敵の状態を使い直すときに呼ぶ。
         /// </summary>
         /// <param name="agentIndex">使い直す敵の状態の番号</param>

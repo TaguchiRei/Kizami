@@ -62,6 +62,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 脚ごとの、運んでいる足の運ぶ先（ワールド） </summary>
         private Vector3[] _stepTo;
 
+        /// <summary> 脚ごとの、足を留めているか。留めた足は運ばない </summary>
+        private bool[] _isHeld;
+
+        /// <summary> 脚ごとの、足を留める位置（ワールド） </summary>
+        private Vector3[] _heldTargets;
+
         /// <summary> 運んでいる組の番号。どの組も運んでいなければ -1 </summary>
         private int _steppingPair = -1;
 
@@ -84,12 +90,13 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 体を貸したときに呼ぶ。足を基準の位置に置き、脚の姿勢を合わせる。
+        /// 体を貸したときに呼ぶ。留めていた足を放し、足を基準の位置に置き、脚の姿勢を合わせる。
         /// </summary>
         public void ResetFeet(in EnemyNavigationGrid grid)
         {
             for (var i = 0; i < _legs.Length; i++)
             {
+                _isHeld[i] = false;
                 _planted[i] = GetHomePosition(i, grid);
             }
 
@@ -117,7 +124,7 @@ namespace Kizami.EngineAdapter
                 {
                     for (var i = 0; i < _legs.Length; i++)
                     {
-                        if (_legs[i].Pair == _steppingPair) _planted[i] = _stepTo[i];
+                        if (_legs[i].Pair == _steppingPair && !_isHeld[i]) _planted[i] = _stepTo[i];
                     }
 
                     _steppingPair = -1;
@@ -128,15 +135,42 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 体を返すときに呼ぶ。脚を休みの姿勢に戻す。
+        /// 体を返すときに呼ぶ。留めていた足を放し、脚を休みの姿勢に戻す。
         /// </summary>
         public void ResetPose()
         {
-            foreach (var leg in _legs)
+            for (var i = 0; i < _legs.Length; i++)
             {
-                if (leg.Upper != null) leg.Upper.localRotation = Quaternion.identity;
-                if (leg.Lower != null) leg.Lower.localRotation = Quaternion.identity;
+                _isHeld[i] = false;
+                if (_legs[i].Upper != null) _legs[i].Upper.localRotation = Quaternion.identity;
+                if (_legs[i].Lower != null) _legs[i].Lower.localRotation = Quaternion.identity;
             }
+        }
+
+        /// <summary>
+        /// 脚 leg の足を、歩いて運ぶ代わりに位置 target（ワールド）へ伸ばす。体が動く間も留め続けるときは、毎フレーム呼び直す。
+        /// </summary>
+        /// <param name="leg">脚の番号（設定の並び）</param>
+        /// <param name="target">足を伸ばす先（ワールド座標）</param>
+        public void HoldFoot(int leg, Vector3 target)
+        {
+            if (leg < 0 || leg >= _legs.Length) return;
+
+            _isHeld[leg] = true;
+            _heldTargets[leg] = target;
+        }
+
+        /// <summary>
+        /// 留めていた足を放し、基準の位置に置き直す。留めていなければ何もしない。
+        /// </summary>
+        /// <param name="leg">脚の番号（設定の並び）</param>
+        /// <param name="grid">足を置く高さを読む経路の格子</param>
+        public void ReleaseFoot(int leg, in EnemyNavigationGrid grid)
+        {
+            if (leg < 0 || leg >= _legs.Length || !_isHeld[leg]) return;
+
+            _isHeld[leg] = false;
+            _planted[leg] = GetHomePosition(leg, grid);
         }
 
         private void Awake()
@@ -152,6 +186,8 @@ namespace Kizami.EngineAdapter
             _planted = new Vector3[count];
             _stepFrom = new Vector3[count];
             _stepTo = new Vector3[count];
+            _isHeld = new bool[count];
+            _heldTargets = new Vector3[count];
 
             for (var i = 0; i < count; i++)
             {
@@ -189,7 +225,7 @@ namespace Kizami.EngineAdapter
 
             for (var i = 0; i < _legs.Length; i++)
             {
-                if (!IsUpperAttached(i)) continue;
+                if (!IsUpperAttached(i) || _isHeld[i]) continue;
 
                 var offset = _planted[i] - GetHomePosition(i, grid);
                 offset.y = 0f;
@@ -204,7 +240,7 @@ namespace Kizami.EngineAdapter
             var lead = velocity * (_stepDuration * 0.5f);
             for (var i = 0; i < _legs.Length; i++)
             {
-                if (_legs[i].Pair != pair) continue;
+                if (_legs[i].Pair != pair || _isHeld[i]) continue;
 
                 _stepFrom[i] = _planted[i];
                 var to = transform.TransformPoint(_homes[i]) + lead;
@@ -245,7 +281,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 足の位置（運んでいる組は、運ぶ前と運ぶ先の間を、持ち上げながら進めた位置）へ、各脚を IK で向ける。腿を失った脚は動かさない。
+        /// 足の位置（留めた足は留める位置、運んでいる組は、運ぶ前と運ぶ先の間を、持ち上げながら進めた位置）へ、各脚を IK で向ける。腿を失った脚は動かさない。
         /// </summary>
         private void Pose()
         {
@@ -254,7 +290,11 @@ namespace Kizami.EngineAdapter
                 if (!IsUpperAttached(i)) continue;
 
                 var foot = _planted[i];
-                if (_legs[i].Pair == _steppingPair)
+                if (_isHeld[i])
+                {
+                    foot = _heldTargets[i];
+                }
+                else if (_legs[i].Pair == _steppingPair)
                 {
                     var t = Mathf.Clamp01(_stepProgress);
                     foot = Vector3.Lerp(_stepFrom[i], _stepTo[i], t) + Vector3.up * (Mathf.Sin(t * Mathf.PI) * _stepHeight);

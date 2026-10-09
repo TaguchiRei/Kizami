@@ -12,6 +12,7 @@ namespace Kizami.EngineAdapter
     /// 近接切断の振り（Swing）を受けて、カメラの位置と向き、切断面の角度から刃を配置し、
     /// カメラの前方へ伸びる薄い直方体の範囲にある切れる CuttableObject をまとめて切断する Adapter。
     /// 攻撃タイプの攻撃として、範囲にある装甲のパネルには 1 回ずつ当てる。パネルは切断しないので、かけらは出ない。
+    /// カメラから見て装甲の奥にある対象（ディフェンダーのバリアの中の敵など）は切らない。
     /// </summary>
     public sealed class MeleeCutAdapter : InitializableMonoBehaviour
     {
@@ -41,6 +42,10 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("切断の対象を探すレイヤー")]
         private LayerMask _targetLayers = ~0;
+
+        [SerializeField]
+        [Tooltip("装甲のレイヤー。カメラから見てこのレイヤーの当たり判定の奥にある対象は切らない")]
+        private LayerMask _armorLayers;
 
         /// <summary> 切断の結果と、振ったときの切断面（ワールド座標）を渡す先 </summary>
         private Action<MultiCutResult[], Plane> _onCut;
@@ -120,7 +125,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 範囲内にあり、今切れる状態で、Renderer のバウンディングボックスが刃の平面をまたぐ CuttableObject を _targets に集める。
+        /// 範囲内にあり、今切れる状態で、Renderer のバウンディングボックスが刃の平面をまたぎ、装甲の奥にない CuttableObject を _targets に集める。
         /// 範囲内の装甲のパネルは _armorPanels に集める。
         /// </summary>
         private void CollectTargets(Vector3 origin, Vector3 forward, Vector3 normal, Quaternion bladeRotation)
@@ -148,10 +153,19 @@ namespace Kizami.EngineAdapter
 
                 if (!_hitBuffer[i].TryGetComponent(out CuttableObject cuttable)) continue;
                 if (!cuttable.IsCuttable || _targets.Contains(cuttable)) continue;
-                if (!IsStraddlingPlane(cuttable, origin, normal)) continue;
+                if (!IsStraddlingPlane(cuttable, origin, normal) || IsBehindArmor(origin, cuttable)) continue;
 
                 _targets.Add(cuttable);
             }
+        }
+
+        /// <summary>
+        /// カメラの位置 origin から対象の Renderer のバウンディングボックスの中心までの間に、装甲の当たり判定があるか。
+        /// </summary>
+        private bool IsBehindArmor(Vector3 origin, CuttableObject cuttable)
+        {
+            var toTarget = cuttable.Renderer.bounds.center - origin;
+            return Physics.Raycast(origin, toTarget, toTarget.magnitude, _armorLayers, QueryTriggerInteraction.Ignore);
         }
 
         /// <summary>

@@ -109,6 +109,15 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// グループ g の隊列の 0 番の敵の番号を返す。メンバーがいなければ -1。
+        /// 倒れた敵やほかのグループへ移った敵が、次に整えるまで残っていることがあるので、呼び出し元で生きているかとグループの番号を確かめる。
+        /// </summary>
+        public int GetLeader(int g)
+        {
+            return _groups[g].MemberCount > 0 ? _members[g * EnemyFormationSettings.MAX_GROUP_SIZE] : -1;
+        }
+
+        /// <summary>
         /// 敵をグループから抜く。抜いた敵の区画は、次にそのグループを整えるときに詰める。
         /// </summary>
         public static void Leave(ref EnemyAgent agent)
