@@ -170,8 +170,12 @@ namespace Kizami.EngineAdapter
         private float _strandedReturnDelay = 10f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("この高さ（m）以上落ちて着地した敵を、崩落で倒す。歩いて降りられる高さより高くする")]
+        [Tooltip("この高さ（m）以上落ちて着地した敵を、崩落で倒す。歩いて降りられる高さより高くする。宙に浮いている敵は倒れない")]
         private float _fallDefeatHeight = 3f;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("宙に浮いている敵が落ちる速さの上限（m/s）")]
+        private float _floatingFallSpeed = 2f;
 
         [SerializeField, Min(0f)]
         [Tooltip("ボクセルから切り離されて落ちてくる塊のうち、下向きの速さがこの値（m/s）以上のものに入った敵を潰す")]
@@ -629,7 +633,8 @@ namespace Kizami.EngineAdapter
                 TurnSpeed = math.radians(_turnSpeed),
                 StopDistance = _stopDistance,
                 Gravity = -Physics.gravity.y,
-                FallDefeatHeight = _fallDefeatHeight
+                FallDefeatHeight = _fallDefeatHeight,
+                FloatingFallSpeed = _floatingFallSpeed
             }.Schedule(_agents.Length, 64, groupHandle).Complete();
 
             _groups.MaintainNext(_agents, _distanceField.Grid, _distanceField.Distances, _formation);
@@ -929,6 +934,7 @@ namespace Kizami.EngineAdapter
                     IsAlive = true,
                     Kind = kind,
                     BrokenMovePartLimit = bodyPrefab.BrokenMovePartLimit,
+                    IsFloating = bodyPrefab.IsFloating,
                     Position = position,
                     FallStartHeight = position.y,
                     Yaw = GetYawToTarget(position),

@@ -32,6 +32,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("壊れた移動部位がこの数に達すると、移動しなくなる")]
         private int _brokenMovePartLimit = 4;
 
+        [SerializeField]
+        [Tooltip("宙に浮いているか。浮いている敵は、足場が壊れるとゆっくり落ち、落ちても倒れない")]
+        private bool _isFloating;
+
         /// <summary> 部位ごとの、体から外れたか。並びは _parts と同じ </summary>
         private bool[] _isLost;
 
@@ -60,6 +64,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 壊れた移動部位がこの数に達すると、移動しなくなる </summary>
         public int BrokenMovePartLimit => _brokenMovePartLimit;
+
+        /// <summary> 宙に浮いているか。浮いている敵は、足場が壊れるとゆっくり落ち、落ちても倒れない </summary>
+        public bool IsFloating => _isFloating;
 
         /// <summary> 体を作る部位 </summary>
         public IReadOnlyList<EnemyPart> Parts => _parts;

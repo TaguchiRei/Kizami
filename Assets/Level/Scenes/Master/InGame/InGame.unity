@@ -1418,6 +1418,7 @@ MonoBehaviour:
   _groupSpawnRadius: 4
   _strandedReturnDelay: 10
   _fallDefeatHeight: 3
+  _floatingFallSpeed: 2
   _crushMinFallSpeed: 3
   _crushMinVolume: 0.5
   _crushBodyCenterHeight: 1.5
@@ -1506,13 +1507,17 @@ MonoBehaviour:
   _effect: {fileID: 63719071}
   _beams: {fileID: 1539543163}
   _range: 50
-  _hoverHeight: 4
-  _grabDuration: 0.5
+  _hoverHeight: 1
+  _openDuration: 0.4
+  _openReach: 3.5
+  _openHeight: 4.5
+  _grabDuration: 0.3
+  _foldDuration: 0.3
   _absorbDuration: 1
   _cooldown: 15
   _graspSpread: 1
   _targetCenterHeight: 1.5
-  _finisherCenterHeight: 3
+  _finisherCenterHeight: 5
   _particlesPerPart: 4
   _burstInterval: 0.1
   _maxBurstPositions: 32
@@ -1534,7 +1539,7 @@ MonoBehaviour:
   _decalPrefab: {fileID: 6800740689205450650, guid: 781d0116b3e61944fb6b90e99c7294d7, type: 3}
   _height: 25
   _lockDistance: 3
-  _bodyCenterHeight: 3
+  _bodyCenterHeight: 5
   _orbitRadius: 8
   _orbitSpeed: 60
   _spreadDuration: 1

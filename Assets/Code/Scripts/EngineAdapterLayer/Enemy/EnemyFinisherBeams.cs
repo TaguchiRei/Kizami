@@ -54,7 +54,7 @@ namespace Kizami.EngineAdapter
 
         [SerializeField, Min(0f)]
         [Tooltip("ビームを撃つ所の、本体と分身の体の根からの高さ（m）")]
-        private float _bodyCenterHeight = 3f;
+        private float _bodyCenterHeight = 5f;
 
         [SerializeField, Min(0f)]
         [Tooltip("分身が本体の周りを回る半径（m）")]

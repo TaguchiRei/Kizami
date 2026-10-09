@@ -5,6 +5,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 体を貸した敵の脚を、足を置く位置の切り替えと 2 本の骨の IK で歩かせる。敵の体のプレハブの根に付け、EnemySpawnAdapter が毎フレーム呼ぶ。
+    /// 歩かない体（宙に浮いて移動するフィニッシャー）は足を運ばず、足先を体から見て決めた位置（畳んだ位置）に置く。
     /// </summary>
     public sealed class EnemyLegs : MonoBehaviour
     {
@@ -14,6 +15,18 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("脚")]
         private EnemyLeg[] _legs;
+
+        [SerializeField]
+        [Tooltip("足を運んで歩くか。歩かない体は、足先を畳んだ位置に置く")]
+        private bool _walks = true;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("歩かない体の畳んだ足先の、体の根の軸から腰の水平の向きへの距離（m）")]
+        private float _foldedReach = 1f;
+
+        [SerializeField]
+        [Tooltip("歩かない体の畳んだ足先の、体の根からの高さ（m）")]
+        private float _foldedHeight = 3f;
 
         [SerializeField, Range(0f, 1f)]
         [Tooltip("足を置く基準の位置を、腰から休みの姿勢の足先の水平の向きへ、その水平の距離のこの割合だけ離す")]
@@ -49,9 +62,6 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 脚ごとの、足を置く基準の位置（体の根の空間。高さは根の高さ） </summary>
         private Vector3[] _homes;
-
-        /// <summary> 脚ごとの、休みの姿勢の足先の位置（体の根の空間） </summary>
-        private Vector3[] _restFeet;
 
         private MeshFilter[] _upperMeshes;
         private MeshFilter[] _lowerMeshes;
@@ -122,7 +132,7 @@ namespace Kizami.EngineAdapter
             velocity.y = 0f;
             _previousRootPosition = transform.position;
 
-            if (_steppingPair < 0) TryStartStep(velocity, grid);
+            if (_walks && _steppingPair < 0) TryStartStep(velocity, grid);
             if (_steppingPair >= 0)
             {
                 _stepProgress += deltaTime / _stepDuration;
@@ -167,12 +177,25 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 脚 leg の休みの姿勢の足先の位置（ワールド座標）を返す。体が浮いている間、HoldFoot に渡して脚を垂らす。
+        /// 体の根の軸から、脚 leg の腰の水平の向きへ reach、体の根から高さ height の位置（ワールド座標）を返す。HoldFoot に渡して足先の姿勢を作る。
         /// </summary>
         /// <param name="leg">脚の番号（設定の並び）</param>
-        public Vector3 GetRestFootPosition(int leg)
+        /// <param name="reach">体の根の軸からの水平の距離（m）</param>
+        /// <param name="height">体の根からの高さ（m）</param>
+        public Vector3 GetFootPosition(int leg, float reach, float height)
         {
-            return transform.TransformPoint(_restFeet[leg]);
+            var side = new Vector3(_hips[leg].x, 0f, _hips[leg].z);
+            side = side.sqrMagnitude > 0f ? side.normalized : Vector3.forward;
+            return transform.TransformPoint(side * reach + Vector3.up * height);
+        }
+
+        /// <summary>
+        /// 脚 leg の畳んだ足先の位置（ワールド座標）を返す。
+        /// </summary>
+        /// <param name="leg">脚の番号（設定の並び）</param>
+        public Vector3 GetFoldedFootPosition(int leg)
+        {
+            return GetFootPosition(leg, _foldedReach, _foldedHeight);
         }
 
         /// <summary>
@@ -196,7 +219,6 @@ namespace Kizami.EngineAdapter
             _lowerAxes = new Vector3[count];
             _upperLengths = new float[count];
             _homes = new Vector3[count];
-            _restFeet = new Vector3[count];
             _upperMeshes = new MeshFilter[count];
             _lowerMeshes = new MeshFilter[count];
             _planted = new Vector3[count];
@@ -224,7 +246,6 @@ namespace Kizami.EngineAdapter
 
                 // 休みの姿勢の足先の、腰から見た位置
                 var restFoot = knee + _lowerAxes[i] * GetMeshLength(_lowerMeshes[i], _lowerAxes[i]);
-                _restFeet[i] = _hips[i] + restFoot;
                 var side = Mathf.Sign(_hips[i].x) * _splay;
                 _homes[i] = new Vector3(_hips[i].x + restFoot.x * _reachRate + side, 0f,
                     _hips[i].z + restFoot.z * _reachRate);
@@ -298,7 +319,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 足の位置（留めた足は留める位置、運んでいる組は、運ぶ前と運ぶ先の間を、持ち上げながら進めた位置）へ、各脚を IK で向ける。腿を失った脚は動かさない。
+        /// 足の位置（留めた足は留める位置、歩かない体は畳んだ位置、運んでいる組は、運ぶ前と運ぶ先の間を、持ち上げながら進めた位置）へ、各脚を IK で向ける。腿を失った脚は動かさない。
         /// </summary>
         private void Pose()
         {
@@ -310,6 +331,10 @@ namespace Kizami.EngineAdapter
                 if (_isHeld[i])
                 {
                     foot = _heldTargets[i];
+                }
+                else if (!_walks)
+                {
+                    foot = GetFoldedFootPosition(i);
                 }
                 else if (_legs[i].Pair == _steppingPair)
                 {

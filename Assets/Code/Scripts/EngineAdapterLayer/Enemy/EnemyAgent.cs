@@ -57,6 +57,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 壊れた移動部位がこの数に達すると、移動しなくなる。出すときに体のプレハブの値を書く </summary>
         public int BrokenMovePartLimit;
 
+        /// <summary> 宙に浮いているか。浮いている敵は、足場が壊れるとゆっくり落ち、落ちても倒れない。出すときに体のプレハブの値を書く </summary>
+        public bool IsFloating;
+
         /// <summary> 次に攻撃できるまでの時間（秒）。0 以下なら攻撃できる。アタッカー（弾）とフィニッシャー（吸収とビーム）が使う </summary>
         public float AttackCooldown;
 

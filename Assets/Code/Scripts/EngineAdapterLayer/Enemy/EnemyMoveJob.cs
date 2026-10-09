@@ -79,8 +79,11 @@ namespace Kizami.EngineAdapter
         /// <summary> 重力の加速度の大きさ（m/s²） </summary>
         public float Gravity;
 
-        /// <summary> この高さ（m）以上落ちて着地した敵は、崩落で倒されたとする </summary>
+        /// <summary> この高さ（m）以上落ちて着地した敵は、崩落で倒されたとする。宙に浮いている敵は除く </summary>
         public float FallDefeatHeight;
+
+        /// <summary> 宙に浮いている敵が落ちる速さの上限（m/s） </summary>
+        public float FloatingFallSpeed;
 
         /// <summary>
         /// 敵の番号から決まる 0〜1 の値。
@@ -283,6 +286,7 @@ namespace Kizami.EngineAdapter
         /// 橋の下のように頭上が背丈より低い所は立てる層にならないので、真下だけを見ると地面を抜けて落ち続ける為。
         /// 落ち始めた高さから一定以上落ちて着地した敵と、格子の範囲より下まで落ちた敵は、崩落で倒されたとしてステージから消す。
         /// 敵が自分で降りるのは降りられる高さまでなので、それより高く落ちるのは足場が壊れたときになる。
+        /// 宙に浮いている敵は、落ちる速さに上限があり、高く落ちて着地しても倒れない（格子の範囲より下まで落ちたときは消す）。
         /// </summary>
         private void UpdateVertical(ref EnemyAgent agent)
         {
@@ -304,6 +308,7 @@ namespace Kizami.EngineAdapter
 
             var previousY = agent.Position.y;
             agent.VerticalSpeed -= Gravity * DeltaTime;
+            if (agent.IsFloating) agent.VerticalSpeed = math.max(agent.VerticalSpeed, -FloatingFallSpeed);
             agent.Position.y += agent.VerticalSpeed * DeltaTime;
 
             var landing = -1;
@@ -321,7 +326,7 @@ namespace Kizami.EngineAdapter
                 agent.Position.y = Grid.Heights[landing];
                 agent.VerticalSpeed = 0f;
                 agent.IsGrounded = true;
-                if (agent.FallStartHeight - agent.Position.y >= FallDefeatHeight) DefeatByCollapse(ref agent);
+                if (!agent.IsFloating && agent.FallStartHeight - agent.Position.y >= FallDefeatHeight) DefeatByCollapse(ref agent);
                 return;
             }
 
