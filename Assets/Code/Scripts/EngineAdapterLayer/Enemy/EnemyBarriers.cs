@@ -204,7 +204,7 @@ namespace Kizami.EngineAdapter
         {
             if (_requestLaunch == null || _targetBody == null) return;
 
-            GetTargetCapsule(out var bottomSphereCenter, out var topSphereCenter, out var radius);
+            CapsuleGeometry.GetAxis(_targetCollider, out var bottomSphereCenter, out var topSphereCenter, out var radius);
             var height = center.y + _radius + _launchMargin - (bottomSphereCenter.y - radius);
             if (height <= 0f) return;
 
@@ -216,21 +216,6 @@ namespace Kizami.EngineAdapter
                     QueryTriggerInteraction.Ignore)) return;
 
             _requestLaunch(speed);
-        }
-
-        /// <summary>
-        /// プレイヤーのカプセルの、下側と上側の球の中心（ワールド座標）と半径を求める。
-        /// </summary>
-        private void GetTargetCapsule(out Vector3 bottomSphereCenter, out Vector3 topSphereCenter, out float radius)
-        {
-            var colliderTransform = _targetCollider.transform;
-            var scale = colliderTransform.lossyScale;
-            radius = _targetCollider.radius * Mathf.Max(scale.x, scale.z);
-            var halfHeight = Mathf.Max(_targetCollider.height * 0.5f * scale.y, radius);
-
-            var center = colliderTransform.TransformPoint(_targetCollider.center);
-            bottomSphereCenter = center + Vector3.down * (halfHeight - radius);
-            topSphereCenter = center + Vector3.up * (halfHeight - radius);
         }
 
         /// <summary>
