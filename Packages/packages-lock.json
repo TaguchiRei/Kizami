@@ -15,7 +15,7 @@
         "com.rei.usefultoolkit.framework": "1.0.0",
         "com.unity.nuget.newtonsoft-json": "3.2.1"
       },
-      "hash": "ae328a97cc02c312176f6e704032e065fbb54805"
+      "hash": "24c4a9c57d2dc11556e08a0cfcb1e4119028fb29"
     },
     "com.rei.usefultoolkit.debugging": {
       "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.debugging",
@@ -24,14 +24,14 @@
       "dependencies": {
         "com.rei.usefultoolkit.framework": "1.0.0"
       },
-      "hash": "ae328a97cc02c312176f6e704032e065fbb54805"
+      "hash": "24c4a9c57d2dc11556e08a0cfcb1e4119028fb29"
     },
     "com.rei.usefultoolkit.framework": {
       "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.framework",
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "ae328a97cc02c312176f6e704032e065fbb54805"
+      "hash": "24c4a9c57d2dc11556e08a0cfcb1e4119028fb29"
     },
     "com.rei.usefultoolkit.gitsupport": {
       "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.gitsupport",
@@ -40,7 +40,7 @@
       "dependencies": {
         "com.rei.usefultoolkit.framework": "1.0.0"
       },
-      "hash": "ae328a97cc02c312176f6e704032e065fbb54805"
+      "hash": "24c4a9c57d2dc11556e08a0cfcb1e4119028fb29"
     },
     "com.rei.usefultoolkit.input": {
       "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.input",
@@ -50,7 +50,7 @@
         "com.rei.usefultoolkit.framework": "1.0.0",
         "com.unity.inputsystem": "1.18.0"
       },
-      "hash": "ae328a97cc02c312176f6e704032e065fbb54805"
+      "hash": "24c4a9c57d2dc11556e08a0cfcb1e4119028fb29"
     },
     "com.rei.usefultoolkit.meshcut": {
       "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.meshcut",
@@ -63,7 +63,7 @@
         "com.unity.mathematics": "1.3.3",
         "com.unity.modules.physics": "1.0.0"
       },
-      "hash": "ae328a97cc02c312176f6e704032e065fbb54805"
+      "hash": "24c4a9c57d2dc11556e08a0cfcb1e4119028fb29"
     },
     "com.rei.usefultoolkit.programtools": {
       "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.programtools",
@@ -72,7 +72,7 @@
       "dependencies": {
         "com.rei.usefultoolkit.framework": "1.0.0"
       },
-      "hash": "ae328a97cc02c312176f6e704032e065fbb54805"
+      "hash": "24c4a9c57d2dc11556e08a0cfcb1e4119028fb29"
     },
     "com.rei.usefultoolkit.worktrack": {
       "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.worktrack",
@@ -81,7 +81,7 @@
       "dependencies": {
         "com.rei.usefultoolkit.framework": "1.0.0"
       },
-      "hash": "ae328a97cc02c312176f6e704032e065fbb54805"
+      "hash": "24c4a9c57d2dc11556e08a0cfcb1e4119028fb29"
     },
     "com.unity.ai.navigation": {
       "version": "2.0.10",
