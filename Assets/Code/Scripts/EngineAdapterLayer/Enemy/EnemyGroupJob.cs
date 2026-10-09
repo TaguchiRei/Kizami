@@ -25,6 +25,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 包囲の置き場の数 </summary>
         private const int MAX_ENCIRCLE_SLOTS = 128;
 
+        /// <summary> 1 列に並べる数を決めるときに、床の幅を調べる進む先の距離（m）。細い所の手前で組み替えを済ませる </summary>
+        private const float COLUMN_LOOKAHEAD_DISTANCE = 18f;
+
+        /// <summary> 進む先の床の幅を調べる間隔（m） </summary>
+        private const float COLUMN_LOOKAHEAD_INTERVAL = 3f;
+
         /// <summary> 置き場が立てる層のない列に来たときに、ずらす先の列を探す半径（m） </summary>
         private const float SLOT_SHIFT_RADIUS = 10f;
 
@@ -753,16 +759,27 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// アンカーの位置から左右へ、アンカーと同じ高さの床が続く幅を調べ、1 列に並べる数を決める。上限は MaxColumns。
-        /// 新しい数が ColumnChangeDelay の間続いたら変える。
+        /// アンカーの位置と、進む先 COLUMN_LOOKAHEAD_DISTANCE までの COLUMN_LOOKAHEAD_INTERVAL おきの点で、左右へ同じ高さの床が続く幅を調べ、
+        /// 最も狭い幅で 1 列に並べる数を決める。上限は MaxColumns。新しい数が ColumnChangeDelay の間続いたら変える。
+        /// 進む先を見るのは、細い所に入ってから組み替えると、列の端のメンバーが壁に詰まる為。
+        /// 進む先は、距離マップを下っている間は値が下がる列をたどり、それ以外（置き場へ向かう間、帰還中）はアンカーの向きの直線をたどる。
         /// </summary>
         private void UpdateColumnCount(ref EnemyGroup group)
         {
             var maxColumns = Formation.MaxColumns;
-            var right = new float2(math.cos(group.AnchorYaw), -math.sin(group.AnchorYaw));
             var maxSide = (maxColumns - 1) * Formation.LateralSpacing * 0.5f;
-            var width = Grid.GetFlatFloorLength(group.AnchorPosition, right, maxSide)
-                        + Grid.GetFlatFloorLength(group.AnchorPosition, -right, maxSide);
+            var forward = new float2(math.sin(group.AnchorYaw), math.cos(group.AnchorYaw));
+            var width = MeasureFloorWidth(group.AnchorPosition, forward, maxSide);
+
+            if (IsDescending(group) && Grid.TryGetColumn(group.AnchorPosition, out var column))
+            {
+                width = math.min(width, MeasureDownhillWidth(group.AnchorPosition, column, maxSide));
+            }
+            else
+            {
+                width = math.min(width, MeasureStraightWidth(group.AnchorPosition, forward, maxSide));
+            }
+
             var columnCount = math.clamp(1 + (int)math.floor(width / Formation.LateralSpacing), 1, maxColumns);
 
             if (columnCount == group.ColumnCount)
@@ -781,6 +798,89 @@ namespace Kizami.EngineAdapter
 
             group.PendingColumnTime += DeltaTime;
             if (group.PendingColumnTime >= Formation.ColumnChangeDelay) group.ColumnCount = columnCount;
+        }
+
+        /// <summary>
+        /// アンカーが距離マップを下っている（MoveAnchor と同じ条件で、置き場へまっすぐ向かう前の）間か。
+        /// </summary>
+        private bool IsDescending(in EnemyGroup group)
+        {
+            if (group.State != EnemyGroupState.Tracking || group.HasArrived || float.IsPositiveInfinity(group.AnchorDistance)) return false;
+            if (group.EncircleSlot < 0) return true;
+
+            var target = GetSpiralPoint(group.EncircleSlot);
+            return group.AnchorDistance > GetPathDistance(target) + Formation.EncircleApproachMargin;
+        }
+
+        /// <summary>
+        /// 点 point から、進む向き forward に直交する左右へ、point と同じ高さの床が続く幅（m）。片側は maxSide まで。
+        /// </summary>
+        private float MeasureFloorWidth(float3 point, float2 forward, float maxSide)
+        {
+            var right = new float2(forward.y, -forward.x);
+            return Grid.GetFlatFloorLength(point, right, maxSide) + Grid.GetFlatFloorLength(point, -right, maxSide);
+        }
+
+        /// <summary>
+        /// 距離マップの値が下がる列を COLUMN_LOOKAHEAD_DISTANCE 分たどり、COLUMN_LOOKAHEAD_INTERVAL おきに床の幅を調べて、最も狭い幅を返す。
+        /// たどれなくなったら、そこまでの最も狭い幅を返す。
+        /// </summary>
+        private float MeasureDownhillWidth(float3 start, int column, float maxSide)
+        {
+            var minWidth = float.MaxValue;
+            var height = start.y;
+            var previous = start;
+            var traveled = 0f;
+            var nextSample = COLUMN_LOOKAHEAD_INTERVAL;
+
+            while (traveled < COLUMN_LOOKAHEAD_DISTANCE)
+            {
+                var node = Grid.GetLandingNode(column, height);
+                if (node < 0) break;
+
+                height = Grid.Heights[node];
+                if (!Grid.TryGetDownhillColumn(column, height, Distances[node], Distances, out var nextColumn)) break;
+
+                var nextNode = Grid.GetLandingNode(nextColumn, height);
+                if (nextNode < 0) break;
+
+                var point = Grid.GetCellCenter(nextColumn, Grid.Heights[nextNode]);
+                traveled += math.distance(previous.xz, point.xz);
+                if (traveled >= nextSample)
+                {
+                    minWidth = math.min(minWidth, MeasureFloorWidth(point, math.normalizesafe((point - previous).xz), maxSide));
+                    nextSample += COLUMN_LOOKAHEAD_INTERVAL;
+                }
+
+                previous = point;
+                column = nextColumn;
+            }
+
+            return minWidth;
+        }
+
+        /// <summary>
+        /// アンカーの向き forward の直線上を COLUMN_LOOKAHEAD_INTERVAL おきに COLUMN_LOOKAHEAD_DISTANCE まで進み、床の幅を調べて最も狭い幅を返す。
+        /// 乗れない列に当たったら、そこまでの最も狭い幅を返す。
+        /// </summary>
+        private float MeasureStraightWidth(float3 start, float2 forward, float maxSide)
+        {
+            var minWidth = float.MaxValue;
+            var point = start;
+            for (var distance = COLUMN_LOOKAHEAD_INTERVAL; distance <= COLUMN_LOOKAHEAD_DISTANCE; distance += COLUMN_LOOKAHEAD_INTERVAL)
+            {
+                var next = start + new float3(forward.x, 0f, forward.y) * distance;
+                if (!Grid.TryGetColumn(point, out var column) || !Grid.TryGetColumn(next, out var nextColumn)) break;
+
+                var node = column == nextColumn ? -1 : Grid.GetLandingNode(nextColumn, point.y);
+                if (column != nextColumn && node < 0) break;
+
+                if (node >= 0) next.y = Grid.Heights[node];
+                point = next;
+                minWidth = math.min(minWidth, MeasureFloorWidth(point, forward, maxSide));
+            }
+
+            return minWidth;
         }
 
         public void Execute()
