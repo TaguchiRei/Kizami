@@ -39,6 +39,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 戻れない敵がカメラに映っているかを調べる箱の一辺（m）。体の前後の長さ（約 10.5m）を囲む </summary>
         private const float VISIBILITY_SIZE = 11f;
 
+        /// <summary> 生成する位置が立てる所に来るまで、選び直す回数の上限 </summary>
+        private const int SPAWN_POSITION_ATTEMPTS = 16;
+
         /// <summary> 別のグループの敵どうしが重なっているとみなす、水平の距離（m） </summary>
         private const float OVERLAP_DISTANCE = 2f;
 
@@ -358,6 +361,7 @@ namespace Kizami.EngineAdapter
             }
 
             _groups = new EnemyGroups(_agents.Length);
+            WarnUnstandableSpawnPoints();
             _overlapCounts = new NativeArray<int>(2, Allocator.Persistent);
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);
@@ -557,7 +561,9 @@ namespace Kizami.EngineAdapter
 
                 EnemyGroups.Leave(ref agent);
                 var offset = Random.insideUnitCircle * _groupSpawnRadius;
-                var position = spawnPoint != null ? spawnPoint.GetSpawnPosition() : home + new Vector3(offset.x, 0f, offset.y);
+                var position = spawnPoint != null
+                    ? PickStandablePosition(spawnPoint.GetSpawnPosition, home)
+                    : home + new Vector3(offset.x, 0f, offset.y);
                 agent.Position = position;
                 agent.Yaw = GetYawToTarget(position);
                 agent.IsGrounded = false;
@@ -594,22 +600,37 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 初期生成情報の範囲に、決まった数の敵を置く。グループの人数ずつ、範囲から選んだ中心の周りにまとめて置く。
+        /// 中心とメンバーの位置は、立てる所（IsStandable）に来るまで選び直す。中心が見つからないグループは置かず、警告を出す。
         /// </summary>
         private void SpawnInitial()
         {
             foreach (var area in _initialSpawnAreas)
             {
                 var center = Vector3.zero;
+                var hasCenter = false;
                 for (var i = 0; i < area.Count; i++)
                 {
                     if (i % _formation.GroupSize == 0)
                     {
-                        center = area.GetSpawnPosition();
                         _groups.CloseGroup();
+                        hasCenter = TryPickStandablePosition(area.GetSpawnPosition, out center);
+                        if (!hasCenter)
+                        {
+                            UsefulLogger.LogWarning(
+                                $"初期生成の範囲 {area.name} から、敵が立てる所を {SPAWN_POSITION_ATTEMPTS} 回で選べなかった為、1 グループ分を置きません。範囲を床の上へ動かしてください。",
+                                area);
+                        }
                     }
 
-                    var offset = Random.insideUnitCircle * _groupSpawnRadius;
-                    if (!TrySpawn(center + new Vector3(offset.x, 0f, offset.y), center)) return;
+                    if (!hasCenter) continue;
+
+                    var groupCenter = center;
+                    var position = PickStandablePosition(() =>
+                    {
+                        var offset = Random.insideUnitCircle * _groupSpawnRadius;
+                        return groupCenter + new Vector3(offset.x, 0f, offset.y);
+                    }, center);
+                    if (!TrySpawn(position, center)) return;
                 }
             }
 
@@ -636,10 +657,60 @@ namespace Kizami.EngineAdapter
                 _groups.CloseGroup();
                 for (var n = 0; n < info.MaxCountPerSpawn; n++)
                 {
-                    if (!TrySpawn(point.GetSpawnPosition(), point.transform.position)) break;
+                    if (!TrySpawn(PickStandablePosition(point.GetSpawnPosition, point.transform.position),
+                            point.transform.position)) break;
                 }
 
                 _groups.CloseGroup();
+            }
+        }
+
+        /// <summary>
+        /// 位置の真下に、その高さから乗れる立てる層があるか。グループのアンカーが床に乗る規則（EnemyGroupJob.TryFitToFloor）と同じ。
+        /// 橋のスロープの中のように、上に床があって足元に立てる層がない所を、生成する位置に選ばない為。
+        /// </summary>
+        private bool IsStandable(Vector3 position)
+        {
+            var grid = _distanceField.Grid;
+            return grid.TryGetColumn(position, out var column)
+                   && grid.GetHighestNodeBelow(column, position.y + grid.ClimbHeight) >= 0;
+        }
+
+        /// <summary>
+        /// pick で選んだ位置が立てる所に来るまで、SPAWN_POSITION_ATTEMPTS 回まで選び直す。見つからなければ false。
+        /// </summary>
+        private bool TryPickStandablePosition(Func<Vector3> pick, out Vector3 position)
+        {
+            for (var attempt = 0; attempt < SPAWN_POSITION_ATTEMPTS; attempt++)
+            {
+                position = pick();
+                if (IsStandable(position)) return true;
+            }
+
+            position = default;
+            return false;
+        }
+
+        /// <summary>
+        /// pick で選んだ位置が立てる所に来るまで選び直し、見つからなければ fallback を返す。
+        /// </summary>
+        private Vector3 PickStandablePosition(Func<Vector3> pick, Vector3 fallback)
+        {
+            return TryPickStandablePosition(pick, out var position) ? position : fallback;
+        }
+
+        /// <summary>
+        /// 中心が立てる所にない生成位置を、名前つきで警告する。その生成位置から出したグループのアンカーは床に乗れず、動かない為。
+        /// </summary>
+        private void WarnUnstandableSpawnPoints()
+        {
+            foreach (var point in _spawnPoints)
+            {
+                if (point == null || IsStandable(point.transform.position)) continue;
+
+                UsefulLogger.LogWarning(
+                    $"生成位置 {point.name} の中心に、敵が立てる所がありません。そこから出したグループは動けないので、床の上へ動かしてください。",
+                    point);
             }
         }
 
