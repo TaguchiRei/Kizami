@@ -102,6 +102,10 @@ namespace Kizami.EngineAdapter
         private EnemyBarriers _barriers;
 
         [SerializeField]
+        [Tooltip("フィニッシャーの攻撃を扱う EnemyFinisherAttack。未設定ならフィニッシャーは攻撃しない")]
+        private EnemyFinisherAttack _finisherAttack;
+
+        [SerializeField]
         [Tooltip("敵が向かう先（プレイヤー）。距離マップはここからの距離を持つ")]
         private Transform _target;
 
@@ -140,6 +144,10 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0f)]
         [Tooltip("敵が歩く速さ（m/s）")]
         private float _moveSpeed = 3f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("飛んでいる敵（攻撃中のフィニッシャー）の速さ（m/s）")]
+        private float _flySpeed = 8f;
 
         [SerializeField, Min(0f)]
         [Tooltip("敵が向きを変える速さ（度/秒）")]
@@ -415,6 +423,15 @@ namespace Kizami.EngineAdapter
                 _barriers.Initialize(_target, _groups.Groups.Length, requestLaunch);
             }
 
+            if (_finisherAttack == null)
+            {
+                UsefulLogger.LogWarning("EnemyFinisherAttack が設定されていない為、フィニッシャーは攻撃しません。", this);
+            }
+            else
+            {
+                _finisherAttack.Initialize(_target, _debrisMaterial);
+            }
+
             base.Initialize();
         }
 
@@ -490,6 +507,11 @@ namespace Kizami.EngineAdapter
                 }
 
                 if (_shooter != null) _shooter.Tick(_agents, Time.deltaTime);
+
+                if (_finisherAttack != null)
+                {
+                    _finisherAttack.Tick(_agents, _groups, _bodyLenders, Time.deltaTime, _distanceField.Grid);
+                }
 
                 using (_renderMarker.Auto())
                 {
@@ -603,6 +625,7 @@ namespace Kizami.EngineAdapter
                 PlayerPosition = playerPosition,
                 DeltaTime = deltaTime,
                 MoveSpeed = _moveSpeed,
+                FlySpeed = _flySpeed,
                 TurnSpeed = math.radians(_turnSpeed),
                 StopDistance = _stopDistance,
                 Gravity = -Physics.gravity.y,
@@ -645,6 +668,7 @@ namespace Kizami.EngineAdapter
         /// グループを持たない敵は、次の有効な生成位置へ移す。移した敵は元のグループから抜き、持ち場ごとに新しいグループにする（持ち場は引き継ぐ）。部位の状態はそのまま持ち続ける。
         /// 持ち場が追跡範囲の中で、そこからもプレイヤーへたどり着けない（分断されている）ときは戻さない。
         /// 動けない敵は戻さない（同時に存在する数の上限を埋め続ける、仕様の戦略の為）。体を貸している敵も戻さない（プレイヤーの近くにいる為）。
+        /// 行動中の敵（動き方が Walking でない敵）も戻さない。フィニッシャーの攻撃が位置を決めている為。
         /// </summary>
         private void ReturnStrandedAgents()
         {
@@ -658,7 +682,8 @@ namespace Kizami.EngineAdapter
             {
                 var agent = _agents[i];
                 if (!agent.IsAlive || agent.StrandedTime < _strandedReturnDelay) continue;
-                if (agent.BodyIndex >= 0 || agent.BrokenMovePartCount >= agent.BrokenMovePartLimit) continue;
+                if (agent.BodyIndex >= 0 || agent.BrokenMovePartCount >= agent.BrokenMovePartLimit ||
+                    agent.MoveMode != EnemyMoveMode.Walking) continue;
 
                 var bounds = new Bounds((Vector3)agent.Position + Vector3.up * VISIBILITY_HEIGHT,
                     Vector3.one * VISIBILITY_SIZE);

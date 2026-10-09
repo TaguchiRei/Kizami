@@ -8,6 +8,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 出ている敵を 1 体ずつ動かす。グループに入っている敵は隊列の位置（置き場に着いたグループでは、グループの中心の周りの螺旋の上の位置）へ、
     /// グループを持たない敵は距離マップの値が下がる隣の列へ向かって歩き、立てる層がなくなると落ちる。
+    /// 止められた敵（EnemyMoveMode.Held）は歩かず、飛んでいる敵（Flying）は地面と重力によらず FlyTarget へ飛ぶ。
     /// 自分の番号の敵だけを書き換え、ほかの敵は見ない。
     /// </summary>
     [BurstCompile]
@@ -34,6 +35,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 歩く速さを敵ごとにずらす割合の幅（±）。全員が同じ速さで動いて見えないようにする </summary>
         private const float SPEED_JITTER = 0.1f;
 
+        /// <summary> 飛ぶ先までの距離がこの値（m）より近いと、近さに合わせて遅くなる </summary>
+        private const float FLY_SLOW_DOWN_DISTANCE = 2f;
+
+        /// <summary> 飛ぶ先の近くで遅くなるときの、速さの下限（m/s）。飛ぶ先に届かなくならないようにする </summary>
+        private const float MIN_FLY_SPEED = 1f;
+
         public NativeArray<EnemyAgent> Agents;
         public EnemyNavigationGrid Grid;
         [ReadOnly] public NativeArray<float> Distances;
@@ -59,6 +66,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 歩く速さ（m/s） </summary>
         public float MoveSpeed;
+
+        /// <summary> 飛ぶ速さ（m/s） </summary>
+        public float FlySpeed;
 
         /// <summary> 向きを変える速さ（ラジアン/秒） </summary>
         public float TurnSpeed;
@@ -255,6 +265,19 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// FlyTarget へまっすぐ飛ぶ。飛ぶ先の近くでは遅くなり、飛ぶ先を越えない。向きは変えない。
+        /// </summary>
+        private void Fly(ref EnemyAgent agent)
+        {
+            var toTarget = agent.FlyTarget - agent.Position;
+            var distance = math.length(toTarget);
+            if (distance <= 0f) return;
+
+            var speed = math.max(FlySpeed * math.saturate(distance / FLY_SLOW_DOWN_DISTANCE), MIN_FLY_SPEED);
+            agent.Position += toTarget / distance * math.min(speed * DeltaTime, distance);
+        }
+
+        /// <summary>
         /// 立っている敵は床の高さに合わせ、床が下がりすぎていれば落とす。落ちている敵は重力で落とし、床に着いたら立たせる。
         /// 真下の列に着地できる層がなければ、周りの列のうち最も近い列の層に着地し、位置をその列の中へずらす。
         /// 橋の下のように頭上が背丈より低い所は立てる層にならないので、真下だけを見ると地面を抜けて落ち続ける為。
@@ -358,8 +381,16 @@ namespace Kizami.EngineAdapter
             var agent = Agents[index];
             if (!agent.IsAlive) return;
 
-            // 壊れた移動部位が上限に達した敵は歩かない。足場がなくなれば落ちる
-            if (agent.IsGrounded && agent.BrokenMovePartCount < agent.BrokenMovePartLimit) Walk(ref agent, index);
+            if (agent.MoveMode == EnemyMoveMode.Flying)
+            {
+                Fly(ref agent);
+                Agents[index] = agent;
+                return;
+            }
+
+            // 壊れた移動部位が上限に達した敵と、止められた敵は歩かない。足場がなくなれば落ちる
+            if (agent.IsGrounded && agent.MoveMode == EnemyMoveMode.Walking &&
+                agent.BrokenMovePartCount < agent.BrokenMovePartLimit) Walk(ref agent, index);
             UpdateVertical(ref agent);
             UpdateStrandedTime(ref agent);
 

@@ -13,6 +13,8 @@ namespace Kizami.EngineAdapter
     /// 体はプレイヤーから貸す距離の中にいる敵へ近い順に貸し、返す距離より離れたら返す。返す距離は貸す距離より遠い。貸している体の脚は EnemyLegs で歩かせる。
     /// 体を返すときは、短くなった部位の形を EnemyShapeKeeper に預け、次に貸すときに戻す。預ける空きがなければ、その敵の体は返さない。
     /// 体に空きがないときは、切断の届きうる近さ（取り上げる距離）の敵を優先し、その敵より一定以上遠い敵のうち最も遠い敵から体を取り上げる。
+    /// 行動中の敵（動き方が Walking でない敵。フィニッシャーとその吸収の対象）には、距離によらず最も優先して貸し、返させも取り上げもしない。
+    /// 腕でつかむ動きとディゾルブを、遠くでも見せる為。
     /// </summary>
     public sealed class EnemyBodyLender
     {
@@ -112,6 +114,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 行動中の敵か。距離によらず体を貸す。
+        /// </summary>
+        private static bool IsActing(in EnemyAgent agent)
+        {
+            return agent.MoveMode != EnemyMoveMode.Walking;
+        }
+
+        /// <summary>
         /// 切断の結果のうち、敵の部位を元の対象とするものを、その部位を持つ体へ渡し、体の部位の状態を敵の状態へ書き戻す。
         /// 体が倒れたら、敵をステージから消して体を空ける。
         /// </summary>
@@ -143,7 +153,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 返す距離より離れた敵と、落ちてステージから消えた敵から、体を返す。
+        /// 返す距離より離れた敵と、落ちてステージから消えた敵から、体を返す。行動中の敵からは、離れていても返さない。
         /// </summary>
         /// <param name="agents">敵の状態</param>
         /// <param name="target">プレイヤーの位置</param>
@@ -157,15 +167,15 @@ namespace Kizami.EngineAdapter
                 if (agentIndex < 0) continue;
 
                 var agent = agents[agentIndex];
-                if (agent.IsAlive && math.distancesq(agent.Position, target) <= returnDistanceSq) continue;
+                if (agent.IsAlive && (IsActing(agent) || math.distancesq(agent.Position, target) <= returnDistanceSq)) continue;
 
                 TryReturnBody(agents, bodyIndex);
             }
         }
 
         /// <summary>
-        /// 貸す距離の中にいる、体を貸していないこの種類の敵へ、近い順に空いている体を貸す。
-        /// 空きがなければ、取り上げる距離の中の敵に限り、その敵より取り上げの差以上遠い敵のうち最も遠い敵から体を返させて貸す。
+        /// 貸す距離の中にいる、体を貸していないこの種類の敵へ、近い順に空いている体を貸す。行動中の敵には、距離によらず最初に貸す。
+        /// 空きがなければ、取り上げる距離の中の敵（と行動中の敵）に限り、その敵より取り上げの差以上遠い敵のうち最も遠い敵から体を返させて貸す。
         /// </summary>
         /// <param name="agents">敵の状態</param>
         /// <param name="target">プレイヤーの位置</param>
@@ -183,7 +193,8 @@ namespace Kizami.EngineAdapter
                 var agent = agents[i];
                 if (!agent.IsAlive || agent.Kind != _kind || agent.BodyIndex >= 0) continue;
 
-                var distanceSq = math.distancesq(agent.Position, target);
+                // 行動中の敵は、並べ替えで先頭に来るよう負の値にする
+                var distanceSq = IsActing(agent) ? -1f : math.distancesq(agent.Position, target);
                 if (distanceSq > lendDistanceSq) continue;
 
                 _lendCandidateDistances[candidateCount] = distanceSq;
@@ -205,7 +216,7 @@ namespace Kizami.EngineAdapter
                 {
                     if (_lendCandidateDistances[c] > reclaimDistanceSq) return;
 
-                    var minDistance = math.sqrt(_lendCandidateDistances[c]) + _reclaimMargin;
+                    var minDistance = math.sqrt(math.max(_lendCandidateDistances[c], 0f)) + _reclaimMargin;
                     bodyIndex = FindFarthestLentBody(agents, target, minDistance * minDistance);
                     if (bodyIndex < 0 || !TryReturnBody(agents, bodyIndex)) return;
                 }
@@ -235,6 +246,15 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 体を返す。
+        /// </summary>
+        /// <param name="bodyIndex">体の番号（EnemyAgent.BodyIndex）</param>
+        public EnemyBody GetBody(int bodyIndex)
+        {
+            return _bodies[bodyIndex];
+        }
+
+        /// <summary>
         /// 体の脚を返す。脚を持たない体では null。
         /// </summary>
         /// <param name="bodyIndex">体の番号（EnemyAgent.BodyIndex）</param>
@@ -253,7 +273,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 貸している体のうち、敵がプレイヤーから距離の 2 乗 minDistanceSq より遠く、最も遠いものを返す。なければ -1。
+        /// 貸している体のうち、敵がプレイヤーから距離の 2 乗 minDistanceSq より遠く、最も遠いものを返す。行動中の敵の体は除く。なければ -1。
         /// </summary>
         private int FindFarthestLentBody(NativeArray<EnemyAgent> agents, float3 target, float minDistanceSq)
         {
@@ -263,7 +283,7 @@ namespace Kizami.EngineAdapter
             for (var bodyIndex = 0; bodyIndex < _bodies.Count; bodyIndex++)
             {
                 var agentIndex = _bodyAgents[bodyIndex];
-                if (agentIndex < 0) continue;
+                if (agentIndex < 0 || IsActing(agents[agentIndex])) continue;
 
                 var distanceSq = math.distancesq(agents[agentIndex].Position, target);
                 if (distanceSq <= farthestDistanceSq) continue;

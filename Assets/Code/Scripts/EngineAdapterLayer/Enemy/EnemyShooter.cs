@@ -456,6 +456,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 生きていて攻撃部位が壊れていないアタッカーの、次に撃てるまでの時間を減らし、撃てる状態で射程の中にいる敵を候補に集める。
+        /// フィニッシャーに止められた敵（動き方が Walking でない敵）は撃たない。
         /// </summary>
         [BurstCompile]
         private struct SelectShootersJob : IJob
@@ -482,7 +483,10 @@ namespace Kizami.EngineAdapter
                         continue;
                     }
 
-                    if (math.distancesq(agent.Position, Target) <= RangeSq) Candidates.Add(i);
+                    if (agent.MoveMode == EnemyMoveMode.Walking && math.distancesq(agent.Position, Target) <= RangeSq)
+                    {
+                        Candidates.Add(i);
+                    }
                 }
             }
         }

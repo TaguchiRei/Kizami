@@ -57,7 +57,13 @@ namespace Kizami.EngineAdapter
         /// <summary> 壊れた移動部位がこの数に達すると、移動しなくなる。出すときに体のプレハブの値を書く </summary>
         public int BrokenMovePartLimit;
 
-        /// <summary> 次に弾を撃てるまでの時間（秒）。0 以下なら撃てる。アタッカーだけが使う </summary>
+        /// <summary> 次に攻撃できるまでの時間（秒）。0 以下なら攻撃できる。アタッカー（弾）とフィニッシャー（吸収とビーム）が使う </summary>
         public float AttackCooldown;
+
+        /// <summary> 動き方。出したときは Walking </summary>
+        public EnemyMoveMode MoveMode;
+
+        /// <summary> 飛んでいる間に向かう位置。MoveMode が Flying の間だけ使う </summary>
+        public float3 FlyTarget;
     }
 }

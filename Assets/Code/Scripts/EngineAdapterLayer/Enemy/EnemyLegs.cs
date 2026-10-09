@@ -50,6 +50,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 脚ごとの、足を置く基準の位置（体の根の空間。高さは根の高さ） </summary>
         private Vector3[] _homes;
 
+        /// <summary> 脚ごとの、休みの姿勢の足先の位置（体の根の空間） </summary>
+        private Vector3[] _restFeet;
+
         private MeshFilter[] _upperMeshes;
         private MeshFilter[] _lowerMeshes;
 
@@ -75,6 +78,9 @@ namespace Kizami.EngineAdapter
         private float _stepProgress;
 
         private Vector3 _previousRootPosition;
+
+        /// <summary> 脚の数 </summary>
+        public int LegCount => _legs.Length;
 
         /// <summary>
         /// メッシュの範囲のうち、基準点から向き axis（単位ベクトル）へ最も遠い所までの長さ。メッシュがなければ 0。
@@ -161,6 +167,15 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 脚 leg の休みの姿勢の足先の位置（ワールド座標）を返す。体が浮いている間、HoldFoot に渡して脚を垂らす。
+        /// </summary>
+        /// <param name="leg">脚の番号（設定の並び）</param>
+        public Vector3 GetRestFootPosition(int leg)
+        {
+            return transform.TransformPoint(_restFeet[leg]);
+        }
+
+        /// <summary>
         /// 留めていた足を放し、基準の位置に置き直す。留めていなければ何もしない。
         /// </summary>
         /// <param name="leg">脚の番号（設定の並び）</param>
@@ -181,6 +196,7 @@ namespace Kizami.EngineAdapter
             _lowerAxes = new Vector3[count];
             _upperLengths = new float[count];
             _homes = new Vector3[count];
+            _restFeet = new Vector3[count];
             _upperMeshes = new MeshFilter[count];
             _lowerMeshes = new MeshFilter[count];
             _planted = new Vector3[count];
@@ -208,6 +224,7 @@ namespace Kizami.EngineAdapter
 
                 // 休みの姿勢の足先の、腰から見た位置
                 var restFoot = knee + _lowerAxes[i] * GetMeshLength(_lowerMeshes[i], _lowerAxes[i]);
+                _restFeet[i] = _hips[i] + restFoot;
                 var side = Mathf.Sign(_hips[i].x) * _splay;
                 _homes[i] = new Vector3(_hips[i].x + restFoot.x * _reachRate + side, 0f,
                     _hips[i].z + restFoot.z * _reachRate);
