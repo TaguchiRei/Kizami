@@ -84,7 +84,7 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-08 時点。区間8R の完了まで）
+## 3. 現状（2026-10-09 時点。区間4D の完了まで）
 
 | 分野 | 状態 |
 |---|---|
@@ -102,7 +102,7 @@
 | 画面空間の擬似破壊シェーダー（`Shader/Boolean`、`Shader/Embedded`） | コードは残してあるが、Renderer Feature は Renderer から外してある。ボクセルとメッシュ切断で足りているため使っていない |
 | ステージシーン | あり（区間4A）。`Assets/Level/Scenes/Stage/TestStage/TestStage.unity` にライト・地面・`TestWalls`（`StageBounds`）・`EnemySpawnSystem` を置き、`InGameGroup` は `[TestStage（アクティブ）, InGame]`。TestStage は 200m 四方で、段差・壁・橋（`CrowdTerrain`）と、ボクセルの壁とスロープ付きの橋（`CrowdVoxelTerrain`）を置き、東西南北の 4 か所から 250 体ずつ出す（区間4B・4C）。敵の出し方は 2 つあり、有効な方が使われる：`EnemySpawnSystem_Few`（10 体、北と南に 5 体ずつ。テストプレイ用で既定）と `EnemySpawnSystem_Crowd`（1000 体。群衆の挙動や負荷を見るとき）（区間6） |
 | 敵の体と切断 | あり（区間4A・4B）。InGame の `Enemy`（`EnemyInitializer`、`EnemySpawnAdapter`）が、敵の状態（`EnemyAgent` の NativeArray。ステージシーンの `EnemySpawnSystem` の上限の数）と生成を持つ。体のプール（Inspector の数、既定 32）、近くの敵への体の貸し出しと返却、切断の受け取りは `EnemyBodyLender`、見た目用の部位（`EnemyDebris`、ディゾルブ `Kizami/EnemyDissolve`）は `EnemyDebrisSpawner` が受け持ち、どちらも `EnemySpawnAdapter` が持つ（区間8R）。`EnemyBody` は、接続部側を残す、子の部位を失う、役割（核で倒れる・移動部位 4 つで止まる）、倒れたら切断済みはオーブ・切っていない部位は見た目用の物、を行う。部位の状態は体を返しても `EnemyAgent` に持ち続け、短くなった部位の形は `EnemyShapeKeeper` が預かる。攻撃はない |
-| 敵の群衆 | あり（区間4B・4C）。1000 体を `EnemyCrowdRenderer`（`RenderMeshInstanced`）でまとめて描画する。経路は格子と距離マップ（`EnemyDistanceField`。初期化のときに物理のクエリで作り、ボクセルの形が変わったら作り直しのあとで変わった列だけ調べ直す。距離は Dial 法の Job）。敵は 12 体のグループ（`EnemyGroups`、`EnemyGroupJob`）で、アンカーの道筋に沿って 1〜4 列の隊列を組み、交互に進み、プレイヤーを螺旋の置き場で囲む。近づいた敵は交戦の螺旋の置き場へ向かい、離れると隊列に戻る（`EnemyMoveJob`）。撃破の穴詰めと合流、動けない敵、戻れない敵の扱いもある。体を貸した敵は `EnemyLegs`（脚の IK）で歩く。体を貸していない敵は休みの姿勢のまま描く。設定は `EnemySpawnAdapter` の Inspector の「Formation」 |
+| 敵の群衆 | あり（区間4B・4C・4D）。1000 体を `EnemyCrowdRenderer`（`RenderMeshInstanced`）でまとめて描画する。経路は格子と距離マップ（`EnemyDistanceField`。初期化のときに物理のクエリで作り、ボクセルの形が変わったら作り直しのあとで変わった列だけ調べ直す。距離は Dial 法の Job で、プレイヤーのいる区画とその周りの 3×3（追跡範囲。区画の大きさは `EnemySpawnSystem`、TestStage は 50m）だけを計算する）。敵は 12 体のグループ（`EnemyGroups`、`EnemyGroupJob`）で、待機・追跡・帰還の状態（`EnemyGroupState`）を持ち、持ち場が追跡範囲の外なら待ち、外れたら来た道を戻る。追跡中はプレイヤーを中心にした螺旋の置き場（グループの目標位置。来た向きで割り当て、持てなければ外の待つ置き場）へ、アンカーの道筋に沿って 1〜4 列の隊列で進み（1 列の数は進む先 18m の最も狭い幅で決める）、着いたらグループの中心の周りの螺旋に並んでプレイヤーを向く（`EnemyMoveJob`）。交戦（隊列を外れてプレイヤーを囲む動き）はない。撃破の穴詰めと合流、動けない敵、戻れない敵の扱いもある。体を貸した敵は `EnemyLegs`（脚の IK）で歩く。体を貸していない敵は休みの姿勢のまま描く。設定は `EnemySpawnAdapter` の Inspector の「Formation」 |
 | 破壊対象とクリア | あり（区間5）。ステージシーンの `DestructionTarget`（`VoxelModelLoader` と同じ GameObject）が、重要パーツ（`PartPath`）が 1 つずつ必要な割合まで削れたら破壊済みにする。InGame の `Stage`（`StageInitializer`、`StageClearAdapter`）が、すべて破壊済みになったらクリアにして、仮の「STAGE CLEAR」を出す。クリアの State はまだない（区間11）。TestStage に門の形の破壊対象を 2 つ置いた |
 | 崩落による撃破とエネルギー | あり（区間5）。足場ごと 3m 以上落ちた敵（`EnemyMoveJob`）と、落ちてくるボクセルの塊に潰された敵（`EnemyCollapseDetector`）を倒す。かけらは出さない。倒した敵の位置は `EnemyEnergyAdapter`（InGame の `EnemyEnergy`）が GraphicsBuffer で VFX Graph（`EnemyEnergy.vfx`）へ渡し、粒をカメラへ吸い込ませる。チャージは倒したときに `ChargeService.AddCollapsedEnemies` で足す。Enemy と Default のレイヤーは衝突しない（落ちてくる塊が体をすり抜ける為）。TestStage に崩す張り出し（`CrowdVoxelTerrain/Overhang`）を置いた |
 | スローモード | あり（区間7）。F で切り替え、`SlowModeService` がチャージを消費して `ITimeScaleController`（常駐の DI）で倍率を 0.25 にする。状態は `ISlowModeState`（`PlayerBoard`）。1 回のスローで振れる回数は 5 回（`SlowModeService.TryUseCut` を `MeleeCutService` へ直接渡す） |
@@ -139,7 +139,7 @@
 | 7 | スローモード・つかみ・投擲・ランチャー | TimeScale の倍率操作、ゲージ消費、スロー中の切断回数の上限、かけらのつかみ・投擲・ランチャー、粉砕ダメージ | 3, 5 | 12/15〜12/28 | 10/26〜10/29 | 完了（2026-10-08） | [Section07](Sections/Section07_SlowMode.md) |
 | 8 | 装甲 | 耐久値、粉砕タイプで一撃破壊、破壊ダメージの遮断、破壊対象の防御パーツ | 5, 7 | 12/29〜2027/01/04 | 10/30〜10/31 | 完了（2026-10-08） | [Section08](Sections/Section08_Armor.md) |
 | 8R | リファクタリング | ソースコードの整備（スキル `code-refactoring`）のあと、コメントの整備（スキル `comment-refactoring`）。挙動は変えない | 8 | 01/05〜01/11 | 10/09〜10/10 | 完了（2026-10-08） | [Section08R](Sections/Section08R_Refactoring.md) |
-| 4D | 群衆アルゴリズムの改変 | 二重の螺旋（グループの目標位置とメンバーの定位置）、待機・追跡・帰還、区画に分けた距離マップ（追跡範囲）、交戦の廃止 | 4C, 8R | 01/12〜01/25 | 10/09〜10/12 | 着手（2026-10-09） | [Section04D](Sections/Section04D_CrowdRedesign.md) |
+| 4D | 群衆アルゴリズムの改変 | 二重の螺旋（グループの目標位置とメンバーの定位置）、待機・追跡・帰還、区画に分けた距離マップ（追跡範囲）、交戦の廃止 | 4C, 8R | 01/12〜01/25 | 10/09〜10/12 | 完了（2026-10-09） | [Section04D](Sections/Section04D_CrowdRedesign.md) |
 | 9 | 敵の固有アクション・バリエーション | 敵の種類と編成、雑魚 3 種の固有のアクション（攻撃する敵の弾、ディフェンダーの円形のバリア、吸収型の敵）、特殊部位（敵を生み出す部位など） | 4D, 8 | 01/26〜02/08 | 10/13〜10/16 | 未着手 | [Section09](Sections/Section09_EnemyVariation.md) |
 | 15 | 大きな建物のボクセル | 1 階分の計測、素材と強度（点ごとの融点）、階の積み重ねと倒壊、メッシュからの差し替えと傷の修復 | 5, 4D | 02/09〜03/01 | 10/17〜10/22 | 未着手 | [Section15](Sections/Section15_LargeVoxelBuilding.md) |
 | 10 | 強化型スキル・回復 | ダメージタイプのデータと判定の窓口（区間8から持ち越し）、各攻撃の強さと減衰率（区間15）、ダメージタイプの付与などの強化型スキル、破壊属性の切断でボクセルを平面で切り分ける、HP を回復するスキル | 6, 7 | 03/02〜03/15 | 10/23〜10/26 | 未着手 | [Section10](Sections/Section10_EnhanceSkill.md) |
