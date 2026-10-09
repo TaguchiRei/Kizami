@@ -46,9 +46,8 @@ namespace Kizami.EngineAdapter
     }
 
     /// <summary>
-    /// 実行中に出す敵の情報 1 件。間隔ごとに、生成位置 1 つから上限の数まで出す。
+    /// 実行中に出す敵の情報 1 件。間隔ごとに、生成位置 1 つから上限の数まで出す。出した敵はグループの人数ずつグループにし、グループの中の順番で編成から種類を決める。
     /// </summary>
-    // TODO: 出す敵の種類を持たせる
     [Serializable]
     public sealed class EnemySpawnInfo
     {
@@ -60,10 +59,25 @@ namespace Kizami.EngineAdapter
         [Tooltip("出す間隔（秒）")]
         private float _interval = 3f;
 
+        [SerializeField]
+        [Tooltip("グループの編成。グループの先頭から順に、この並びの種類で出す。並びより後ろのメンバーは Attacker。空なら全員 Attacker")]
+        private EnemyKind[] _composition = Array.Empty<EnemyKind>();
+
         /// <summary> 一度に出す数の上限 </summary>
         public int MaxCountPerSpawn => _maxCountPerSpawn;
 
         /// <summary> 出す間隔（秒） </summary>
         public float Interval => _interval;
+
+        /// <summary> グループの編成。グループの先頭からの種類の並び </summary>
+        public IReadOnlyList<EnemyKind> Composition => _composition;
+
+        /// <summary>
+        /// グループの中の順番 memberIndex のメンバーの種類を、編成から返す。
+        /// </summary>
+        public EnemyKind GetKind(int memberIndex)
+        {
+            return memberIndex < _composition.Length ? _composition[memberIndex] : EnemyKind.Attacker;
+        }
     }
 }

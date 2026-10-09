@@ -1631,6 +1631,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyInitialSpawnArea
   _radius: 30
   _count: 250
+  _composition: 
 --- !u!1 &736042286
 GameObject:
   m_ObjectHideFlags: 0
@@ -1773,6 +1774,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyInitialSpawnArea
   _radius: 30
   _count: 5
+  _composition: 02000000
 --- !u!1 &814657259
 GameObject:
   m_ObjectHideFlags: 0
@@ -1806,6 +1808,7 @@ MonoBehaviour:
   _spawnInfos:
   - _maxCountPerSpawn: 1
     _interval: 3
+    _composition: 
   _navigationBounds:
     m_Center: {x: 0, y: 9.5, z: 0}
     m_Extent: {x: 100, y: 14.5, z: 100}
@@ -1927,6 +1930,7 @@ MonoBehaviour:
   _spawnInfos:
   - _maxCountPerSpawn: 1
     _interval: 3
+    _composition: 
   _navigationBounds:
     m_Center: {x: 0, y: 9.5, z: 0}
     m_Extent: {x: 100, y: 14.5, z: 100}
@@ -2614,6 +2618,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyInitialSpawnArea
   _radius: 30
   _count: 5
+  _composition: 01000000
 --- !u!1 &1229823781
 GameObject:
   m_ObjectHideFlags: 0
@@ -2698,6 +2703,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyInitialSpawnArea
   _radius: 30
   _count: 250
+  _composition: 0100000002000000
 --- !u!1 &1511765203
 GameObject:
   m_ObjectHideFlags: 0
@@ -2946,6 +2952,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyInitialSpawnArea
   _radius: 30
   _count: 250
+  _composition: 01000000
 --- !u!1 &1571066437
 GameObject:
   m_ObjectHideFlags: 0
@@ -3706,6 +3713,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyInitialSpawnArea
   _radius: 30
   _count: 250
+  _composition: 02000000
 --- !u!1001 &2019215424
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -367,6 +367,7 @@ namespace Kizami.EngineAdapter
 
             _groups = new EnemyGroups(_agents.Length);
             WarnUnstandableSpawnPoints();
+            WarnUnconfiguredKinds();
             _overlapCounts = new NativeArray<int>(2, Allocator.Persistent);
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);
@@ -675,7 +676,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 初期生成情報の範囲に、決まった数の敵を置く。グループの人数ずつ、範囲から選んだ中心の周りにまとめて置く。
+        /// 初期生成情報の範囲に、決まった数の敵を置く。グループの人数ずつ、範囲から選んだ中心の周りにまとめて置く。種類は範囲の編成で決め、体の設定のない種類は置かない。
         /// 中心とメンバーの位置は、立てる所（IsStandable）に来るまで選び直す。中心が見つからないグループは置かず、警告を出す。
         /// </summary>
         private void SpawnInitial()
@@ -698,7 +699,8 @@ namespace Kizami.EngineAdapter
                         }
                     }
 
-                    if (!hasCenter) continue;
+                    var kind = area.GetKind(i % _formation.GroupSize);
+                    if (!hasCenter || _bodyPrefabs[(int)kind] == null) continue;
 
                     var groupCenter = center;
                     var position = PickStandablePosition(() =>
@@ -706,7 +708,7 @@ namespace Kizami.EngineAdapter
                         var offset = Random.insideUnitCircle * _groupSpawnRadius;
                         return groupCenter + new Vector3(offset.x, 0f, offset.y);
                     }, center);
-                    if (!TrySpawn(EnemyKind.Attacker, position, center)) return;
+                    if (!TrySpawn(kind, position, center)) return;
                 }
             }
 
@@ -715,7 +717,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 生成情報ごとに間隔を数え、間隔が来たら次の有効な生成位置から、一度に出す数の上限まで出す。
-        /// 一度に出した敵は、グループの人数ずつ新しいグループにする。
+        /// 一度に出した敵は、グループの人数ずつ新しいグループにする。種類は生成情報の編成で決め、体の設定のない種類は出さない。
         /// </summary>
         private void SpawnByInterval()
         {
@@ -733,8 +735,10 @@ namespace Kizami.EngineAdapter
                 _groups.CloseGroup();
                 for (var n = 0; n < info.MaxCountPerSpawn; n++)
                 {
-                    if (!TrySpawn(EnemyKind.Attacker,
-                            PickStandablePosition(point.GetSpawnPosition, point.transform.position),
+                    var kind = info.GetKind(n % _formation.GroupSize);
+                    if (_bodyPrefabs[(int)kind] == null) continue;
+
+                    if (!TrySpawn(kind, PickStandablePosition(point.GetSpawnPosition, point.transform.position),
                             point.transform.position)) break;
                 }
 
@@ -792,6 +796,33 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 初期生成の範囲と生成情報の編成に、体の設定のない種類があれば、名前つきで警告する。その種類のメンバーは出さない為。
+        /// </summary>
+        private void WarnUnconfiguredKinds()
+        {
+            foreach (var area in _initialSpawnAreas)
+            {
+                foreach (var kind in area.Composition)
+                {
+                    if (_bodyPrefabs[(int)kind] != null) continue;
+
+                    UsefulLogger.LogWarning($"初期生成の範囲 {area.name} の編成にある {kind} は、体の設定がない為に置きません。", area);
+                }
+            }
+
+            var spawnInfos = _spawnSystem.SpawnInfos;
+            for (var i = 0; i < spawnInfos.Count; i++)
+            {
+                foreach (var kind in spawnInfos[i].Composition)
+                {
+                    if (_bodyPrefabs[(int)kind] != null) continue;
+
+                    UsefulLogger.LogWarning($"生成情報 {i} 番の編成にある {kind} は、体の設定がない為に出しません。", _spawnSystem);
+                }
+            }
+        }
+
+        /// <summary>
         /// 生成位置を順番に回し、次の有効な生成位置を返す。無効な生成位置は飛ばす。
         /// </summary>
         private bool TryGetNextSpawnPoint(out EnemySpawnPoint point)
@@ -812,15 +843,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 空いている敵の状態を使い、目標の方を向けて出し、生成中のグループの隊列の最後に入れる。空きがないか、種類の設定がなければ出さない。
+        /// 空いている敵の状態を使い、目標の方を向けて出し、生成中のグループの隊列の最後に入れる。空きがなければ出さない。
         /// </summary>
-        /// <param name="kind">出す敵の種類</param>
+        /// <param name="kind">出す敵の種類。体の設定のある種類に限る</param>
         /// <param name="position">出す位置</param>
         /// <param name="groupCenter">新しいグループを作るときの、アンカーの位置</param>
         private bool TrySpawn(EnemyKind kind, Vector3 position, Vector3 groupCenter)
         {
             var bodyPrefab = _bodyPrefabs[(int)kind];
-            if (bodyPrefab == null) return false;
 
             for (var i = 0; i < _agents.Length; i++)
             {

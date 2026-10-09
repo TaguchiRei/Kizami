@@ -235,12 +235,14 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 倒れた敵、ほかのグループへ移った敵、動けなくなった敵を区画から抜き、残りを順番を保って前へ詰める。
         /// 動けなくなった敵（壊れた移動部位が上限に達した敵）はグループから抜いて、その場に残す。残りがいなければグループを空ける。
+        /// ディフェンダーがいれば、最初の 1 体を 0 番（着いたら螺旋の中心）へ移す。合流や戻れない敵の移し替えで後ろに入っても、ここで中心に戻る。
         /// </summary>
         private void Compact(int g, NativeArray<EnemyAgent> agents)
         {
             var offset = g * EnemyFormationSettings.MAX_GROUP_SIZE;
             var group = _groups[g];
             var count = 0;
+            var defender = -1;
 
             for (var i = 0; i < group.MemberCount; i++)
             {
@@ -255,10 +257,24 @@ namespace Kizami.EngineAdapter
                     continue;
                 }
 
-                agent.SlotIndex = count;
-                agents[index] = agent;
+                if (defender < 0 && agent.Kind == EnemyKind.Defender) defender = count;
                 _members[offset + count] = index;
                 count++;
+            }
+
+            if (defender > 0)
+            {
+                var index = _members[offset + defender];
+                for (var i = defender; i > 0; i--) _members[offset + i] = _members[offset + i - 1];
+                _members[offset] = index;
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                var index = _members[offset + i];
+                var agent = agents[index];
+                agent.SlotIndex = i;
+                agents[index] = agent;
             }
 
             group.MemberCount = count;
@@ -322,6 +338,13 @@ namespace Kizami.EngineAdapter
                 var agent = agents[_members[offset + i]];
                 keys[i] = float.MaxValue;
                 if (!agent.IsAlive || agent.GroupIndex != g) continue;
+
+                // ディフェンダーは並べ替えずに先頭（0 番）に置く
+                if (agent.Kind == EnemyKind.Defender)
+                {
+                    keys[i] = float.MinValue;
+                    continue;
+                }
 
                 if (isReturning)
                 {
