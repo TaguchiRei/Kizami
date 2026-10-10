@@ -35,6 +35,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 帰還中のアンカーが、床に乗れないか止まっていて進めないか </summary>
         public bool IsReturnBlocked;
 
+        /// <summary> 追跡範囲の外で待機している時間（秒） </summary>
+        public float WaitingTime;
+
+        /// <summary> 追跡範囲の外で待機していて、グループとメンバーの処理を止めているか </summary>
+        public bool IsDormant;
+
         /// <summary> アンカーの位置 </summary>
         public float3 AnchorPosition;
 

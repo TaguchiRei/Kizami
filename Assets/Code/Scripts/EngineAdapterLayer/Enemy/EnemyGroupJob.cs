@@ -38,6 +38,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 帰還中のアンカーが帰りの道筋の点にこの距離（m）まで近づいたら、その点を捨てて次の点へ向かう </summary>
         private const float RETURN_POINT_REACH_DISTANCE = 2f;
 
+        /// <summary> 待機を始めてから処理を止めるまでの、メンバーが隊列に並び終える時間に足す余裕（秒） </summary>
+        private const float DORMANT_MARGIN = 1f;
+
 
         public NativeArray<EnemyGroup> Groups;
 
@@ -81,6 +84,20 @@ namespace Kizami.EngineAdapter
             return current < target ? math.min(current + maxDelta, target) : math.max(current - maxDelta, target);
         }
 
+        /// <summary>
+        /// 飛んでいるか、落ちている生きたメンバーがいるか。
+        /// </summary>
+        private bool HasAirborneMember(int g, in EnemyGroup group)
+        {
+            for (var i = 0; i < group.MemberCount; i++)
+            {
+                var agent = Agents[Members[g * EnemyFormationSettings.MAX_GROUP_SIZE + i]];
+                if (agent.IsAlive && agent.GroupIndex == g && (!agent.IsGrounded || agent.MoveMode == EnemyMoveMode.Flying)) return true;
+            }
+
+            return false;
+        }
+
         private bool HasAliveMember(int g, in EnemyGroup group)
         {
             for (var i = 0; i < group.MemberCount; i++)
@@ -90,6 +107,39 @@ namespace Kizami.EngineAdapter
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// 追跡範囲の外で待機しているグループの処理を止めるかを決める（IsDormant）。止めたグループと、そのメンバーのうち立って歩く敵は、EnemyGroupJob・EnemyMoveJob で動かさず、その場に描くだけにする。
+        /// 待機を始めてから、隊列の長さを歩く時間 ＋ DORMANT_MARGIN が経つまでは止めない。持ち場に着いた直後や生成の直後は、メンバーがまだ隊列へ歩いている為。
+        /// 飛んでいる・落ちているメンバーがいる間は、数えた時間を 0 に戻す。着地してから隊列へ歩く時間を残す為。
+        /// 止めている間は足場が壊れても落ちず、範囲に入って処理が戻ったときに落ちる。
+        /// </summary>
+        private void UpdateDormant(int g, ref EnemyGroup group)
+        {
+            if (group.State != EnemyGroupState.Waiting || IsInTrackingRange(group.AnchorPosition)
+                || HasAirborneMember(g, group))
+            {
+                group.WaitingTime = 0f;
+                group.IsDormant = false;
+                return;
+            }
+
+            group.WaitingTime += DeltaTime;
+            var settleTime = MoveSpeed > 0f ? GetFormationLength(group) / MoveSpeed : 0f;
+            group.IsDormant = group.WaitingTime >= settleTime + DORMANT_MARGIN;
+        }
+
+        /// <summary>
+        /// 位置の真下の列が、距離マップを計算した追跡範囲の中にあるか。格子の外は範囲の外とする。
+        /// </summary>
+        private bool IsInTrackingRange(float3 position)
+        {
+            if (!Grid.TryGetColumn(position, out var column)) return false;
+
+            var x = column % Grid.Width;
+            var z = column / Grid.Width;
+            return x >= TrackingMin.x && x <= TrackingMax.x && z >= TrackingMin.y && z <= TrackingMax.y;
         }
 
         /// <summary>
@@ -749,6 +799,13 @@ namespace Kizami.EngineAdapter
                 }
 
                 ApplyCommand(g, ref group);
+                UpdateDormant(g, ref group);
+                if (group.IsDormant)
+                {
+                    Groups[g] = group;
+                    continue;
+                }
+
                 switch (group.State)
                 {
                     case EnemyGroupState.Tracking:
