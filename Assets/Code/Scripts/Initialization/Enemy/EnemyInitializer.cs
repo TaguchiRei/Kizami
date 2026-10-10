@@ -32,7 +32,7 @@ namespace Kizami.Initialization
                 return;
             }
 
-            _spawnAdapter.Initialize(_fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit,
+            _spawnAdapter.Initialize(blackBoard, _fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit,
                 _healthService != null ? _healthService.ApplyDamage : null,
                 _movementService != null ? _movementService.RequestLaunch : null);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

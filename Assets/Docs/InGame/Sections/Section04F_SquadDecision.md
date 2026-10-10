@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手（着手前にこの計画を見直す） |
+| 状態 | 着手（2026-10-10） |
 | 目安の時期 | 2027/02/16〜03/01（最速の推定 2026/10/13〜10/16） |
 | 前提となる区間 | 4E |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -51,16 +51,60 @@
 - 追跡範囲の外では、待機中の部隊は処理されず、帰還中の部隊は帰りの道筋をたどって持ち場まで歩く
 - 敵の処理が合計 4ms 以下（区間4B の決定 6。1000 体、32 体に体を貸す、エディタ、安全チェックなし）
 
+## 既存コードの確認結果（2026-10-10）
+
+| 対象 | 今の状態 | 4F での扱い |
+|---|---|---|
+| `EnemyGroupJob.UpdateState` | 持ち場が追跡範囲に入ったら追跡、外れたら帰還にし、帰還のときは置き場を手放して隊列を前後に入れ替える（`FaceFormation`） | 切り替えは Application へ移す。入れ替えは Engine に残し、命令の状態が変わったときに行う |
+| `MoveHome` の到着 | Job の中で待機にする | Engine は着いたことを観測で返し、待機にするのは Application |
+| `UpdateBlockedTime` | 進めない時間を数え、超えたら持ち場を書き換えて待機にする | Engine は進めないことを観測で返し、時間を数えて持ち場を決めるのは Application |
+| `UpdateEncircleSlot`・`FindFreeSlot` | 置き場の割り当て。置き場の位置は格子から求める（`BuildSlotPoints`） | 詳細仕様の 3 |
+| `HasAliveMember` | メンバーがいなくなったグループを止める | 残りの人数を観測で返す。全滅後の出し直しは区間4G |
+| `MoveAnchor` のバリアの居座り | `HasArrived && IsBarrierRaised` の間は留まる | 詳細仕様の 4 |
+| asmdef | BlackBoard・Application は `Unity.Mathematics`・`Unity.Collections` を参照しない | State は `Vector3` と配列で持ち、Adapter が NativeArray へ写す（部隊は数十） |
+| 敵の Board | ない | `EnemyBoard` を作る |
+
 ## 詳細仕様で決めること
 
-| # | 項目 | 案 |
+すべて推奨の案に決めた（2026-10-10、ユーザー）。
+
+| # | 項目 | 決めたこと |
 |---|---|---|
-| 1 | 命令と観測の State の形 | 部隊の数の上限を固定にし、部隊の番号を Engine 側のグループの番号と同じにする。State の中身を配列で持つか、部隊ごとの構造体の配列か |
-| 2 | 判断の頻度 | 毎フレームか、0.2〜0.5 秒ごとか。状態の切り替えのきっかけ（追跡範囲の切り替え、帰還の到着）は観測で受け取る |
-| 3 | 外側の螺旋の目標位置の割り当て | 置き場の位置の計算（立てる列へずらす）は格子を読むので Engine に残し、どの部隊にどの置き場を渡すかを Application で決めるか |
-| 4 | 区間9の行動の制御 | 攻撃するか、バリアを張るかを命令に入れるか、区間4G 以降へ持ち越すか |
-| 5 | 観測を書くタイミング | Job の完了後に EngineAdapter がまとめて書く。Application の判断は次のフレームの観測を使う |
-| 6 | 範囲の外で止めた敵の落下 | 処理を飛ばしている間に足場が壊れたときは、範囲に入って処理が戻ったときに落ちる形でよいか |
+| 1 | 命令と観測の State の形 | 書く側ごとに 2 つ（Single Writer）。命令 `EnemySquadCommandState`（Application が書く）と観測 `EnemySquadObservationState`（Adapter が書く）。中身は部隊ごとの構造体の配列で、部隊の番号はグループの番号と同じ。長さは有効なスポーン位置の数 |
+| 2 | 判断の頻度 | 毎フレーム。部隊は数十で軽く、間隔を空けると切り替えが遅れて挙動が変わる為 |
+| 3 | 外側の螺旋の目標位置の割り当て | 置き場の位置（立てる列へずらす計算）は Engine が求めて観測で公開し、どの部隊にどの置き場を渡すかは Application が決める。区間4G の撤退で置き場を手放す処理を Application が持つ為 |
+| 4 | 区間9の行動の制御 | 区間4G 以降へ持ち越す。バリアの居座りも Engine の移動に残す |
+| 5 | 観測を書くタイミング | `PlayerMovementService.Step` と同じ直接配線。Adapter の `Update` で、前のフレームの観測を書く → `EnemySquadService.Step` → 命令を読んで Job を Schedule、の順 |
+| 6 | 範囲の外で止めた敵の落下 | 範囲に入って処理が戻ったときに落ちる形でよい |
+
+観測は `Step` の引数で渡す案もあったが、決めたことの 15 と区間4G 以降の利用（バリア・フィニッシャーの判断）を見込んで State にした。
+
+## 作業計画（2026-10-10）
+
+### 新しく作る型
+
+| 型 | 層 | 今の区間で使うもの |
+|---|---|---|
+| `EnemyBoard` | BlackBoard | 2 つの State の登録先 |
+| `EnemySquadCommandState` | BlackBoard | `EnemySpawnAdapter`（読む）、デバッグ表示 |
+| `EnemySquadObservationState` | BlackBoard | `EnemySquadService`（読む） |
+| `EnemySquadService` | Application | `EnemySpawnAdapter` が `Step` を呼ぶ |
+
+部隊の状態は `EnemyGroupState` を BlackBoard へ移して使う。
+
+### コミットの分け方
+
+| # | 内容 | 確かめ方 |
+|---|---|---|
+| 1 | `EnemyBoard` と 2 つの State を作り登録する。Adapter が観測を書く。挙動は変えない | コンパイル、観測の値が動くこと |
+| 2 | `EnemySquadService` で待機・追跡・帰還の切り替え、到着、進めないときの新しい持ち場を決める。Job は命令を読み、`UpdateState`・`UpdateBlockedTime` の判断を消す | 切り替え、橋を切ったときの新しい持ち場 |
+| 3 | 置き場の割り当てを Service へ移す。Engine は置き場の位置を観測で出す | 外側・内側の螺旋、待つ置き場 |
+| 4 | 4F-4：範囲の外の待機中の部隊とメンバーの処理を飛ばし、帰還中の部隊は帰りの道筋をたどる | 範囲の外の帰還、負荷 |
+| 5 | 弾・バリア・吸収の確認、計測、実装結果、全体計画書の更新 | 完了条件すべて |
+
+## 見つけた問題（今回は扱わない）
+
+- `EnemyGroupJob.MoveAnchor` のサマリーに、区間4E で消したレーンの待ち（「同じレーンの前で別のグループが待つ番」）が残っている
 
 ## 他プラットフォームへの対応
 

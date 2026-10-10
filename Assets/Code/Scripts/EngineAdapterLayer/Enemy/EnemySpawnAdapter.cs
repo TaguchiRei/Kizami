@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using Kizami.BlackBoard;
 using Kizami.EngineAdapter.Voxel;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Profiling;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 using UsefulToolkit.MeshCut;
@@ -20,7 +22,7 @@ namespace Kizami.EngineAdapter
     /// 距離マップは、プレイヤーの近く（追跡範囲。区画の大きさは EnemySpawnSystem の設定）だけを、プレイヤーのいるノードか追跡範囲が変わるか、格子を調べ直すたびに計算し直す。
     /// 追跡範囲の中でプレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ自分のグループの持ち場へ戻す。
     /// 足場ごと一定の高さ以上落ちた敵と、ボクセルから切り離されて落ちてくる塊に潰された敵は、崩落で倒す。体を貸していれば返し、かけらは出さない。
-    /// 毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
+    /// 毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かし、グループごとの結果を EnemySquadObservationState に書く。
     /// 切断できる体（EnemyBody）の貸し借りと近接切断の結果の受け渡しは敵の種類ごとの EnemyBodyLender が、体から外れた切っていない部位の見た目用の物は EnemyDebrisSpawner が行う。
     /// アタッカーの弾は同じ GameObject の EnemyShooter が、ディフェンダーのバリアは EnemyBarriers が扱う。
     /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さない。
@@ -65,6 +67,8 @@ namespace Kizami.EngineAdapter
 
         /// <summary> スポーン位置を集めるときに、すでにスポーン位置のある区画を覚える作業用の集合 </summary>
         private readonly HashSet<Vector2Int> _usedSections = new();
+
+        private readonly EnemySquadObservationState _observationState = new();
 
         [SerializeField]
         [Tooltip("敵の種類ごとの体の設定。種類 1 つにつき 1 件。設定のない種類の敵は出さない")]
@@ -322,11 +326,12 @@ namespace Kizami.EngineAdapter
         /// ステージシーンの EnemySpawnSystem を探し、上限の数だけ敵の状態と、体と、見た目用の部位を作る。
         /// 見つからないときは Update を止めたままにする。
         /// </summary>
+        /// <param name="blackBoard">EnemySquadObservationState の登録先</param>
         /// <param name="spawnOrb">倒れた体に残っていた切断済みの部位を、オーブにする関数。引数はオーブを出す位置</param>
         /// <param name="emitEnergy">崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置</param>
         /// <param name="applyDamage">敵の攻撃がプレイヤーに当たったときにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
         /// <param name="requestLaunch">プレイヤーを真上へ打ち上げる関数（PlayerMovementService.RequestLaunch）。引数は上向きの打ち出し速度（m/s）</param>
-        public void Initialize(Action<Vector3> spawnOrb, Action<Vector3> emitEnergy, Action<int> applyDamage,
+        public void Initialize(IBlackBoard blackBoard, Action<Vector3> spawnOrb, Action<Vector3> emitEnergy, Action<int> applyDamage,
             Action<float> requestLaunch)
         {
             _emitEnergy = emitEnergy;
@@ -370,6 +375,10 @@ namespace Kizami.EngineAdapter
             }
 
             _groups = new EnemyGroups(_activeSpawnPoints.Count);
+            if (!blackBoard.TryGetBoard<EnemyBoard>(out var enemyBoard, this)) return;
+
+            _observationState.SetSquadCount(_groups.Groups.Length);
+            enemyBoard.RegisterSceneState<IEnemySquadObservationState>(_observationState, gameObject.scene.buildIndex);
             WarnUnstandableSpawnPoints();
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);
@@ -613,6 +622,42 @@ namespace Kizami.EngineAdapter
             }.Schedule(_agents.Length, 64, groupHandle).Complete();
 
             _groups.MaintainNext(_agents, _distanceField.Grid, _distanceField.Distances);
+            WriteObservations();
+        }
+
+        /// <summary>
+        /// グループごとの、動かした結果を EnemySquadObservationState に書く。
+        /// </summary>
+        private void WriteObservations()
+        {
+            var groups = _groups.Groups;
+            for (var g = 0; g < groups.Length; g++)
+            {
+                var group = groups[g];
+                _observationState.SetSquad(g, new EnemySquadObservation
+                {
+                    IsActive = group.IsActive,
+                    AnchorPosition = group.AnchorPosition,
+                    MemberCount = group.MemberCount,
+                    IsHomeTracked = IsTracked(group.HomePosition),
+                    HasArrived = group.HasArrived
+                });
+            }
+        }
+
+        /// <summary>
+        /// 位置の真下の列が、距離マップを計算した追跡範囲の中にあるか。EnemyGroupJob の判定と同じ。
+        /// </summary>
+        private bool IsTracked(float3 position)
+        {
+            var grid = _distanceField.Grid;
+            if (!grid.TryGetColumn(position, out var column)) return false;
+
+            var x = column % grid.Width;
+            var z = column / grid.Width;
+            var min = _distanceField.TrackingMin;
+            var max = _distanceField.TrackingMax;
+            return x >= min.x && x <= max.x && z >= min.y && z <= max.y;
         }
 
         /// <summary>
