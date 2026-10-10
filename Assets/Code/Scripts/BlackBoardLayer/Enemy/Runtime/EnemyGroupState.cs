@@ -1,7 +1,7 @@
-namespace Kizami.EngineAdapter
+namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// 敵のグループの、持ち場と追跡範囲の関係で決まる状態。
+    /// 敵の部隊（グループ）の、持ち場と追跡範囲の関係で決まる状態。Application（EnemySquadService）が決める。
     /// </summary>
     public enum EnemyGroupState
     {

@@ -1,4 +1,5 @@
 using System;
+using Kizami.BlackBoard;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;

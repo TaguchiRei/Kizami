@@ -79,5 +79,11 @@ namespace Kizami.BlackBoard
 
         /// <summary> アンカーがプレイヤーを囲む螺旋の置き場に着いているか </summary>
         public bool HasArrived;
+
+        /// <summary> 帰還中のアンカーが、帰りの道筋をたどり終えて持ち場に着いたか </summary>
+        public bool HasReachedHome;
+
+        /// <summary> 帰還中のアンカーが、床に乗れないか止まっていて進めないか </summary>
+        public bool IsReturnBlocked;
     }
 }

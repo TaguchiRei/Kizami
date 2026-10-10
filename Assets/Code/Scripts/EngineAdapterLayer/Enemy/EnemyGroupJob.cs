@@ -1,3 +1,4 @@
+using Kizami.BlackBoard;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -13,7 +14,7 @@ namespace Kizami.EngineAdapter
     [BurstCompile]
     public struct EnemyGroupJob : IJob
     {
-        /// <summary> アンカーが止まっているとみなす速さ（m/s）。帰還中にこれより遅い間を、進めない時間として数える </summary>
+        /// <summary> アンカーが止まっているとみなす速さ（m/s）。帰還中にこれより遅い間を、進めないとする </summary>
         private const float STOPPED_SPEED = 0.5f;
 
         /// <summary> アンカーが向かう先として、距離マップの値が下がる列をたどる数 </summary>
@@ -40,8 +41,6 @@ namespace Kizami.EngineAdapter
         /// <summary> 帰還中のアンカーが帰りの道筋の点にこの距離（m）まで近づいたら、その点を捨てて次の点へ向かう </summary>
         private const float RETURN_POINT_REACH_DISTANCE = 2f;
 
-        /// <summary> 帰還中のアンカーが進めない状態がこの時間（秒）続いたら、その位置を新しい持ち場にする </summary>
-        private const float RETURN_BLOCKED_DURATION = 5f;
 
         public NativeArray<EnemyGroup> Groups;
 
@@ -91,48 +90,39 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 持ち場が追跡範囲に入ったら追跡に、外れたら帰還にする。
+        /// 今の状態を命じられた状態（CommandedState）に切り替える。
         /// 追跡を始めるときは、帰りの道筋が空なら持ち場を最初の点にする。帰還を始めるときは包囲の置き場を手放す。
-        /// どちらも、アンカーが向かう先と逆を向いていれば、隊列を前後に入れ替える。
+        /// どちらも、アンカーが向かう先と逆を向いていれば、隊列を前後に入れ替える。待機に入るときは帰りの道筋を捨てる。帰還の観測（着いたか、進めないか）は切り替えるたびに消す。
         /// </summary>
-        private void UpdateState(int g, ref EnemyGroup group, NativeArray<bool> usedEncircleSlots)
+        private void ApplyCommand(int g, ref EnemyGroup group, NativeArray<bool> usedEncircleSlots)
         {
-            var isHomeTracked = IsTracked(group.HomePosition);
+            if (group.State == group.CommandedState) return;
 
-            if (group.State != EnemyGroupState.Tracking && isHomeTracked)
+            group.State = group.CommandedState;
+            group.HasReachedHome = false;
+            group.IsReturnBlocked = false;
+            switch (group.State)
             {
-                group.State = EnemyGroupState.Tracking;
-                group.BlockedTime = 0f;
-                if (group.ReturnCount == 0) PushReturnPoint(g, ref group, group.HomePosition);
+                case EnemyGroupState.Tracking:
+                    if (group.ReturnCount == 0) PushReturnPoint(g, ref group, group.HomePosition);
 
-                FaceFormation(g, ref group, (PlayerPosition - group.AnchorPosition).xz);
-                return;
+                    FaceFormation(g, ref group, (PlayerPosition - group.AnchorPosition).xz);
+                    break;
+                case EnemyGroupState.Returning:
+                    group.HasArrived = false;
+                    if (group.EncircleSlot >= 0)
+                    {
+                        usedEncircleSlots[group.EncircleSlot] = false;
+                        group.EncircleSlot = -1;
+                    }
+
+                    FaceFormation(g, ref group, (GetReturnTarget(g, group) - group.AnchorPosition).xz);
+                    break;
+                default:
+                    group.ReturnCount = 0;
+                    group.AnchorSpeed = 0f;
+                    break;
             }
-
-            if (group.State != EnemyGroupState.Tracking || isHomeTracked) return;
-
-            group.State = EnemyGroupState.Returning;
-            group.BlockedTime = 0f;
-            group.HasArrived = false;
-            if (group.EncircleSlot >= 0)
-            {
-                usedEncircleSlots[group.EncircleSlot] = false;
-                group.EncircleSlot = -1;
-            }
-
-            FaceFormation(g, ref group, (GetReturnTarget(g, group) - group.AnchorPosition).xz);
-        }
-
-        /// <summary>
-        /// 位置の真下の列が、距離マップを計算した追跡範囲の中にあるか。
-        /// </summary>
-        private bool IsTracked(float3 position)
-        {
-            if (!Grid.TryGetColumn(position, out var column)) return false;
-
-            var x = column % Grid.Width;
-            var z = column / Grid.Width;
-            return x >= TrackingMin.x && x <= TrackingMax.x && z >= TrackingMin.y && z <= TrackingMax.y;
         }
 
         /// <summary>
@@ -313,13 +303,15 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 帰還中のアンカーを、帰りの道筋の最も新しい点へ、点がなくなったら持ち場へ歩かせる。点に近づいたら、その点を捨てる。
-        /// 持ち場に着いたら待機にする。
+        /// 持ち場に着いたか（HasReachedHome）と、進めないか（IsReturnBlocked）を書く。
         /// </summary>
         private void MoveHome(int g, ref EnemyGroup group)
         {
+            group.HasReachedHome = false;
+            group.IsReturnBlocked = false;
             if (!TryFitToFloor(ref group, out var column, out var node))
             {
-                UpdateBlockedTime(ref group, true);
+                group.IsReturnBlocked = true;
                 return;
             }
 
@@ -335,9 +327,8 @@ namespace Kizami.EngineAdapter
 
             if (group.ReturnCount == 0 && targetDistance <= ANCHOR_ARRIVE_DISTANCE)
             {
-                group.State = EnemyGroupState.Waiting;
+                group.HasReachedHome = true;
                 group.AnchorSpeed = 0f;
-                group.BlockedTime = 0f;
                 return;
             }
 
@@ -350,22 +341,7 @@ namespace Kizami.EngineAdapter
                 : 0f;
             Advance(ref group, column, node, hasHeading, heading, targetSpeed);
 
-            UpdateBlockedTime(ref group, !isSlowingDown && group.AnchorSpeed < STOPPED_SPEED);
-        }
-
-        /// <summary>
-        /// 帰還中に進めない時間を数え、RETURN_BLOCKED_DURATION を超えたら、アンカーの位置を新しい持ち場にして待機にする。持ち場が追跡範囲の中なら、次のフレームで追跡に戻る。
-        /// 元の持ち場へ移さないのは、持ち場が埋まっていることがあり、プレイヤーが敵を分断する遊び（橋を切るなど）を残す為。
-        /// </summary>
-        private void UpdateBlockedTime(ref EnemyGroup group, bool isBlocked)
-        {
-            group.BlockedTime = isBlocked ? group.BlockedTime + DeltaTime : 0f;
-            if (group.BlockedTime < RETURN_BLOCKED_DURATION) return;
-
-            group.HomePosition = group.AnchorPosition;
-            group.ReturnCount = 0;
-            group.BlockedTime = 0f;
-            group.State = EnemyGroupState.Waiting;
+            group.IsReturnBlocked = !isSlowingDown && group.AnchorSpeed < STOPPED_SPEED;
         }
 
         /// <summary>
@@ -845,7 +821,7 @@ namespace Kizami.EngineAdapter
                     continue;
                 }
 
-                UpdateState(g, ref group, usedEncircleSlots);
+                ApplyCommand(g, ref group, usedEncircleSlots);
                 switch (group.State)
                 {
                     case EnemyGroupState.Tracking:

@@ -22,7 +22,8 @@ namespace Kizami.EngineAdapter
     /// 距離マップは、プレイヤーの近く（追跡範囲。区画の大きさは EnemySpawnSystem の設定）だけを、プレイヤーのいるノードか追跡範囲が変わるか、格子を調べ直すたびに計算し直す。
     /// 追跡範囲の中でプレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ自分のグループの持ち場へ戻す。
     /// 足場ごと一定の高さ以上落ちた敵と、ボクセルから切り離されて落ちてくる塊に潰された敵は、崩落で倒す。体を貸していれば返し、かけらは出さない。
-    /// 毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かし、グループごとの結果を EnemySquadObservationState に書く。
+    /// 毎フレーム、前のフレームのグループごとの結果を EnemySquadObservationState に書き、部隊の命令を決める関数を呼んで、EnemySquadCommandState の状態と持ち場をグループに写す。
+    /// そのあと EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
     /// 切断できる体（EnemyBody）の貸し借りと近接切断の結果の受け渡しは敵の種類ごとの EnemyBodyLender が、体から外れた切っていない部位の見た目用の物は EnemyDebrisSpawner が行う。
     /// アタッカーの弾は同じ GameObject の EnemyShooter が、ディフェンダーのバリアは EnemyBarriers が扱う。
     /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さない。
@@ -243,6 +244,11 @@ namespace Kizami.EngineAdapter
         /// <summary> 崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置 </summary>
         private Action<Vector3> _emitEnergy;
 
+        /// <summary> 部隊の命令を決める関数（EnemySquadService.Step）。引数は経過時間（秒） </summary>
+        private Action<float> _stepSquads;
+
+        private IEnemySquadCommandState _commandState;
+
         private ProfilerRecorder _updateRecorder;
         private ProfilerRecorder _moveRecorder;
         private ProfilerRecorder _bodyRecorder;
@@ -326,15 +332,17 @@ namespace Kizami.EngineAdapter
         /// ステージシーンの EnemySpawnSystem を探し、上限の数だけ敵の状態と、体と、見た目用の部位を作る。
         /// 見つからないときは Update を止めたままにする。
         /// </summary>
-        /// <param name="blackBoard">EnemySquadObservationState の登録先</param>
+        /// <param name="blackBoard">EnemySquadObservationState の登録先と、EnemySquadCommandState の取得元</param>
         /// <param name="spawnOrb">倒れた体に残っていた切断済みの部位を、オーブにする関数。引数はオーブを出す位置</param>
         /// <param name="emitEnergy">崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置</param>
         /// <param name="applyDamage">敵の攻撃がプレイヤーに当たったときにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
         /// <param name="requestLaunch">プレイヤーを真上へ打ち上げる関数（PlayerMovementService.RequestLaunch）。引数は上向きの打ち出し速度（m/s）</param>
+        /// <param name="stepSquads">部隊の命令を決める関数（EnemySquadService.Step）。引数は経過時間（秒）</param>
         public void Initialize(IBlackBoard blackBoard, Action<Vector3> spawnOrb, Action<Vector3> emitEnergy, Action<int> applyDamage,
-            Action<float> requestLaunch)
+            Action<float> requestLaunch, Action<float> stepSquads)
         {
             _emitEnergy = emitEnergy;
+            _stepSquads = stepSquads;
 
             if (_fragmentPool == null)
             {
@@ -375,7 +383,8 @@ namespace Kizami.EngineAdapter
             }
 
             _groups = new EnemyGroups(_activeSpawnPoints.Count);
-            if (!blackBoard.TryGetBoard<EnemyBoard>(out var enemyBoard, this)) return;
+            if (!blackBoard.TryGetBoard<EnemyBoard>(out var enemyBoard, this) ||
+                !blackBoard.TryGetSceneState<EnemyBoard, IEnemySquadCommandState>(out _commandState, this)) return;
 
             _observationState.SetSquadCount(_groups.Groups.Length);
             enemyBoard.RegisterSceneState<IEnemySquadObservationState>(_observationState, gameObject.scene.buildIndex);
@@ -591,11 +600,15 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// グループを更新してから、敵を動かす。動かしたあと、グループを 1 つ整える（穴詰め・並べ替え）。
+        /// 部隊の命令を決めてグループに写し、グループを更新してから、敵を動かす。動かしたあと、グループを 1 つ整える（穴詰め・並べ替え）。
         /// </summary>
         private void MoveAgents()
         {
             var deltaTime = Time.deltaTime;
+            WriteObservations();
+            _stepSquads?.Invoke(deltaTime);
+            ApplyCommands();
+
             var playerPosition = _target != null ? (float3)_target.position : float3.zero;
             var groupHandle = _groups.Schedule(_agents, _distanceField.Grid, _distanceField.Distances,
                 _distanceField.TrackingMin, _distanceField.TrackingMax, _formation, playerPosition, _moveSpeed, deltaTime);
@@ -622,11 +635,10 @@ namespace Kizami.EngineAdapter
             }.Schedule(_agents.Length, 64, groupHandle).Complete();
 
             _groups.MaintainNext(_agents, _distanceField.Grid, _distanceField.Distances);
-            WriteObservations();
         }
 
         /// <summary>
-        /// グループごとの、動かした結果を EnemySquadObservationState に書く。
+        /// グループごとの、前のフレームで動かした結果を EnemySquadObservationState に書く。追跡範囲の判定は、このフレームの距離マップで行う。
         /// </summary>
         private void WriteObservations()
         {
@@ -640,8 +652,30 @@ namespace Kizami.EngineAdapter
                     AnchorPosition = group.AnchorPosition,
                     MemberCount = group.MemberCount,
                     IsHomeTracked = IsTracked(group.HomePosition),
-                    HasArrived = group.HasArrived
+                    HasArrived = group.HasArrived,
+                    HasReachedHome = group.HasReachedHome,
+                    IsReturnBlocked = group.IsReturnBlocked
                 });
+            }
+        }
+
+        /// <summary>
+        /// EnemySquadCommandState の状態と持ち場を、使われているグループに写す。状態の切り替えは EnemyGroupJob が行う。
+        /// </summary>
+        private void ApplyCommands()
+        {
+            var groups = _groups.Groups;
+            var commands = _commandState.Squads;
+            var count = Mathf.Min(groups.Length, commands.Count);
+            for (var g = 0; g < count; g++)
+            {
+                var group = groups[g];
+                if (!group.IsActive) continue;
+
+                var command = commands[g];
+                group.CommandedState = command.State;
+                group.HomePosition = command.HomePosition;
+                groups[g] = group;
             }
         }
 

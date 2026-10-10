@@ -1,3 +1,4 @@
+using Kizami.BlackBoard;
 using Unity.Mathematics;
 
 namespace Kizami.EngineAdapter
@@ -6,17 +7,20 @@ namespace Kizami.EngineAdapter
     /// 敵のグループ 1 つの状態。EnemyGroups が NativeArray に持ち、EnemyGroupJob が更新し、EnemyMoveJob が読む。
     /// グループの先頭（アンカー）は体を持たない仮想の隊長で、距離マップを下って歩き、通った道筋を記録する。メンバーは道筋に沿った隊列の位置を目指す。
     /// 追跡中のアンカーは、プレイヤーを囲む螺旋の上の置き場（グループの目標位置）へ向かい、メンバーはアンカーの後ろにまっすぐ並ぶ横隊になる。
-    /// 持ち場が追跡範囲の外なら持ち場で待ち、中なら追い、外れたら追跡の間に記録した帰りの道筋を逆にたどって持ち場へ戻る。
+    /// 待機・追跡・帰還の状態と持ち場は Application（EnemySquadService）が決め、EnemySpawnAdapter が CommandedState と HomePosition に写す。帰還では追跡の間に記録した帰りの道筋を逆にたどって持ち場へ戻る。
     /// </summary>
     public struct EnemyGroup
     {
         /// <summary> 使われているか。メンバーが全員ステージから消えたら false にする </summary>
         public bool IsActive;
 
-        /// <summary> 待機・追跡・帰還の状態 </summary>
+        /// <summary> 待機・追跡・帰還の今の状態。CommandedState と違えば、EnemyGroupJob が切り替えて揃える </summary>
         public EnemyGroupState State;
 
-        /// <summary> 持ち場。グループを作ったときのアンカーの位置で、帰還の途中で進めなくなったらその位置に変える </summary>
+        /// <summary> Application が命じた状態 </summary>
+        public EnemyGroupState CommandedState;
+
+        /// <summary> 持ち場。Application が命じた位置 </summary>
         public float3 HomePosition;
 
         /// <summary> 帰りの道筋の最も新しい点の、区画の中の番号 </summary>
@@ -25,8 +29,11 @@ namespace Kizami.EngineAdapter
         /// <summary> 帰りの道筋に残っている点の数 </summary>
         public int ReturnCount;
 
-        /// <summary> 帰還の途中で進めない状態が続いている時間（秒） </summary>
-        public float BlockedTime;
+        /// <summary> 帰還中のアンカーが、帰りの道筋をたどり終えて持ち場に着いたか </summary>
+        public bool HasReachedHome;
+
+        /// <summary> 帰還中のアンカーが、床に乗れないか止まっていて進めないか </summary>
+        public bool IsReturnBlocked;
 
         /// <summary> アンカーの位置 </summary>
         public float3 AnchorPosition;
