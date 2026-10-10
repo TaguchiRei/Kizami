@@ -13,10 +13,7 @@ namespace Kizami.EngineAdapter
     [BurstCompile]
     public struct EnemyGroupJob : IJob
     {
-        /// <summary> 進む・待つの時間を、グループごとにずらす割合の幅（±）。グループどうしが同時に動き出さないようにする </summary>
-        private const float PHASE_JITTER = 0.3f;
-
-        /// <summary> アンカーが止まっているとみなす速さ（m/s）。待つ番のグループがこれより遅くなると、同じレーンの後ろのグループは待つ </summary>
+        /// <summary> アンカーが止まっているとみなす速さ（m/s）。帰還中にこれより遅い間を、進めない時間として数える </summary>
         private const float STOPPED_SPEED = 0.5f;
 
         /// <summary> アンカーが向かう先として、距離マップの値が下がる列をたどる数 </summary>
@@ -77,14 +74,6 @@ namespace Kizami.EngineAdapter
 
         public float DeltaTime;
 
-        /// <summary>
-        /// グループの番号から決まる 0〜1 の値。
-        /// </summary>
-        private static float GetGroupRandom(int g)
-        {
-            return (math.hash(new uint2((uint)g, 0x9E3779B9u)) & 0xFFFFu) / 65535f;
-        }
-
         private static float MoveTowards(float current, float target, float maxDelta)
         {
             return current < target ? math.min(current + maxDelta, target) : math.max(current - maxDelta, target);
@@ -99,22 +88,6 @@ namespace Kizami.EngineAdapter
             }
 
             return false;
-        }
-
-        private void UpdatePhase(int g, ref EnemyGroup group)
-        {
-            if (!Formation.UsesAlternatingAdvance)
-            {
-                group.IsAdvancing = true;
-                return;
-            }
-
-            group.PhaseTimer -= DeltaTime;
-            if (group.PhaseTimer > 0f) return;
-
-            group.IsAdvancing = !group.IsAdvancing;
-            var jitter = 1f + PHASE_JITTER * (2f * GetGroupRandom(g) - 1f);
-            group.PhaseTimer += (group.IsAdvancing ? Formation.AdvanceDuration : Formation.HoldDuration) * jitter;
         }
 
         /// <summary>
@@ -293,7 +266,7 @@ namespace Kizami.EngineAdapter
                 if (hasHeading)
                 {
                     heading = GetDownhillHeading(group.AnchorPosition, column, height, nextColumn);
-                    if (group.IsAdvancing && !IsBlockedByGroupAhead(g, group)) targetSpeed = MoveSpeed * Formation.AnchorSpeedRate;
+                    targetSpeed = MoveSpeed * Formation.AnchorSpeedRate;
                 }
             }
             else
@@ -307,11 +280,8 @@ namespace Kizami.EngineAdapter
                 else if (TryGetHeadingToward(group.AnchorPosition, column, height, distance, toTarget, out heading))
                 {
                     hasHeading = true;
-                    if (group.IsAdvancing)
-                    {
-                        targetSpeed = MoveSpeed * Formation.AnchorSpeedRate
-                                      * math.saturate(targetDistance / ANCHOR_SLOW_DOWN_DISTANCE);
-                    }
+                    targetSpeed = MoveSpeed * Formation.AnchorSpeedRate
+                                  * math.saturate(targetDistance / ANCHOR_SLOW_DOWN_DISTANCE);
                 }
             }
 
@@ -704,47 +674,6 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 同じレーンの前で、待つ番で止まっている別のグループがあるか。
-        /// 同じレーンとは、このアンカーの前方で、相手の最後尾までがグループの間隔より近く、横のずれが 2 つの隊列の幅の半分の和より小さいこと。
-        /// 前を行く相手が待つ番で止まったら、その後ろで止まる。着いて止まったグループ、詰まって止まったグループ、包囲の置き場を持つグループ、追跡していないグループの後ろでは待たない（待ちが後ろへ連鎖して、全体が止まらないようにする為）。
-        /// 前後は、プレイヤーまでの経路が短い方を前とし、同じなら番号の小さい方を前とする。
-        /// </summary>
-        private bool IsBlockedByGroupAhead(int g, in EnemyGroup group)
-        {
-            if (!Formation.UsesAlternatingAdvance) return false;
-
-            var forward = new float2(math.sin(group.AnchorYaw), math.cos(group.AnchorYaw));
-            var halfWidth = GetFormationHalfWidth(group);
-
-            for (var h = 0; h < Groups.Length; h++)
-            {
-                if (h == g) continue;
-
-                var other = Groups[h];
-                if (!other.IsActive || other.State != EnemyGroupState.Tracking || other.EncircleSlot >= 0 || other.IsAdvancing || other.AnchorSpeed > STOPPED_SPEED) continue;
-                if (other.AnchorDistance > group.AnchorDistance
-                    || (other.AnchorDistance == group.AnchorDistance && h > g)) continue;
-
-                var toOther = other.AnchorPosition.xz - group.AnchorPosition.xz;
-                var along = math.dot(forward, toOther);
-                if (along <= 0f || along > Formation.GroupSpacing + GetFormationLength(other)) continue;
-
-                var across = math.abs(forward.x * toOther.y - forward.y * toOther.x);
-                if (across < halfWidth + GetFormationHalfWidth(other)) return true;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// グループの隊列の幅の半分（m）。隣の隊列との間に、横の間隔の半分をあける。
-        /// </summary>
-        private float GetFormationHalfWidth(in EnemyGroup group)
-        {
-            return math.max(1, group.ColumnCount) * Formation.LateralSpacing * 0.5f;
-        }
-
-        /// <summary>
         /// グループの隊列の、アンカーから最後尾の列までの道筋に沿った長さ（m）。
         /// </summary>
         private float GetFormationLength(in EnemyGroup group)
@@ -920,7 +849,6 @@ namespace Kizami.EngineAdapter
                 switch (group.State)
                 {
                     case EnemyGroupState.Tracking:
-                        UpdatePhase(g, ref group);
                         MoveAnchor(g, ref group, usedEncircleSlots, slotPoints, lastUsableSlot);
                         RecordReturnPath(g, ref group);
                         break;

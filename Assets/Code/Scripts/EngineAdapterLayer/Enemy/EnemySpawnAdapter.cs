@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Kizami.EngineAdapter.Voxel;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -42,9 +41,6 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 生成する位置が立てる所に来るまで、選び直す回数の上限 </summary>
         private const int SPAWN_POSITION_ATTEMPTS = 16;
-
-        /// <summary> 別のグループの敵どうしが重なっているとみなす、水平の距離（m） </summary>
-        private const float OVERLAP_DISTANCE = 2f;
 
         private const string UPDATE_MARKER_NAME = "Kizami.Enemy.Update";
         private const string MOVE_MARKER_NAME = "Kizami.Enemy.Move";
@@ -136,10 +132,6 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0f)]
         [Tooltip("距離マップをギズモで描く、プレイヤーからの半径（m）")]
         private float _distanceGizmoRadius = 25f;
-
-        [SerializeField]
-        [Tooltip("別のグループの敵どうしが 2m 以内に重なる組の数を毎フレーム数える（デバッグ表示用）。敵の数の 2 乗に比例して重いので、計測のときは切る")]
-        private bool _countsOverlaps;
 
         [SerializeField, Min(0f)]
         [Tooltip("敵が歩く速さ（m/s）")]
@@ -242,9 +234,6 @@ namespace Kizami.EngineAdapter
         /// <summary> 崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置 </summary>
         private Action<Vector3> _emitEnergy;
 
-        /// <summary> 重なる組の数の Job の結果。移動中の組と、両方のグループが着いた組 </summary>
-        private NativeArray<int> _overlapCounts;
-
         private ProfilerRecorder _updateRecorder;
         private ProfilerRecorder _moveRecorder;
         private ProfilerRecorder _bodyRecorder;
@@ -307,12 +296,6 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 体の貸し出し・返却と位置の同期にかかったメインスレッドの時間（ms）。直近のフレームの平均 </summary>
         public double BodyMilliseconds => GetAverageMilliseconds(_bodyRecorder);
-
-        /// <summary> 別のグループの敵どうしが重なる組のうち、どちらかのグループが移動中の組の数。数えていなければ -1 </summary>
-        public int MovingOverlapCount => _countsOverlaps && _overlapCounts.IsCreated ? _overlapCounts[0] : -1;
-
-        /// <summary> 別のグループの敵どうしが重なる組のうち、両方のグループが置き場に着いている組の数。数えていなければ -1 </summary>
-        public int ArrivedOverlapCount => _countsOverlaps && _overlapCounts.IsCreated ? _overlapCounts[1] : -1;
 
         /// <summary> 経路の格子と距離マップ。初期化の前は null </summary>
         public EnemyDistanceField DistanceField => _distanceField;
@@ -392,7 +375,6 @@ namespace Kizami.EngineAdapter
             _groups = new EnemyGroups(_agents.Length);
             WarnUnstandableSpawnPoints();
             WarnUnconfiguredKinds();
-            _overlapCounts = new NativeArray<int>(2, Allocator.Persistent);
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _bodyRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, BODY_MARKER_NAME, TIMING_SAMPLE_COUNT);
@@ -543,7 +525,6 @@ namespace Kizami.EngineAdapter
             _collapseDetector?.Dispose();
             _groups?.Dispose();
             if (_agents.IsCreated) _agents.Dispose();
-            if (_overlapCounts.IsCreated) _overlapCounts.Dispose();
             _updateRecorder.Dispose();
             _moveRecorder.Dispose();
             _bodyRecorder.Dispose();
@@ -607,7 +588,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// グループを更新してから、敵を動かす。動かしたあと、グループを 1 つ整える（穴詰め・合流・並べ替え）。
+        /// グループを更新してから、敵を動かす。動かしたあと、グループを 1 つ整える（穴詰め・並べ替え）。
         /// </summary>
         private void MoveAgents()
         {
@@ -637,18 +618,7 @@ namespace Kizami.EngineAdapter
                 FloatingFallSpeed = _floatingFallSpeed
             }.Schedule(_agents.Length, 64, groupHandle).Complete();
 
-            _groups.MaintainNext(_agents, _distanceField.Grid, _distanceField.Distances, _formation);
-
-            if (_countsOverlaps)
-            {
-                new OverlapCountJob
-                {
-                    Agents = _agents,
-                    Groups = _groups.Groups,
-                    OverlapDistanceSq = OVERLAP_DISTANCE * OVERLAP_DISTANCE,
-                    Counts = _overlapCounts
-                }.Schedule().Complete();
-            }
+            _groups.MaintainNext(_agents, _distanceField.Grid, _distanceField.Distances);
         }
 
         /// <summary>
@@ -714,8 +684,7 @@ namespace Kizami.EngineAdapter
                 agent.VerticalSpeed = 0f;
                 agent.FallStartHeight = position.y;
                 agent.StrandedTime = 0f;
-                _groups.TryAdd(i, ref agent, home, GetYawToTarget(home), Random.Range(0f, _formation.HoldDuration),
-                    _formation);
+                _groups.TryAdd(i, ref agent, home, GetYawToTarget(home), _formation);
                 _agents[i] = agent;
             }
 
@@ -942,8 +911,7 @@ namespace Kizami.EngineAdapter
                     GroupIndex = -1
                 };
 
-                var phaseTimer = Random.Range(0f, _formation.HoldDuration);
-                _groups.TryAdd(i, ref agent, groupCenter, GetYawToTarget(groupCenter), phaseTimer, _formation);
+                _groups.TryAdd(i, ref agent, groupCenter, GetYawToTarget(groupCenter), _formation);
                 _agents[i] = agent;
                 return true;
             }
@@ -957,45 +925,6 @@ namespace Kizami.EngineAdapter
 
             var direction = _target.position - position;
             return direction.x == 0f && direction.z == 0f ? 0f : math.atan2(direction.x, direction.z);
-        }
-
-        /// <summary>
-        /// 別のグループに入っている出ている敵どうしで、水平の距離が OverlapDistanceSq の平方根より近い組を数える。
-        /// 両方のグループが置き場に着いている組と、それ以外（移動中）の組に分ける。総当たりなので、デバッグ表示のときだけ回す。
-        /// </summary>
-        [BurstCompile]
-        private struct OverlapCountJob : IJob
-        {
-            [ReadOnly] public NativeArray<EnemyAgent> Agents;
-            [ReadOnly] public NativeArray<EnemyGroup> Groups;
-            public float OverlapDistanceSq;
-
-            /// <summary> 0 番に移動中の組、1 番に着いた組の数を書く </summary>
-            public NativeArray<int> Counts;
-
-            public void Execute()
-            {
-                var moving = 0;
-                var arrived = 0;
-                for (var i = 0; i < Agents.Length; i++)
-                {
-                    var a = Agents[i];
-                    if (!a.IsAlive || a.GroupIndex < 0) continue;
-
-                    for (var j = i + 1; j < Agents.Length; j++)
-                    {
-                        var b = Agents[j];
-                        if (!b.IsAlive || b.GroupIndex < 0 || b.GroupIndex == a.GroupIndex) continue;
-                        if (math.distancesq(a.Position.xz, b.Position.xz) >= OverlapDistanceSq) continue;
-
-                        if (Groups[a.GroupIndex].HasArrived && Groups[b.GroupIndex].HasArrived) arrived++;
-                        else moving++;
-                    }
-                }
-
-                Counts[0] = moving;
-                Counts[1] = arrived;
-            }
         }
     }
 }

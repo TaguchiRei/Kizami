@@ -1389,7 +1389,6 @@ MonoBehaviour:
     m_Bits: 513
   _drawDistanceField: 0
   _distanceGizmoRadius: 25
-  _countsOverlaps: 0
   _moveSpeed: 3
   _flySpeed: 8
   _turnSpeed: 180
@@ -1399,15 +1398,10 @@ MonoBehaviour:
     _anchorSpeedRate: 0.8
     _anchorAcceleration: 1.5
     _anchorTurnSpeed: 90
-    _usesAlternatingAdvance: 0
-    _advanceDuration: 4
-    _holdDuration: 2
-    _groupSpacing: 4
     _rowSpacing: 8
     _lateralSpacing: 2.5
     _maxColumns: 4
     _columnChangeDelay: 1
-    _mergeSize: 4
     _encircleApproachMargin: 5
     _encircleInnerRadius: 25
     _encircleLoopSpacing: 25

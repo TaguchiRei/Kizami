@@ -23,9 +23,6 @@ namespace Kizami.EngineAdapter
         /// <summary> 帰りの道筋に点を足す間隔（m） </summary>
         public const float RETURN_PATH_SPACING = 5f;
 
-        /// <summary> 合流する先のグループの、アンカーどうしの距離の上限（m） </summary>
-        private const float MERGE_DISTANCE = 40f;
-
         private NativeArray<EnemyGroup> _groups;
 
         /// <summary> グループごとに PATH_CAPACITY 個の区画を持つ道筋の点。区画はリングバッファとして使う </summary>
@@ -168,14 +165,13 @@ namespace Kizami.EngineAdapter
         /// <param name="agent">入れる敵。GroupIndex と SlotIndex を書く</param>
         /// <param name="anchorPosition">新しいグループを作るときの、アンカーの位置。持ち場にもする</param>
         /// <param name="anchorYaw">新しいグループを作るときの、アンカーの向き</param>
-        /// <param name="phaseTimer">新しいグループを作るときの、最初に進み始めるまでの時間（秒）</param>
         /// <param name="formation">隊列の設定</param>
-        public bool TryAdd(int agentIndex, ref EnemyAgent agent, float3 anchorPosition, float anchorYaw, float phaseTimer,
+        public bool TryAdd(int agentIndex, ref EnemyAgent agent, float3 anchorPosition, float anchorYaw,
             in EnemyFormationSettings formation)
         {
             if (_openGroup < 0 || !_groups[_openGroup].IsActive || _groups[_openGroup].MemberCount >= formation.GroupSize)
             {
-                _openGroup = OpenGroup(anchorPosition, anchorYaw, phaseTimer, formation);
+                _openGroup = OpenGroup(anchorPosition, anchorYaw, formation);
                 if (_openGroup < 0) return false;
             }
 
@@ -217,14 +213,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 使われているグループを 1 つ順番に選んで整える。毎フレーム 1 グループずつ呼ぶ。Job が走っていない間に呼ぶ。
-        /// 倒れた敵、ほかのグループへ移った敵、動けなくなった敵を隊列から抜いて順番を詰め（穴を後ろへずらす）、
-        /// メンバーが合流する数以下に減っていれば、近くの空きのあるグループへ合流させる。
-        /// 合流しなければ、メンバーの隊列の順番を、向かう先に近い順に並べ替える（先頭の列に向かう先に近いメンバーが来て、隊列の位置へ向かうメンバーどうしが交差しにくくなる）。
+        /// 倒れた敵、動けなくなった敵を隊列から抜いて順番を詰め（穴を後ろへずらす）、
+        /// メンバーの隊列の順番を、向かう先に近い順に並べ替える（先頭の列に向かう先に近いメンバーが来て、隊列の位置へ向かうメンバーどうしが交差しにくくなる）。
         /// 向かう先に近い順は、帰還中は持ち場までの直線の距離、それ以外はプレイヤーまでの経路の長さで決める。
         /// 置き場に着いて螺旋に並んでいるグループは並べ替えない。順番が螺旋の上の位置なので、入れ替えると並び直しが続く為。
         /// </summary>
-        public void MaintainNext(NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances,
-            in EnemyFormationSettings formation)
+        public void MaintainNext(NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances)
         {
             for (var attempt = 0; attempt < _groups.Length; attempt++)
             {
@@ -234,7 +228,6 @@ namespace Kizami.EngineAdapter
 
                 Compact(g, agents);
                 if (!_groups[g].IsActive) return;
-                if (_groups[g].MemberCount <= formation.MergeSize && TryMerge(g, agents, formation)) return;
 
                 if (!_groups[g].HasArrived) Reorder(g, agents, grid, distances);
                 return;
@@ -242,9 +235,9 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 倒れた敵、ほかのグループへ移った敵、動けなくなった敵を区画から抜き、残りを順番を保って前へ詰める。
+        /// 倒れた敵、動けなくなった敵を区画から抜き、残りを順番を保って前へ詰める。
         /// 動けなくなった敵（壊れた移動部位が上限に達した敵）はグループから抜いて、その場に残す。残りがいなければグループを空ける。
-        /// ディフェンダーがいれば、最初の 1 体を 0 番（着いたら螺旋の中心）へ移す。合流や戻れない敵の移し替えで後ろに入っても、ここで中心に戻る。
+        /// ディフェンダーがいれば、最初の 1 体を 0 番（着いたら螺旋の中心）へ移す。戻れない敵の移し替えで後ろに入っても、ここで中心に戻る。
         /// </summary>
         private void Compact(int g, NativeArray<EnemyAgent> agents)
         {
@@ -289,49 +282,6 @@ namespace Kizami.EngineAdapter
             group.MemberCount = count;
             group.IsActive = count > 0;
             _groups[g] = group;
-        }
-
-        /// <summary>
-        /// グループ g のメンバーを、MERGE_DISTANCE より近く、合わせても人数を超えないグループのうち、アンカーが最も近いグループの隊列の最後に移す。
-        /// 移したら g を空けて true を返す。
-        /// </summary>
-        private bool TryMerge(int g, NativeArray<EnemyAgent> agents, in EnemyFormationSettings formation)
-        {
-            var source = _groups[g];
-            var target = -1;
-            var bestDistanceSq = MERGE_DISTANCE * MERGE_DISTANCE;
-
-            for (var h = 0; h < _groups.Length; h++)
-            {
-                var other = _groups[h];
-                if (h == g || !other.IsActive || other.MemberCount + source.MemberCount > formation.GroupSize) continue;
-
-                var distanceSq = math.distancesq(other.AnchorPosition.xz, source.AnchorPosition.xz);
-                if (distanceSq >= bestDistanceSq) continue;
-
-                bestDistanceSq = distanceSq;
-                target = h;
-            }
-
-            if (target < 0) return false;
-
-            var destination = _groups[target];
-            for (var i = 0; i < source.MemberCount; i++)
-            {
-                var index = _members[g * EnemyFormationSettings.MAX_GROUP_SIZE + i];
-                var agent = agents[index];
-                agent.GroupIndex = target;
-                agent.SlotIndex = destination.MemberCount;
-                agents[index] = agent;
-                _members[target * EnemyFormationSettings.MAX_GROUP_SIZE + destination.MemberCount] = index;
-                destination.MemberCount++;
-            }
-
-            _groups[target] = destination;
-            source.IsActive = false;
-            source.MemberCount = 0;
-            _groups[g] = source;
-            return true;
         }
 
         private void Reorder(int g, NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances)
@@ -396,9 +346,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 空いているグループを使い始め、道筋をアンカーの後ろへまっすぐ伸ばした点で埋めて、生成した直後から隊列の位置が決まるようにする。空きがなければ -1。
-        /// アンカーの位置を持ち場にし、待機の状態から始める。進む・待つの交互は、待つ番から始め、phaseTimer の後に進み始める。
+        /// アンカーの位置を持ち場にし、待機の状態から始める。
         /// </summary>
-        private int OpenGroup(float3 anchorPosition, float anchorYaw, float phaseTimer, in EnemyFormationSettings formation)
+        private int OpenGroup(float3 anchorPosition, float anchorYaw, in EnemyFormationSettings formation)
         {
             for (var g = 0; g < _groups.Length; g++)
             {
@@ -421,9 +371,7 @@ namespace Kizami.EngineAdapter
                     AnchorPosition = anchorPosition,
                     AnchorYaw = anchorYaw,
                     AnchorDistance = float.PositiveInfinity,
-                    IsAdvancing = false,
                     EncircleSlot = -1,
-                    PhaseTimer = phaseTimer,
                     ColumnCount = 1,
                     PendingColumnCount = 1,
                     PathHead = pathCount - 1,

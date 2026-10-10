@@ -37,20 +37,14 @@ namespace Kizami.EngineAdapter
         /// <summary> アンカーの今の速さ（m/s） </summary>
         public float AnchorSpeed;
 
-        /// <summary> アンカーのいるノードの、プレイヤーまでの経路の長さ（m）。前を行くグループかどうかの比較に使う </summary>
+        /// <summary> アンカーのいるノードの、プレイヤーまでの経路の長さ（m） </summary>
         public float AnchorDistance;
-
-        /// <summary> 進んでいる間か。false の間は止まって待つ </summary>
-        public bool IsAdvancing;
 
         /// <summary> プレイヤーを囲む螺旋の上の置き場（グループの目標位置）の番号。追跡していないか、使える置き場が空いていなければ -1 </summary>
         public int EncircleSlot;
 
         /// <summary> アンカーが包囲の置き場に着いているか </summary>
         public bool HasArrived;
-
-        /// <summary> 進む・待つを切り替えるまでの残り時間（秒） </summary>
-        public float PhaseTimer;
 
         /// <summary> メンバーの区画に入っている数。倒れたメンバーの区画も、詰めるまでは数える </summary>
         public int MemberCount;

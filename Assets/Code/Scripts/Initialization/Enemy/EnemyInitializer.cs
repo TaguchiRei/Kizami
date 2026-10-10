@@ -47,7 +47,6 @@ namespace Kizami.Initialization
             DebugGUI.ObserveVariable("Distance Field", GetDistanceFieldText);
             DebugGUI.ObserveVariable("Tracking", GetTrackingText);
             DebugGUI.ObserveVariable("Group States", GetGroupStateText);
-            DebugGUI.ObserveVariable("Overlaps", GetOverlapText);
 #endif
 
             base.Initialize(blackBoard);
@@ -97,15 +96,6 @@ namespace Kizami.Initialization
         {
             _spawnAdapter.CountGroupStates(out var waiting, out var tracking, out var returning);
             return $"waiting {waiting} / tracking {tracking} / returning {returning}";
-        }
-
-        /// <summary>
-        /// 別のグループの敵どうしが 2m 以内に重なる組の数を、移動中と着いたあとに分けて並べる。数えていなければ「off」。
-        /// </summary>
-        private string GetOverlapText()
-        {
-            var moving = _spawnAdapter.MovingOverlapCount;
-            return moving < 0 ? "off" : $"moving {moving} / arrived {_spawnAdapter.ArrivedOverlapCount}";
         }
 
         /// <summary>

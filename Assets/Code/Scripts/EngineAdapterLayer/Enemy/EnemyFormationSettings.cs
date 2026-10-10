@@ -29,22 +29,6 @@ namespace Kizami.EngineAdapter
         [Tooltip("アンカーが向きを変える速さ（度/秒）")]
         private float _anchorTurnSpeed;
 
-        [SerializeField]
-        [Tooltip("グループが進む・待つを交互に繰り返し、同じレーンの前で待っているグループの後ろで待つか。切ると、グループは止まらずに進む")]
-        private bool _usesAlternatingAdvance;
-
-        [SerializeField, Min(0.1f)]
-        [Tooltip("グループが進み続ける時間（秒）。グループごとに ±30% ずらす")]
-        private float _advanceDuration;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("グループが止まって待つ時間（秒）。グループごとに ±30% ずらす")]
-        private float _holdDuration;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("アンカーは、同じレーンの前で待つ番で止まっている別のグループの最後尾までが、この距離（m）より近ければ止まって待つ")]
-        private float _groupSpacing;
-
         [SerializeField, Min(0.1f)]
         [Tooltip("隊列の列の間隔（道筋に沿った前後の間隔、m）")]
         private float _rowSpacing;
@@ -60,10 +44,6 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0f)]
         [Tooltip("1 列に並べる数を変えるのは、新しい数がこの時間（秒）続いたとき。狭い所の出入りで並びが細かく入れ替わらないようにする")]
         private float _columnChangeDelay;
-
-        [SerializeField, Range(0, MAX_GROUP_SIZE)]
-        [Tooltip("メンバーがこの数以下に減ったグループは、近くの空きのあるグループへ合流する")]
-        private int _mergeSize;
 
         [SerializeField, Min(0f)]
         [Tooltip("追跡中のアンカーは、プレイヤーまでの経路の長さが「置き場のプレイヤーまでの経路の長さ ＋ この値（m）」より長い間は距離マップを下り、内側で置き場へまっすぐ向かう")]
@@ -109,18 +89,6 @@ namespace Kizami.EngineAdapter
         /// <summary> アンカーが向きを変える速さ（度/秒） </summary>
         public float AnchorTurnSpeed => _anchorTurnSpeed;
 
-        /// <summary> グループが進む・待つを交互に繰り返し、同じレーンの前で待っているグループの後ろで待つか </summary>
-        public bool UsesAlternatingAdvance => _usesAlternatingAdvance;
-
-        /// <summary> グループが進み続ける時間（秒） </summary>
-        public float AdvanceDuration => _advanceDuration;
-
-        /// <summary> グループが止まって待つ時間（秒） </summary>
-        public float HoldDuration => _holdDuration;
-
-        /// <summary> 前を行く別のグループの最後尾との間にあける距離（m） </summary>
-        public float GroupSpacing => _groupSpacing;
-
         /// <summary> 隊列の列の間隔（m） </summary>
         public float RowSpacing => _rowSpacing;
 
@@ -132,9 +100,6 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 1 列に並べる数を変えるまでに、新しい数が続く必要がある時間（秒） </summary>
         public float ColumnChangeDelay => _columnChangeDelay;
-
-        /// <summary> 近くのグループへ合流する、メンバーの数の上限 </summary>
-        public int MergeSize => _mergeSize;
 
         /// <summary> 追跡中のアンカーが距離マップを下るのをやめ、置き場へまっすぐ向かい始める、置き場のプレイヤーまでの経路の長さからの余裕（m） </summary>
         public float EncircleApproachMargin => _encircleApproachMargin;
@@ -167,14 +132,10 @@ namespace Kizami.EngineAdapter
             _anchorSpeedRate = 0.8f,
             _anchorAcceleration = 1.5f,
             _anchorTurnSpeed = 90f,
-            _advanceDuration = 4f,
-            _holdDuration = 2f,
-            _groupSpacing = 4f,
             _rowSpacing = 8f,
             _lateralSpacing = 2.5f,
             _maxColumns = 4,
             _columnChangeDelay = 1f,
-            _mergeSize = 4,
             _encircleApproachMargin = 5f,
             _encircleInnerRadius = 25f,
             _encircleLoopSpacing = 25f,
