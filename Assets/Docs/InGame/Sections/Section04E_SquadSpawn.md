@@ -1,0 +1,247 @@
+# 区間4E：スポーン位置と編成
+
+| 項目 | 内容 |
+|---|---|
+| 状態 | 完了（2026-10-10） |
+| 目安の時期 | 2027/02/09〜02/15（最速の推定 2026/10/11〜10/12） |
+| 前提となる区間 | 9 |
+| 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
+
+区間の番号は識別用。区間4E は 2026-10-10 に追加した区間で、区間9のあと、区間4F の前に行う。
+
+## 目的
+
+敵のスポーンを「スポーン位置 1 つにつき 1 グループ」にする。
+
+- スポーン位置ごとに、属する区画と、出すグループの編成（ScriptableObject）を指定する
+- 初期生成の範囲と、間隔での生成をなくす
+- ほかのグループとの合流と、グループごとの交互の前進をなくす
+- 区画とスポーン位置を、シーンビューで見て選べるようにする
+
+撤退・補充・全滅後の出し直しは区間4G で作る。この区間では、開始時に出したグループが減っていくだけになる。
+
+## 関連する仕様
+
+- 仕様の決定の一覧：[EnemySquadRedesign.md](../EnemySquadRedesign.md)（「決めたこと」1〜5、12、17、18）
+- 敵の出現：https://app.notion.com/p/3e91ea2aa7fa81de9e78d74221c216c8
+- 敵の群衆の動き：https://app.notion.com/p/3f01ea2aa7fa81b79394e168026e83e7
+- 敵の群衆 AI：https://app.notion.com/p/3f01ea2aa7fa81faad84f46c32a3b860
+- 仕様検討リストの経緯：https://app.notion.com/p/3f41ea2aa7fa81998cf7e56fa0361917
+
+## 既存の資産
+
+| 資産 | 内容 |
+|---|---|
+| `EnemySpawnSystem` | ステージシーンの生成の設定。同時に存在する数の上限、生成情報（`EnemySpawnInfo`）、格子の範囲、区画の大きさ |
+| `EnemySpawnPoint` | 実行中の生成位置。半径、有効か |
+| `EnemyInitialSpawnArea` | 初期生成の範囲。数と編成 |
+| `EnemySpawnAdapter` | `SpawnInitial`、`SpawnByInterval`、`TrySpawn`、`TryGetNextSpawnPoint`、`ReturnStrandedAgents`、`OverlapCountJob` |
+| `EnemyGroups` | `TryMerge`（合流）、`MaintainNext`（穴詰め・合流・並べ替え） |
+| `EnemyGroupJob` | `UpdatePhase`・`IsBlockedByGroupAhead`・`GetFormationHalfWidth`（交互の前進とレーンの待ち） |
+| `EnemyDistanceField` | 区画（範囲の中心が区画の中心）と追跡範囲。追跡範囲の Gizmo |
+| ScriptableObject の手本 | `VoxelQualitySettings`（EngineAdapter の ScriptableObject。`CreateAssetMenu` は `Kizami/〜`） |
+| Unity の機能 | `Gizmos.DrawIcon`（`Assets/Gizmos/` の画像を、距離によらない大きさで描く。色を付けられ、クリックで選べる） |
+
+## 既存コードの確認結果（2026-10-10）
+
+| 対象 | 状態 | 対応 |
+|---|---|---|
+| `EnemyGroups.MaintainNext`・`TryMerge`（[EnemyGroups.cs:237](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyGroups.cs)、[298](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyGroups.cs)）、`MERGE_DISTANCE`、`EnemyFormationSettings._mergeSize`（既定 4） | `MergeSize` 以下のグループを、40m 以内で空きのあるグループへ移す。区間4C の 4C-5 で入り、区間4D で扱いを決めずに残った | 消す。穴詰めと並べ替えは残す |
+| `EnemyGroupJob.UpdatePhase`・`IsBlockedByGroupAhead`・`GetFormationHalfWidth`（[EnemyGroupJob.cs:104](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyGroupJob.cs)、[712](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyGroupJob.cs)、[742](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyGroupJob.cs)）、`EnemyGroup.PhaseTimer`・`IsAdvancing`、`EnemyFormationSettings` の `_usesAlternatingAdvance`・`_advanceDuration`・`_holdDuration`・`_groupSpacing` | 交互の前進とレーンの待ち。InGame では切ってある（`_usesAlternatingAdvance: 0`）。区間4D で、入れても切っても重なる組の数に差がなかった（約 556 と約 560） | 消す（決めたことの 17） |
+| `EnemySpawnAdapter.OverlapCountJob`・`_countsOverlaps`・`_overlapCounts`・`MovingOverlapCount`・`ArrivedOverlapCount`、`EnemyInitializer.GetOverlapText` | 交互の前進を戻すかを判断する為の、重なる組の数のデバッグ表示 | 交互の前進と一緒に消す |
+| `EnemySpawnAdapter.SpawnInitial`（[EnemySpawnAdapter.cs:749](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnAdapter.cs)） | 初期生成の範囲ごとに、`GroupSize` 人ずつ範囲の中のランダムな中心へ置く | スポーン位置ごとに、編成の 1 グループを置く形に書き換える |
+| `EnemySpawnAdapter.SpawnByInterval`（[789](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnAdapter.cs)）、`_spawnTimers`、`TryGetNextSpawnPoint`（[895](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnAdapter.cs)） | 生成情報ごとの間隔で、スポーン位置を順に回して新しいグループを出す | 消す |
+| `EnemySpawnSystem.MaxAliveCount`（[EnemySpawnSystem.cs:30](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnSystem.cs)）、`new EnemyGroups(_agents.Length)` | 敵の状態の配列の長さ。グループの配列も同じ長さ（1000 体なら 1000 グループ分の道筋 128 点・帰りの道筋 64 点） | 決めたことの 3 |
+| `EnemyGroups.TryAdd`（[EnemyGroups.cs:173](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyGroups.cs)） | グループの空きがなければ false で、敵はグループなしのまま出る。`TrySpawn` は結果を見ていない | グループの数をスポーン位置の数にするので、空きがないことはない。グループなしの経路を消す（決めたことの 5） |
+| `EnemySpawnAdapter.ReturnStrandedAgents`・`TryGetReturnHome`（[678](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnAdapter.cs)、[729](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnAdapter.cs)） | 戻れない敵を元のグループから抜き、持ち場ごとに新しいグループにする。グループなしの敵は次の生成位置へ移す | 決めたことの 5 |
+| `EnemyMoveJob.Walk`（[EnemyMoveJob.cs:127](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyMoveJob.cs)）の最後の分岐 | 隊列の位置を持たない敵（グループなし）は、距離マップを下る | 消す（決めたことの 5） |
+| `EnemyGroupJob.IsTracked`（[EnemyGroupJob.cs:156](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyGroupJob.cs)） | 持ち場の位置の列が追跡範囲の矩形に入っているかで、追跡を始める | そのまま使う（決めたことの 2） |
+| `EnemyDistanceField` の区画の原点（[EnemyDistanceField.cs:266](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyDistanceField.cs)） | `bounds.center.xz - sectionSize / 2` をコンストラクタで求める | 計算を `EnemySpawnSystem` に置き、`EnemyDistanceField` と区画の色分けの両方で使う |
+| `EnemyFormationSettings.GroupSize`（12） | `TryAdd` の人数の上限、`OpenGroup` の道筋の点の数（[EnemyGroups.cs:409](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyGroups.cs)）、生成の区切りで使う | 編成の長さが人数になるので、設定から消す。道筋の点の数は `MAX_GROUP_SIZE`（16）で求める |
+| 編成（`EnemySpawnInfo._composition`、`EnemyInitialSpawnArea._composition`） | `EnemyKind` の配列。並びより後ろのメンバーは Attacker | 編成のアセットに移す（決めたことの 4） |
+| `EnemyKind`（[EnemyKind.cs](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyKind.cs)） | EngineAdapter にある。ExternalLayer は EngineAdapter を参照できず、EngineAdapter も ExternalLayer を参照できない | 編成のアセットは EngineAdapter に置く |
+| `EnemyInitializer.GetSpawnPointText`（[EnemyInitializer.cs:115](../../../Code/Scripts/Initialization/Enemy/EnemyInitializer.cs)） | デバッグ表示に生成位置の有効・無効を並べる | そのまま使う |
+| TestStage | `EnemySpawnSystem_Few`（上限 10、初期生成の範囲 2 つ、5 体ずつ。先頭が Defender のものと Finisher のもの）、`EnemySpawnSystem_Crowd`（上限 1000、範囲 4 つ、250 体ずつ）。どちらも生成情報 1 件（3 秒ごとに 1 体）。生成位置は (±25, 25)、(0, −35) | 置き直す（決めたことの 7） |
+
+## 作業一覧
+
+| # | 作業 | 層 | 内容 |
+|---|---|---|---|
+| 4E-1 | 合流・交互の前進をなくす | EngineAdapter / Initialization | `TryMerge`、交互の前進とレーンの待ち、重なる組の数のデバッグ表示と、その設定を消す |
+| 4E-2 | 編成の ScriptableObject | EngineAdapter | グループの編成（`EnemyKind` の並び。長さが人数）を持つアセット |
+| 4E-3 | スポーン位置の 1 グループ | EngineAdapter | スポーン位置に区画と編成を持たせる。開始時にスポーン位置ごとに 1 グループを出す。敵の状態とグループの配列の長さを、スポーン位置から決める。初期生成の範囲と生成情報を消す。戻れない敵はグループに残す |
+| 4E-4 | デバッグ表示 | EngineAdapter | 区画を色分けして描く。スポーン位置をアイコンで描き、遠くからクリックで選べるようにする |
+| 4E-5 | TestStage の配置 | Level | `EnemySpawnSystem_Few` と `EnemySpawnSystem_Crowd` を、スポーン位置と編成の形に置き直す |
+
+## 完了条件
+
+- 開始時に、スポーン位置ごとに、指定した編成の 1 グループが出る。実行中に新しいグループは出ない
+- 減ったグループがほかのグループへ合流しない
+- 戻れない敵は、元のグループのまま持ち場の周りへ移る。グループの数はスポーン位置の数から増えない
+- 区間4D・9 の挙動（待機・追跡・帰還、外側と内側の螺旋、弾・バリア・吸収）を壊さない
+- シーンビューで区画が色分けされ、スポーン位置のアイコンを遠くからクリックして選べる。区画の番号と位置が食い違うスポーン位置は赤く描かれ、警告が出る
+- （4B の決定 6）敵の処理が合計 4ms 以下（`_Crowd`、約 1000 体、32 体に体を貸す、エディタ、安全チェックなし）
+
+## 詳細仕様で決めること
+
+2026-10-10 にユーザーと決めた（確定）。どれも推奨の案を採った。
+
+| # | 項目 | 決めたこと |
+|---|---|---|
+| 1 | 区画の指定の仕方 | スポーン位置に区画の番号（x, z）を持たせる。置いた直後は位置から求めた番号を入れ（`Reset` と、区画の番号が未設定のときの `OnValidate`）、作者が変えられる |
+| 2 | 指定した区画と位置が食い違うとき | 追跡を始める判定は、今と同じく持ち場の位置で行う。指定した区画は置き場所の確認に使い、位置と食い違えば初期化のときに警告を出し、シーンビューでそのアイコンを赤くする。距離マップは追跡範囲の矩形の中しか計算しない（[EnemyDistanceField.cs:620](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyDistanceField.cs)）ので、指定した区画で追跡を始めると、持ち場の位置が範囲の外のときに距離がなく、グループが動けない為 |
+| 3 | 同時に存在する数の上限とグループの数 | `MaxAliveCount` をなくす。敵の状態の配列の長さは、有効なスポーン位置の編成の人数の合計にする。グループの配列の長さは、有効なスポーン位置の数にする。1 グループ 1 スポーン位置で、補充も満員までなので、どちらも超えない。初期化のあとに有効にしたスポーン位置の分は確保しないので、実行中の有効・無効の切り替えは「出さない」方向だけに使う |
+| 4 | 編成のアセットの中身 | `EnemyKind` の並びだけを持ち、並びの長さをそのグループの人数にする（1〜16、`EnemyFormationSettings.MAX_GROUP_SIZE`）。「並びより後ろは Attacker」の規則はなくす。`EnemyFormationSettings.GroupSize` は設定から消す。アセットは EngineAdapter に置く（`EnemyKind` が EngineAdapter にある為。区間4F で Application が編成を読む必要が出たら、そのときに置き場を見直す） |
+| 5 | 戻れない敵 | グループから抜かず、持ち場の周りへ移すだけにする。移った敵は、グループの隊列の位置へ歩いて戻る。グループなしの敵の経路（次の生成位置へ移す、`EnemyMoveJob.Walk` の距離マップを下る分岐）は消す |
+| 6 | 区画の色分けとアイコン | 区画の色分けは `EnemySpawnSystem` の `OnDrawGizmos` で、格子の範囲の底面に区画ごとの半透明の面と枠を描く。色は区画の番号から決める（隣どうしが同じ色にならない 4 色の繰り返し）。常に描くか、選択中だけ描くかは Inspector で切り替える。スポーン位置は `Gizmos.DrawIcon` で、指定した区画の色を付けたアイコンを描く（`Assets/Gizmos/` に画像を 1 枚足す）。半径の円も同じ色で描く |
+| 7 | TestStage の配置 | `_Few`：今の初期生成の範囲 2 つ（北と南）を、同じ場所・同じ編成（5 体）のスポーン位置 2 つにする。今の生成位置 3 つ（A・B・C）は消す。`_Crowd`：負荷を見る用途なので約 1000 体を保つ。今の 4 つの範囲の周りに、12 体の編成のスポーン位置を 21 個ずつ（計 84 個・1008 体）、uloop の動的コードで格子に並べて置く |
+
+## 作業計画
+
+### 新しく作る型と、区間4E での利用者
+
+| 型 | 層 | 区間4E での利用者 |
+|---|---|---|
+| 編成のアセット（`EnemySquadComposition`。ScriptableObject） | EngineAdapter | `EnemySpawnPoint` が参照し、`EnemySpawnAdapter` が生成のときに読む |
+
+消す型：`EnemyInitialSpawnArea`、`EnemySpawnInfo`。
+
+拡張する型：`EnemySpawnPoint`（区画の番号、編成、アイコン）、`EnemySpawnSystem`（区画の原点・番号の計算、区画の色分け。上限と生成情報を消す）、`EnemyDistanceField`（区画の原点を受け取る）、`EnemySpawnAdapter`（スポーン位置ごとの生成、配列の長さ、戻れない敵、重なる組の数を消す）、`EnemyGroups`（合流を消す、人数の上限を `MAX_GROUP_SIZE` に）、`EnemyGroupJob`・`EnemyGroup`（交互の前進を消す）、`EnemyMoveJob`（グループなしの分岐を消す）、`EnemyFormationSettings`（人数・合流・交互の前進の設定を消す）、`EnemyInitializer`（重なる組の数の表示を消す）
+
+設定を消すので、InGame.unity の `EnemySpawnAdapter` と、TestStage.unity の `EnemySpawnSystem` に保存された値は、保存し直して消す。
+
+アイコンの画像は `Assets/Gizmos/EnemySpawnPoint.png`（白い図形。色はコードで付ける）を作る。
+
+### コミットの分け方
+
+| # | 内容 | 確かめること |
+|---|---|---|
+| 0 | 区間計画書の更新（決めたことの答え、作業計画）。[EnemySquadRedesign.md](../EnemySquadRedesign.md) の決めたことの 17・18 | ― |
+| 1 | 合流・交互の前進・重なる組の数をなくす（4E-1） | コンパイル。`_Crowd` で、動的コードでメンバーを倒して 4 体以下にしたグループが、ほかのグループへ移らない。追跡・螺旋・帰還が今と同じに動く |
+| 2 | 編成のアセットとスポーン位置の 1 グループ（4E-2・4E-3）。`_Few` の置き直し（4E-5 の前半）。`EnemyInitialSpawnArea` を消す前に、`_Few` と `_Crowd` の範囲のオブジェクトをシーンから外す | `_Few` で、北と南に 5 体のグループが 1 つずつ出て、先頭が Defender・Finisher になる。実行中に増えない。敵の状態の数が 10、グループの数が 2。戻れない敵（動的コードで台地の上へ移す）が、グループのまま持ち場の周りへ移る |
+| 3 | デバッグ表示（4E-4） | 区画が色分けされる。スポーン位置のアイコンを遠くからクリックして選べる。区画の番号を書き換えると赤くなり、再生時に警告が出る |
+| 4 | `_Crowd` の置き直し（4E-5 の後半） | 84 グループ・1008 体が出る。追跡範囲の外のグループは待機する。敵の処理が 4ms 以下 |
+| 5 | 実装結果、全体計画書の更新 | 完了条件すべて |
+
+### コミットごとのメモ
+
+- （コミット 2）`_Crowd` の初期生成の範囲は、置き直しのために消す前に次の値だった。どれも半径 30m・250 体：南 (0, −1, −65) 先頭 Defender、北 (0, −1, 65) 先頭 Finisher、東 (65, −1, 0) 先頭 Defender・2 番目 Finisher、西 (−65, −1, 0) 全員 Attacker。コミット 4 はこの場所と編成で置く
+- （コミット 2）コミット 2 から 4 の間、`_Crowd` にはスポーン位置がなく敵が出ないので、TestStage の有効な生成システムを `_Few` にした
+
+### 基準の当てはめで見直した点（2026-10-10）
+
+- 基準1：新しい型は編成のアセットだけにした。区画の番号は `Vector2Int` で持ち、区画を表す型や MonoBehaviour は作らない。区画の計算は `EnemySpawnSystem` のメソッドにして、`EnemyDistanceField` に原点を渡す
+- 基準1：満員の人数を `EnemyGroup` に持たせる案は、使うのが区間4G の撤退の割合だけなので、区間4G で足す
+- 基準3：追跡範囲の外の部隊の処理（ユーザーの提案、2026-10-10。[EnemySquadRedesign.md](../EnemySquadRedesign.md) の決めたことの 19・20）は、区間4E の完了条件に関わらないので、区間4F（4F-4）に入れた
+
+## 実装後の確認で見つかったこと（2026-10-10）
+
+コミット 1〜4 のあとに、計画書とコードを読み比べた（クラウドでの静的な確認。コンパイルとプレイモードは未確認）。残りの作業はコミット 5 とあわせて行う。
+
+### 計画書と食い違う所と、その扱い
+
+| # | 食い違い | 扱い（ユーザーの決定） |
+|---|---|---|
+| 1 | 詳細仕様の 1：区画の番号を入れるのが `Reset` だけで、「区画の番号が未設定のときの `OnValidate`」がない（[EnemySpawnPoint.cs](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnPoint.cs)） | 計画書に合わせてコードを直す。`Vector2Int` では (0, 0) と未設定を見分けられないので、未設定を表す方法（`bool` の印を持つなど）を作業のときに決める |
+| 2 | 詳細仕様の 6：区画の色分けを、格子の範囲の底面ではなく `EnemySpawnSystem` の GameObject の高さに描いている。底面は地面より下にあることが多く、地面に隠れる為 | 計画書を実装に合わせる（下の「決めたことの修正」） |
+| 3 | 詳細仕様の 5：`EnemyGroups.TryAdd` のサマリーに「空いているグループがなければ GroupIndex = -1 のまま」が残っている | サマリーを直す。グループの数は有効なスポーン位置の数で、スポーン位置ごとに `CloseGroup` するので、空きがないことはない |
+
+3 の補足：`GroupIndex < 0` の判定（[EnemyMoveJob.cs:221](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyMoveJob.cs)、[EnemySpawnAdapter.cs:647](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnAdapter.cs)、[EnemyFinisherAttack.cs:335](../../../Code/Scripts/EngineAdapterLayer/Enemy/EnemyFinisherAttack.cs)）は消さない。移動部位を壊されて動けなくなった敵は、`EnemyGroups.Compact` が `Leave` でグループから抜く（GroupIndex = -1）為。消したのは「生成のときにグループに入れなかった敵」の経路で、「動けなくなってグループを抜けた敵」は今もある。
+
+### 決めたことの修正
+
+- 詳細仕様の 6 を次のように改める：区画の色分けは `EnemySpawnSystem` の `OnDrawGizmos` で、**`EnemySpawnSystem` の GameObject の高さ**に、区画ごとの半透明の面と枠を描く（格子の範囲の底面は地面に隠れることが多い為）。範囲の外にはみ出す区画は、範囲の中の部分だけを描く
+
+### 計画になかったが入った仕様（追認する）
+
+| # | 内容 | 場所 |
+|---|---|---|
+| 1 | メンバーを出す位置は、立てる所に来るまで選び直し、見つからなければスポーン位置の中心に出す | `EnemySpawnAdapter.PickStandablePosition` |
+| 2 | 中心が立てる所にないスポーン位置を、初期化のときに警告する（そこから出したグループのアンカーは床に乗れず動かない為） | `EnemySpawnAdapter.WarnUnstandableSpawnPoints` |
+| 3 | 編成に体の設定のない種類があれば、そのメンバーは数えず出さず、警告する。編成のないスポーン位置も警告して出さない | `EnemySpawnAdapter.CollectSpawnPoints` |
+| 4 | 敵を出さない状態のスポーン位置は、アイコンと円を灰色で描く | `EnemySpawnPoint.GetGizmoColor` |
+| 5 | 編成の並びは 16（`MAX_GROUP_SIZE`）を超えたら切り詰める | `EnemySquadComposition.OnValidate` |
+| 6 | 区画の色分けを常に描くかは `_drawsSectionsAlways`。選択中は格子の範囲の枠も描く | `EnemySpawnSystem` |
+| 7 | `EnemySpawnSystem._sectionSize` の既定は 100m（TestStage は 50m） | `EnemySpawnSystem` |
+
+### 追加の決定：1 区画に 1 スポーン位置（2026-10-10、ユーザー）
+
+1 つの区画に置けるスポーン位置（＝グループ）は 1 つにする。今の TestStage は、`_Crowd` で 1 つの区画に多くのスポーン位置（4 か所に 21 個ずつ）が置かれていて、この決定と食い違う。
+
+| # | 作業 | 内容 |
+|---|---|---|
+| 4E-6 | 1 区画 1 スポーン位置の確認 | 初期化のときに、同じ区画の番号を持つ有効なスポーン位置が 2 つ以上あれば、名前つきで警告する。シーンビューでも、区画が重なったスポーン位置を赤く描く。2 つ目以降を出すかは下の「決めること」 |
+| 4E-7 | TestStage の置き直し | `_Few` と `_Crowd` を、1 区画に 1 スポーン位置の形に置き直す |
+
+決めること（作業のとき）：
+
+| 項目 | 内容 |
+|---|---|
+| 重なったときの扱い | 警告だけで出すか、2 つ目以降を出さないか |
+| `_Crowd` の負荷の確認 | 1 区画 1 グループ（最大 16 体）では、TestStage の格子の範囲で約 1000 体を出せない。区画を小さくして数を保つか、完了条件の負荷の確認（約 1000 体で 4ms 以下）を、区画の数に応じた数に改めるか |
+| 区画の番号と位置の食い違い（詳細仕様の 2）との関係 | 重なりの判定を、指定した区画の番号で行うか、位置から求めた区画で行うか |
+
+EnemySquadRedesign.md の決めたことの 21 に同じ内容を書いた。
+
+### 決めること（作業のとき）の答え（2026-10-10、ユーザー）
+
+| 項目 | 決めたこと |
+|---|---|
+| 重なったときの扱い | 警告し、Hierarchy で後ろのスポーン位置は出さない。シーンビューでも赤く描く |
+| `_Crowd` の負荷の確認 | 区画は 50m のまま、1 区画に 12 体のスポーン位置を 1 つずつ置いて測る |
+| 重なりの判定に使う区画 | 位置から求めた区画（追跡を始める判定とそろえる） |
+| 区画の番号の未設定 | 隠した印 `_hasSection` を持ち、`Reset` と、印が立っていないときの `OnValidate` で位置から入れる |
+
+補足：コミット `c148c64` のメッセージは前のコミット（区画の色分け）と同じだが、中身は `_Crowd` の置き直し（コミット 4）。
+
+## 実装結果（2026-10-10）
+
+### 決めたこと
+
+- 「詳細仕様で決めること」の 1〜7（推奨の案）。6 の描く高さは「決めたことの修正」のとおり
+- 1 区画に 1 スポーン位置（EnemySquadRedesign.md の決めたことの 21）と、その「決めること」の答え（上の表）
+- 合流・交互の前進・重なる組の数のデバッグ表示をなくす（決めたことの 17）
+
+### 作った主なもの
+
+| 種類 | 内容 |
+|---|---|
+| 編成 | `EnemySquadComposition`（ScriptableObject。種類の並びの長さが人数、16 まで）。`Assets/Level/Data/Enemy/` に 5 体（Defender・Finisher が先頭）と 12 体（Attacker のみ・Defender・Finisher・Defender と Finisher が先頭）の 6 つ |
+| スポーン位置 | `EnemySpawnPoint`：編成、区画の番号（位置から自動で入る）、半径。区画の色のアイコン（`Assets/Gizmos/EnemySpawnPoint.png`）と円。番号と位置の食い違い・区画の重なりは赤 |
+| 生成システム | `EnemySpawnSystem`：上限と生成情報を消し、区画の原点・`GetSection`・区画の色分けを足した。`EnemyInitialSpawnArea`・`EnemySpawnInfo` を消した |
+| 生成 | `EnemySpawnAdapter`：開始時にスポーン位置ごとに 1 グループ（`SpawnSquads`）。敵の状態の数は編成の人数の合計、グループの数は有効なスポーン位置の数。区画の重なり・編成なし・番号の食い違い・体の設定のない種類の警告（`CollectSpawnPoints`）。戻れない敵はグループに残して持ち場の周りへ移す |
+| 削除 | 合流（`TryMerge`）、交互の前進とレーンの待ち、重なる組の数（`OverlapCountJob`）、人数の設定（`_groupSize`）、グループなしの敵が距離マップを下る分岐 |
+| TestStage | `_Few`：北と南に 5 体のスポーン位置。`_Crowd`：中心から 4 区画以内（中心の区画を除く）の 80 区画に 12 体ずつ、計 960 体。既定は `_Crowd` |
+
+### 完了条件の確認結果
+
+| 完了条件 | 結果 |
+|---|---|
+| スポーン位置ごとに指定した編成の 1 グループが出て、実行中に増えない | 確認済み（`_Few`：2 グループ・10 体、先頭が Defender と Finisher。`_Crowd`：80 グループ・960 体） |
+| 減ったグループが合流しない | 確認済み（12 体を 3 体に減らしても、そのまま追跡を続けた） |
+| 戻れない敵はグループのまま持ち場の周りへ移り、グループの数が増えない | 確認済み（処理を直接呼んで確かめた。範囲の外に置いても戻れない時間は溜まらず、隊列へ歩いて戻った） |
+| 区間4D・9 の挙動を壊さない | 一部確認。追跡・待機・帰還の切り替えは動いた。弾・バリア・吸収、帰還の見た目は確かめていない。レビューのときにユーザーが確かめる |
+| 区画の色分け、アイコンを遠くから選べる、食い違いは赤と警告 | 一部確認。色分け、食い違いと重なりの赤、重なりの警告は確かめた。アイコンのクリックでの選択と、番号の食い違いの再生時の警告は確かめていない |
+| 敵の処理が合計 4ms 以下 | 確認済み。`_Crowd`・960 体で 1.07〜1.13ms（エディタ、安全チェックなし）。1 区画 1 グループで近くに来る敵が少なく、体を貸したのは 1 体だけで、32 体に貸した状態は作れなかった |
+
+### 次の区間へ持ち越すこと
+
+- 区間4F：部隊の意思決定を Application へ移す。追跡範囲の外の部隊の処理（4F-4）
+- 区間4G：撤退・補充・全滅後の出し直し、スポーン位置の破壊。満員の人数を `EnemyGroup` に持たせる。動けなくなった敵の扱い（4G の決めることの 9）
+- 区間14：区画の大きさとスポーン位置の配置。体を 32 体に貸した状態での負荷（1 区画 1 グループでは近くに来る敵が少ない）
+- レビュー：弾・バリア・吸収、帰還の見た目、アイコンのクリックでの選択。計測中に 1 体が減った（崩落・押しつぶしは 0。フィニッシャーの吸収と思われるが、確かめていない）
+
+### 使い方
+
+- スポーン位置を足すときは、生成システムの子に GameObject を作って `EnemySpawnPoint` を付け、編成のアセットを入れる。区画の番号は位置から入る。1 つの区画に 1 つまで
+- 編成は `Kizami/Enemy/Squad Composition` で作り、種類を隊列の先頭から並べる。並びの長さがグループの人数になる
+- 区画の色分けを選択中だけにするときは、生成システムの `_drawsSectionsAlways` を切る
+
+## 他プラットフォームへの対応
+
+- プラットフォームによる違いはない
+
+## 次の区間へ持ち越すこと（計画の時点）
+
+- 区間4F：部隊の意思決定を Application へ移す。追跡範囲の外の部隊の処理（4F-4）
+- 区間4G：撤退・補充・全滅後の出し直し、スポーン位置の破壊。満員の人数を `EnemyGroup` に持たせる

@@ -221,8 +221,9 @@ namespace Kizami.EngineAdapter
         /// <param name="dropHeight">歩いて降りられる段差の高さ（m）</param>
         /// <param name="groundLayers">床と障害物のレイヤー</param>
         /// <param name="sectionSize">距離マップを計算する区画の一辺（m）</param>
+        /// <param name="sectionOrigin">番号 (0, 0) の区画の最小の角（ワールド座標の x, z。EnemySpawnSystem.SectionOrigin）</param>
         public EnemyDistanceField(Bounds bounds, float cellSize, float enemyHeight, float climbHeight, float dropHeight,
-            LayerMask groundLayers, float sectionSize)
+            LayerMask groundLayers, float sectionSize, Vector2 sectionOrigin)
         {
             var width = math.max(1, (int)math.ceil(bounds.size.x / cellSize));
             var depth = math.max(1, (int)math.ceil(bounds.size.z / cellSize));
@@ -263,7 +264,7 @@ namespace Kizami.EngineAdapter
             _rayTop = bounds.max.y;
             _rayLength = bounds.size.y;
             _sectionSize = sectionSize;
-            _sectionOrigin = ((float3)bounds.center).xz - sectionSize * 0.5f;
+            _sectionOrigin = sectionOrigin;
             _sectionSwitchMargin = math.min(SECTION_SWITCH_MARGIN, sectionSize * 0.5f);
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();

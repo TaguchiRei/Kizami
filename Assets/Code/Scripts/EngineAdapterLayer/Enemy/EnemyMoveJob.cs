@@ -8,6 +8,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 出ている敵を 1 体ずつ動かす。グループに入っている敵は隊列の位置（置き場に着いたグループでは、グループの中心の周りの螺旋の上の位置）へ、
     /// グループを持たない敵は距離マップの値が下がる隣の列へ向かって歩き、立てる層がなくなると落ちる。
+    /// 止められた敵（EnemyMoveMode.Held）は歩かず、飛んでいる敵（Flying）は地面と重力によらず FlyTarget へ飛ぶ。
     /// 自分の番号の敵だけを書き換え、ほかの敵は見ない。
     /// </summary>
     [BurstCompile]
@@ -33,6 +34,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 歩く速さを敵ごとにずらす割合の幅（±）。全員が同じ速さで動いて見えないようにする </summary>
         private const float SPEED_JITTER = 0.1f;
+
+        /// <summary> 飛ぶ先までの距離がこの値（m）より近いと、近さに合わせて遅くなる </summary>
+        private const float FLY_SLOW_DOWN_DISTANCE = 2f;
+
+        /// <summary> 飛ぶ先の近くで遅くなるときの、速さの下限（m/s）。飛ぶ先に届かなくならないようにする </summary>
+        private const float MIN_FLY_SPEED = 1f;
 
         public NativeArray<EnemyAgent> Agents;
         public EnemyNavigationGrid Grid;
@@ -60,6 +67,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 歩く速さ（m/s） </summary>
         public float MoveSpeed;
 
+        /// <summary> 飛ぶ速さ（m/s） </summary>
+        public float FlySpeed;
+
         /// <summary> 向きを変える速さ（ラジアン/秒） </summary>
         public float TurnSpeed;
 
@@ -69,11 +79,11 @@ namespace Kizami.EngineAdapter
         /// <summary> 重力の加速度の大きさ（m/s²） </summary>
         public float Gravity;
 
-        /// <summary> 壊れた移動部位がこの数に達した敵は歩かない。足場がなくなれば落ちる </summary>
-        public int BrokenMovePartLimit;
-
-        /// <summary> この高さ（m）以上落ちて着地した敵は、崩落で倒されたとする </summary>
+        /// <summary> この高さ（m）以上落ちて着地した敵は、崩落で倒されたとする。宙に浮いている敵は除く </summary>
         public float FallDefeatHeight;
+
+        /// <summary> 宙に浮いている敵が落ちる速さの上限（m/s） </summary>
+        public float FloatingFallSpeed;
 
         /// <summary>
         /// 敵の番号から決まる 0〜1 の値。
@@ -137,13 +147,7 @@ namespace Kizami.EngineAdapter
             if (TryGetSlotTarget(agent, out var target, out var slotYaw))
             {
                 MoveToward(ref agent, column, height, distance, target, slotYaw, speed);
-                return;
             }
-
-            if (float.IsPositiveInfinity(distance)) return;
-            if (!Grid.TryGetDownhillColumn(column, height, distance, Distances, out var nextColumn)) return;
-
-            Step(ref agent, column, height, (Grid.GetCellCenter(nextColumn, 0f) - agent.Position).xz, speed);
         }
 
         /// <summary>
@@ -258,11 +262,25 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// FlyTarget へまっすぐ飛ぶ。飛ぶ先の近くでは遅くなり、飛ぶ先を越えない。向きは変えない。
+        /// </summary>
+        private void Fly(ref EnemyAgent agent)
+        {
+            var toTarget = agent.FlyTarget - agent.Position;
+            var distance = math.length(toTarget);
+            if (distance <= 0f) return;
+
+            var speed = math.max(FlySpeed * math.saturate(distance / FLY_SLOW_DOWN_DISTANCE), MIN_FLY_SPEED);
+            agent.Position += toTarget / distance * math.min(speed * DeltaTime, distance);
+        }
+
+        /// <summary>
         /// 立っている敵は床の高さに合わせ、床が下がりすぎていれば落とす。落ちている敵は重力で落とし、床に着いたら立たせる。
         /// 真下の列に着地できる層がなければ、周りの列のうち最も近い列の層に着地し、位置をその列の中へずらす。
         /// 橋の下のように頭上が背丈より低い所は立てる層にならないので、真下だけを見ると地面を抜けて落ち続ける為。
         /// 落ち始めた高さから一定以上落ちて着地した敵と、格子の範囲より下まで落ちた敵は、崩落で倒されたとしてステージから消す。
         /// 敵が自分で降りるのは降りられる高さまでなので、それより高く落ちるのは足場が壊れたときになる。
+        /// 宙に浮いている敵は、落ちる速さに上限があり、高く落ちて着地しても倒れない（格子の範囲より下まで落ちたときは消す）。
         /// </summary>
         private void UpdateVertical(ref EnemyAgent agent)
         {
@@ -284,6 +302,7 @@ namespace Kizami.EngineAdapter
 
             var previousY = agent.Position.y;
             agent.VerticalSpeed -= Gravity * DeltaTime;
+            if (agent.IsFloating) agent.VerticalSpeed = math.max(agent.VerticalSpeed, -FloatingFallSpeed);
             agent.Position.y += agent.VerticalSpeed * DeltaTime;
 
             var landing = -1;
@@ -301,7 +320,7 @@ namespace Kizami.EngineAdapter
                 agent.Position.y = Grid.Heights[landing];
                 agent.VerticalSpeed = 0f;
                 agent.IsGrounded = true;
-                if (agent.FallStartHeight - agent.Position.y >= FallDefeatHeight) DefeatByCollapse(ref agent);
+                if (!agent.IsFloating && agent.FallStartHeight - agent.Position.y >= FallDefeatHeight) DefeatByCollapse(ref agent);
                 return;
             }
 
@@ -361,7 +380,20 @@ namespace Kizami.EngineAdapter
             var agent = Agents[index];
             if (!agent.IsAlive) return;
 
-            if (agent.IsGrounded && agent.BrokenMovePartCount < BrokenMovePartLimit) Walk(ref agent, index);
+            // 追跡範囲の外で待機して処理を止めたグループの、立って歩くメンバーはその場に置いたままにする。飛んでいる・落ちている途中の敵は、着くまで動かす
+            if (agent.GroupIndex >= 0 && Groups[agent.GroupIndex].IsDormant && agent.IsGrounded
+                && agent.MoveMode == EnemyMoveMode.Walking) return;
+
+            if (agent.MoveMode == EnemyMoveMode.Flying)
+            {
+                Fly(ref agent);
+                Agents[index] = agent;
+                return;
+            }
+
+            // 壊れた移動部位が上限に達した敵と、止められた敵は歩かない。足場がなくなれば落ちる
+            if (agent.IsGrounded && agent.MoveMode == EnemyMoveMode.Walking &&
+                agent.BrokenMovePartCount < agent.BrokenMovePartLimit) Walk(ref agent, index);
             UpdateVertical(ref agent);
             UpdateStrandedTime(ref agent);
 

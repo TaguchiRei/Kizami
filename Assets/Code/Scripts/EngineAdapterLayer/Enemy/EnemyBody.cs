@@ -12,6 +12,7 @@ namespace Kizami.EngineAdapter
     /// 貸すたびに、敵の状態にある部位の状態（失った部位、壊れた部位）を反映し、残っている部位を MeshDataCache へ登録し直す。
     /// プールで非アクティブのまま待つ部位は、MeshDataCache の初期登録に含まれない為。
     /// 返すときと倒れたときは、全部位を切断前の形に戻してからプールへ戻る。
+    /// フィニッシャーに吸収されるときは、マテリアルをディゾルブのものに差し替えて消し、返すときに元へ戻す。
     /// </summary>
     /// <remarks>
     /// 体に残す側は、かけらの形を元の部位へ移してから、かけらをプールへ返す。かけらのまま体に付けておくと、プールの回収で消える為。
@@ -21,6 +22,8 @@ namespace Kizami.EngineAdapter
         /// <summary> 部位の状態を敵の状態のビットに持つので、部位はこの数まで </summary>
         private const int MAX_PARTS = 32;
 
+        private static readonly int _dissolveAmountId = Shader.PropertyToID("_DissolveAmount");
+
         [SerializeField]
         [Tooltip("体を作る部位")]
         private EnemyPart[] _parts;
@@ -28,6 +31,10 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(1)]
         [Tooltip("壊れた移動部位がこの数に達すると、移動しなくなる")]
         private int _brokenMovePartLimit = 4;
+
+        [SerializeField]
+        [Tooltip("宙に浮いているか。浮いている敵は、足場が壊れるとゆっくり落ち、落ちても倒れない")]
+        private bool _isFloating;
 
         /// <summary> 部位ごとの、体から外れたか。並びは _parts と同じ </summary>
         private bool[] _isLost;
@@ -43,14 +50,29 @@ namespace Kizami.EngineAdapter
         /// <summary> 切っていない部位を見た目用の物で散らばらせる関数。引数は部位と、散らばる中心 </summary>
         private Action<CuttableObject, Vector3> _spawnDebris;
 
+        /// <summary> 体のレンダラー（非アクティブのものも含む） </summary>
+        private Renderer[] _renderers;
+
+        /// <summary> レンダラーごとの、ディゾルブで差し替える前のマテリアル。並びは _renderers と同じ </summary>
+        private Material[][] _originalMaterials;
+
+        /// <summary> ディゾルブで消えた割合を渡す入れ物。MonoBehaviour のフィールドの初期化子では作れないので Awake で作る </summary>
+        private MaterialPropertyBlock _propertyBlock;
+
         /// <summary> 敵に貸しているか。倒れるか返すと false になる </summary>
         public bool IsLent => gameObject.activeSelf;
 
         /// <summary> 壊れた移動部位がこの数に達すると、移動しなくなる </summary>
         public int BrokenMovePartLimit => _brokenMovePartLimit;
 
+        /// <summary> 宙に浮いているか。浮いている敵は、足場が壊れるとゆっくり落ち、落ちても倒れない </summary>
+        public bool IsFloating => _isFloating;
+
         /// <summary> 体を作る部位 </summary>
         public IReadOnlyList<EnemyPart> Parts => _parts;
+
+        /// <summary> ディゾルブで消えている途中か。返すと false に戻る </summary>
+        public bool IsDissolving { get; private set; }
 
         /// <summary>
         /// EnemySpawnAdapter が体を作ったときに 1 回だけ呼ぶ。
@@ -105,11 +127,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 体を敵から返す。全部位を切断前の形に戻し、非アクティブにしてプールへ戻す。
+        /// 体を敵から返す。ディゾルブの途中ならマテリアルを元へ戻し、全部位を切断前の形に戻して、非アクティブにしてプールへ戻す。
         /// 部位の状態は先に WriteState で敵へ書き戻し、短くなった部位の形は先に EnemyShapeKeeper へ預けておく。
         /// </summary>
         public void Return()
         {
+            // 部位のマテリアルは RestoreInitialShape が初期のものに戻すので、その前に戻す
+            if (IsDissolving) EndDissolve();
+
             foreach (var part in _parts)
             {
                 if (part.Cuttable != null) part.Cuttable.RestoreInitialShape();
@@ -163,6 +188,62 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 体をディゾルブで消し始める。全レンダラーのマテリアルをディゾルブのマテリアルに差し替え、部位を切れなくする。
+        /// 消えている途中の部位を切ると、かけらにディゾルブのマテリアルが写る為。元のマテリアルは Return で戻す。
+        /// </summary>
+        /// <param name="material">ディゾルブのマテリアル。シェーダーは float のプロパティ _DissolveAmount（0〜1）で消える</param>
+        public void BeginDissolve(Material material)
+        {
+            if (!IsLent || IsDissolving || material == null) return;
+
+            IsDissolving = true;
+            for (var i = 0; i < _renderers.Length; i++)
+            {
+                var originals = _renderers[i].sharedMaterials;
+                var replaced = new Material[originals.Length];
+                Array.Fill(replaced, material);
+                _originalMaterials[i] = originals;
+                _renderers[i].sharedMaterials = replaced;
+            }
+
+            foreach (var part in _parts)
+            {
+                if (part.Cuttable != null) part.Cuttable.DisableCutting();
+            }
+
+            SetDissolveAmount(0f);
+        }
+
+        /// <summary>
+        /// ディゾルブで消えた割合を変える。消えている途中でなければ何もしない。
+        /// </summary>
+        /// <param name="amount">消えた割合（0〜1）</param>
+        public void SetDissolveAmount(float amount)
+        {
+            if (!IsDissolving) return;
+
+            _propertyBlock.SetFloat(_dissolveAmountId, Mathf.Clamp01(amount));
+            foreach (var bodyRenderer in _renderers)
+            {
+                bodyRenderer.SetPropertyBlock(_propertyBlock);
+            }
+        }
+
+        /// <summary>
+        /// 体に残っている部位の、メッシュの範囲の中心（ワールド座標）を positions に足す。
+        /// </summary>
+        public void CollectPartCenters(List<Vector3> positions)
+        {
+            foreach (var part in _parts)
+            {
+                var cuttable = part.Cuttable;
+                if (cuttable == null || !cuttable.gameObject.activeInHierarchy || cuttable.Renderer == null) continue;
+
+                positions.Add(cuttable.Renderer.bounds.center);
+            }
+        }
+
+        /// <summary>
         /// 壊れた移動部位の数を 1 つ増やす。
         /// </summary>
         public void BreakMovePart()
@@ -179,6 +260,24 @@ namespace Kizami.EngineAdapter
 
             _isLost = new bool[_parts.Length];
             _isBroken = new bool[_parts.Length];
+            _renderers = GetComponentsInChildren<Renderer>(true);
+            _originalMaterials = new Material[_renderers.Length][];
+            _propertyBlock = new MaterialPropertyBlock();
+        }
+
+        /// <summary>
+        /// ディゾルブで差し替えたマテリアルを元へ戻し、消えた割合を消す。
+        /// </summary>
+        private void EndDissolve()
+        {
+            for (var i = 0; i < _renderers.Length; i++)
+            {
+                _renderers[i].sharedMaterials = _originalMaterials[i];
+                _renderers[i].SetPropertyBlock(null);
+                _originalMaterials[i] = null;
+            }
+
+            IsDissolving = false;
         }
 
         private int IndexOf(CuttableObject cuttable)

@@ -62,6 +62,16 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 耐久値を設定し直して色を合わせる。プールから使い直すパネルに、持ち主の残りの耐久値を戻すときに呼ぶ。アクティブにしてから呼ぶ。
+        /// </summary>
+        /// <param name="durability">残りの耐久値。1 から最大までに収める</param>
+        public void SetDurability(int durability)
+        {
+            Durability = Mathf.Clamp(durability, 1, _maxDurability);
+            UpdateColor();
+        }
+
+        /// <summary>
         /// 耐久値によらず一撃で壊す。
         /// </summary>
         public void Shatter()

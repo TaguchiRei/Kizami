@@ -1,4 +1,5 @@
 using System.Text;
+using Kizami.Application;
 using Kizami.EngineAdapter;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
@@ -8,16 +9,21 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// 敵の生成と体のプール（EnemySpawnAdapter）を初期化し、出ている敵とグループの数、崩落で倒した敵の数、生成位置の有効・無効、敵の処理にかかった時間を画面に出す配線役。インゲームのシーンへ置く。
+    /// 部隊の意思決定（EnemySquadService）を作り、敵の生成と体のプール（EnemySpawnAdapter）を、部隊の命令を決める関数（EnemySquadService.Step）と、プレイヤーへのダメージの関数（PlayerHealthService.ApplyDamage）と打ち上げの要求の関数（PlayerMovementService.RequestLaunch）を渡して初期化し、出ている敵とグループの数、崩落で倒した敵の数、生成位置の有効・無効、敵の処理にかかった時間を画面に出す配線役。インゲームのシーンへ置く。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
-    public sealed class EnemyInitializer : InitializerBase
+    public sealed class EnemyInitializer : InitializerBase, IInjectable<PlayerHealthService>,
+        IInjectable<PlayerMovementService>
     {
         private readonly StringBuilder _spawnPointText = new();
+        private readonly EnemySquadService _squadService = new();
 
         [SerializeField] private EnemySpawnAdapter _spawnAdapter;
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
         [SerializeField] private EnemyEnergyAdapter _energyAdapter;
+
+        private PlayerHealthService _healthService;
+        private PlayerMovementService _movementService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -27,7 +33,11 @@ namespace Kizami.Initialization
                 return;
             }
 
-            _spawnAdapter.Initialize(_fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit);
+            // EnemySpawnAdapter は EnemySquadCommandState を取得する為、EnemySquadService の初期化より後に初期化する
+            _squadService.Initialize(blackBoard, gameObject.scene.buildIndex);
+            _spawnAdapter.Initialize(blackBoard, _fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit,
+                _healthService != null ? _healthService.ApplyDamage : null,
+                _movementService != null ? _movementService.RequestLaunch : null, _squadService.Step);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             DebugGUI.ObserveVariable("Enemies",
                 () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity} (groups {_spawnAdapter.GroupCount})");
@@ -40,10 +50,14 @@ namespace Kizami.Initialization
             DebugGUI.ObserveVariable("Distance Field", GetDistanceFieldText);
             DebugGUI.ObserveVariable("Tracking", GetTrackingText);
             DebugGUI.ObserveVariable("Group States", GetGroupStateText);
-            DebugGUI.ObserveVariable("Overlaps", GetOverlapText);
 #endif
 
             base.Initialize(blackBoard);
+        }
+
+        private void OnDestroy()
+        {
+            _squadService.Dispose();
         }
 
         /// <summary>
@@ -93,15 +107,6 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 別のグループの敵どうしが 2m 以内に重なる組の数を、移動中と着いたあとに分けて並べる。数えていなければ「off」。
-        /// </summary>
-        private string GetOverlapText()
-        {
-            var moving = _spawnAdapter.MovingOverlapCount;
-            return moving < 0 ? "off" : $"moving {moving} / arrived {_spawnAdapter.ArrivedOverlapCount}";
-        }
-
-        /// <summary>
         /// 生成位置ごとの有効・無効を「名前:on」の形で並べる。
         /// </summary>
         private string GetSpawnPointText()
@@ -117,6 +122,16 @@ namespace Kizami.Initialization
             }
 
             return _spawnPointText.ToString();
+        }
+
+        public void Inject(PlayerHealthService instance)
+        {
+            _healthService = instance;
+        }
+
+        public void Inject(PlayerMovementService instance)
+        {
+            _movementService = instance;
         }
     }
 }

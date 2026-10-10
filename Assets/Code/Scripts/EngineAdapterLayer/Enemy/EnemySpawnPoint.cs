@@ -3,18 +3,42 @@ using UnityEngine;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 実行中に敵が出てくる位置。EnemySpawnSystem の子に置く。
-    /// 出す位置は、出すときの Transform の位置から求めるので、実行中に動かせる。
+    /// 敵のグループが出てくる位置。EnemySpawnSystem の子に置き、1 つにつき編成の 1 グループを出す。この位置がグループの持ち場になる。
+    /// 属する区画は作者が指定する。追跡を始める判定は持ち場の位置で行い、指定した区画は置き場所の確認に使う。
     /// </summary>
     public sealed class EnemySpawnPoint : MonoBehaviour
     {
-        [SerializeField, Min(0f)]
-        [Tooltip("この半径（m）の円の中に出す")]
-        private float _radius = 2f;
+        /// <summary> シーンビューのアイコンの画像。Assets/Gizmos/ からの相対パス </summary>
+        private const string ICON_NAME = "EnemySpawnPoint.png";
+
+        /// <summary> アイコンを描く、スポーン位置からの高さ（m） </summary>
+        private const float ICON_HEIGHT = 2f;
 
         [SerializeField]
-        [Tooltip("敵を出すか")]
+        [Tooltip("出すグループの編成")]
+        private EnemySquadComposition _composition;
+
+        [SerializeField]
+        [Tooltip("属する区画の番号。置いたときに位置から入る。位置と食い違うと、初期化のときに警告を出す")]
+        private Vector2Int _section;
+
+        [SerializeField, HideInInspector]
+        [Tooltip("区画の番号を入れたか。(0, 0) と未設定を見分ける為に持つ")]
+        private bool _hasSection;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("この半径（m）の円の中にメンバーを出す")]
+        private float _radius = 4f;
+
+        [SerializeField]
+        [Tooltip("敵を出すか。初期化のあとに切り替えたときは、出さない方向にだけ効く")]
         private bool _isEnabled = true;
+
+        /// <summary> 出すグループの編成。未設定なら null </summary>
+        public EnemySquadComposition Composition => _composition;
+
+        /// <summary> 属する区画の番号 </summary>
+        public Vector2Int Section => _section;
 
         /// <summary> 敵を出せる状態か。GameObject が非アクティブのときも出さない </summary>
         public bool IsEnabled => _isEnabled && isActiveAndEnabled;
@@ -38,10 +62,67 @@ namespace Kizami.EngineAdapter
             return transform.position + new Vector3(offset.x, 0f, offset.y);
         }
 
+        private void Reset()
+        {
+            _hasSection = false;
+            FillSection();
+        }
+
+        private void OnValidate()
+        {
+            if (!_hasSection) FillSection();
+        }
+
+        /// <summary>
+        /// 区画の番号を、親の EnemySpawnSystem から位置で求めて入れる。親がなければ入れない。親が非アクティブ（使わない方の生成システム）でも入れる。
+        /// </summary>
+        private void FillSection()
+        {
+            var system = GetComponentInParent<EnemySpawnSystem>(true);
+            if (system == null) return;
+
+            _section = system.GetSection(transform.position);
+            _hasSection = true;
+        }
+
+        /// <summary>
+        /// 区画の色でアイコンと半径の円を描く。区画の番号が位置と食い違うか、位置の区画に Hierarchy で前の有効なスポーン位置があれば赤、敵を出さない状態なら灰色にする。
+        /// アイコンは距離によらず同じ大きさで描かれ、クリックするとこのスポーン位置を選べる。
+        /// </summary>
         private void OnDrawGizmos()
         {
-            Gizmos.color = _isEnabled ? Color.red : Color.gray;
+            var color = GetGizmoColor();
+            Gizmos.color = color;
             Gizmos.DrawWireSphere(transform.position, _radius);
+            Gizmos.DrawIcon(transform.position + Vector3.up * ICON_HEIGHT, ICON_NAME, false, color);
+        }
+
+        private Color GetGizmoColor()
+        {
+            if (!_isEnabled) return Color.gray;
+
+            var system = GetComponentInParent<EnemySpawnSystem>();
+            if (system == null) return EnemySpawnSystem.GetSectionColor(_section);
+
+            var section = system.GetSection(transform.position);
+            if (section != _section || HasEarlierPointInSection(system, section)) return Color.red;
+
+            return EnemySpawnSystem.GetSectionColor(_section);
+        }
+
+        /// <summary>
+        /// 同じ生成システムの中で、Hierarchy でこれより前にある有効なスポーン位置が、位置の区画 section にあるか。
+        /// EnemySpawnAdapter は、区画が重なったときに前のスポーン位置だけを使う。
+        /// </summary>
+        private bool HasEarlierPointInSection(EnemySpawnSystem system, Vector2Int section)
+        {
+            foreach (var other in system.GetComponentsInChildren<EnemySpawnPoint>())
+            {
+                if (other == this) return false;
+                if (other._isEnabled && system.GetSection(other.transform.position) == section) return true;
+            }
+
+            return false;
         }
     }
 }
