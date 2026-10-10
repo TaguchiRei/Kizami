@@ -29,7 +29,7 @@
 | 資産 | 内容 |
 |---|---|
 | 区間4E の成果 | スポーン位置ごとの区画と編成、1 グループの生成 |
-| 区間4F の成果 | Application の部隊の意思決定、命令と観測の State |
+| 区間4F の成果 | Application の部隊の意思決定（`EnemySquadService`。状態・持ち場・置き場の割り当て）、命令と観測の State（`EnemySquadCommandState`・`EnemySquadObservationState`）。追跡範囲の外で待機する部隊は処理を止める（`EnemyGroup.IsDormant`）ので、持ち場での補充はこれと合わせる |
 | 区間4D の成果 | 帰還（帰りの道筋の逆たどり）、進めなくなった位置を新しい持ち場にする（2a） |
 | 区間5の成果 | 破壊対象（`DestructionTarget`。重要パーツの削れた割合で破壊済みにする） |
 
