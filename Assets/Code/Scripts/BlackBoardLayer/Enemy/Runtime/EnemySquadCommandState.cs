@@ -79,5 +79,8 @@ namespace Kizami.BlackBoard
 
         /// <summary> 持ち場。帰還の行き先で、待機する位置 </summary>
         public Vector3 HomePosition;
+
+        /// <summary> 追跡中に向かう、プレイヤーを囲む螺旋の上の置き場の番号。持っていなければ -1 </summary>
+        public int EncircleSlot;
     }
 }

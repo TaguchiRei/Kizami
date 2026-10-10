@@ -249,6 +249,9 @@ namespace Kizami.EngineAdapter
 
         private IEnemySquadCommandState _commandState;
 
+        /// <summary> 前のフレームで EnemyGroupJob に渡したプレイヤーの位置。置き場の螺旋の中心 </summary>
+        private float3 _encircleCenter;
+
         private ProfilerRecorder _updateRecorder;
         private ProfilerRecorder _moveRecorder;
         private ProfilerRecorder _bodyRecorder;
@@ -387,6 +390,7 @@ namespace Kizami.EngineAdapter
                 !blackBoard.TryGetSceneState<EnemyBoard, IEnemySquadCommandState>(out _commandState, this)) return;
 
             _observationState.SetSquadCount(_groups.Groups.Length);
+            _observationState.SetEncircleSlotCount(EnemyGroups.MAX_ENCIRCLE_SLOTS);
             enemyBoard.RegisterSceneState<IEnemySquadObservationState>(_observationState, gameObject.scene.buildIndex);
             WarnUnstandableSpawnPoints();
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
@@ -610,6 +614,7 @@ namespace Kizami.EngineAdapter
             ApplyCommands();
 
             var playerPosition = _target != null ? (float3)_target.position : float3.zero;
+            _encircleCenter = playerPosition;
             var groupHandle = _groups.Schedule(_agents, _distanceField.Grid, _distanceField.Distances,
                 _distanceField.TrackingMin, _distanceField.TrackingMax, _formation, playerPosition, _moveSpeed, deltaTime);
 
@@ -638,7 +643,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// グループごとの、前のフレームで動かした結果を EnemySquadObservationState に書く。追跡範囲の判定は、このフレームの距離マップで行う。
+        /// グループごとの、前のフレームで動かした結果と、前のフレームで求めた置き場を EnemySquadObservationState に書く。追跡範囲の判定は、このフレームの距離マップで行う。
         /// </summary>
         private void WriteObservations()
         {
@@ -657,10 +662,27 @@ namespace Kizami.EngineAdapter
                     IsReturnBlocked = group.IsReturnBlocked
                 });
             }
+
+            var slotPoints = _groups.SlotPoints;
+            for (var slot = 0; slot < slotPoints.Length; slot++)
+            {
+                var offset = EnemyFormationSettings.GetSpiralOffset(slot, _formation.EncircleInnerRadius,
+                    _formation.EncircleLoopSpacing, _formation.EncircleSlotSpacing);
+                var radius = EnemyFormationSettings.GetSpiralRadius(slot, _formation.EncircleInnerRadius,
+                    _formation.EncircleLoopSpacing, _formation.EncircleSlotSpacing);
+                _observationState.SetEncircleSlot(slot, new EnemyEncircleSlot
+                {
+                    Position = slotPoints[slot],
+                    Ring = (int)math.floor((radius - _formation.EncircleInnerRadius) / _formation.EncircleLoopSpacing),
+                    Angle = math.atan2(offset.x, offset.y)
+                });
+            }
+
+            _observationState.SetEncircleArea(_encircleCenter.xz, _groups.LastUsableSlot);
         }
 
         /// <summary>
-        /// EnemySquadCommandState の状態と持ち場を、使われているグループに写す。状態の切り替えは EnemyGroupJob が行う。
+        /// EnemySquadCommandState の状態・持ち場・置き場を、使われているグループに写す。状態の切り替えは EnemyGroupJob が行う。
         /// </summary>
         private void ApplyCommands()
         {
@@ -675,6 +697,7 @@ namespace Kizami.EngineAdapter
                 var command = commands[g];
                 group.CommandedState = command.State;
                 group.HomePosition = command.HomePosition;
+                group.EncircleSlot = command.EncircleSlot;
                 groups[g] = group;
             }
         }

@@ -24,6 +24,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 帰りの道筋に点を足す間隔（m） </summary>
         public const float RETURN_PATH_SPACING = 5f;
 
+        /// <summary> プレイヤーを囲む螺旋の上の置き場の数 </summary>
+        public const int MAX_ENCIRCLE_SLOTS = 128;
+
         private NativeArray<EnemyGroup> _groups;
 
         /// <summary> グループごとに PATH_CAPACITY 個の区画を持つ道筋の点。区画はリングバッファとして使う </summary>
@@ -34,6 +37,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、メンバーの敵の番号 </summary>
         private NativeArray<int> _members;
+
+        /// <summary> 置き場ごとの、立てる列へずらした位置。使えない置き場は NaN。EnemyGroupJob が毎フレーム書き直す </summary>
+        private NativeArray<float2> _slotPoints;
+
+        /// <summary> 0 番に、使える置き場のうち最も外の置き場の番号。なければ -1 </summary>
+        private NativeArray<int> _lastUsableSlot;
 
         /// <summary> 生成した敵を入れていくグループ。次に入れる敵で新しいグループを作るなら -1 </summary>
         private int _openGroup = -1;
@@ -46,6 +55,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 道筋の点。EnemyMoveJob が読む </summary>
         public NativeArray<float3> Paths => _paths;
+
+        /// <summary> 前の Job で求めた、置き場ごとの立てる列へずらした位置。使えない置き場は NaN </summary>
+        public NativeArray<float2> SlotPoints => _slotPoints;
+
+        /// <summary> 前の Job で求めた、使える置き場のうち最も外の置き場の番号。なければ -1 </summary>
+        public int LastUsableSlot => _lastUsableSlot[0];
 
         /// <summary> 使われているグループの数 </summary>
         public int ActiveCount
@@ -69,6 +84,14 @@ namespace Kizami.EngineAdapter
             _paths = new NativeArray<float3>(capacity * PATH_CAPACITY, Allocator.Persistent);
             _returnPaths = new NativeArray<float3>(capacity * RETURN_PATH_CAPACITY, Allocator.Persistent);
             _members = new NativeArray<int>(capacity * EnemyFormationSettings.MAX_GROUP_SIZE, Allocator.Persistent);
+            _slotPoints = new NativeArray<float2>(MAX_ENCIRCLE_SLOTS, Allocator.Persistent);
+            for (var slot = 0; slot < MAX_ENCIRCLE_SLOTS; slot++)
+            {
+                _slotPoints[slot] = new float2(float.NaN);
+            }
+
+            _lastUsableSlot = new NativeArray<int>(1, Allocator.Persistent);
+            _lastUsableSlot[0] = -1;
         }
 
         /// <summary>
@@ -197,6 +220,8 @@ namespace Kizami.EngineAdapter
             return new EnemyGroupJob
             {
                 Groups = _groups,
+                SlotPoints = _slotPoints,
+                LastUsableSlot = _lastUsableSlot,
                 Paths = _paths,
                 ReturnPaths = _returnPaths,
                 Members = _members,
@@ -390,6 +415,8 @@ namespace Kizami.EngineAdapter
             if (_paths.IsCreated) _paths.Dispose();
             if (_returnPaths.IsCreated) _returnPaths.Dispose();
             if (_members.IsCreated) _members.Dispose();
+            if (_slotPoints.IsCreated) _slotPoints.Dispose();
+            if (_lastUsableSlot.IsCreated) _lastUsableSlot.Dispose();
         }
     }
 }

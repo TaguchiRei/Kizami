@@ -47,7 +47,7 @@ namespace Kizami.EngineAdapter
         /// <summary> アンカーのいるノードの、プレイヤーまでの経路の長さ（m） </summary>
         public float AnchorDistance;
 
-        /// <summary> プレイヤーを囲む螺旋の上の置き場（グループの目標位置）の番号。追跡していないか、使える置き場が空いていなければ -1 </summary>
+        /// <summary> プレイヤーを囲む螺旋の上の置き場（グループの目標位置）の番号。Application が割り当てる。持っていなければ -1 </summary>
         public int EncircleSlot;
 
         /// <summary> アンカーが包囲の置き場に着いているか </summary>
