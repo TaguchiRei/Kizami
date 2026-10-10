@@ -57,11 +57,14 @@ namespace Kizami.EngineAdapter
 
         private readonly List<EnemySpawnPoint> _spawnPoints = new();
 
-        /// <summary> 初期化のときに有効で、編成を持つスポーン位置。1 つにつき 1 グループを出す </summary>
+        /// <summary> 初期化のときに有効で、編成を持つスポーン位置。1 つにつき 1 グループを出す。位置の区画は互いに重ならない </summary>
         private readonly List<EnemySpawnPoint> _activeSpawnPoints = new();
 
         /// <summary> カメラの視錐台の面。戻れない敵がカメラに映っているかを調べる作業用の配列 </summary>
         private readonly Plane[] _frustumPlanes = new Plane[6];
+
+        /// <summary> スポーン位置を集めるときに、すでにスポーン位置のある区画を覚える作業用の集合 </summary>
+        private readonly HashSet<Vector2Int> _usedSections = new();
 
         [SerializeField]
         [Tooltip("敵の種類ごとの体の設定。種類 1 つにつき 1 件。設定のない種類の敵は出さない")]
@@ -743,12 +746,14 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 有効なスポーン位置を集め、出す敵の数（編成の人数の合計）を返す。
-        /// 編成のないスポーン位置、編成に体の設定のない種類があるスポーン位置、区画の番号が位置と食い違うスポーン位置は、名前つきで警告する。
+        /// 1 つの区画に置けるスポーン位置は 1 つで、位置の区画にすでに有効なスポーン位置があれば、Hierarchy で後ろのものは出さない。
+        /// 編成のないスポーン位置、編成に体の設定のない種類があるスポーン位置、区画の番号が位置と食い違うスポーン位置、区画が重なったスポーン位置は、名前つきで警告する。
         /// </summary>
         private int CollectSpawnPoints()
         {
             _spawnSystem.GetComponentsInChildren(true, _spawnPoints);
             _activeSpawnPoints.Clear();
+            _usedSections.Clear();
             var agentCount = 0;
 
             foreach (var point in _spawnPoints)
@@ -762,6 +767,14 @@ namespace Kizami.EngineAdapter
                 }
 
                 var section = _spawnSystem.GetSection(point.transform.position);
+                if (!_usedSections.Add(section))
+                {
+                    UsefulLogger.LogWarning(
+                        $"スポーン位置 {point.name} の区画 {section} には、すでに別のスポーン位置がある為、敵を出しません。1 つの区画に置けるスポーン位置は 1 つです。",
+                        point);
+                    continue;
+                }
+
                 if (section != point.Section)
                 {
                     UsefulLogger.LogWarning(

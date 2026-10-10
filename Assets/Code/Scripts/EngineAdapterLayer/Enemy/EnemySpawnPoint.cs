@@ -86,7 +86,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 区画の色でアイコンと半径の円を描く。区画の番号が位置と食い違えば赤、敵を出さない状態なら灰色にする。
+        /// 区画の色でアイコンと半径の円を描く。区画の番号が位置と食い違うか、位置の区画に Hierarchy で前の有効なスポーン位置があれば赤、敵を出さない状態なら灰色にする。
         /// アイコンは距離によらず同じ大きさで描かれ、クリックするとこのスポーン位置を選べる。
         /// </summary>
         private void OnDrawGizmos()
@@ -102,9 +102,27 @@ namespace Kizami.EngineAdapter
             if (!_isEnabled) return Color.gray;
 
             var system = GetComponentInParent<EnemySpawnSystem>();
-            if (system != null && system.GetSection(transform.position) != _section) return Color.red;
+            if (system == null) return EnemySpawnSystem.GetSectionColor(_section);
+
+            var section = system.GetSection(transform.position);
+            if (section != _section || HasEarlierPointInSection(system, section)) return Color.red;
 
             return EnemySpawnSystem.GetSectionColor(_section);
+        }
+
+        /// <summary>
+        /// 同じ生成システムの中で、Hierarchy でこれより前にある有効なスポーン位置が、位置の区画 section にあるか。
+        /// EnemySpawnAdapter は、区画が重なったときに前のスポーン位置だけを使う。
+        /// </summary>
+        private bool HasEarlierPointInSection(EnemySpawnSystem system, Vector2Int section)
+        {
+            foreach (var other in system.GetComponentsInChildren<EnemySpawnPoint>())
+            {
+                if (other == this) return false;
+                if (other._isEnabled && system.GetSection(other.transform.position) == section) return true;
+            }
+
+            return false;
         }
     }
 }
