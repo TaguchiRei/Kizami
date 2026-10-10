@@ -8,6 +8,12 @@ namespace Kizami.EngineAdapter
     /// </summary>
     public sealed class EnemySpawnPoint : MonoBehaviour
     {
+        /// <summary> シーンビューのアイコンの画像。Assets/Gizmos/ からの相対パス </summary>
+        private const string ICON_NAME = "EnemySpawnPoint.png";
+
+        /// <summary> アイコンを描く、スポーン位置からの高さ（m） </summary>
+        private const float ICON_HEIGHT = 2f;
+
         [SerializeField]
         [Tooltip("出すグループの編成")]
         private EnemySquadComposition _composition;
@@ -58,10 +64,26 @@ namespace Kizami.EngineAdapter
             if (system != null) _section = system.GetSection(transform.position);
         }
 
+        /// <summary>
+        /// 区画の色でアイコンと半径の円を描く。区画の番号が位置と食い違えば赤、敵を出さない状態なら灰色にする。
+        /// アイコンは距離によらず同じ大きさで描かれ、クリックするとこのスポーン位置を選べる。
+        /// </summary>
         private void OnDrawGizmos()
         {
-            Gizmos.color = _isEnabled ? Color.red : Color.gray;
+            var color = GetGizmoColor();
+            Gizmos.color = color;
             Gizmos.DrawWireSphere(transform.position, _radius);
+            Gizmos.DrawIcon(transform.position + Vector3.up * ICON_HEIGHT, ICON_NAME, false, color);
+        }
+
+        private Color GetGizmoColor()
+        {
+            if (!_isEnabled) return Color.gray;
+
+            var system = GetComponentInParent<EnemySpawnSystem>();
+            if (system != null && system.GetSection(transform.position) != _section) return Color.red;
+
+            return EnemySpawnSystem.GetSectionColor(_section);
         }
     }
 }
