@@ -22,6 +22,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("属する区画の番号。置いたときに位置から入る。位置と食い違うと、初期化のときに警告を出す")]
         private Vector2Int _section;
 
+        [SerializeField, HideInInspector]
+        [Tooltip("区画の番号を入れたか。(0, 0) と未設定を見分ける為に持つ")]
+        private bool _hasSection;
+
         [SerializeField, Min(0f)]
         [Tooltip("この半径（m）の円の中にメンバーを出す")]
         private float _radius = 4f;
@@ -60,8 +64,25 @@ namespace Kizami.EngineAdapter
 
         private void Reset()
         {
-            var system = GetComponentInParent<EnemySpawnSystem>();
-            if (system != null) _section = system.GetSection(transform.position);
+            _hasSection = false;
+            FillSection();
+        }
+
+        private void OnValidate()
+        {
+            if (!_hasSection) FillSection();
+        }
+
+        /// <summary>
+        /// 区画の番号を、親の EnemySpawnSystem から位置で求めて入れる。親がなければ入れない。親が非アクティブ（使わない方の生成システム）でも入れる。
+        /// </summary>
+        private void FillSection()
+        {
+            var system = GetComponentInParent<EnemySpawnSystem>(true);
+            if (system == null) return;
+
+            _section = system.GetSection(transform.position);
+            _hasSection = true;
         }
 
         /// <summary>

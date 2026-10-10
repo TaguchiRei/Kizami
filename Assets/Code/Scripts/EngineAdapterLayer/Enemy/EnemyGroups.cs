@@ -159,7 +159,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 敵を、生成中のグループの隊列の最後に入れる。グループがないか人数に達していれば、新しいグループを作る。
-        /// 空いているグループがなければ入れず false を返し、敵はグループを持たないまま（GroupIndex = -1）にする。
+        /// 空いているグループがなければ入れず false を返す。グループの数は有効なスポーン位置の数で、スポーン位置ごとに CloseGroup するので、生成のときには空きがある。
         /// </summary>
         /// <param name="agentIndex">敵の状態の番号</param>
         /// <param name="agent">入れる敵。GroupIndex と SlotIndex を書く</param>
