@@ -26,9 +26,6 @@ namespace Kizami.EngineAdapter
         /// <summary> 進む先の床の幅を調べる間隔（m） </summary>
         private const float COLUMN_LOOKAHEAD_INTERVAL = 3f;
 
-        /// <summary> 置き場が立てる層のない列に来たときに、ずらす先の列を探す半径（m） </summary>
-        private const float SLOT_SHIFT_RADIUS = 10f;
-
         /// <summary> アンカーが包囲の置き場にこの距離（m）まで近づいたら、着いたとみなす </summary>
         private const float ANCHOR_ARRIVE_DISTANCE = 1f;
 
@@ -44,11 +41,11 @@ namespace Kizami.EngineAdapter
 
         public NativeArray<EnemyGroup> Groups;
 
-        /// <summary> 置き場ごとの、立てる列へずらした位置。使えない置き場は NaN。毎フレーム書き直す </summary>
-        public NativeArray<float2> SlotPoints;
+        /// <summary> 置き場ごとの、立てる列へずらした位置。使えない置き場は NaN。EnemyEncircleSlotJob がこのフレームに書いたもの </summary>
+        [ReadOnly] public NativeArray<float2> SlotPoints;
 
-        /// <summary> 0 番に、使える置き場のうち最も外の置き場の番号を書く。これより外の置き場は待つ置き場。なければ -1 </summary>
-        public NativeArray<int> LastUsableSlot;
+        /// <summary> 0 番に、使える置き場のうち最も外の置き場の番号。これより外の置き場は待つ置き場。なければ -1 </summary>
+        [ReadOnly] public NativeArray<int> LastUsableSlot;
 
         /// <summary> グループごとに EnemyGroups.PATH_CAPACITY 個の区画を持つ道筋の点 </summary>
         public NativeArray<float3> Paths;
@@ -231,7 +228,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 追跡中のアンカーを、Application が割り当てた目標位置（包囲の置き場。使える置き場が空いていなければ、その外に続く待つ置き場）へ歩かせる。
-        /// 割り当てられた置き場がないか、このフレームで使えなくなった（NaN）ときは、最も外の使える置き場のさらに 1 周外で待つ。
+        /// 割り当てられた置き場がないか、使えない（NaN）ときは、最も外の使える置き場のさらに 1 周外で待つ。
         /// プレイヤーまでの経路が「目標位置のプレイヤーまでの経路 ＋ 近づく余裕」より長い間は距離マップの値が下がる方へ、内側では目標位置へ向かう。
         /// 目標位置へまっすぐ向かうと、壁の向こうの目標位置の手前で詰まる為。経路の長さで比べるので、壁を回り込んでから目標位置へ向かう。
         /// 置き場に着いたら止まってプレイヤーを向き、メンバーはグループの中心の周りの螺旋に並ぶ。置き場が FollowDistance 動くまでは、並んだままついていく。
@@ -473,90 +470,12 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 置き場ごとに、プレイヤーを中心にした螺旋の上の位置を、プレイヤーへたどり着ける立てる層のある列へずらして SlotPoints に書き、
-        /// 使える置き場のうち最も外の置き場の番号を LastUsableSlot に書く（なければ -1）。
-        /// それより内側で、周り SLOT_SHIFT_RADIUS に立てる列がない置き場（建物の中や穴の上）は NaN にする。
-        /// それより外の置き場は、置き場を持てないグループが待つ置き場にする。追跡範囲の外に出る位置は範囲の中へ寄せてから、立てる列へずらす
-        /// （ずらせなければ寄せた位置のまま）。待つグループどうしも、置き場と同じ間隔をあける為。
-        /// </summary>
-        private void BuildSlotPoints()
-        {
-            var slotPoints = SlotPoints;
-            var lastUsableSlot = -1;
-            var searchRadius = (int)math.ceil(SLOT_SHIFT_RADIUS / Grid.CellSize);
-            for (var slot = 0; slot < slotPoints.Length; slot++)
-            {
-                var point = GetSpiralPoint(slot);
-                if (!TryShiftToReachableColumn(point, searchRadius, out var shifted))
-                {
-                    slotPoints[slot] = new float2(float.NaN);
-                    continue;
-                }
-
-                slotPoints[slot] = shifted;
-                lastUsableSlot = slot;
-            }
-
-            var areaMin = Grid.Origin.xz + ((float2)TrackingMin + 0.5f) * Grid.CellSize;
-            var areaMax = Grid.Origin.xz + ((float2)TrackingMax + 0.5f) * Grid.CellSize;
-            for (var slot = lastUsableSlot + 1; slot < slotPoints.Length; slot++)
-            {
-                var point = math.clamp(GetSpiralPoint(slot), areaMin, areaMax);
-                slotPoints[slot] = TryShiftToReachableColumn(point, searchRadius, out var shifted) ? shifted : point;
-            }
-
-            LastUsableSlot[0] = lastUsableSlot;
-        }
-
-        /// <summary>
         /// プレイヤーを中心にした螺旋の上の、置き場の位置（水平）。
         /// </summary>
         private float2 GetSpiralPoint(int slot)
         {
             return PlayerPosition.xz + EnemyFormationSettings.GetSpiralOffset(slot, Formation.EncircleInnerRadius,
                 Formation.EncircleLoopSpacing, Formation.EncircleSlotSpacing);
-        }
-
-        /// <summary>
-        /// point の列から searchRadius 列までを近い順に調べ、プレイヤーへたどり着ける層のある最初の周の中で、point に最も近い列の中心を返す。
-        /// point の列にあれば point をそのまま返す。
-        /// </summary>
-        private bool TryShiftToReachableColumn(float2 point, int searchRadius, out float2 shifted)
-        {
-            shifted = point;
-            var origin = Grid.Origin.xz;
-            var x = (int)math.floor((point.x - origin.x) / Grid.CellSize);
-            var z = (int)math.floor((point.y - origin.y) / Grid.CellSize);
-
-            for (var radius = 0; radius <= searchRadius; radius++)
-            {
-                var bestDistanceSq = float.MaxValue;
-                for (var dz = -radius; dz <= radius; dz++)
-                {
-                    for (var dx = -radius; dx <= radius; dx++)
-                    {
-                        if (math.max(math.abs(dx), math.abs(dz)) != radius) continue;
-
-                        var nx = x + dx;
-                        var nz = z + dz;
-                        if (nx < TrackingMin.x || nx > TrackingMax.x || nz < TrackingMin.y || nz > TrackingMax.y) continue;
-
-                        var column = nz * Grid.Width + nx;
-                        if (!HasReachableNode(column)) continue;
-
-                        var center = Grid.GetCellCenter(column, 0f).xz;
-                        var distanceSq = math.distancesq(center, point);
-                        if (distanceSq >= bestDistanceSq) continue;
-
-                        bestDistanceSq = distanceSq;
-                        shifted = radius == 0 ? point : center;
-                    }
-                }
-
-                if (bestDistanceSq < float.MaxValue) return true;
-            }
-
-            return false;
         }
 
         /// <summary>
@@ -574,16 +493,6 @@ namespace Kizami.EngineAdapter
             }
 
             return float.IsPositiveInfinity(best) ? fallback : best;
-        }
-
-        private bool HasReachableNode(int column)
-        {
-            for (var k = 0; k < Grid.LayerCounts[column]; k++)
-            {
-                if (!float.IsPositiveInfinity(Distances[column * EnemyNavigationGrid.MAX_LAYERS + k])) return true;
-            }
-
-            return false;
         }
 
         /// <summary>
@@ -785,7 +694,6 @@ namespace Kizami.EngineAdapter
 
         public void Execute()
         {
-            BuildSlotPoints();
             for (var g = 0; g < Groups.Length; g++)
             {
                 var group = Groups[g];

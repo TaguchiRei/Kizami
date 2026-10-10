@@ -249,7 +249,7 @@ namespace Kizami.EngineAdapter
 
         private IEnemySquadCommandState _commandState;
 
-        /// <summary> 前のフレームで EnemyGroupJob に渡したプレイヤーの位置。置き場の螺旋の中心 </summary>
+        /// <summary> 置き場の位置を求めたときのプレイヤーの位置。置き場の螺旋の中心 </summary>
         private float3 _encircleCenter;
 
         private ProfilerRecorder _updateRecorder;
@@ -604,17 +604,19 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 部隊の命令を決めてグループに写し、グループを更新してから、敵を動かす。動かしたあと、グループを 1 つ整える（穴詰め・並べ替え）。
+        /// 置き場の位置を求め、部隊の命令を決めてグループに写し、グループを更新してから、敵を動かす。動かしたあと、グループを 1 つ整える（穴詰め・並べ替え）。
         /// </summary>
         private void MoveAgents()
         {
             var deltaTime = Time.deltaTime;
+            var playerPosition = _target != null ? (float3)_target.position : float3.zero;
+            _encircleCenter = playerPosition;
+            _groups.BuildSlotPoints(_distanceField.Grid, _distanceField.Distances, _distanceField.TrackingMin,
+                _distanceField.TrackingMax, _formation, playerPosition);
             WriteObservations();
             _stepSquads?.Invoke(deltaTime);
             ApplyCommands();
 
-            var playerPosition = _target != null ? (float3)_target.position : float3.zero;
-            _encircleCenter = playerPosition;
             var groupHandle = _groups.Schedule(_agents, _distanceField.Grid, _distanceField.Distances,
                 _distanceField.TrackingMin, _distanceField.TrackingMax, _formation, playerPosition, _moveSpeed, deltaTime);
 
@@ -643,7 +645,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// グループごとの、前のフレームで動かした結果と、前のフレームで求めた置き場を EnemySquadObservationState に書く。追跡範囲の判定は、このフレームの距離マップで行う。
+        /// グループごとの、前のフレームで動かした結果と、このフレームで求めた置き場を EnemySquadObservationState に書く。追跡範囲の判定は、このフレームの距離マップで行う。
         /// </summary>
         private void WriteObservations()
         {

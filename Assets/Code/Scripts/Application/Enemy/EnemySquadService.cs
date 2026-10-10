@@ -11,7 +11,7 @@ namespace Kizami.Application
     /// Engine 側の観測（EnemySquadObservationState）を読んで判断し、命令（EnemySquadCommandState）に書く。Step は EnemySpawnAdapter がグループを動かす前に毎フレーム呼ぶ。
     /// 持ち場が追跡範囲に入ったら追跡、外れたら帰還にし、帰還で持ち場に着いたら待機にする。
     /// 帰還の途中で進めない状態が RETURN_BLOCKED_DURATION 続いたら、アンカーの位置を新しい持ち場にして待機にする。元の持ち場へ移さないのは、持ち場が埋まっていることがあり、プレイヤーが敵を分断する遊び（橋を切るなど）を残す為。
-    /// 追跡中の部隊には、プレイヤーを囲む螺旋の上の置き場を 1 つずつ割り当てる。置き場の位置は Engine 側が前のフレームで求めたものを観測から読む。
+    /// 追跡中の部隊には、プレイヤーを囲む螺旋の上の置き場を 1 つずつ割り当てる。置き場の位置は Engine 側がそのフレームのプレイヤーの位置で求めたものを観測から読む。
     /// </summary>
     public sealed class EnemySquadService : IDisposable
     {

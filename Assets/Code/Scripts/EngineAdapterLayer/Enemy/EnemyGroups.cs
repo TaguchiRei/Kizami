@@ -38,7 +38,7 @@ namespace Kizami.EngineAdapter
         /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、メンバーの敵の番号 </summary>
         private NativeArray<int> _members;
 
-        /// <summary> 置き場ごとの、立てる列へずらした位置。使えない置き場は NaN。EnemyGroupJob が毎フレーム書き直す </summary>
+        /// <summary> 置き場ごとの、立てる列へずらした位置。使えない置き場は NaN。EnemyEncircleSlotJob が毎フレーム書き直す </summary>
         private NativeArray<float2> _slotPoints;
 
         /// <summary> 0 番に、使える置き場のうち最も外の置き場の番号。なければ -1 </summary>
@@ -56,10 +56,10 @@ namespace Kizami.EngineAdapter
         /// <summary> 道筋の点。EnemyMoveJob が読む </summary>
         public NativeArray<float3> Paths => _paths;
 
-        /// <summary> 前の Job で求めた、置き場ごとの立てる列へずらした位置。使えない置き場は NaN </summary>
+        /// <summary> BuildSlotPoints で求めた、置き場ごとの立てる列へずらした位置。使えない置き場は NaN </summary>
         public NativeArray<float2> SlotPoints => _slotPoints;
 
-        /// <summary> 前の Job で求めた、使える置き場のうち最も外の置き場の番号。なければ -1 </summary>
+        /// <summary> BuildSlotPoints で求めた、使える置き場のうち最も外の置き場の番号。なければ -1 </summary>
         public int LastUsableSlot => _lastUsableSlot[0];
 
         /// <summary> 使われているグループの数 </summary>
@@ -206,6 +206,27 @@ namespace Kizami.EngineAdapter
             group.MemberCount++;
             _groups[_openGroup] = group;
             return true;
+        }
+
+        /// <summary>
+        /// プレイヤーを囲む螺旋の上の置き場の位置を求め、SlotPoints と LastUsableSlot に書く。完了まで待つ。
+        /// </summary>
+        /// <param name="trackingMin">distances を計算した追跡範囲の、最小の列 (x, z)</param>
+        /// <param name="trackingMax">distances を計算した追跡範囲の、最大の列 (x, z)。この列も含む</param>
+        public void BuildSlotPoints(EnemyNavigationGrid grid, NativeArray<float> distances, int2 trackingMin,
+            int2 trackingMax, in EnemyFormationSettings formation, float3 playerPosition)
+        {
+            new EnemyEncircleSlotJob
+            {
+                SlotPoints = _slotPoints,
+                LastUsableSlot = _lastUsableSlot,
+                Grid = grid,
+                Distances = distances,
+                TrackingMin = trackingMin,
+                TrackingMax = trackingMax,
+                Formation = formation,
+                PlayerPosition = playerPosition
+            }.Schedule().Complete();
         }
 
         /// <summary>
