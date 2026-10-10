@@ -15,12 +15,12 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 敵の状態（EnemyAgent）の配列と体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出す Adapter。インゲームのシーンへ置く。
-    /// 敵の状態の数は EnemySpawnSystem の同時に存在する数の上限で、出ている敵は敵の種類ごとの EnemyCrowdRenderer でまとめて描画する。
+    /// 開始時にスポーン位置（EnemySpawnPoint）ごとに編成の 1 グループを出す。敵の状態の数は有効なスポーン位置の編成の人数の合計、グループの数は有効なスポーン位置の数で、出ている敵は敵の種類ごとの EnemyCrowdRenderer でまとめて描画する。
     /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、ステージのボクセルのモデルの形が変わったら、その範囲を調べ直す。
     /// 距離マップは、プレイヤーの近く（追跡範囲。区画の大きさは EnemySpawnSystem の設定）だけを、プレイヤーのいるノードか追跡範囲が変わるか、格子を調べ直すたびに計算し直す。
     /// 追跡範囲の中でプレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ自分のグループの持ち場へ戻す。
     /// 足場ごと一定の高さ以上落ちた敵と、ボクセルから切り離されて落ちてくる塊に潰された敵は、崩落で倒す。体を貸していれば返し、かけらは出さない。
-    /// 生成した敵は出した順にグループ（EnemyGroups）へ入れ、毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
+    /// 毎フレーム EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
     /// 切断できる体（EnemyBody）の貸し借りと近接切断の結果の受け渡しは敵の種類ごとの EnemyBodyLender が、体から外れた切っていない部位の見た目用の物は EnemyDebrisSpawner が行う。
     /// アタッカーの弾は同じ GameObject の EnemyShooter が、ディフェンダーのバリアは EnemyBarriers が扱う。
     /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さない。
@@ -56,7 +56,9 @@ namespace Kizami.EngineAdapter
         private static readonly int _kindCount = Enum.GetValues(typeof(EnemyKind)).Length;
 
         private readonly List<EnemySpawnPoint> _spawnPoints = new();
-        private readonly List<EnemyInitialSpawnArea> _initialSpawnAreas = new();
+
+        /// <summary> 初期化のときに有効で、編成を持つスポーン位置。1 つにつき 1 グループを出す </summary>
+        private readonly List<EnemySpawnPoint> _activeSpawnPoints = new();
 
         /// <summary> カメラの視錐台の面。戻れない敵がカメラに映っているかを調べる作業用の配列 </summary>
         private readonly Plane[] _frustumPlanes = new Plane[6];
@@ -154,8 +156,8 @@ namespace Kizami.EngineAdapter
         private EnemyFormationSettings _formation = EnemyFormationSettings.Default;
 
         [SerializeField, Min(0f)]
-        [Tooltip("初期生成で、グループのメンバーを置く範囲の半径（m）。グループの中心は初期生成の範囲から選ぶ")]
-        private float _groupSpawnRadius = 4f;
+        [Tooltip("戻れない敵を持ち場の周りへ移すときの、持ち場からの半径（m）")]
+        private float _strandedReturnRadius = 4f;
 
         [SerializeField, Min(0f)]
         [Tooltip("追跡範囲の中でプレイヤーへたどり着けない状態がこの時間（秒）続いた敵は、カメラに映っていなければ自分のグループの持ち場へ戻す。動けない敵と、体を貸している敵は戻さない")]
@@ -239,13 +241,7 @@ namespace Kizami.EngineAdapter
         private ProfilerRecorder _bodyRecorder;
         private ProfilerRecorder _renderRecorder;
 
-        /// <summary> 生成情報ごとの、前に出してからの経過時間（秒） </summary>
-        private float[] _spawnTimers;
-
-        /// <summary> 次に使う生成位置の、_spawnPoints の中の位置 </summary>
-        private int _nextSpawnPointIndex;
-
-        private bool _hasSpawnedInitial;
+        private bool _hasSpawnedSquads;
 
         /// <summary> 出ている敵の数 </summary>
         public int SpawnedCount
@@ -270,7 +266,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 崩落で倒した敵のうち、落ちてくる塊に潰された敵の数の累計 </summary>
         public int CrushDefeatCount { get; private set; }
 
-        /// <summary> 敵の状態の数（同時に存在する数の上限） </summary>
+        /// <summary> 敵の状態の数（有効なスポーン位置の編成の人数の合計） </summary>
         public int Capacity => _agents.IsCreated ? _agents.Length : 0;
 
         /// <summary> 使われているグループの数 </summary>
@@ -300,7 +296,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 経路の格子と距離マップ。初期化の前は null </summary>
         public EnemyDistanceField DistanceField => _distanceField;
 
-        /// <summary> ステージシーンの実行中の生成位置 </summary>
+        /// <summary> ステージシーンのスポーン位置 </summary>
         public IReadOnlyList<EnemySpawnPoint> SpawnPoints => _spawnPoints;
 
         /// <summary>
@@ -347,9 +343,7 @@ namespace Kizami.EngineAdapter
                 return;
             }
 
-            _spawnSystem.GetComponentsInChildren(true, _spawnPoints);
-            _spawnSystem.GetComponentsInChildren(true, _initialSpawnAreas);
-            _spawnTimers = new float[_spawnSystem.SpawnInfos.Count];
+            var agentCount = CollectSpawnPoints();
 
             if (_debrisMaterial == null)
             {
@@ -361,9 +355,9 @@ namespace Kizami.EngineAdapter
                     _debrisOutwardSpeed, _debrisUpwardSpeed, _debrisAngularSpeed);
             }
 
-            _agents = new NativeArray<EnemyAgent>(_spawnSystem.MaxAliveCount, Allocator.Persistent);
+            _agents = new NativeArray<EnemyAgent>(agentCount, Allocator.Persistent);
             _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
-                _dropHeight, _groundLayers, _spawnSystem.SectionSize);
+                _dropHeight, _groundLayers, _spawnSystem.SectionSize, _spawnSystem.SectionOrigin);
             _collapseDetector = new EnemyCollapseDetector(_crushMinFallSpeed, _crushMinVolume, _crushBodyCenterHeight,
                 _crushSurfaceMargin);
             foreach (var loader in FindObjectsByType<VoxelModelLoader>(FindObjectsSortMode.None))
@@ -372,9 +366,8 @@ namespace Kizami.EngineAdapter
                 _collapseDetector.Watch(loader);
             }
 
-            _groups = new EnemyGroups(_agents.Length);
+            _groups = new EnemyGroups(_activeSpawnPoints.Count);
             WarnUnstandableSpawnPoints();
-            WarnUnconfiguredKinds();
             _updateRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, UPDATE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _moveRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, MOVE_MARKER_NAME, TIMING_SAMPLE_COUNT);
             _bodyRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Scripts, BODY_MARKER_NAME, TIMING_SAMPLE_COUNT);
@@ -453,13 +446,11 @@ namespace Kizami.EngineAdapter
 
             using (_updateMarker.Auto())
             {
-                if (!_hasSpawnedInitial)
+                if (!_hasSpawnedSquads)
                 {
-                    SpawnInitial();
-                    _hasSpawnedInitial = true;
+                    SpawnSquads();
+                    _hasSpawnedSquads = true;
                 }
-
-                SpawnByInterval();
 
                 if (_target != null) _distanceField.Update(_target.position);
 
@@ -640,9 +631,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 追跡範囲の中でプレイヤーへたどり着けない状態が戻す時間を超えた敵のうち、カメラに映っていない敵を、自分のグループの持ち場の周りへ移す。
-        /// グループを持たない敵は、次の有効な生成位置へ移す。移した敵は元のグループから抜き、持ち場ごとに新しいグループにする（持ち場は引き継ぐ）。部位の状態はそのまま持ち続ける。
+        /// 移した敵はグループに残り、隊列の位置へ歩いて戻る。部位の状態はそのまま持ち続ける。
         /// 持ち場が追跡範囲の中で、そこからもプレイヤーへたどり着けない（分断されている）ときは戻さない。
-        /// 動けない敵は戻さない（同時に存在する数の上限を埋め続ける、仕様の戦略の為）。体を貸している敵も戻さない（プレイヤーの近くにいる為）。
+        /// 動けない敵は戻さない（グループから抜けてその場に残る）。体を貸している敵も戻さない（プレイヤーの近くにいる為）。
         /// 行動中の敵（動き方が Walking でない敵）も戻さない。フィニッシャーの攻撃が位置を決めている為。
         /// </summary>
         private void ReturnStrandedAgents()
@@ -650,13 +641,10 @@ namespace Kizami.EngineAdapter
             var camera = Camera.main;
             if (camera != null) GeometryUtility.CalculateFrustumPlanes(camera, _frustumPlanes);
 
-            var hasOpenGroup = false;
-            var openHome = Vector3.zero;
-
             for (var i = 0; i < _agents.Length; i++)
             {
                 var agent = _agents[i];
-                if (!agent.IsAlive || agent.StrandedTime < _strandedReturnDelay) continue;
+                if (!agent.IsAlive || agent.StrandedTime < _strandedReturnDelay || agent.GroupIndex < 0) continue;
                 if (agent.BodyIndex >= 0 || agent.BrokenMovePartCount >= agent.BrokenMovePartLimit ||
                     agent.MoveMode != EnemyMoveMode.Walking) continue;
 
@@ -664,122 +652,44 @@ namespace Kizami.EngineAdapter
                     Vector3.one * VISIBILITY_SIZE);
                 if (camera != null && GeometryUtility.TestPlanesAABB(_frustumPlanes, bounds)) continue;
 
-                if (!TryGetReturnHome(agent, out var home, out var spawnPoint)) continue;
+                var group = _groups.Groups[agent.GroupIndex];
+                if (!group.IsActive || _distanceField.IsCutOff(group.HomePosition)) continue;
 
-                if (!hasOpenGroup || home != openHome)
+                Vector3 home = group.HomePosition;
+                var position = PickStandablePosition(() =>
                 {
-                    _groups.CloseGroup();
-                    hasOpenGroup = true;
-                    openHome = home;
-                }
-
-                EnemyGroups.Leave(ref agent);
-                var offset = Random.insideUnitCircle * _groupSpawnRadius;
-                var position = spawnPoint != null
-                    ? PickStandablePosition(spawnPoint.GetSpawnPosition, home)
-                    : home + new Vector3(offset.x, 0f, offset.y);
+                    var offset = Random.insideUnitCircle * _strandedReturnRadius;
+                    return home + new Vector3(offset.x, 0f, offset.y);
+                }, home);
                 agent.Position = position;
                 agent.Yaw = GetYawToTarget(position);
                 agent.IsGrounded = false;
                 agent.VerticalSpeed = 0f;
                 agent.FallStartHeight = position.y;
                 agent.StrandedTime = 0f;
-                _groups.TryAdd(i, ref agent, home, GetYawToTarget(home), _formation);
                 _agents[i] = agent;
             }
-
-            if (hasOpenGroup) _groups.CloseGroup();
         }
 
         /// <summary>
-        /// 戻れない敵を戻す持ち場を返す。グループを持てばその持ち場、持たなければ次の有効な生成位置（spawnPoint に入れる）。
-        /// 持ち場が追跡範囲の中でプレイヤーへたどり着けないとき、生成位置がないときは false。
+        /// 有効なスポーン位置ごとに、編成の 1 グループを出す。グループのアンカーと持ち場はスポーン位置の中心にし、メンバーはスポーン位置の半径の中の立てる所に出す。
+        /// 体の設定のない種類のメンバーは出さない。
         /// </summary>
-        private bool TryGetReturnHome(in EnemyAgent agent, out Vector3 home, out EnemySpawnPoint spawnPoint)
+        private void SpawnSquads()
         {
-            spawnPoint = null;
-            if (agent.GroupIndex >= 0 && _groups.Groups[agent.GroupIndex].IsActive)
+            foreach (var point in _activeSpawnPoints)
             {
-                home = _groups.Groups[agent.GroupIndex].HomePosition;
-                return !_distanceField.IsCutOff(home);
-            }
-
-            home = Vector3.zero;
-            if (!TryGetNextSpawnPoint(out spawnPoint)) return false;
-
-            home = spawnPoint.transform.position;
-            return true;
-        }
-
-        /// <summary>
-        /// 初期生成情報の範囲に、決まった数の敵を置く。グループの人数ずつ、範囲から選んだ中心の周りにまとめて置く。種類は範囲の編成で決め、体の設定のない種類は置かない。
-        /// 中心とメンバーの位置は、立てる所（IsStandable）に来るまで選び直す。中心が見つからないグループは置かず、警告を出す。
-        /// </summary>
-        private void SpawnInitial()
-        {
-            foreach (var area in _initialSpawnAreas)
-            {
-                var center = Vector3.zero;
-                var hasCenter = false;
-                for (var i = 0; i < area.Count; i++)
+                var center = point.transform.position;
+                _groups.CloseGroup();
+                foreach (var kind in point.Composition.Members)
                 {
-                    if (i % _formation.GroupSize == 0)
-                    {
-                        _groups.CloseGroup();
-                        hasCenter = TryPickStandablePosition(area.GetSpawnPosition, out center);
-                        if (!hasCenter)
-                        {
-                            UsefulLogger.LogWarning(
-                                $"初期生成の範囲 {area.name} から、敵が立てる所を {SPAWN_POSITION_ATTEMPTS} 回で選べなかった為、1 グループ分を置きません。範囲を床の上へ動かしてください。",
-                                area);
-                        }
-                    }
+                    if (_bodyPrefabs[(int)kind] == null) continue;
 
-                    var kind = area.GetKind(i % _formation.GroupSize);
-                    if (!hasCenter || _bodyPrefabs[(int)kind] == null) continue;
-
-                    var groupCenter = center;
-                    var position = PickStandablePosition(() =>
-                    {
-                        var offset = Random.insideUnitCircle * _groupSpawnRadius;
-                        return groupCenter + new Vector3(offset.x, 0f, offset.y);
-                    }, center);
-                    if (!TrySpawn(kind, position, center)) return;
+                    TrySpawn(kind, PickStandablePosition(point.GetSpawnPosition, center), center);
                 }
             }
 
             _groups.CloseGroup();
-        }
-
-        /// <summary>
-        /// 生成情報ごとに間隔を数え、間隔が来たら次の有効な生成位置から、一度に出す数の上限まで出す。
-        /// 一度に出した敵は、グループの人数ずつ新しいグループにする。種類は生成情報の編成で決め、体の設定のない種類は出さない。
-        /// </summary>
-        private void SpawnByInterval()
-        {
-            var spawnInfos = _spawnSystem.SpawnInfos;
-
-            for (var i = 0; i < spawnInfos.Count; i++)
-            {
-                var info = spawnInfos[i];
-                _spawnTimers[i] += Time.deltaTime;
-                if (_spawnTimers[i] < info.Interval) continue;
-
-                _spawnTimers[i] -= info.Interval;
-                if (!TryGetNextSpawnPoint(out var point)) continue;
-
-                _groups.CloseGroup();
-                for (var n = 0; n < info.MaxCountPerSpawn; n++)
-                {
-                    var kind = info.GetKind(n % _formation.GroupSize);
-                    if (_bodyPrefabs[(int)kind] == null) continue;
-
-                    if (!TrySpawn(kind, PickStandablePosition(point.GetSpawnPosition, point.transform.position),
-                            point.transform.position)) break;
-                }
-
-                _groups.CloseGroup();
-            }
         }
 
         /// <summary>
@@ -817,69 +727,67 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 中心が立てる所にない生成位置を、名前つきで警告する。その生成位置から出したグループのアンカーは床に乗れず、動かない為。
+        /// 中心が立てる所にないスポーン位置を、名前つきで警告する。そのスポーン位置から出したグループのアンカーは床に乗れず、動かない為。
         /// </summary>
         private void WarnUnstandableSpawnPoints()
         {
-            foreach (var point in _spawnPoints)
+            foreach (var point in _activeSpawnPoints)
             {
-                if (point == null || IsStandable(point.transform.position)) continue;
+                if (IsStandable(point.transform.position)) continue;
 
                 UsefulLogger.LogWarning(
-                    $"生成位置 {point.name} の中心に、敵が立てる所がありません。そこから出したグループは動けないので、床の上へ動かしてください。",
+                    $"スポーン位置 {point.name} の中心に、敵が立てる所がありません。そこから出したグループは動けないので、床の上へ動かしてください。",
                     point);
             }
         }
 
         /// <summary>
-        /// 初期生成の範囲と生成情報の編成に、体の設定のない種類があれば、名前つきで警告する。その種類のメンバーは出さない為。
+        /// 有効なスポーン位置を集め、出す敵の数（編成の人数の合計）を返す。
+        /// 編成のないスポーン位置、編成に体の設定のない種類があるスポーン位置、区画の番号が位置と食い違うスポーン位置は、名前つきで警告する。
         /// </summary>
-        private void WarnUnconfiguredKinds()
+        private int CollectSpawnPoints()
         {
-            foreach (var area in _initialSpawnAreas)
-            {
-                foreach (var kind in area.Composition)
-                {
-                    if (_bodyPrefabs[(int)kind] != null) continue;
+            _spawnSystem.GetComponentsInChildren(true, _spawnPoints);
+            _activeSpawnPoints.Clear();
+            var agentCount = 0;
 
-                    UsefulLogger.LogWarning($"初期生成の範囲 {area.name} の編成にある {kind} は、体の設定がない為に置きません。", area);
+            foreach (var point in _spawnPoints)
+            {
+                if (point == null || !point.IsEnabled) continue;
+
+                if (point.Composition == null)
+                {
+                    UsefulLogger.LogWarning($"スポーン位置 {point.name} に編成が設定されていない為、敵を出しません。", point);
+                    continue;
                 }
+
+                var section = _spawnSystem.GetSection(point.transform.position);
+                if (section != point.Section)
+                {
+                    UsefulLogger.LogWarning(
+                        $"スポーン位置 {point.name} の区画の番号 {point.Section} が、位置の区画 {section} と食い違っています。区画の番号か位置を直してください。",
+                        point);
+                }
+
+                foreach (var kind in point.Composition.Members)
+                {
+                    if (_bodyPrefabs[(int)kind] != null)
+                    {
+                        agentCount++;
+                        continue;
+                    }
+
+                    UsefulLogger.LogWarning($"スポーン位置 {point.name} の編成にある {kind} は、体の設定がない為に出しません。", point);
+                }
+
+                _activeSpawnPoints.Add(point);
             }
 
-            var spawnInfos = _spawnSystem.SpawnInfos;
-            for (var i = 0; i < spawnInfos.Count; i++)
-            {
-                foreach (var kind in spawnInfos[i].Composition)
-                {
-                    if (_bodyPrefabs[(int)kind] != null) continue;
-
-                    UsefulLogger.LogWarning($"生成情報 {i} 番の編成にある {kind} は、体の設定がない為に出しません。", _spawnSystem);
-                }
-            }
+            return agentCount;
         }
 
         /// <summary>
-        /// 生成位置を順番に回し、次の有効な生成位置を返す。無効な生成位置は飛ばす。
-        /// </summary>
-        private bool TryGetNextSpawnPoint(out EnemySpawnPoint point)
-        {
-            for (var i = 0; i < _spawnPoints.Count; i++)
-            {
-                var candidate = _spawnPoints[_nextSpawnPointIndex];
-                _nextSpawnPointIndex = (_nextSpawnPointIndex + 1) % _spawnPoints.Count;
-
-                if (candidate == null || !candidate.IsEnabled) continue;
-
-                point = candidate;
-                return true;
-            }
-
-            point = null;
-            return false;
-        }
-
-        /// <summary>
-        /// 空いている敵の状態を使い、目標の方を向けて出し、生成中のグループの隊列の最後に入れる。空きがなければ出さない。
+        /// 空いている敵の状態を使い、目標の方を向けて出し、生成中のグループの隊列の最後に入れる。敵の状態かグループに空きがなければ出さない。
         /// </summary>
         /// <param name="kind">出す敵の種類。体の設定のある種類に限る</param>
         /// <param name="position">出す位置</param>
@@ -911,7 +819,8 @@ namespace Kizami.EngineAdapter
                     GroupIndex = -1
                 };
 
-                _groups.TryAdd(i, ref agent, groupCenter, GetYawToTarget(groupCenter), _formation);
+                if (!_groups.TryAdd(i, ref agent, groupCenter, GetYawToTarget(groupCenter), _formation)) return false;
+
                 _agents[i] = agent;
                 return true;
             }

@@ -1394,7 +1394,6 @@ MonoBehaviour:
   _turnSpeed: 180
   _stopDistance: 6
   _formation:
-    _groupSize: 12
     _anchorSpeedRate: 0.8
     _anchorAcceleration: 1.5
     _anchorTurnSpeed: 90
@@ -1410,7 +1409,7 @@ MonoBehaviour:
     _memberSlotSpacing: 6
     _followDistance: 10
     _barrierLeaveMargin: 10
-  _groupSpawnRadius: 4
+  _strandedReturnRadius: 4
   _strandedReturnDelay: 10
   _fallDefeatHeight: 3
   _floatingFallSpeed: 2

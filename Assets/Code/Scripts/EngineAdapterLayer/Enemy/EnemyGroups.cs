@@ -169,7 +169,7 @@ namespace Kizami.EngineAdapter
         public bool TryAdd(int agentIndex, ref EnemyAgent agent, float3 anchorPosition, float anchorYaw,
             in EnemyFormationSettings formation)
         {
-            if (_openGroup < 0 || !_groups[_openGroup].IsActive || _groups[_openGroup].MemberCount >= formation.GroupSize)
+            if (_openGroup < 0 || !_groups[_openGroup].IsActive || _groups[_openGroup].MemberCount >= EnemyFormationSettings.MAX_GROUP_SIZE)
             {
                 _openGroup = OpenGroup(anchorPosition, anchorYaw, formation);
                 if (_openGroup < 0) return false;
@@ -356,7 +356,7 @@ namespace Kizami.EngineAdapter
 
                 var backward = -new float3(math.sin(anchorYaw), 0f, math.cos(anchorYaw));
                 var pathCount = math.min(PATH_CAPACITY,
-                    (int)math.ceil(formation.GroupSize * formation.RowSpacing / PATH_SPACING) + 1);
+                    (int)math.ceil(EnemyFormationSettings.MAX_GROUP_SIZE * formation.RowSpacing / PATH_SPACING) + 1);
                 for (var i = 0; i < pathCount; i++)
                 {
                     // 最も古い点が最も後ろになるよう、区画の先頭から後ろの点を並べる

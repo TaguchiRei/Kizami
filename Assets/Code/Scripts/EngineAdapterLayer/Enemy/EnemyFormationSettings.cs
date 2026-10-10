@@ -10,12 +10,8 @@ namespace Kizami.EngineAdapter
     [Serializable]
     public struct EnemyFormationSettings
     {
-        /// <summary> 1 グループの人数の上限。グループのメンバーの配列は、グループごとにこの数の区画を持つ </summary>
+        /// <summary> 1 グループの人数の上限。グループのメンバーの配列は、グループごとにこの数の区画を持つ。グループの人数は編成（EnemySquadComposition）の長さで決まる </summary>
         public const int MAX_GROUP_SIZE = 16;
-
-        [SerializeField, Range(1, MAX_GROUP_SIZE)]
-        [Tooltip("1 グループの人数。生成した順にこの数ずつグループにする")]
-        private int _groupSize;
 
         [SerializeField, Min(0f)]
         [Tooltip("アンカーが歩く速さの、敵が歩く速さに対する割合。敵が隊列の位置に追いつけるよう、1 より小さくする")]
@@ -77,9 +73,6 @@ namespace Kizami.EngineAdapter
         [Tooltip("バリアを張っているグループは、プレイヤーとの距離が張ったときの距離よりこの値（m）以上広がるまで、置き場が動いてもその位置に留まる")]
         private float _barrierLeaveMargin;
 
-        /// <summary> 1 グループの人数 </summary>
-        public int GroupSize => _groupSize;
-
         /// <summary> アンカーが歩く速さの、敵が歩く速さに対する割合 </summary>
         public float AnchorSpeedRate => _anchorSpeedRate;
 
@@ -128,7 +121,6 @@ namespace Kizami.EngineAdapter
         /// <summary> 既定の値（仮の値） </summary>
         public static EnemyFormationSettings Default => new()
         {
-            _groupSize = 12,
             _anchorSpeedRate = 0.8f,
             _anchorAcceleration = 1.5f,
             _anchorTurnSpeed = 90f,

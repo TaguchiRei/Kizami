@@ -147,13 +147,7 @@ namespace Kizami.EngineAdapter
             if (TryGetSlotTarget(agent, out var target, out var slotYaw))
             {
                 MoveToward(ref agent, column, height, distance, target, slotYaw, speed);
-                return;
             }
-
-            if (float.IsPositiveInfinity(distance)) return;
-            if (!Grid.TryGetDownhillColumn(column, height, distance, Distances, out var nextColumn)) return;
-
-            Step(ref agent, column, height, (Grid.GetCellCenter(nextColumn, 0f) - agent.Position).xz, speed);
         }
 
         /// <summary>
