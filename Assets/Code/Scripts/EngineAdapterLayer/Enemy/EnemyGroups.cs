@@ -220,14 +220,19 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// グループ g の、生きていてグループに入っているメンバーの数を返す。動けなくなった敵も数える。
         /// </summary>
-        public int CountAliveMembers(int g, NativeArray<EnemyAgent> agents)
+        /// <param name="mobileCount">そのうち、動けなくなっていないメンバーの数</param>
+        public int CountAliveMembers(int g, NativeArray<EnemyAgent> agents, out int mobileCount)
         {
             var offset = g * EnemyFormationSettings.MAX_GROUP_SIZE;
             var count = 0;
+            mobileCount = 0;
             for (var i = 0; i < _groups[g].MemberCount; i++)
             {
                 var agent = agents[_members[offset + i]];
-                if (agent.IsAlive && agent.GroupIndex == g) count++;
+                if (!agent.IsAlive || agent.GroupIndex != g) continue;
+
+                count++;
+                if (!IsImmobile(agent)) mobileCount++;
             }
 
             return count;

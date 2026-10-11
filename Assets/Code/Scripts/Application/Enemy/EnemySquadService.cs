@@ -16,7 +16,7 @@ namespace Kizami.Application
     /// 全滅した部隊は、スポーン位置の出し直しの間隔が経ったら、スポーン位置を持ち場にして満員で出し直す（Refill）。臨時の拠点にいた部隊も、元のスポーン位置から出し直す。
     /// 補充を受けられない部隊（臨時の拠点にいる部隊と、スポーン位置から出せない部隊）は撤退しない。帰り着いても満員に戻らず、追跡と撤退を繰り返す為。
     /// 動けるメンバーのいない部隊も撤退しない。Engine 側でアンカーが止まり、帰り着けない為。撤退の途中で動けるメンバーがいなくなった部隊は、進めない状態が続いて臨時の拠点になり、補充されない。
-    /// 追跡中の部隊には、プレイヤーを囲む螺旋の上の置き場を 1 つずつ割り当てる。置き場の位置は Engine 側がそのフレームのプレイヤーの位置で求めたものを観測から読む。
+    /// 追跡中の部隊には、プレイヤーを囲む螺旋の上の置き場を 1 つずつ割り当てる。動けるメンバーのいない部隊は動けないので、置き場を手放す。置き場の位置は Engine 側がそのフレームのプレイヤーの位置で求めたものを観測から読む。
     /// </summary>
     public sealed class EnemySquadService : IDisposable
     {
@@ -103,7 +103,7 @@ namespace Kizami.Application
                 _respawnTimes[i] = 0f;
 
                 Decide(i, observation, ref command, deltaTime);
-                if (command.State == EnemyGroupState.Tracking)
+                if (command.State == EnemyGroupState.Tracking && observation.HasMobileMember)
                 {
                     UpdateEncircleSlot(observation, ref command);
                 }
