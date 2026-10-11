@@ -30,6 +30,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("この半径（m）の円の中にメンバーを出す")]
         private float _radius = 4f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("グループが全滅してから、満員のグループを出し直すまでの時間（秒）")]
+        private float _respawnInterval = 30f;
+
         [SerializeField]
         [Tooltip("敵を出すか。初期化のあとに切り替えたときは、出さない方向にだけ効く")]
         private bool _isEnabled = true;
@@ -42,6 +46,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 敵を出せる状態か。GameObject が非アクティブのときも出さない </summary>
         public bool IsEnabled => _isEnabled && isActiveAndEnabled;
+
+        /// <summary> グループが全滅してから、満員のグループを出し直すまでの時間（秒） </summary>
+        public float RespawnInterval => _respawnInterval;
+
+        /// <summary> 補充と出し直しで敵を出せるか </summary>
+        public bool CanSpawn => IsEnabled;
 
         /// <summary> 敵を出せる状態にする </summary>
         public void Enable()

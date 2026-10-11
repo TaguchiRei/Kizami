@@ -126,14 +126,26 @@ namespace Kizami.BlackBoard
     /// </summary>
     public struct EnemySquadObservation
     {
-        /// <summary> 使われているか。メンバーが全員ステージから消えたら false </summary>
+        /// <summary> 使われているか。メンバーが全員倒れたら false </summary>
         public bool IsActive;
 
         /// <summary> アンカー（部隊の先頭の仮想の隊長）の位置 </summary>
         public Vector3 AnchorPosition;
 
-        /// <summary> メンバーの数。倒れたメンバーも、隊列を詰めるまでは数える </summary>
+        /// <summary> 生きていて部隊にいるメンバーの数。動けなくなったメンバーも数える </summary>
         public int MemberCount;
+
+        /// <summary> 満員の人数。スポーン位置の編成の人数 </summary>
+        public int FullMemberCount;
+
+        /// <summary> 部隊が出てくるスポーン位置 </summary>
+        public Vector3 SpawnPosition;
+
+        /// <summary> 全滅してから、満員の部隊を出し直すまでの時間（秒） </summary>
+        public float RespawnInterval;
+
+        /// <summary> スポーン位置から補充と出し直しの敵を出せるか </summary>
+        public bool CanSpawn;
 
         /// <summary> 持ち場が追跡範囲（距離マップを計算した範囲）の中にあるか </summary>
         public bool IsHomeTracked;

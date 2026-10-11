@@ -8,7 +8,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 敵のグループ（EnemyGroup）と、その道筋・帰りの道筋・メンバーの配列を持つ。
-    /// EnemySpawnAdapter が、生成した敵を順にグループへ入れ、毎フレーム EnemyGroupJob を回し、グループを 1 つずつ並べ替える。
+    /// EnemySpawnAdapter が、スポーン位置と同じ番号のグループを開いて生成した敵を入れ、毎フレーム EnemyGroupJob を回し、グループを 1 つずつ並べ替える。
     /// </summary>
     public sealed class EnemyGroups : IDisposable
     {
@@ -43,9 +43,6 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 0 番に、使える置き場のうち最も外の置き場の番号。なければ -1 </summary>
         private NativeArray<int> _lastUsableSlot;
-
-        /// <summary> 生成した敵を入れていくグループ。次に入れる敵で新しいグループを作るなら -1 </summary>
-        private int _openGroup = -1;
 
         /// <summary> 次に整えるグループを探し始める番号 </summary>
         private int _maintainCursor;
@@ -131,19 +128,11 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// グループ g の隊列の 0 番の敵の番号を返す。メンバーがいなければ -1。
-        /// 倒れた敵やほかのグループへ移った敵が、次に整えるまで残っていることがあるので、呼び出し元で生きているかとグループの番号を確かめる。
+        /// 倒れた敵や、その敵の状態を使って別のグループに出した敵が、次に整えるまで残っていることがあるので、呼び出し元で生きているかとグループの番号を確かめる。
         /// </summary>
         public int GetLeader(int g)
         {
             return _groups[g].MemberCount > 0 ? _members[g * EnemyFormationSettings.MAX_GROUP_SIZE] : -1;
-        }
-
-        /// <summary>
-        /// 敵をグループから抜く。抜いた敵の区画は、次にそのグループを整えるときに詰める。
-        /// </summary>
-        public static void Leave(ref EnemyAgent agent)
-        {
-            agent.GroupIndex = -1;
         }
 
         /// <summary>
@@ -174,38 +163,74 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 次に入れる敵から、新しいグループにする。
+        /// グループ g を使い始め、道筋をアンカーの後ろへまっすぐ伸ばした点で埋めて、生成した直後から隊列の位置が決まるようにする。
+        /// アンカーの位置を持ち場にし、待機の状態から始める。グループの番号はスポーン位置の番号で、全滅したあとは同じ番号で開き直す。
         /// </summary>
-        public void CloseGroup()
+        /// <param name="g">グループの番号</param>
+        /// <param name="anchorPosition">アンカーの位置</param>
+        /// <param name="anchorYaw">アンカーの向き</param>
+        /// <param name="formation">隊列の設定</param>
+        public void Open(int g, float3 anchorPosition, float anchorYaw, in EnemyFormationSettings formation)
         {
-            _openGroup = -1;
+            var backward = -new float3(math.sin(anchorYaw), 0f, math.cos(anchorYaw));
+            var pathCount = math.min(PATH_CAPACITY,
+                (int)math.ceil(EnemyFormationSettings.MAX_GROUP_SIZE * formation.RowSpacing / PATH_SPACING) + 1);
+            for (var i = 0; i < pathCount; i++)
+            {
+                // 最も古い点が最も後ろになるよう、区画の先頭から後ろの点を並べる
+                _paths[g * PATH_CAPACITY + i] = anchorPosition + backward * ((pathCount - 1 - i) * PATH_SPACING);
+            }
+
+            _groups[g] = new EnemyGroup
+            {
+                IsActive = true,
+                State = EnemyGroupState.Waiting,
+                HomePosition = anchorPosition,
+                AnchorPosition = anchorPosition,
+                AnchorYaw = anchorYaw,
+                AnchorDistance = float.PositiveInfinity,
+                EncircleSlot = -1,
+                ColumnCount = 1,
+                PendingColumnCount = 1,
+                PathHead = pathCount - 1,
+                PathCount = pathCount
+            };
         }
 
         /// <summary>
-        /// 敵を、生成中のグループの隊列の最後に入れる。グループがないか人数に達していれば、新しいグループを作る。
-        /// 空いているグループがなければ入れず false を返す。グループの数は有効なスポーン位置の数で、スポーン位置ごとに CloseGroup するので、生成のときには空きがある。
+        /// 敵を、使われているグループ g の隊列の最後に入れる。グループが使われていないか人数に達していれば入れず false を返す。
         /// </summary>
+        /// <param name="g">グループの番号</param>
         /// <param name="agentIndex">敵の状態の番号</param>
         /// <param name="agent">入れる敵。GroupIndex と SlotIndex を書く</param>
-        /// <param name="anchorPosition">新しいグループを作るときの、アンカーの位置。持ち場にもする</param>
-        /// <param name="anchorYaw">新しいグループを作るときの、アンカーの向き</param>
-        /// <param name="formation">隊列の設定</param>
-        public bool TryAdd(int agentIndex, ref EnemyAgent agent, float3 anchorPosition, float anchorYaw,
-            in EnemyFormationSettings formation)
+        public bool TryAdd(int g, int agentIndex, ref EnemyAgent agent)
         {
-            if (_openGroup < 0 || !_groups[_openGroup].IsActive || _groups[_openGroup].MemberCount >= EnemyFormationSettings.MAX_GROUP_SIZE)
-            {
-                _openGroup = OpenGroup(anchorPosition, anchorYaw, formation);
-                if (_openGroup < 0) return false;
-            }
+            var group = _groups[g];
+            if (!group.IsActive || group.MemberCount >= EnemyFormationSettings.MAX_GROUP_SIZE) return false;
 
-            var group = _groups[_openGroup];
-            _members[_openGroup * EnemyFormationSettings.MAX_GROUP_SIZE + group.MemberCount] = agentIndex;
-            agent.GroupIndex = _openGroup;
+            _members[g * EnemyFormationSettings.MAX_GROUP_SIZE + group.MemberCount] = agentIndex;
+            agent.GroupIndex = g;
             agent.SlotIndex = group.MemberCount;
             group.MemberCount++;
-            _groups[_openGroup] = group;
+            group.MobileMemberCount++;
+            _groups[g] = group;
             return true;
+        }
+
+        /// <summary>
+        /// グループ g の、生きていてグループに入っているメンバーの数を返す。動けなくなった敵も数える。
+        /// </summary>
+        public int CountAliveMembers(int g, NativeArray<EnemyAgent> agents)
+        {
+            var offset = g * EnemyFormationSettings.MAX_GROUP_SIZE;
+            var count = 0;
+            for (var i = 0; i < _groups[g].MemberCount; i++)
+            {
+                var agent = agents[_members[offset + i]];
+                if (agent.IsAlive && agent.GroupIndex == g) count++;
+            }
+
+            return count;
         }
 
         /// <summary>
@@ -260,7 +285,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 使われているグループを 1 つ順番に選んで整える。毎フレーム 1 グループずつ呼ぶ。Job が走っていない間に呼ぶ。
-        /// 倒れた敵、動けなくなった敵を隊列から抜いて順番を詰め（穴を後ろへずらす）、
+        /// 倒れた敵を隊列から抜いて順番を詰め（穴を後ろへずらす）、動けなくなった敵を後ろへ回し、
         /// メンバーの隊列の順番を、向かう先に近い順に並べ替える（先頭の列に向かう先に近いメンバーが来て、隊列の位置へ向かうメンバーどうしが交差しにくくなる）。
         /// 向かう先に近い順は、帰還中は持ち場までの直線の距離、それ以外はプレイヤーまでの経路の長さで決める。
         /// 置き場に着いて螺旋に並んでいるグループは並べ替えない。順番が螺旋の上の位置なので、入れ替えると並び直しが続く為。
@@ -282,15 +307,17 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 倒れた敵、動けなくなった敵を区画から抜き、残りを順番を保って前へ詰める。
-        /// 動けなくなった敵（壊れた移動部位が上限に達した敵）はグループから抜いて、その場に残す。残りがいなければグループを空ける。
-        /// ディフェンダーがいれば、最初の 1 体を 0 番（着いたら螺旋の中心）へ移す。戻れない敵の移し替えで後ろに入っても、ここで中心に戻る。
+        /// 倒れた敵を区画から抜き、残りを順番を保って前へ詰める。残りがいなければグループを空ける。
+        /// 動けなくなった敵（壊れた移動部位が上限に達した敵）はグループに残し、隊列の後ろへ回す。歩かない敵が隊列の途中にいると、その位置が空いたまま残る為。
+        /// 動けるディフェンダーがいれば、最初の 1 体を 0 番（着いたら螺旋の中心）へ移す。戻れない敵の移し替えで後ろに入っても、ここで中心に戻る。
         /// </summary>
         private void Compact(int g, NativeArray<EnemyAgent> agents)
         {
             var offset = g * EnemyFormationSettings.MAX_GROUP_SIZE;
             var group = _groups[g];
+            Span<int> immobiles = stackalloc int[EnemyFormationSettings.MAX_GROUP_SIZE];
             var count = 0;
+            var immobileCount = 0;
             var defender = -1;
 
             for (var i = 0; i < group.MemberCount; i++)
@@ -299,10 +326,10 @@ namespace Kizami.EngineAdapter
                 var agent = agents[index];
                 if (!agent.IsAlive || agent.GroupIndex != g) continue;
 
-                if (agent.BrokenMovePartCount >= agent.BrokenMovePartLimit)
+                if (IsImmobile(agent))
                 {
-                    Leave(ref agent);
-                    agents[index] = agent;
+                    immobiles[immobileCount] = index;
+                    immobileCount++;
                     continue;
                 }
 
@@ -318,7 +345,12 @@ namespace Kizami.EngineAdapter
                 _members[offset] = index;
             }
 
-            for (var i = 0; i < count; i++)
+            for (var i = 0; i < immobileCount; i++)
+            {
+                _members[offset + count + i] = immobiles[i];
+            }
+
+            for (var i = 0; i < count + immobileCount; i++)
             {
                 var index = _members[offset + i];
                 var agent = agents[index];
@@ -326,9 +358,18 @@ namespace Kizami.EngineAdapter
                 agents[index] = agent;
             }
 
-            group.MemberCount = count;
-            group.IsActive = count > 0;
+            group.MemberCount = count + immobileCount;
+            group.MobileMemberCount = count;
+            group.IsActive = group.MemberCount > 0;
             _groups[g] = group;
+        }
+
+        /// <summary>
+        /// 壊れた移動部位が上限に達して、歩けなくなった敵か。
+        /// </summary>
+        private static bool IsImmobile(in EnemyAgent agent)
+        {
+            return agent.BrokenMovePartCount >= agent.BrokenMovePartLimit;
         }
 
         private void Reorder(int g, NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances)
@@ -343,7 +384,7 @@ namespace Kizami.EngineAdapter
             {
                 var agent = agents[_members[offset + i]];
                 keys[i] = float.MaxValue;
-                if (!agent.IsAlive || agent.GroupIndex != g) continue;
+                if (!agent.IsAlive || agent.GroupIndex != g || IsImmobile(agent)) continue;
 
                 // ディフェンダーは並べ替えずに先頭（0 番）に置く
                 if (agent.Kind == EnemyKind.Defender)
@@ -389,45 +430,6 @@ namespace Kizami.EngineAdapter
                 agent.SlotIndex = i;
                 agents[index] = agent;
             }
-        }
-
-        /// <summary>
-        /// 空いているグループを使い始め、道筋をアンカーの後ろへまっすぐ伸ばした点で埋めて、生成した直後から隊列の位置が決まるようにする。空きがなければ -1。
-        /// アンカーの位置を持ち場にし、待機の状態から始める。
-        /// </summary>
-        private int OpenGroup(float3 anchorPosition, float anchorYaw, in EnemyFormationSettings formation)
-        {
-            for (var g = 0; g < _groups.Length; g++)
-            {
-                if (_groups[g].IsActive) continue;
-
-                var backward = -new float3(math.sin(anchorYaw), 0f, math.cos(anchorYaw));
-                var pathCount = math.min(PATH_CAPACITY,
-                    (int)math.ceil(EnemyFormationSettings.MAX_GROUP_SIZE * formation.RowSpacing / PATH_SPACING) + 1);
-                for (var i = 0; i < pathCount; i++)
-                {
-                    // 最も古い点が最も後ろになるよう、区画の先頭から後ろの点を並べる
-                    _paths[g * PATH_CAPACITY + i] = anchorPosition + backward * ((pathCount - 1 - i) * PATH_SPACING);
-                }
-
-                _groups[g] = new EnemyGroup
-                {
-                    IsActive = true,
-                    State = EnemyGroupState.Waiting,
-                    HomePosition = anchorPosition,
-                    AnchorPosition = anchorPosition,
-                    AnchorYaw = anchorYaw,
-                    AnchorDistance = float.PositiveInfinity,
-                    EncircleSlot = -1,
-                    ColumnCount = 1,
-                    PendingColumnCount = 1,
-                    PathHead = pathCount - 1,
-                    PathCount = pathCount
-                };
-                return g;
-            }
-
-            return -1;
         }
 
         public void Dispose()

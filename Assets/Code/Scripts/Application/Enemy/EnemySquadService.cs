@@ -23,7 +23,7 @@ namespace Kizami.Application
         private IEnemySquadObservationState _observationState;
         private IDisposable _observationStateWaiter;
 
-        /// <summary> 部隊ごとの、持ち場を決めたか。部隊が出たあとの最初の Step で、アンカーの位置を持ち場にする </summary>
+        /// <summary> 部隊ごとの、持ち場を決めたか。部隊が出たあとの最初の Step で、スポーン位置を持ち場にする </summary>
         private bool[] _hasHome = Array.Empty<bool>();
 
         /// <summary> 部隊ごとの、帰還の途中で進めない状態が続いている時間（秒） </summary>
@@ -111,7 +111,7 @@ namespace Kizami.Application
             {
                 _hasHome[index] = true;
                 command.State = EnemyGroupState.Waiting;
-                command.HomePosition = observation.AnchorPosition;
+                command.HomePosition = observation.SpawnPosition;
                 command.EncircleSlot = -1;
             }
 

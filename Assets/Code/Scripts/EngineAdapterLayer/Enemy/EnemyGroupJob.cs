@@ -548,7 +548,7 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private float GetFormationLength(in EnemyGroup group)
         {
-            var rows = (group.MemberCount + math.max(1, group.ColumnCount) - 1) / math.max(1, group.ColumnCount);
+            var rows = (group.MobileMemberCount + math.max(1, group.ColumnCount) - 1) / math.max(1, group.ColumnCount);
             return math.max(0, rows - 1) * Formation.RowSpacing;
         }
 
