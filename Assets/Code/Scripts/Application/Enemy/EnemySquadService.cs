@@ -12,6 +12,7 @@ namespace Kizami.Application
     /// 持ち場が追跡範囲に入ったら追跡、外れたら帰還にし、帰還で持ち場に着いたら待機にする。
     /// 帰還の途中で進めない状態が RETURN_BLOCKED_DURATION 続いたら、アンカーの位置を新しい持ち場（臨時の拠点）にして待機にする。元の持ち場へ移さないのは、持ち場が埋まっていることがあり、プレイヤーが敵を分断する遊び（橋を切るなど）を残す為。
     /// 追跡中に満員の人数の撤退する損耗の割合以上を失った部隊は、撤退してスポーン位置へ帰る。撤退中は、持ち場が追跡範囲にあっても追跡に戻らない。
+    /// 撤退した部隊がスポーン位置に帰り着いたら、補充（Refill）を命じて撤退を終える。補充は命じた Step の次の Step で下ろすので、Engine 側は 1 回だけ受け取る。
     /// 補充を受けられない部隊（臨時の拠点にいる部隊と、スポーン位置から出せない部隊）は撤退しない。帰り着いても満員に戻らず、追跡と撤退を繰り返す為。
     /// 追跡中の部隊には、プレイヤーを囲む螺旋の上の置き場を 1 つずつ割り当てる。置き場の位置は Engine 側がそのフレームのプレイヤーの位置で求めたものを観測から読む。
     /// </summary>
@@ -84,10 +85,9 @@ namespace Kizami.Application
             {
                 var observation = squads[i];
                 var command = _commandState.Squads[i];
+                command.Refill = false;
                 if (!observation.IsActive)
                 {
-                    if (command.EncircleSlot < 0) continue;
-
                     command.EncircleSlot = -1;
                     _commandState.SetSquad(i, command);
                     continue;
@@ -131,8 +131,8 @@ namespace Kizami.Application
             {
                 if (observation.HasReachedHome)
                 {
-                    // TODO: 撤退した部隊は、帰り着いたら補充してから撤退を終える
                     command.State = EnemyGroupState.Waiting;
+                    command.Refill = command.IsRetreating && observation.CanSpawn;
                     command.IsRetreating = false;
                     _blockedTimes[index] = 0f;
                     return;

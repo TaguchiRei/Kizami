@@ -693,6 +693,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// EnemySquadCommandState の状態・持ち場・置き場を、使われているグループに写す。状態の切り替えは EnemyGroupJob が行う。
+        /// 補充を命じられたグループには、先に減った分を出す。
         /// </summary>
         private void ApplyCommands()
         {
@@ -705,11 +706,51 @@ namespace Kizami.EngineAdapter
                 if (!group.IsActive) continue;
 
                 var command = commands[g];
+                if (command.Refill)
+                {
+                    Refill(g);
+                    group = groups[g];
+                }
+
                 group.CommandedState = command.State;
                 group.HomePosition = command.HomePosition;
                 group.EncircleSlot = command.EncircleSlot;
                 groups[g] = group;
             }
+        }
+
+        /// <summary>
+        /// グループ g に、スポーン位置の編成のうち欠けた種類を、編成の順にスポーン位置の半径の中へ出して隊列に入れる。動けなくなったメンバーは欠けた数に入れない。
+        /// 入れたあとすぐにグループを整えて、動けないメンバーを隊列の後ろへ回し、バリアに当たった数を 0 に戻す。
+        /// </summary>
+        private void Refill(int g)
+        {
+            Span<int> lacking = stackalloc int[_kindCount];
+            var point = _activeSpawnPoints[g];
+            foreach (var kind in point.Composition.Members)
+            {
+                if (_bodyPrefabs[(int)kind] != null) lacking[(int)kind]++;
+            }
+
+            foreach (var agent in _agents)
+            {
+                if (agent.IsAlive && agent.GroupIndex == g) lacking[(int)agent.Kind]--;
+            }
+
+            var center = point.transform.position;
+            foreach (var kind in point.Composition.Members)
+            {
+                if (lacking[(int)kind] <= 0) continue;
+
+                lacking[(int)kind]--;
+                TrySpawn(g, kind, PickStandablePosition(point.GetSpawnPosition, center));
+            }
+
+            _groups.Compact(g, _agents);
+            var groups = _groups.Groups;
+            var group = groups[g];
+            group.BarrierHitCount = 0;
+            groups[g] = group;
         }
 
         /// <summary>

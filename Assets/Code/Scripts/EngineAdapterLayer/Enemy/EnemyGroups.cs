@@ -311,7 +311,7 @@ namespace Kizami.EngineAdapter
         /// 動けなくなった敵（壊れた移動部位が上限に達した敵）はグループに残し、隊列の後ろへ回す。歩かない敵が隊列の途中にいると、その位置が空いたまま残る為。
         /// 動けるディフェンダーがいれば、最初の 1 体を 0 番（着いたら螺旋の中心）へ移す。戻れない敵の移し替えで後ろに入っても、ここで中心に戻る。
         /// </summary>
-        private void Compact(int g, NativeArray<EnemyAgent> agents)
+        public void Compact(int g, NativeArray<EnemyAgent> agents)
         {
             var offset = g * EnemyFormationSettings.MAX_GROUP_SIZE;
             var group = _groups[g];

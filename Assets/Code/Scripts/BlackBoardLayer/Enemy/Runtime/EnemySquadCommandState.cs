@@ -86,6 +86,9 @@ namespace Kizami.BlackBoard
         /// <summary> 撤退中か。撤退は帰還の状態で、スポーン位置へ帰り着くまで追跡に戻らない </summary>
         public bool IsRetreating;
 
+        /// <summary> 減った分をスポーン位置に出して、部隊を満員にするか。立てた Step の次の Step で下ろす </summary>
+        public bool Refill;
+
         /// <summary> 追跡中に向かう、プレイヤーを囲む螺旋の上の置き場の番号。持っていなければ -1 </summary>
         public int EncircleSlot;
     }
