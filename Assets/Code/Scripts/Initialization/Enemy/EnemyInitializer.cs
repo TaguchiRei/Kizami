@@ -18,6 +18,10 @@ namespace Kizami.Initialization
         private readonly StringBuilder _spawnPointText = new();
         private readonly EnemySquadService _squadService = new();
 
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("撤退する損耗の割合。追跡中の部隊が、満員の人数のうちこの割合以上を失ったらスポーン位置へ撤退する")]
+        private float _retreatLossRatio = 0.6f;
+
         [SerializeField] private EnemySpawnAdapter _spawnAdapter;
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
         [SerializeField] private EnemyEnergyAdapter _energyAdapter;
@@ -34,7 +38,7 @@ namespace Kizami.Initialization
             }
 
             // EnemySpawnAdapter は EnemySquadCommandState を取得する為、EnemySquadService の初期化より後に初期化する
-            _squadService.Initialize(blackBoard, gameObject.scene.buildIndex);
+            _squadService.Initialize(blackBoard, gameObject.scene.buildIndex, _retreatLossRatio);
             _spawnAdapter.Initialize(blackBoard, _fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit,
                 _healthService != null ? _healthService.ApplyDamage : null,
                 _movementService != null ? _movementService.RequestLaunch : null, _squadService.Step);

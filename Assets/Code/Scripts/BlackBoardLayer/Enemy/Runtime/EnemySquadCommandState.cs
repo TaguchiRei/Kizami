@@ -21,8 +21,11 @@ namespace Kizami.BlackBoard
             var waiting = 0;
             var tracking = 0;
             var returning = 0;
+            var retreating = 0;
             foreach (var squad in _squads)
             {
+                if (squad.IsRetreating) retreating++;
+
                 switch (squad.State)
                 {
                     case EnemyGroupState.Tracking:
@@ -37,7 +40,7 @@ namespace Kizami.BlackBoard
                 }
             }
 
-            return $"Waiting: {waiting}  \nTracking: {tracking}  \nReturning: {returning}";
+            return $"Waiting: {waiting}  \nTracking: {tracking}  \nReturning: {returning}  \nRetreating: {retreating}";
         }
 
         /// <summary>
@@ -79,6 +82,9 @@ namespace Kizami.BlackBoard
 
         /// <summary> 持ち場。帰還の行き先で、待機する位置 </summary>
         public Vector3 HomePosition;
+
+        /// <summary> 撤退中か。撤退は帰還の状態で、スポーン位置へ帰り着くまで追跡に戻らない </summary>
+        public bool IsRetreating;
 
         /// <summary> 追跡中に向かう、プレイヤーを囲む螺旋の上の置き場の番号。持っていなければ -1 </summary>
         public int EncircleSlot;
