@@ -13,6 +13,7 @@ namespace Kizami.Application
     /// 帰還の途中で進めない状態が RETURN_BLOCKED_DURATION 続いたら、アンカーの位置を新しい持ち場（臨時の拠点）にして待機にする。元の持ち場へ移さないのは、持ち場が埋まっていることがあり、プレイヤーが敵を分断する遊び（橋を切るなど）を残す為。
     /// 追跡中に満員の人数の撤退する損耗の割合以上を失った部隊は、撤退してスポーン位置へ帰る。撤退中は、持ち場が追跡範囲にあっても追跡に戻らない。
     /// 撤退した部隊がスポーン位置に帰り着いたら、補充（Refill）を命じて撤退を終える。補充は命じた Step の次の Step で下ろすので、Engine 側は 1 回だけ受け取る。
+    /// 全滅した部隊は、スポーン位置の出し直しの間隔が経ったら、スポーン位置を持ち場にして満員で出し直す（Refill）。臨時の拠点にいた部隊も、元のスポーン位置から出し直す。
     /// 補充を受けられない部隊（臨時の拠点にいる部隊と、スポーン位置から出せない部隊）は撤退しない。帰り着いても満員に戻らず、追跡と撤退を繰り返す為。
     /// 追跡中の部隊には、プレイヤーを囲む螺旋の上の置き場を 1 つずつ割り当てる。置き場の位置は Engine 側がそのフレームのプレイヤーの位置で求めたものを観測から読む。
     /// </summary>
@@ -37,6 +38,9 @@ namespace Kizami.Application
 
         /// <summary> 部隊ごとの、持ち場が臨時の拠点か。全滅するまでそこを拠点にする </summary>
         private bool[] _hasTemporaryHome = Array.Empty<bool>();
+
+        /// <summary> 部隊ごとの、全滅してからの時間（秒） </summary>
+        private float[] _respawnTimes = Array.Empty<float>();
 
         /// <summary> 置き場ごとの、部隊に割り当てているか。Step のたびに命令から作り直す </summary>
         private bool[] _usedSlots = Array.Empty<bool>();
@@ -67,6 +71,7 @@ namespace Kizami.Application
                     _hasHome = new bool[count];
                     _blockedTimes = new float[count];
                     _hasTemporaryHome = new bool[count];
+                    _respawnTimes = new float[count];
                 },
                 invokeIfRegistered: true);
         }
@@ -89,9 +94,12 @@ namespace Kizami.Application
                 if (!observation.IsActive)
                 {
                     command.EncircleSlot = -1;
+                    UpdateRespawn(i, observation, ref command, deltaTime);
                     _commandState.SetSquad(i, command);
                     continue;
                 }
+
+                _respawnTimes[i] = 0f;
 
                 Decide(i, observation, ref command, deltaTime);
                 if (command.State == EnemyGroupState.Tracking)
@@ -170,6 +178,25 @@ namespace Kizami.Application
                 command.State = EnemyGroupState.Returning;
                 _blockedTimes[index] = 0f;
             }
+        }
+
+        /// <summary>
+        /// 全滅した部隊の時間を数え、出し直しの間隔が経っていてスポーン位置から出せれば、スポーン位置を持ち場にした待機の部隊を満員で出し直すよう命じる。
+        /// </summary>
+        private void UpdateRespawn(int index, in EnemySquadObservation observation, ref EnemySquadCommand command,
+            float deltaTime)
+        {
+            _respawnTimes[index] += deltaTime;
+            if (_respawnTimes[index] < observation.RespawnInterval || !observation.CanSpawn) return;
+
+            _respawnTimes[index] = 0f;
+            _hasHome[index] = true;
+            _hasTemporaryHome[index] = false;
+            _blockedTimes[index] = 0f;
+            command.State = EnemyGroupState.Waiting;
+            command.HomePosition = observation.SpawnPosition;
+            command.IsRetreating = false;
+            command.Refill = true;
         }
 
         /// <summary>

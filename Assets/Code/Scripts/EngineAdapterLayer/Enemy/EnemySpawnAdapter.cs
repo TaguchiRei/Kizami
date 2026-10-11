@@ -693,7 +693,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// EnemySquadCommandState の状態・持ち場・置き場を、使われているグループに写す。状態の切り替えは EnemyGroupJob が行う。
-        /// 補充を命じられたグループには、先に減った分を出す。
+        /// 補充を命じられたグループには、先に減った分を出す。全滅したグループなら、スポーン位置から満員で出し直す。
         /// </summary>
         private void ApplyCommands()
         {
@@ -702,15 +702,21 @@ namespace Kizami.EngineAdapter
             var count = Mathf.Min(groups.Length, commands.Count);
             for (var g = 0; g < count; g++)
             {
-                var group = groups[g];
-                if (!group.IsActive) continue;
-
                 var command = commands[g];
                 if (command.Refill)
                 {
-                    Refill(g);
-                    group = groups[g];
+                    if (groups[g].IsActive)
+                    {
+                        Refill(g);
+                    }
+                    else
+                    {
+                        SpawnSquad(g);
+                    }
                 }
+
+                var group = groups[g];
+                if (!group.IsActive) continue;
 
                 group.CommandedState = command.State;
                 group.HomePosition = command.HomePosition;
