@@ -662,6 +662,7 @@ namespace Kizami.EngineAdapter
                     IsActive = group.IsActive,
                     AnchorPosition = group.AnchorPosition,
                     MemberCount = group.IsActive ? _groups.CountAliveMembers(g, _agents) : 0,
+                    HasMobileMember = group.HasMobileMember,
                     FullMemberCount = _fullMemberCounts[g],
                     SpawnPosition = point != null ? point.transform.position : group.HomePosition,
                     RespawnInterval = point != null ? point.RespawnInterval : 0f,

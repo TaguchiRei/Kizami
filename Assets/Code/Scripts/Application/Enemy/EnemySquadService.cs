@@ -15,6 +15,7 @@ namespace Kizami.Application
     /// 撤退した部隊がスポーン位置に帰り着いたら、補充（Refill）を命じて撤退を終える。補充は命じた Step の次の Step で下ろすので、Engine 側は 1 回だけ受け取る。
     /// 全滅した部隊は、スポーン位置の出し直しの間隔が経ったら、スポーン位置を持ち場にして満員で出し直す（Refill）。臨時の拠点にいた部隊も、元のスポーン位置から出し直す。
     /// 補充を受けられない部隊（臨時の拠点にいる部隊と、スポーン位置から出せない部隊）は撤退しない。帰り着いても満員に戻らず、追跡と撤退を繰り返す為。
+    /// 動けるメンバーのいない部隊も撤退しない。Engine 側でアンカーが止まり、帰り着けない為。撤退の途中で動けるメンバーがいなくなった部隊は、進めない状態が続いて臨時の拠点になり、補充されない。
     /// 追跡中の部隊には、プレイヤーを囲む螺旋の上の置き場を 1 つずつ割り当てる。置き場の位置は Engine 側がそのフレームのプレイヤーの位置で求めたものを観測から読む。
     /// </summary>
     public sealed class EnemySquadService : IDisposable
@@ -200,11 +201,12 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 部隊が撤退するか。補充を受けられて、満員の人数の撤退する損耗の割合以上を失っていれば撤退する。
+        /// 部隊が撤退するか。補充を受けられて、動けるメンバーがいて、満員の人数の撤退する損耗の割合以上を失っていれば撤退する。
         /// </summary>
         private bool ShouldRetreat(int index, in EnemySquadObservation observation)
         {
-            if (_hasTemporaryHome[index] || !observation.CanSpawn || observation.FullMemberCount <= 0) return false;
+            if (_hasTemporaryHome[index] || !observation.CanSpawn || !observation.HasMobileMember ||
+                observation.FullMemberCount <= 0) return false;
 
             var lost = observation.FullMemberCount - observation.MemberCount;
             return lost >= observation.FullMemberCount * _retreatLossRatio;

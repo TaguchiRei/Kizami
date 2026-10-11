@@ -95,6 +95,20 @@ namespace Kizami.EngineAdapter
             return false;
         }
 
+        /// <summary>
+        /// 生きていて、動けなくなっていないメンバーがいるか。
+        /// </summary>
+        private bool HasMobileMember(int g, in EnemyGroup group)
+        {
+            for (var i = 0; i < group.MemberCount; i++)
+            {
+                var agent = Agents[Members[g * EnemyFormationSettings.MAX_GROUP_SIZE + i]];
+                if (agent.IsAlive && agent.GroupIndex == g && agent.BrokenMovePartCount < agent.BrokenMovePartLimit) return true;
+            }
+
+            return false;
+        }
+
         private bool HasAliveMember(int g, in EnemyGroup group)
         {
             for (var i = 0; i < group.MemberCount; i++)
@@ -706,10 +720,21 @@ namespace Kizami.EngineAdapter
                     continue;
                 }
 
+                group.HasMobileMember = HasMobileMember(g, group);
                 ApplyCommand(g, ref group);
                 UpdateDormant(g, ref group);
                 if (group.IsDormant)
                 {
+                    Groups[g] = group;
+                    continue;
+                }
+
+                // 動けるメンバーがいなければ、アンカーだけが先へ進まないよう止める。帰還中は進めないことを返し、Application が臨時の拠点にする
+                if (!group.HasMobileMember)
+                {
+                    HoldAnchor(ref group);
+                    group.HasReachedHome = false;
+                    group.IsReturnBlocked = group.State == EnemyGroupState.Returning;
                     Groups[g] = group;
                     continue;
                 }

@@ -65,6 +65,9 @@ namespace Kizami.EngineAdapter
         /// <summary> メンバーのうち、動けなくなった敵を除いた数。隊列の前から並ぶ </summary>
         public int MobileMemberCount;
 
+        /// <summary> 生きていて動けるメンバーがいるか。EnemyGroupJob が毎フレーム書く </summary>
+        public bool HasMobileMember;
+
         /// <summary> 隊列の 1 列に並べる数 </summary>
         public int ColumnCount;
 

@@ -135,6 +135,9 @@ namespace Kizami.BlackBoard
         /// <summary> 生きていて部隊にいるメンバーの数。動けなくなったメンバーも数える </summary>
         public int MemberCount;
 
+        /// <summary> 生きていて動けるメンバーがいるか。いなければアンカーは止まる </summary>
+        public bool HasMobileMember;
+
         /// <summary> 満員の人数。スポーン位置の編成の人数 </summary>
         public int FullMemberCount;
 
