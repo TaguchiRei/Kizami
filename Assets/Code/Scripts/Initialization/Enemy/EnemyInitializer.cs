@@ -18,6 +18,10 @@ namespace Kizami.Initialization
         private readonly StringBuilder _spawnPointText = new();
         private readonly EnemySquadService _squadService = new();
 
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("撤退する損耗の割合。追跡中の部隊が、満員の人数のうちこの割合以上を失ったらスポーン位置へ撤退する")]
+        private float _retreatLossRatio = 0.6f;
+
         [SerializeField] private EnemySpawnAdapter _spawnAdapter;
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
         [SerializeField] private EnemyEnergyAdapter _energyAdapter;
@@ -34,7 +38,7 @@ namespace Kizami.Initialization
             }
 
             // EnemySpawnAdapter は EnemySquadCommandState を取得する為、EnemySquadService の初期化より後に初期化する
-            _squadService.Initialize(blackBoard, gameObject.scene.buildIndex);
+            _squadService.Initialize(blackBoard, gameObject.scene.buildIndex, _retreatLossRatio);
             _spawnAdapter.Initialize(blackBoard, _fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit,
                 _healthService != null ? _healthService.ApplyDamage : null,
                 _movementService != null ? _movementService.RequestLaunch : null, _squadService.Step);
@@ -107,7 +111,7 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 生成位置ごとの有効・無効を「名前:on」の形で並べる。
+        /// 生成位置ごとの、補充と出し直しの敵を出せるかを「名前:on」の形で並べる。
         /// </summary>
         private string GetSpawnPointText()
         {
@@ -118,7 +122,7 @@ namespace Kizami.Initialization
                 if (point == null) continue;
 
                 if (_spawnPointText.Length > 0) _spawnPointText.Append(' ');
-                _spawnPointText.Append(point.name).Append(point.IsEnabled ? ":on" : ":off");
+                _spawnPointText.Append(point.name).Append(point.CanSpawn ? ":on" : ":off");
             }
 
             return _spawnPointText.ToString();

@@ -240,7 +240,7 @@ namespace Kizami.EngineAdapter
             var columnCount = math.max(1, group.ColumnCount);
             var row = agent.SlotIndex / columnCount;
             var lane = agent.SlotIndex % columnCount;
-            var lanesInRow = math.min(columnCount, group.MemberCount - row * columnCount);
+            var lanesInRow = math.min(columnCount, group.MobileMemberCount - row * columnCount);
             var lateral = (lane - (lanesInRow - 1) * 0.5f) * Formation.LateralSpacing;
             var back = row * Formation.RowSpacing;
 

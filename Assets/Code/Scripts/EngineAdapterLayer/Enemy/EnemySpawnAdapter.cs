@@ -17,7 +17,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 敵の状態（EnemyAgent）の配列と体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出す Adapter。インゲームのシーンへ置く。
-    /// 開始時にスポーン位置（EnemySpawnPoint）ごとに編成の 1 グループを出す。敵の状態の数は有効なスポーン位置の編成の人数の合計、グループの数は有効なスポーン位置の数で、出ている敵は敵の種類ごとの EnemyCrowdRenderer でまとめて描画する。
+    /// 開始時にスポーン位置（EnemySpawnPoint）ごとに編成の 1 グループを出す。敵の状態の数は有効なスポーン位置の編成の人数の合計、グループの数は有効なスポーン位置の数（グループの番号はスポーン位置の番号）で、出ている敵は敵の種類ごとの EnemyCrowdRenderer でまとめて描画する。
     /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、ステージのボクセルのモデルの形が変わったら、その範囲を調べ直す。
     /// 距離マップは、プレイヤーの近く（追跡範囲。区画の大きさは EnemySpawnSystem の設定）だけを、プレイヤーのいるノードか追跡範囲が変わるか、格子を調べ直すたびに計算し直す。
     /// 追跡範囲の中でプレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ自分のグループの持ち場へ戻す。
@@ -68,6 +68,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> スポーン位置を集めるときに、すでにスポーン位置のある区画を覚える作業用の集合 </summary>
         private readonly HashSet<Vector2Int> _usedSections = new();
+
+        /// <summary> 有効なスポーン位置ごとの、編成のうち体の設定のある種類の人数。部隊の満員の人数 </summary>
+        private readonly List<int> _fullMemberCounts = new();
 
         private readonly EnemySquadObservationState _observationState = new();
 
@@ -653,11 +656,19 @@ namespace Kizami.EngineAdapter
             for (var g = 0; g < groups.Length; g++)
             {
                 var group = groups[g];
+                var point = _activeSpawnPoints[g];
+                var mobileCount = 0;
+                var memberCount = group.IsActive ? _groups.CountAliveMembers(g, _agents, out mobileCount) : 0;
                 _observationState.SetSquad(g, new EnemySquadObservation
                 {
                     IsActive = group.IsActive,
                     AnchorPosition = group.AnchorPosition,
-                    MemberCount = group.MemberCount,
+                    MemberCount = memberCount,
+                    HasMobileMember = mobileCount > 0,
+                    FullMemberCount = _fullMemberCounts[g],
+                    SpawnPosition = point != null ? point.transform.position : group.HomePosition,
+                    RespawnInterval = point != null ? point.RespawnInterval : 0f,
+                    CanSpawn = point != null && point.CanSpawn,
                     IsHomeTracked = IsTracked(group.HomePosition),
                     HasArrived = group.HasArrived,
                     HasReachedHome = group.HasReachedHome,
@@ -685,6 +696,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// EnemySquadCommandState の状態・持ち場・置き場を、使われているグループに写す。状態の切り替えは EnemyGroupJob が行う。
+        /// 補充を命じられたグループには、先に減った分を出す。全滅したグループなら、スポーン位置から満員で出し直す。
         /// </summary>
         private void ApplyCommands()
         {
@@ -693,15 +705,61 @@ namespace Kizami.EngineAdapter
             var count = Mathf.Min(groups.Length, commands.Count);
             for (var g = 0; g < count; g++)
             {
+                var command = commands[g];
+                if (command.Refill)
+                {
+                    if (groups[g].IsActive)
+                    {
+                        Refill(g);
+                    }
+                    else
+                    {
+                        SpawnSquad(g);
+                    }
+                }
+
                 var group = groups[g];
                 if (!group.IsActive) continue;
 
-                var command = commands[g];
                 group.CommandedState = command.State;
                 group.HomePosition = command.HomePosition;
                 group.EncircleSlot = command.EncircleSlot;
                 groups[g] = group;
             }
+        }
+
+        /// <summary>
+        /// グループ g に、スポーン位置の編成のうち欠けた種類を、編成の順にスポーン位置の半径の中へ出して隊列に入れる。動けなくなったメンバーは欠けた数に入れない。
+        /// 入れたあとすぐにグループを整えて、動けないメンバーを隊列の後ろへ回し、バリアに当たった数を 0 に戻す。
+        /// </summary>
+        private void Refill(int g)
+        {
+            Span<int> lacking = stackalloc int[_kindCount];
+            var point = _activeSpawnPoints[g];
+            foreach (var kind in point.Composition.Members)
+            {
+                if (_bodyPrefabs[(int)kind] != null) lacking[(int)kind]++;
+            }
+
+            foreach (var agent in _agents)
+            {
+                if (agent.IsAlive && agent.GroupIndex == g) lacking[(int)agent.Kind]--;
+            }
+
+            var center = point.transform.position;
+            foreach (var kind in point.Composition.Members)
+            {
+                if (lacking[(int)kind] <= 0) continue;
+
+                lacking[(int)kind]--;
+                TrySpawn(g, kind, PickStandablePosition(point.GetSpawnPosition, center));
+            }
+
+            _groups.Compact(g, _agents);
+            var groups = _groups.Groups;
+            var group = groups[g];
+            group.BarrierHitCount = 0;
+            groups[g] = group;
         }
 
         /// <summary>
@@ -740,7 +798,7 @@ namespace Kizami.EngineAdapter
         /// 追跡範囲の中でプレイヤーへたどり着けない状態が戻す時間を超えた敵のうち、カメラに映っていない敵を、自分のグループの持ち場の周りへ移す。
         /// 移した敵はグループに残り、隊列の位置へ歩いて戻る。部位の状態はそのまま持ち続ける。
         /// 持ち場が追跡範囲の中で、そこからもプレイヤーへたどり着けない（分断されている）ときは戻さない。
-        /// 動けない敵は戻さない（グループから抜けてその場に残る）。体を貸している敵も戻さない（プレイヤーの近くにいる為）。
+        /// 動けない敵は戻さない（グループに残ったまま、その場に留まる）。体を貸している敵も戻さない（プレイヤーの近くにいる為）。
         /// 行動中の敵（動き方が Walking でない敵）も戻さない。フィニッシャーの攻撃が位置を決めている為。
         /// </summary>
         private void ReturnStrandedAgents()
@@ -779,24 +837,31 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 有効なスポーン位置ごとに、編成の 1 グループを出す。グループのアンカーと持ち場はスポーン位置の中心にし、メンバーはスポーン位置の半径の中の立てる所に出す。
-        /// 体の設定のない種類のメンバーは出さない。
+        /// 有効なスポーン位置ごとに、同じ番号のグループで編成の 1 グループを出す。
         /// </summary>
         private void SpawnSquads()
         {
-            foreach (var point in _activeSpawnPoints)
+            for (var g = 0; g < _activeSpawnPoints.Count; g++)
             {
-                var center = point.transform.position;
-                _groups.CloseGroup();
-                foreach (var kind in point.Composition.Members)
-                {
-                    if (_bodyPrefabs[(int)kind] == null) continue;
-
-                    TrySpawn(kind, PickStandablePosition(point.GetSpawnPosition, center), center);
-                }
+                SpawnSquad(g);
             }
+        }
 
-            _groups.CloseGroup();
+        /// <summary>
+        /// スポーン位置 g から、同じ番号のグループを開いて編成の全員を出す。グループのアンカーと持ち場はスポーン位置の中心にし、メンバーはスポーン位置の半径の中の立てる所に出す。
+        /// 体の設定のない種類のメンバーは出さない。
+        /// </summary>
+        private void SpawnSquad(int g)
+        {
+            var point = _activeSpawnPoints[g];
+            var center = point.transform.position;
+            _groups.Open(g, center, GetYawToTarget(center), _formation);
+            foreach (var kind in point.Composition.Members)
+            {
+                if (_bodyPrefabs[(int)kind] == null) continue;
+
+                TrySpawn(g, kind, PickStandablePosition(point.GetSpawnPosition, center));
+            }
         }
 
         /// <summary>
@@ -858,6 +923,7 @@ namespace Kizami.EngineAdapter
             _spawnSystem.GetComponentsInChildren(true, _spawnPoints);
             _activeSpawnPoints.Clear();
             _usedSections.Clear();
+            _fullMemberCounts.Clear();
             var agentCount = 0;
 
             foreach (var point in _spawnPoints)
@@ -886,30 +952,33 @@ namespace Kizami.EngineAdapter
                         point);
                 }
 
+                var memberCount = 0;
                 foreach (var kind in point.Composition.Members)
                 {
                     if (_bodyPrefabs[(int)kind] != null)
                     {
-                        agentCount++;
+                        memberCount++;
                         continue;
                     }
 
                     UsefulLogger.LogWarning($"スポーン位置 {point.name} の編成にある {kind} は、体の設定がない為に出しません。", point);
                 }
 
+                agentCount += memberCount;
                 _activeSpawnPoints.Add(point);
+                _fullMemberCounts.Add(memberCount);
             }
 
             return agentCount;
         }
 
         /// <summary>
-        /// 空いている敵の状態を使い、目標の方を向けて出し、生成中のグループの隊列の最後に入れる。敵の状態かグループに空きがなければ出さない。
+        /// 空いている敵の状態を使い、目標の方を向けて出し、グループ g の隊列の最後に入れる。敵の状態かグループに空きがなければ出さない。
         /// </summary>
+        /// <param name="g">入れるグループの番号。使われているグループに限る</param>
         /// <param name="kind">出す敵の種類。体の設定のある種類に限る</param>
         /// <param name="position">出す位置</param>
-        /// <param name="groupCenter">新しいグループを作るときの、アンカーの位置</param>
-        private bool TrySpawn(EnemyKind kind, Vector3 position, Vector3 groupCenter)
+        private bool TrySpawn(int g, EnemyKind kind, Vector3 position)
         {
             var bodyPrefab = _bodyPrefabs[(int)kind];
 
@@ -936,7 +1005,7 @@ namespace Kizami.EngineAdapter
                     GroupIndex = -1
                 };
 
-                if (!_groups.TryAdd(i, ref agent, groupCenter, GetYawToTarget(groupCenter), _formation)) return false;
+                if (!_groups.TryAdd(g, i, ref agent)) return false;
 
                 _agents[i] = agent;
                 return true;

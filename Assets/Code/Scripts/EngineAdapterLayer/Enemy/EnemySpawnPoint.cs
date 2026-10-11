@@ -1,10 +1,15 @@
+using System;
+using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 敵のグループが出てくる位置。EnemySpawnSystem の子に置き、1 つにつき編成の 1 グループを出す。この位置がグループの持ち場になる。
     /// 属する区画は作者が指定する。追跡を始める判定は持ち場の位置で行い、指定した区画は置き場所の確認に使う。
+    /// 建物（ボクセルのモデル）を指定すると、読み込んだ時点の体積の壊れたとみなす割合以上が削れたときに、補充と出し直しの敵を出さなくなる。
+    /// 建物は EnemySpawn レイヤーに置き、敵の経路の格子に入れない。敵は建物の内側に出て、そのまま歩いて出てくる。
     /// </summary>
     public sealed class EnemySpawnPoint : MonoBehaviour
     {
@@ -30,9 +35,26 @@ namespace Kizami.EngineAdapter
         [Tooltip("この半径（m）の円の中にメンバーを出す")]
         private float _radius = 4f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("グループが全滅してから、満員のグループを出し直すまでの時間（秒）")]
+        private float _respawnInterval = 30f;
+
+        [SerializeField]
+        [Tooltip("スポーン位置の建物。壊れたら補充と出し直しの敵を出さない。未設定なら壊れない")]
+        private VoxelModelLoader _structure;
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("建物の、読み込んだ時点の体積のうち、この割合以上が削れたら壊れたとみなす")]
+        private float _brokenLossRatio = 0.05f;
+
         [SerializeField]
         [Tooltip("敵を出すか。初期化のあとに切り替えたときは、出さない方向にだけ効く")]
         private bool _isEnabled = true;
+
+        /// <summary> 建物の、読み込んだ時点の体積（m³）。読み込む前は 0 </summary>
+        private float _initialVolume;
+
+        private IDisposable _loadedSubscription;
 
         /// <summary> 出すグループの編成。未設定なら null </summary>
         public EnemySquadComposition Composition => _composition;
@@ -42,6 +64,23 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 敵を出せる状態か。GameObject が非アクティブのときも出さない </summary>
         public bool IsEnabled => _isEnabled && isActiveAndEnabled;
+
+        /// <summary> グループが全滅してから、満員のグループを出し直すまでの時間（秒） </summary>
+        public float RespawnInterval => _respawnInterval;
+
+        /// <summary> 建物が壊れたか。建物が未設定か、読み込む前は false </summary>
+        public bool IsBroken
+        {
+            get
+            {
+                if (_structure == null || _initialVolume <= 0f) return false;
+
+                return _structure.Volume <= _initialVolume * (1f - _brokenLossRatio);
+            }
+        }
+
+        /// <summary> 補充と出し直しで敵を出せるか </summary>
+        public bool CanSpawn => IsEnabled && !IsBroken;
 
         /// <summary> 敵を出せる状態にする </summary>
         public void Enable()
@@ -60,6 +99,20 @@ namespace Kizami.EngineAdapter
         {
             var offset = Random.insideUnitCircle * _radius;
             return transform.position + new Vector3(offset.x, 0f, offset.y);
+        }
+
+        private void Awake()
+        {
+            // VoxelModelLoader は Start で読み込むので、Awake で登録すれば読み込みの通知を逃さない
+            if (_structure != null)
+            {
+                _loadedSubscription = _structure.RegisterOnLoaded(loader => _initialVolume = loader.InitialVolume);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            _loadedSubscription?.Dispose();
         }
 
         private void Reset()
@@ -86,7 +139,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 区画の色でアイコンと半径の円を描く。区画の番号が位置と食い違うか、位置の区画に Hierarchy で前の有効なスポーン位置があれば赤、敵を出さない状態なら灰色にする。
+        /// 区画の色でアイコンと半径の円を描く。区画の番号が位置と食い違うか、位置の区画に Hierarchy で前の有効なスポーン位置があれば赤、敵を出さない状態か建物が壊れていれば灰色にする。
         /// アイコンは距離によらず同じ大きさで描かれ、クリックするとこのスポーン位置を選べる。
         /// </summary>
         private void OnDrawGizmos()
@@ -99,7 +152,7 @@ namespace Kizami.EngineAdapter
 
         private Color GetGizmoColor()
         {
-            if (!_isEnabled) return Color.gray;
+            if (!_isEnabled || IsBroken) return Color.gray;
 
             var system = GetComponentInParent<EnemySpawnSystem>();
             if (system == null) return EnemySpawnSystem.GetSectionColor(_section);

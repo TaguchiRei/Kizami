@@ -10,8 +10,13 @@ namespace Kizami.Application
     /// 敵の部隊（グループ）ごとに、待機・追跡・帰還の状態と持ち場を決めるユースケース。
     /// Engine 側の観測（EnemySquadObservationState）を読んで判断し、命令（EnemySquadCommandState）に書く。Step は EnemySpawnAdapter がグループを動かす前に毎フレーム呼ぶ。
     /// 持ち場が追跡範囲に入ったら追跡、外れたら帰還にし、帰還で持ち場に着いたら待機にする。
-    /// 帰還の途中で進めない状態が RETURN_BLOCKED_DURATION 続いたら、アンカーの位置を新しい持ち場にして待機にする。元の持ち場へ移さないのは、持ち場が埋まっていることがあり、プレイヤーが敵を分断する遊び（橋を切るなど）を残す為。
-    /// 追跡中の部隊には、プレイヤーを囲む螺旋の上の置き場を 1 つずつ割り当てる。置き場の位置は Engine 側がそのフレームのプレイヤーの位置で求めたものを観測から読む。
+    /// 帰還の途中で進めない状態が RETURN_BLOCKED_DURATION 続いたら、アンカーの位置を新しい持ち場（臨時の拠点）にして待機にする。元の持ち場へ移さないのは、持ち場が埋まっていることがあり、プレイヤーが敵を分断する遊び（橋を切るなど）を残す為。
+    /// 追跡中に満員の人数の撤退する損耗の割合以上を失った部隊は、撤退してスポーン位置へ帰る。撤退中は、持ち場が追跡範囲にあっても追跡に戻らない。
+    /// 撤退した部隊がスポーン位置に帰り着いたら、補充（Refill）を命じて撤退を終える。補充は命じた Step の次の Step で下ろすので、Engine 側は 1 回だけ受け取る。
+    /// 全滅した部隊は、スポーン位置の出し直しの間隔が経ったら、スポーン位置を持ち場にして満員で出し直す（Refill）。臨時の拠点にいた部隊も、元のスポーン位置から出し直す。
+    /// 補充を受けられない部隊（臨時の拠点にいる部隊と、スポーン位置から出せない部隊）は撤退しない。帰り着いても満員に戻らず、追跡と撤退を繰り返す為。
+    /// 動けるメンバーのいない部隊も撤退しない。Engine 側でアンカーが止まり、帰り着けない為。撤退の途中で動けるメンバーがいなくなった部隊は、進めない状態が続いて臨時の拠点になり、補充されない。
+    /// 追跡中の部隊には、プレイヤーを囲む螺旋の上の置き場を 1 つずつ割り当てる。動けるメンバーのいない部隊は動けないので、置き場を手放す。置き場の位置は Engine 側がそのフレームのプレイヤーの位置で求めたものを観測から読む。
     /// </summary>
     public sealed class EnemySquadService : IDisposable
     {
@@ -20,14 +25,23 @@ namespace Kizami.Application
 
         private readonly EnemySquadCommandState _commandState = new();
 
+        /// <summary> 満員の人数のうち、この割合以上を失ったら撤退する </summary>
+        private float _retreatLossRatio;
+
         private IEnemySquadObservationState _observationState;
         private IDisposable _observationStateWaiter;
 
-        /// <summary> 部隊ごとの、持ち場を決めたか。部隊が出たあとの最初の Step で、アンカーの位置を持ち場にする </summary>
+        /// <summary> 部隊ごとの、持ち場を決めたか。部隊が出たあとの最初の Step で、スポーン位置を持ち場にする </summary>
         private bool[] _hasHome = Array.Empty<bool>();
 
         /// <summary> 部隊ごとの、帰還の途中で進めない状態が続いている時間（秒） </summary>
         private float[] _blockedTimes = Array.Empty<float>();
+
+        /// <summary> 部隊ごとの、持ち場が臨時の拠点か。全滅するまでそこを拠点にする </summary>
+        private bool[] _hasTemporaryHome = Array.Empty<bool>();
+
+        /// <summary> 部隊ごとの、全滅してからの時間（秒） </summary>
+        private float[] _respawnTimes = Array.Empty<float>();
 
         /// <summary> 置き場ごとの、部隊に割り当てているか。Step のたびに命令から作り直す </summary>
         private bool[] _usedSlots = Array.Empty<bool>();
@@ -37,8 +51,11 @@ namespace Kizami.Application
         /// </summary>
         /// <param name="blackBoard">EnemySquadCommandState の登録先と、EnemySquadObservationState の取得元</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
-        public void Initialize(IBlackBoard blackBoard, int sceneId)
+        /// <param name="retreatLossRatio">満員の人数のうち、この割合以上を失ったら撤退する（0〜1）</param>
+        public void Initialize(IBlackBoard blackBoard, int sceneId, float retreatLossRatio)
         {
+            _retreatLossRatio = retreatLossRatio;
+
             if (!blackBoard.TryGetBoard<EnemyBoard>(out var enemyBoard, this)) return;
 
             enemyBoard.RegisterSceneState<IEnemySquadCommandState>(_commandState, sceneId);
@@ -54,6 +71,8 @@ namespace Kizami.Application
                     _commandState.SetSquadCount(count);
                     _hasHome = new bool[count];
                     _blockedTimes = new float[count];
+                    _hasTemporaryHome = new bool[count];
+                    _respawnTimes = new float[count];
                 },
                 invokeIfRegistered: true);
         }
@@ -72,17 +91,19 @@ namespace Kizami.Application
             {
                 var observation = squads[i];
                 var command = _commandState.Squads[i];
+                command.Refill = false;
                 if (!observation.IsActive)
                 {
-                    if (command.EncircleSlot < 0) continue;
-
                     command.EncircleSlot = -1;
+                    UpdateRespawn(i, observation, ref command, deltaTime);
                     _commandState.SetSquad(i, command);
                     continue;
                 }
 
+                _respawnTimes[i] = 0f;
+
                 Decide(i, observation, ref command, deltaTime);
-                if (command.State == EnemyGroupState.Tracking)
+                if (command.State == EnemyGroupState.Tracking && observation.HasMobileMember)
                 {
                     UpdateEncircleSlot(observation, ref command);
                 }
@@ -111,7 +132,7 @@ namespace Kizami.Application
             {
                 _hasHome[index] = true;
                 command.State = EnemyGroupState.Waiting;
-                command.HomePosition = observation.AnchorPosition;
+                command.HomePosition = observation.SpawnPosition;
                 command.EncircleSlot = -1;
             }
 
@@ -120,6 +141,8 @@ namespace Kizami.Application
                 if (observation.HasReachedHome)
                 {
                     command.State = EnemyGroupState.Waiting;
+                    command.Refill = command.IsRetreating && observation.CanSpawn;
+                    command.IsRetreating = false;
                     _blockedTimes[index] = 0f;
                     return;
                 }
@@ -129,12 +152,22 @@ namespace Kizami.Application
                 {
                     command.State = EnemyGroupState.Waiting;
                     command.HomePosition = observation.AnchorPosition;
+                    command.IsRetreating = false;
+                    _hasTemporaryHome[index] = true;
                     _blockedTimes[index] = 0f;
                     return;
                 }
             }
 
-            if (command.State != EnemyGroupState.Tracking && observation.IsHomeTracked)
+            if (command.State == EnemyGroupState.Tracking && ShouldRetreat(index, observation))
+            {
+                command.State = EnemyGroupState.Returning;
+                command.IsRetreating = true;
+                _blockedTimes[index] = 0f;
+                return;
+            }
+
+            if (command.State != EnemyGroupState.Tracking && !command.IsRetreating && observation.IsHomeTracked)
             {
                 command.State = EnemyGroupState.Tracking;
                 _blockedTimes[index] = 0f;
@@ -146,6 +179,37 @@ namespace Kizami.Application
                 command.State = EnemyGroupState.Returning;
                 _blockedTimes[index] = 0f;
             }
+        }
+
+        /// <summary>
+        /// 全滅した部隊の時間を数え、出し直しの間隔が経っていてスポーン位置から出せれば、スポーン位置を持ち場にした待機の部隊を満員で出し直すよう命じる。
+        /// </summary>
+        private void UpdateRespawn(int index, in EnemySquadObservation observation, ref EnemySquadCommand command,
+            float deltaTime)
+        {
+            _respawnTimes[index] += deltaTime;
+            if (_respawnTimes[index] < observation.RespawnInterval || !observation.CanSpawn) return;
+
+            _respawnTimes[index] = 0f;
+            _hasHome[index] = true;
+            _hasTemporaryHome[index] = false;
+            _blockedTimes[index] = 0f;
+            command.State = EnemyGroupState.Waiting;
+            command.HomePosition = observation.SpawnPosition;
+            command.IsRetreating = false;
+            command.Refill = true;
+        }
+
+        /// <summary>
+        /// 部隊が撤退するか。補充を受けられて、動けるメンバーがいて、満員の人数の撤退する損耗の割合以上を失っていれば撤退する。
+        /// </summary>
+        private bool ShouldRetreat(int index, in EnemySquadObservation observation)
+        {
+            if (_hasTemporaryHome[index] || !observation.CanSpawn || !observation.HasMobileMember ||
+                observation.FullMemberCount <= 0) return false;
+
+            var lost = observation.FullMemberCount - observation.MemberCount;
+            return lost >= observation.FullMemberCount * _retreatLossRatio;
         }
 
         /// <summary>
