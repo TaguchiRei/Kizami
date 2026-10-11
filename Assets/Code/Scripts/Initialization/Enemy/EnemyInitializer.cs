@@ -111,7 +111,7 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 生成位置ごとの有効・無効を「名前:on」の形で並べる。
+        /// 生成位置ごとの、補充と出し直しの敵を出せるかを「名前:on」の形で並べる。
         /// </summary>
         private string GetSpawnPointText()
         {
@@ -122,7 +122,7 @@ namespace Kizami.Initialization
                 if (point == null) continue;
 
                 if (_spawnPointText.Length > 0) _spawnPointText.Append(' ');
-                _spawnPointText.Append(point.name).Append(point.IsEnabled ? ":on" : ":off");
+                _spawnPointText.Append(point.name).Append(point.CanSpawn ? ":on" : ":off");
             }
 
             return _spawnPointText.ToString();

@@ -167,6 +167,9 @@ MonoBehaviour:
   _section: {x: -3, y: -1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &27731429
 GameObject:
@@ -216,6 +219,9 @@ MonoBehaviour:
   _section: {x: -3, y: -2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &42729756
 GameObject:
@@ -265,6 +271,9 @@ MonoBehaviour:
   _section: {x: 2, y: -4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &88357286
 GameObject:
@@ -314,6 +323,9 @@ MonoBehaviour:
   _section: {x: 0, y: 4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &96707248
 GameObject:
@@ -363,6 +375,9 @@ MonoBehaviour:
   _section: {x: 1, y: 2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &108746196
 GameObject:
@@ -465,6 +480,9 @@ MonoBehaviour:
   _section: {x: -1, y: 3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &129797226
 GameObject:
@@ -604,6 +622,9 @@ MonoBehaviour:
   _section: {x: 1, y: -4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &149908211
 GameObject:
@@ -653,6 +674,9 @@ MonoBehaviour:
   _section: {x: -3, y: 3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &154201511
 GameObject:
@@ -735,6 +759,9 @@ MonoBehaviour:
   _section: {x: 2, y: 2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &176159869
 GameObject:
@@ -784,6 +811,9 @@ MonoBehaviour:
   _section: {x: 3, y: -2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &203351563
 GameObject:
@@ -886,6 +916,9 @@ MonoBehaviour:
   _section: {x: -3, y: 2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &226138356
 GameObject:
@@ -935,6 +968,9 @@ MonoBehaviour:
   _section: {x: 4, y: 0}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &239190706
 GameObject:
@@ -1111,6 +1147,9 @@ MonoBehaviour:
   _section: {x: -3, y: -3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &267078036
 GameObject:
@@ -1160,6 +1199,9 @@ MonoBehaviour:
   _section: {x: -2, y: 0}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &280300602
 GameObject:
@@ -1209,6 +1251,9 @@ MonoBehaviour:
   _section: {x: 4, y: 2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &326985039
 GameObject:
@@ -1497,6 +1542,9 @@ MonoBehaviour:
   _section: {x: 2, y: 3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &342306230
 GameObject:
@@ -1546,6 +1594,9 @@ MonoBehaviour:
   _section: {x: -2, y: 2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &355972050
 GameObject:
@@ -1595,6 +1646,9 @@ MonoBehaviour:
   _section: {x: -1, y: 4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &370354015
 GameObject:
@@ -1644,6 +1698,9 @@ MonoBehaviour:
   _section: {x: -4, y: -2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &373959058
 GameObject:
@@ -1693,6 +1750,9 @@ MonoBehaviour:
   _section: {x: 4, y: 3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &398615235
 GameObject:
@@ -2028,6 +2088,9 @@ MonoBehaviour:
   _section: {x: -1, y: -1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &447241565
 GameObject:
@@ -2058,7 +2121,8 @@ Transform:
   m_LocalPosition: {x: 0, y: -1, z: 65}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1294464703}
   m_Father: {fileID: 927238640}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &447241567
@@ -2076,7 +2140,10 @@ MonoBehaviour:
   _composition: {fileID: 11400000, guid: 088e4b8349412c04ba51aa4255a55c71, type: 2}
   _section: {x: 0, y: 1}
   _hasSection: 1
-  _radius: 4
+  _radius: 2
+  _respawnInterval: 30
+  _structure: {fileID: 1294464704}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &451295049
 GameObject:
@@ -2126,6 +2193,9 @@ MonoBehaviour:
   _section: {x: -3, y: 4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &507653299
 GameObject:
@@ -2228,6 +2298,9 @@ MonoBehaviour:
   _section: {x: 0, y: -1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &563650493
 GameObject:
@@ -2277,6 +2350,9 @@ MonoBehaviour:
   _section: {x: 1, y: -2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &581503576
 GameObject:
@@ -2326,6 +2402,9 @@ MonoBehaviour:
   _section: {x: -2, y: 3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &594073935
 GameObject:
@@ -2549,6 +2628,9 @@ MonoBehaviour:
   _section: {x: -4, y: 0}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1001 &660273029
 PrefabInstance:
@@ -2772,6 +2854,9 @@ MonoBehaviour:
   _section: {x: 2, y: 1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &736042286
 GameObject:
@@ -2917,6 +3002,9 @@ MonoBehaviour:
   _section: {x: 3, y: 0}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &776404568
 GameObject:
@@ -2966,6 +3054,9 @@ MonoBehaviour:
   _section: {x: -3, y: 1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &781306669
 GameObject:
@@ -3015,6 +3106,9 @@ MonoBehaviour:
   _section: {x: -2, y: 1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &805554667
 GameObject:
@@ -3064,6 +3158,9 @@ MonoBehaviour:
   _section: {x: -1, y: -2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &809001411
 GameObject:
@@ -3113,6 +3210,9 @@ MonoBehaviour:
   _section: {x: 3, y: -4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &814657259
 GameObject:
@@ -3291,7 +3391,83 @@ MonoBehaviour:
   _section: {x: 0, y: 3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
+--- !u!1001 &825379916
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1960386497}
+    m_Modifications:
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1517778624028407869, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_Name
+      value: EnemySpawnCube
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+--- !u!4 &825379917 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+  m_PrefabInstance: {fileID: 825379916}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &825379918 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1824909050301994779, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+  m_PrefabInstance: {fileID: 825379916}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f46df2ea00bddd4394ce7b4e0beeade, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelModelLoader
 --- !u!1 &857898432
 GameObject:
   m_ObjectHideFlags: 0
@@ -3340,6 +3516,9 @@ MonoBehaviour:
   _section: {x: 2, y: -1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &884964609
 GameObject:
@@ -3389,6 +3568,9 @@ MonoBehaviour:
   _section: {x: 2, y: 0}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &894800289
 GameObject:
@@ -3438,6 +3620,9 @@ MonoBehaviour:
   _section: {x: -1, y: 0}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1001 &911829869
 PrefabInstance:
@@ -3549,6 +3734,9 @@ MonoBehaviour:
   _section: {x: -1, y: -4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &927238638
 GameObject:
@@ -3649,6 +3837,9 @@ MonoBehaviour:
   _section: {x: -1, y: -3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &940559793
 GameObject:
@@ -3733,6 +3924,9 @@ MonoBehaviour:
   _section: {x: 4, y: -3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &970655781
 GameObject:
@@ -3819,6 +4013,9 @@ MonoBehaviour:
   _section: {x: -2, y: -1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &994165661
 GameObject:
@@ -3980,6 +4177,9 @@ MonoBehaviour:
   _section: {x: 4, y: -1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1032514471
 GameObject:
@@ -4029,6 +4229,9 @@ MonoBehaviour:
   _section: {x: 1, y: 4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1034922734
 GameObject:
@@ -4078,6 +4281,9 @@ MonoBehaviour:
   _section: {x: 0, y: 2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1053533370
 GameObject:
@@ -4127,6 +4333,9 @@ MonoBehaviour:
   _section: {x: -4, y: 4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1066494678
 GameObject:
@@ -4288,6 +4497,9 @@ MonoBehaviour:
   _section: {x: 3, y: 3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1077334591
 GameObject:
@@ -4449,6 +4661,9 @@ MonoBehaviour:
   _section: {x: -3, y: 0}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1120730212
 GameObject:
@@ -4549,6 +4764,9 @@ MonoBehaviour:
   _section: {x: 0, y: -4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1172982079
 GameObject:
@@ -4598,6 +4816,9 @@ MonoBehaviour:
   _section: {x: 0, y: -2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1189794085
 GameObject:
@@ -4647,6 +4868,9 @@ MonoBehaviour:
   _section: {x: 3, y: 4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1198423626
 GameObject:
@@ -4696,6 +4920,9 @@ MonoBehaviour:
   _section: {x: 4, y: 1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1204803205
 GameObject:
@@ -4895,7 +5122,83 @@ MonoBehaviour:
   _section: {x: -4, y: 2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
+--- !u!1001 &1294464702
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 447241566}
+    m_Modifications:
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1517778624028407869, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_Name
+      value: EnemySpawnCube
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+--- !u!4 &1294464703 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+  m_PrefabInstance: {fileID: 1294464702}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1294464704 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1824909050301994779, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+  m_PrefabInstance: {fileID: 1294464702}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f46df2ea00bddd4394ce7b4e0beeade, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelModelLoader
 --- !u!1 &1318375535
 GameObject:
   m_ObjectHideFlags: 0
@@ -4944,6 +5247,9 @@ MonoBehaviour:
   _section: {x: -4, y: -4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1329723882
 GameObject:
@@ -4993,6 +5299,9 @@ MonoBehaviour:
   _section: {x: -4, y: -1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1379963599
 GameObject:
@@ -5042,6 +5351,9 @@ MonoBehaviour:
   _section: {x: 1, y: -3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1432259152
 GameObject:
@@ -5091,6 +5403,9 @@ MonoBehaviour:
   _section: {x: -2, y: -4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1432562365
 GameObject:
@@ -5140,6 +5455,9 @@ MonoBehaviour:
   _section: {x: 4, y: -4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1483189703
 GameObject:
@@ -5189,6 +5507,9 @@ MonoBehaviour:
   _section: {x: 2, y: 4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1493669677
 GameObject:
@@ -5238,6 +5559,9 @@ MonoBehaviour:
   _section: {x: -2, y: -3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1511765203
 GameObject:
@@ -5489,6 +5813,9 @@ MonoBehaviour:
   _section: {x: 1, y: -1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1566998499
 GameObject:
@@ -5538,6 +5865,9 @@ MonoBehaviour:
   _section: {x: 2, y: -3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1571066437
 GameObject:
@@ -5848,6 +6178,9 @@ MonoBehaviour:
   _section: {x: 0, y: 1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1605430473
 GameObject:
@@ -5897,6 +6230,9 @@ MonoBehaviour:
   _section: {x: -4, y: 1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1641460932
 GameObject:
@@ -5946,6 +6282,9 @@ MonoBehaviour:
   _section: {x: 2, y: -2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1641900950
 GameObject:
@@ -5995,6 +6334,9 @@ MonoBehaviour:
   _section: {x: -4, y: -3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1661811788
 GameObject:
@@ -6097,6 +6439,9 @@ MonoBehaviour:
   _section: {x: -2, y: -2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1698786992
 GameObject:
@@ -6146,6 +6491,9 @@ MonoBehaviour:
   _section: {x: 0, y: -3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1700198049
 GameObject:
@@ -6195,6 +6543,9 @@ MonoBehaviour:
   _section: {x: 3, y: -3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1714268970
 GameObject:
@@ -6244,6 +6595,9 @@ MonoBehaviour:
   _section: {x: -1, y: 2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1739822256
 GameObject:
@@ -6293,6 +6647,9 @@ MonoBehaviour:
   _section: {x: -3, y: -4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1744604255
 GameObject:
@@ -6457,6 +6814,9 @@ MonoBehaviour:
   _section: {x: -4, y: 3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1750749508
 GameObject:
@@ -6506,6 +6866,9 @@ MonoBehaviour:
   _section: {x: 3, y: -1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1772759939
 GameObject:
@@ -6555,6 +6918,9 @@ MonoBehaviour:
   _section: {x: 4, y: 4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1791619468
 GameObject:
@@ -6604,6 +6970,9 @@ MonoBehaviour:
   _section: {x: 3, y: 1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1802336080
 GameObject:
@@ -6653,6 +7022,9 @@ MonoBehaviour:
   _section: {x: 1, y: 1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1823541755
 GameObject:
@@ -6702,6 +7074,9 @@ MonoBehaviour:
   _section: {x: 1, y: 0}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1001 &1832828170
 PrefabInstance:
@@ -6813,6 +7188,9 @@ MonoBehaviour:
   _section: {x: 4, y: -2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &1878981620
 GameObject:
@@ -6915,6 +7293,9 @@ MonoBehaviour:
   _section: {x: -2, y: 4}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1001 &1893951026
 PrefabInstance:
@@ -7069,7 +7450,8 @@ Transform:
   m_LocalPosition: {x: 0, y: -1, z: -65}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 825379917}
   m_Father: {fileID: 927238640}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1960386498
@@ -7087,7 +7469,10 @@ MonoBehaviour:
   _composition: {fileID: 11400000, guid: 8288d077d5778ba44a4975daccdc4226, type: 2}
   _section: {x: 0, y: -1}
   _hasSection: 1
-  _radius: 4
+  _radius: 2
+  _respawnInterval: 30
+  _structure: {fileID: 825379918}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &2007742710
 GameObject:
@@ -7137,6 +7522,9 @@ MonoBehaviour:
   _section: {x: 1, y: 3}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1001 &2019215424
 PrefabInstance:
@@ -7248,6 +7636,9 @@ MonoBehaviour:
   _section: {x: 3, y: 2}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1 &2049247148
 GameObject:
@@ -7297,6 +7688,9 @@ MonoBehaviour:
   _section: {x: -1, y: 1}
   _hasSection: 1
   _radius: 4
+  _respawnInterval: 30
+  _structure: {fileID: 0}
+  _brokenLossRatio: 0.05
   _isEnabled: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
