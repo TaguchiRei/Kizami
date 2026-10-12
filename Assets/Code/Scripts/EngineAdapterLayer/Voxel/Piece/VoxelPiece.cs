@@ -160,6 +160,35 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 直近の再メッシュ化とコライダー更新にかかった時間 </summary>
         public double LastRemeshMilliseconds { get; private set; }
 
+        /// <summary> 直近の CSG 合成にかかった時間 </summary>
+        public double LastEditMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測（分離の判定と切り離し）にかかった時間 </summary>
+        public double LastMeasureMilliseconds { get; private set; }
+
+        /// <summary> 直近の平面での切り分けにかかった時間。再メッシュ化は含まない </summary>
+        public double LastSliceMilliseconds { get; private set; }
+
+        /// <summary> ボリュームの格子点の総数。ボリュームが無ければ 0 </summary>
+        public int GridSampleTotal => _volume != null ? _volume.Layout.SampleTotal : 0;
+
+        /// <summary> 表面を持つチャンクの数 </summary>
+        public int SurfaceChunkCount
+        {
+            get
+            {
+                if (_chunks == null) return 0;
+
+                var count = 0;
+                foreach (var slot in _chunks)
+                {
+                    if (slot != null && slot.TriangleCount > 0) count++;
+                }
+
+                return count;
+            }
+        }
+
         private float VoxelCubicVolume
         {
             get
@@ -286,7 +315,9 @@ namespace Kizami.EngineAdapter.Voxel
                 return;
             }
 
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var result = _volume.ApplyEdit(localShape, operation);
+            LastEditMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
             if (!result.HasChange) return;
 
             MarkSamplesDirty(result.SampleMin, result.SampleMax);
@@ -333,6 +364,7 @@ namespace Kizami.EngineAdapter.Voxel
             var localNormal = math.normalizesafe((float3)transform.InverseTransformDirection(worldNormal));
             if (math.all(localNormal == 0f)) return Array.Empty<VoxelPiece>();
 
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             float3 localPoint = transform.InverseTransformPoint(worldPoint);
             var bounds = _volume.LocalBounds;
 
@@ -368,6 +400,7 @@ namespace Kizami.EngineAdapter.Voxel
                 QueueShapeChange(VoxelCsgOperation.Subtract, VoxelShapeChangeCause.Slice, keepResult);
             }
 
+            LastSliceMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
             FlushRemesh();
             _pendingSlicePieces.AddRange(pieces);
             return pieces;
@@ -596,7 +629,9 @@ namespace Kizami.EngineAdapter.Voxel
             VoxelPiece[] splitPieces = null;
             if (_needsMeasure)
             {
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                 splitPieces = Measure(_needsSplitCheck && _splittable);
+                LastMeasureMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
                 _needsMeasure = false;
                 _needsSplitCheck = false;
                 _meltedSinceMeasure = false;
