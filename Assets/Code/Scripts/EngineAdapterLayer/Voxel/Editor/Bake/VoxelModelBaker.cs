@@ -16,6 +16,9 @@ namespace Kizami.Editor.Voxel
         /// <summary> 最大辺の解像度の上限。MeshToSDFBaker は総ボクセル数が 2^27 を超えると例外を投げる </summary>
         private const int MAX_RESOLUTION = 384;
 
+        /// <summary> 素材の番号を 1 バイトで持つ為の、素材の数の上限 </summary>
+        private const int MAX_MATERIAL_COUNT = 256;
+
         /// <summary>
         /// ベイクして VoxelModelAsset に保存する。同じパスのアセットがあれば中身を差し替える（GUID は保たれる）。
         /// </summary>
@@ -24,19 +27,19 @@ namespace Kizami.Editor.Voxel
         /// <param name="assetPath">保存先のアセットパス（Assets/～.asset）</param>
         public static VoxelModelAsset BakeAndSave(GameObject root, VoxelBakeSettings settings, string assetPath)
         {
-            var parts = Bake(root, settings);
+            var parts = Bake(root, settings, out var materials);
 
             var asset = AssetDatabase.LoadAssetAtPath<VoxelModelAsset>(assetPath);
             if (asset == null)
             {
                 EnsureFolder(assetPath.Substring(0, assetPath.LastIndexOf('/')));
                 asset = ScriptableObject.CreateInstance<VoxelModelAsset>();
-                asset.SetParts(parts);
+                asset.SetParts(parts, materials);
                 AssetDatabase.CreateAsset(asset, assetPath);
             }
             else
             {
-                asset.SetParts(parts);
+                asset.SetParts(parts, materials);
                 EditorUtility.SetDirty(asset);
             }
 
@@ -47,9 +50,10 @@ namespace Kizami.Editor.Voxel
         /// <summary>
         /// ルート以下の MeshFilter を SDF にベイクする。
         /// パーツごとにベイクする場合、各パーツはその MeshFilter のローカル空間で表す。
-        /// まとめる場合は、ルートのローカル空間で表す。
+        /// まとめる場合は、ルートのローカル空間で表し、サンプルごとに素材の番号を書く。
         /// </summary>
-        public static VoxelSdfData[] Bake(GameObject root, VoxelBakeSettings settings)
+        /// <param name="materials">素材の番号が指す素材の一覧。パーツごとにベイクする場合は空</param>
+        public static VoxelSdfData[] Bake(GameObject root, VoxelBakeSettings settings, out VoxelMaterialEntry[] materials)
         {
             var filters = new List<MeshFilter>();
             foreach (var filter in root.GetComponentsInChildren<MeshFilter>(true))
@@ -64,8 +68,10 @@ namespace Kizami.Editor.Voxel
 
             if (settings.CombineHierarchy)
             {
-                return new[] { BakeCombined(root.transform, filters, settings) };
+                return new[] { BakeCombined(root.transform, filters, settings, out materials) };
             }
+
+            materials = Array.Empty<VoxelMaterialEntry>();
 
             var parts = new VoxelSdfData[filters.Count];
             for (var i = 0; i < filters.Count; i++)
@@ -81,12 +87,18 @@ namespace Kizami.Editor.Voxel
 
         /// <summary>
         /// 全メッシュをルートのローカル空間へ変換し、1 パーツとしてベイクする。
+        /// パーツをマテリアルと強度の組ごとに分け、組ごとにも同じ箱と解像度でベイクする。
+        /// 各サンプルには、距離が最も小さい組（そのサンプルを含む組、どれにも含まれなければ最も近い組）の番号を書く。
         /// MeshToSDFBaker がメッシュを結合する為、各メッシュの Read/Write が有効である必要がある。
         /// </summary>
-        private static VoxelSdfData BakeCombined(Transform root, List<MeshFilter> filters, VoxelBakeSettings settings)
+        private static VoxelSdfData BakeCombined(Transform root, List<MeshFilter> filters, VoxelBakeSettings settings,
+            out VoxelMaterialEntry[] materials)
         {
             var meshes = new List<Mesh>(filters.Count);
             var transforms = new List<Matrix4x4>(filters.Count);
+            var materialList = new List<VoxelMaterialEntry>();
+            var groupMeshes = new List<List<Mesh>>();
+            var groupTransforms = new List<List<Matrix4x4>>();
             var bounds = new Bounds();
 
             for (var i = 0; i < filters.Count; i++)
@@ -96,6 +108,19 @@ namespace Kizami.Editor.Voxel
 
                 meshes.Add(filters[i].sharedMesh);
                 transforms.Add(toRoot);
+
+                var entry = GetMaterialEntry(filters[i]);
+                var group = materialList.IndexOf(entry);
+                if (group < 0)
+                {
+                    group = materialList.Count;
+                    materialList.Add(entry);
+                    groupMeshes.Add(new List<Mesh>());
+                    groupTransforms.Add(new List<Matrix4x4>());
+                }
+
+                groupMeshes[group].Add(filters[i].sharedMesh);
+                groupTransforms[group].Add(toRoot);
 
                 if (i == 0)
                 {
@@ -107,9 +132,63 @@ namespace Kizami.Editor.Voxel
                 }
             }
 
-            return BakeBox(string.Empty, bounds, settings,
+            if (materialList.Count > MAX_MATERIAL_COUNT)
+            {
+                throw new ArgumentException(
+                    $"{root.name} の素材の数 {materialList.Count} が上限 {MAX_MATERIAL_COUNT} を超えています。");
+            }
+
+            var combined = BakeBox(string.Empty, bounds, settings,
                 (size, center, resolution) => new MeshToSDFBaker(size, center, resolution, meshes, transforms,
                     settings.SignPassCount, settings.InOutThreshold));
+
+            materials = materialList.ToArray();
+            var materialIds = new byte[combined.Samples.Length];
+            if (materialList.Count == 1) return WithMaterialIds(combined, materialIds);
+
+            var nearest = new short[combined.Samples.Length];
+            for (var group = 0; group < materialList.Count; group++)
+            {
+                var groupMeshList = groupMeshes[group];
+                var groupTransformList = groupTransforms[group];
+                var groupData = BakeBox(string.Empty, bounds, settings,
+                    (size, center, resolution) => new MeshToSDFBaker(size, center, resolution, groupMeshList,
+                        groupTransformList, settings.SignPassCount, settings.InOutThreshold));
+                if (!groupData.SampleCount.Equals(combined.SampleCount))
+                {
+                    throw new InvalidOperationException("素材ごとのベイクの格子が、全体の格子と一致しません。");
+                }
+
+                var groupSamples = groupData.Samples;
+                for (var i = 0; i < groupSamples.Length; i++)
+                {
+                    if (group > 0 && groupSamples[i] >= nearest[i]) continue;
+
+                    nearest[i] = groupSamples[i];
+                    materialIds[i] = (byte)group;
+                }
+            }
+
+            return WithMaterialIds(combined, materialIds);
+        }
+
+        /// <summary>
+        /// パーツの MeshRenderer のマテリアルと、VoxelBakeMaterial の強度（無ければ普通）の組。
+        /// </summary>
+        private static VoxelMaterialEntry GetMaterialEntry(MeshFilter filter)
+        {
+            var material = filter.TryGetComponent<MeshRenderer>(out var meshRenderer) ? meshRenderer.sharedMaterial : null;
+            var strength = filter.TryGetComponent<VoxelBakeMaterial>(out var bakeMaterial)
+                ? bakeMaterial.Strength
+                : VoxelStrength.Normal;
+            return new VoxelMaterialEntry(material, strength);
+        }
+
+        private static VoxelSdfData WithMaterialIds(VoxelSdfData data, byte[] materialIds)
+        {
+            var count = data.SampleCount;
+            return new VoxelSdfData(data.Path, data.Origin, new Vector3Int(count.x, count.y, count.z), data.VoxelSize,
+                data.MaxDistance, data.Samples, materialIds);
         }
 
         /// <summary>

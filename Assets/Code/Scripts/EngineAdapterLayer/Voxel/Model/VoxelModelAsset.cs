@@ -15,14 +15,21 @@ namespace Kizami.EngineAdapter.Voxel
     {
         [SerializeField] private VoxelSdfData[] _parts = Array.Empty<VoxelSdfData>();
 
+        [SerializeField]
+        [Tooltip("パーツの素材の番号が指す素材の一覧。素材を持たないモデルでは空")]
+        private VoxelMaterialEntry[] _materials = Array.Empty<VoxelMaterialEntry>();
+
         public IReadOnlyList<VoxelSdfData> Parts => _parts;
 
+        public IReadOnlyList<VoxelMaterialEntry> Materials => _materials;
+
         /// <summary>
-        /// パーツを差し替える。ベイク処理から呼ぶ。
+        /// パーツと素材の一覧を差し替える。ベイク処理から呼ぶ。
         /// </summary>
-        public void SetParts(VoxelSdfData[] parts)
+        public void SetParts(VoxelSdfData[] parts, VoxelMaterialEntry[] materials)
         {
             _parts = parts;
+            _materials = materials;
         }
     }
 }
