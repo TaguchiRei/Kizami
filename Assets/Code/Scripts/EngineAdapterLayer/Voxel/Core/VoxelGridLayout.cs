@@ -43,12 +43,15 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 境界ボックスを覆う格子を作る。境界の外側に 1 ボクセルの余白を付ける。
+        /// サンプルは、ローカル空間でボクセルの大きさの倍数に半ボクセルを足した位置に置く。
+        /// ボクセルの大きさの倍数で作った面がサンプルとサンプルのちょうど中間に来て、内外が決まり、削れた段差も倍数の位置に出る。
         /// </summary>
         public static VoxelGridLayout FromBounds(VoxelBounds bounds, float voxelSize, int chunkSize)
         {
             var padded = bounds.Expand(voxelSize);
-            var cellCount = math.max((int3)math.ceil(padded.Size / voxelSize), 1);
-            return new VoxelGridLayout(padded.Min, cellCount, voxelSize, chunkSize);
+            var origin = (math.floor(padded.Min / voxelSize - 0.5f) + 0.5f) * voxelSize;
+            var cellCount = math.max((int3)math.ceil((padded.Max - origin) / voxelSize), 1);
+            return new VoxelGridLayout(origin, cellCount, voxelSize, chunkSize);
         }
 
         private static int3 FloorDiv(int3 value, int divisor)

@@ -25,6 +25,7 @@ namespace Kizami.EngineAdapter.Voxel
         private readonly List<int> _hotChunks = new();
         private NativeArray<float> _samples;
         private NativeArray<float> _temperatures;
+        private NativeArray<byte> _materialIds;
 
         public VoxelGridLayout Layout { get; }
         public float TruncationDistance => Layout.VoxelSize * TRUNCATION_VOXELS;
@@ -33,10 +34,16 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 温度の配列を確保済みか </summary>
         public bool HasTemperatures => _temperatures.IsCreated;
 
+        /// <summary> サンプルごとの素材の番号を持つか </summary>
+        public bool HasMaterials => _materialIds.IsCreated;
+
         /// <summary> 温度が 0 より高いサンプルを含みうるチャンクがあるか </summary>
         public bool HasHotChunks => _hotChunks.Count > 0;
 
         internal NativeArray<float> Samples => _samples;
+
+        /// <summary> サンプルごとの、モデルの素材の一覧での番号。HasMaterials でなければ未作成 </summary>
+        internal NativeArray<byte> MaterialIds => _materialIds;
 
         /// <summary> 格子のローカル空間での範囲（最外周のサンプルを含む） </summary>
         public VoxelBounds LocalBounds => new(Layout.ToLocalPosition(int3.zero), Layout.ToLocalPosition(Layout.SampleCount - 1));
@@ -69,7 +76,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 同じ格子・同じ距離・同じ温度を持つ複製を作る。冷却の対象のチャンクも引き継ぐ。
+        /// 同じ格子・同じ距離・同じ温度・同じ素材を持つ複製を作る。冷却の対象のチャンクも引き継ぐ。
         /// </summary>
         public VoxelVolume Clone()
         {
@@ -78,6 +85,11 @@ namespace Kizami.EngineAdapter.Voxel
             if (_temperatures.IsCreated)
             {
                 result._temperatures = new NativeArray<float>(_temperatures, Allocator.Persistent);
+            }
+
+            if (_materialIds.IsCreated)
+            {
+                result._materialIds = new NativeArray<byte>(_materialIds, Allocator.Persistent);
             }
 
             Array.Copy(_isHotChunk, result._isHotChunk, _isHotChunk.Length);
@@ -271,6 +283,23 @@ namespace Kizami.EngineAdapter.Voxel
             }.Schedule(_samples.Length, 256).Complete();
 
             sourceSamples.Dispose();
+
+            if (_materialIds.IsCreated) _materialIds.Dispose();
+            if (!source.HasMaterials) return;
+
+            _materialIds = new NativeArray<byte>(Layout.SampleTotal, Allocator.Persistent,
+                NativeArrayOptions.UninitializedMemory);
+            var sourceMaterialIds = new NativeArray<byte>(source.MaterialIds, Allocator.TempJob);
+            new VoxelResampleMaterialJob
+            {
+                SourceMaterialIds = sourceMaterialIds,
+                SourceSampleCount = source.SampleCount,
+                SourceOrigin = source.Origin,
+                SourceVoxelSize = source.VoxelSize,
+                MaterialIds = _materialIds,
+                Layout = Layout
+            }.Schedule(_materialIds.Length, 256).Complete();
+            sourceMaterialIds.Dispose();
         }
 
         /// <summary>
@@ -320,7 +349,7 @@ namespace Kizami.EngineAdapter.Voxel
                 result._temperatures = new NativeArray<float>(layout.SampleTotal, Allocator.Persistent,
                     NativeArrayOptions.UninitializedMemory);
 
-                new VoxelCopySamplesJob
+                new VoxelCopySamplesJob<float>
                 {
                     SourceValues = _temperatures,
                     SourceLayout = Layout,
@@ -330,6 +359,21 @@ namespace Kizami.EngineAdapter.Voxel
                 }.Schedule(layout.SampleTotal, 256).Complete();
 
                 result.MarkHot(int3.zero, layout.SampleCount - 1);
+            }
+
+            if (_materialIds.IsCreated)
+            {
+                result._materialIds = new NativeArray<byte>(layout.SampleTotal, Allocator.Persistent,
+                    NativeArrayOptions.UninitializedMemory);
+
+                new VoxelCopySamplesJob<byte>
+                {
+                    SourceValues = _materialIds,
+                    SourceLayout = Layout,
+                    SourceSampleMin = sampleMin,
+                    Values = result._materialIds,
+                    Layout = layout
+                }.Schedule(layout.SampleTotal, 256).Complete();
             }
 
             return result;
@@ -432,6 +476,7 @@ namespace Kizami.EngineAdapter.Voxel
         {
             if (_samples.IsCreated) _samples.Dispose();
             if (_temperatures.IsCreated) _temperatures.Dispose();
+            if (_materialIds.IsCreated) _materialIds.Dispose();
         }
 
     }
