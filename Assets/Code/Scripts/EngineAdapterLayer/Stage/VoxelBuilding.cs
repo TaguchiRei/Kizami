@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Kizami.EngineAdapter.Voxel;
 using Unity.Mathematics;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter
@@ -16,6 +17,8 @@ namespace Kizami.EngineAdapter
     /// 隣り合う階の境目ごとに、下の階の上の面と上の階の下の面から半ボクセル内側の段で、両方が中身の点を数えてつながりを判定する。
     /// 判定は階のピースの形が変わったとき（分離の処理のあと）に、その階の上下の境目について行う。1 階の下は地面で、地面側は常に中身とみなす。
     /// 階とパーツは回転させずに置く前提で、点の対応は建物のローカル空間の水平座標を格子の番号にして取る。
+    /// 境目が切れたら、その上の階をまとめて 1 つの Rigidbody の子にして落とす。当たり判定は各階のチャンクの BoxCollider をそのまま使う。
+    /// 落ちた Rigidbody が眠ったらキネマティックにして止め、地形として残す。落ちた階は、以後つながりを判定しない。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/LargeObjectVoxel.md">説明ドキュメント: 巨大なオブジェクトへのボクセルの適用</seealso>
     public sealed class VoxelBuilding : MonoBehaviour
@@ -25,6 +28,8 @@ namespace Kizami.EngineAdapter
         private readonly List<VoxelModelLoader> _floors = new();
         private readonly List<Material> _floorMaterials = new();
         private readonly List<IDisposable> _subscriptions = new();
+        private readonly List<Rigidbody> _fallingBodies = new();
+        private readonly ActionChannel<Rigidbody> _collapsed = new();
 
         [SerializeField]
         [Tooltip("1 階のモデル")]
@@ -62,6 +67,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("つながりの面積を数えるときの、硬い素材の点の倍率。鉄筋が残る間は倒れにくくする")]
         private int _hardWeight = 4;
 
+        [SerializeField, Min(0.001f)]
+        [Tooltip("倒れる階のまとまりの密度（kg/m³）。質量は ピースの体積の合計 × 密度")]
+        private float _collapseDensity = 500f;
+
         private float[] _initialAreas = Array.Empty<float>();
         private float[] _connectionRatios = Array.Empty<float>();
         private byte[] _layerBuffer = Array.Empty<byte>();
@@ -76,6 +85,9 @@ namespace Kizami.EngineAdapter
         private byte[] _upperFace = Array.Empty<byte>();
         private int _loadedCount;
 
+        /// <summary> 倒れずに立っている階の数。この番号から上の階は倒れた </summary>
+        private int _standingFloorCount;
+
         /// <summary> 下から順の階。屋上を積んだ場合は最後の要素 </summary>
         public IReadOnlyList<VoxelModelLoader> Floors => _floors;
 
@@ -86,6 +98,16 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 全部の階を読み込み、つながりの元の面積を測ったか </summary>
         public bool IsConnectionReady { get; private set; }
+
+        /// <summary>
+        /// 境目が切れて上の階が倒れ始めたときに呼ぶ処理を登録する。引数は、倒れた階をまとめた Rigidbody。
+        /// 倒れた階のピースは、その Rigidbody の子孫にある。
+        /// </summary>
+        /// <returns>Dispose すると登録を解除する</returns>
+        public IDisposable RegisterOnCollapsed(Action<Rigidbody> callback)
+        {
+            return _collapsed.Register(callback);
+        }
 
         /// <summary>
         /// 境目 jointIndex の、今のつながっている面積 ÷ 元の面積。元の面積が 0 なら 0。
@@ -162,6 +184,7 @@ namespace Kizami.EngineAdapter
                 _connectionRatios[i] = _initialAreas[i] > 0f ? 1f : 0f;
             }
 
+            _standingFloorCount = _floors.Count;
             IsConnectionReady = true;
         }
 
@@ -170,9 +193,9 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void UpdateConnections(int floorIndex)
         {
-            if (!IsConnectionReady) return;
+            if (!IsConnectionReady || floorIndex >= _standingFloorCount) return;
 
-            for (var joint = floorIndex; joint <= floorIndex + 1 && joint < _floors.Count; joint++)
+            for (var joint = floorIndex; joint <= floorIndex + 1 && joint < _standingFloorCount; joint++)
             {
                 var wasConnected = IsConnected(joint);
                 _connectionRatios[joint] = _initialAreas[joint] > 0f ? MeasureJointArea(joint) / _initialAreas[joint] : 0f;
@@ -180,8 +203,40 @@ namespace Kizami.EngineAdapter
                 if (wasConnected && !IsConnected(joint))
                 {
                     UsefulLogger.Log($"{joint} 階の下の境目が切れました（元の面積の {_connectionRatios[joint]:P1}）。", this);
+                    Collapse(joint);
+                    return;
                 }
             }
+        }
+
+        /// <summary>
+        /// firstFloor 階から上の立っている階を、1 つの Rigidbody の子にまとめて落とす。
+        /// </summary>
+        private void Collapse(int firstFloor)
+        {
+            var groupObject = new GameObject($"Collapsed_{firstFloor:00}")
+            {
+                layer = gameObject.layer
+            };
+            groupObject.transform.SetParent(transform, false);
+
+            var volume = 0f;
+            for (var i = firstFloor; i < _standingFloorCount; i++)
+            {
+                _floors[i].transform.SetParent(groupObject.transform, true);
+                foreach (var part in _floors[i].Parts)
+                {
+                    if (part != null) volume += part.Volume;
+                }
+            }
+
+            _standingFloorCount = firstFloor;
+
+            var body = groupObject.AddComponent<Rigidbody>();
+            body.mass = math.max(volume * _collapseDensity, 0.01f);
+            body.interpolation = RigidbodyInterpolation.Interpolate;
+            _fallingBodies.Add(body);
+            _collapsed.Invoke(body);
         }
 
         /// <summary>
@@ -339,6 +394,19 @@ namespace Kizami.EngineAdapter
             for (var i = 0; i < layerCount; i++)
             {
                 CreateFloor(i, GetFloorModel(i));
+            }
+        }
+
+        private void Update()
+        {
+            for (var i = _fallingBodies.Count - 1; i >= 0; i--)
+            {
+                var body = _fallingBodies[i];
+                if (body != null && !body.IsSleeping()) continue;
+
+                // 敵の格子は眠ったことで止まったと気づく為、Rigidbody は消さずにキネマティックにする
+                if (body != null) body.isKinematic = true;
+                _fallingBodies.RemoveAt(i);
             }
         }
 
