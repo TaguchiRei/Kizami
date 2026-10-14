@@ -124,26 +124,23 @@ namespace Kizami.EngineAdapter.Voxel
         public VoxelEditResult ApplyEdit<TShape>(in TShape shape, VoxelCsgOperation operation)
             where TShape : struct, IVoxelShape
         {
-            // 形状から切り詰め距離より離れたサンプルは、合成しても値が変わらない
-            if (!TryGetSampleRange(shape.Bounds.Expand(TruncationDistance), out var sampleMin, out var sampleMax))
-            {
-                return default;
-            }
+            return ApplyCsg(shape, operation, 0f, default);
+        }
 
-            var rangeSize = sampleMax - sampleMin + 1;
-            var job = new VoxelCsgJob<TShape>
-            {
-                Samples = _samples,
-                Layout = Layout,
-                Shape = shape,
-                Operation = operation,
-                RangeMin = sampleMin,
-                RangeSize = rangeSize,
-                TruncationDistance = TruncationDistance
-            };
-            job.Schedule(rangeSize.x * rangeSize.y * rangeSize.z, 256).Complete();
-
-            return new VoxelEditResult(sampleMin, sampleMax);
+        /// <summary>
+        /// 強さと減衰率で削る攻撃を合成する。形状は、融点 0 の素材まで届く範囲（半径が 強さ ÷ 減衰率）を Layout と同じローカル空間で表す。
+        /// 融点 s の素材は、形状の距離に s ÷ 減衰率（ローカル空間の長さ）を足した形で削れ、半径が (強さ − s) ÷ 減衰率 になる。
+        /// </summary>
+        /// <param name="reach">融点 0 の素材まで届く範囲</param>
+        /// <param name="materialOffsets">素材の番号ごとの 融点 ÷ 減衰率。HasMaterials でなければ使わない</param>
+        /// <param name="uniformOffset">素材を持たないときの 融点 ÷ 減衰率</param>
+        /// <returns>値が書き換わりうるサンプル範囲。形状がボリュームの外にあれば HasChange が false</returns>
+        public VoxelEditResult ApplyStrike<TShape>(in TShape reach, NativeArray<float> materialOffsets,
+            float uniformOffset)
+            where TShape : struct, IVoxelShape
+        {
+            return ApplyCsg(reach, VoxelCsgOperation.Subtract, uniformOffset,
+                HasMaterials ? materialOffsets : default);
         }
 
         /// <summary>
@@ -470,6 +467,49 @@ namespace Kizami.EngineAdapter.Voxel
                 _isHotChunk[chunkIndex] = true;
                 _hotChunks.Add(chunkIndex);
             }
+        }
+
+        /// <summary>
+        /// 形状の距離にずらし量を足して CSG 合成する。ずらし量は正なので、範囲は形状の範囲に収まる。
+        /// </summary>
+        /// <param name="materialOffsets">素材の番号ごとのずらし量。作られていなければ uniformOffset を使う</param>
+        private VoxelEditResult ApplyCsg<TShape>(in TShape shape, VoxelCsgOperation operation, float uniformOffset,
+            NativeArray<float> materialOffsets)
+            where TShape : struct, IVoxelShape
+        {
+            // 形状から切り詰め距離より離れたサンプルは、合成しても値が変わらない
+            if (!TryGetSampleRange(shape.Bounds.Expand(TruncationDistance), out var sampleMin, out var sampleMax))
+            {
+                return default;
+            }
+
+            var useMaterials = materialOffsets.IsCreated;
+
+            // ジョブの入力には作った配列を渡す必要がある為、使わないときは 1 要素の配列を渡す
+            var emptyOffsets = useMaterials ? default : new NativeArray<float>(1, Allocator.TempJob);
+            var emptyIds = useMaterials ? default : new NativeArray<byte>(1, Allocator.TempJob);
+
+            var rangeSize = sampleMax - sampleMin + 1;
+            var job = new VoxelCsgJob<TShape>
+            {
+                Samples = _samples,
+                Layout = Layout,
+                Shape = shape,
+                Operation = operation,
+                RangeMin = sampleMin,
+                RangeSize = rangeSize,
+                TruncationDistance = TruncationDistance,
+                UseMaterials = useMaterials,
+                UniformOffset = uniformOffset,
+                MaterialOffsets = useMaterials ? materialOffsets : emptyOffsets,
+                MaterialIds = useMaterials ? _materialIds : emptyIds
+            };
+            job.Schedule(rangeSize.x * rangeSize.y * rangeSize.z, 256).Complete();
+
+            if (emptyOffsets.IsCreated) emptyOffsets.Dispose();
+            if (emptyIds.IsCreated) emptyIds.Dispose();
+
+            return new VoxelEditResult(sampleMin, sampleMax);
         }
 
         public void Dispose()

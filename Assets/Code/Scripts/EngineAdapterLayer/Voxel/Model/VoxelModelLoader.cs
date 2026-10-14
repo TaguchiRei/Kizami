@@ -259,15 +259,17 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 素材の番号ごとのマテリアル。上書き指定があれば全素材をそれで塗り、素材のマテリアルが空なら ResolveMaterial で補う。
+        /// 素材の番号ごとのマテリアルと強度。上書き指定があれば全素材をそれで塗り、素材のマテリアルが空なら ResolveMaterial で補う。
         /// </summary>
-        private Material[] ResolveMaterials(Transform target)
+        private VoxelMaterialEntry[] ResolveMaterials(Transform target)
         {
-            var materials = new Material[_model.Materials.Count];
+            var materials = new VoxelMaterialEntry[_model.Materials.Count];
             for (var i = 0; i < materials.Length; i++)
             {
-                var material = _materialOverride != null ? _materialOverride : _model.Materials[i].Material;
-                materials[i] = material != null ? material : ResolveMaterial(target);
+                var entry = _model.Materials[i];
+                var material = _materialOverride != null ? _materialOverride : entry.Material;
+                materials[i] = new VoxelMaterialEntry(material != null ? material : ResolveMaterial(target),
+                    entry.Strength);
             }
 
             return materials;

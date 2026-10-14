@@ -78,6 +78,7 @@ namespace Kizami.EngineAdapter.Voxel
         private bool _needsMeasure;
         private bool _needsSplitCheck;
         private Material[] _materials = Array.Empty<Material>();
+        private VoxelStrength[] _strengths = Array.Empty<VoxelStrength>();
         private bool _hasInitialSampleCount;
         private bool _meltedSinceMeasure;
         private bool _hasWarnedThermalSettings;
@@ -245,15 +246,17 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 素材の番号ごとのマテリアルを差し替える。ボリュームが素材を持つときに使い、チャンクは素材ごとのサブメッシュで塗り分ける。
-        /// これ以降に生成するチャンクから反映される。
+        /// 素材の番号ごとのマテリアルと強度を差し替える。ボリュームが素材を持つときに使い、チャンクは素材ごとのサブメッシュで塗り分ける。
+        /// マテリアルは、これ以降に生成するチャンクから反映される。
         /// </summary>
-        public void SetMaterials(IReadOnlyList<Material> materials)
+        public void SetMaterials(IReadOnlyList<VoxelMaterialEntry> materials)
         {
             _materials = new Material[materials.Count];
+            _strengths = new VoxelStrength[materials.Count];
             for (var i = 0; i < _materials.Length; i++)
             {
-                _materials[i] = materials[i];
+                _materials[i] = materials[i].Material;
+                _strengths[i] = materials[i].Strength;
             }
         }
 
@@ -338,13 +341,7 @@ namespace Kizami.EngineAdapter.Voxel
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var result = _volume.ApplyEdit(localShape, operation);
             LastEditMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
-            if (!result.HasChange) return;
-
-            MarkSamplesDirty(result.SampleMin, result.SampleMax);
-            _needsMeasure = true;
-            if (operation == VoxelCsgOperation.Subtract) _needsSplitCheck = true;
-
-            QueueShapeChange(operation, VoxelShapeChangeCause.Edit, result);
+            ApplyEditResult(result, operation);
         }
 
         /// <summary>
@@ -359,6 +356,52 @@ namespace Kizami.EngineAdapter.Voxel
         {
             var localShape = space == Space.World ? shape.Transformed(transform.worldToLocalMatrix) : shape;
             ApplyEdit(localShape, operation);
+        }
+
+        /// <summary>
+        /// 強さと減衰率で削る攻撃を当てる。中心から距離 d の点に届く強さは「強さ − 減衰率 × d」で、その点の素材の融点以上なら壊れる。
+        /// 形状は、融点 0 の素材まで届く範囲（半径が 強さ ÷ 減衰率 の球やカプセル）を space で表す。
+        /// 素材を持たない物や、VoxelThermalSettings が無い物は、普通の強度として扱う。
+        /// </summary>
+        /// <param name="reach">space で表した、融点 0 の素材まで届く範囲</param>
+        /// <param name="falloff">1m（space の長さ）あたりに減る強さ</param>
+        /// <param name="space">reach と falloff を表している空間</param>
+        public void ApplyStrike<TShape>(in TShape reach, float falloff, Space space)
+            where TShape : struct, ITransformableVoxelShape<TShape>
+        {
+            if (_volume == null)
+            {
+                UsefulLogger.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
+                return;
+            }
+
+            if (falloff <= 0f)
+            {
+                UsefulLogger.LogError($"減衰率 {falloff} は正の値にしてください。", this);
+                return;
+            }
+
+            var localReach = space == Space.World ? reach.Transformed(transform.worldToLocalMatrix) : reach;
+            var lengthScale = space == Space.World ? WorldToLocalLength(1f) : 1f;
+            var settings = HasThermalSettings() ? _meltSystem.Settings : null;
+
+            var materialOffsets = new NativeArray<float>(math.max(_strengths.Length, 1), Allocator.TempJob);
+            for (var i = 0; i < _strengths.Length; i++)
+            {
+                var meltingPoint = settings != null
+                    ? settings.GetMeltingPoint(_strengths[i])
+                    : VoxelThermalSettings.NORMAL_MELTING_POINT;
+                materialOffsets[i] = meltingPoint / falloff * lengthScale;
+            }
+
+            var uniformOffset = VoxelThermalSettings.NORMAL_MELTING_POINT / falloff * lengthScale;
+
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var result = _volume.ApplyStrike(localReach, UsesMaterials ? materialOffsets : default, uniformOffset);
+            LastEditMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
+            materialOffsets.Dispose();
+
+            ApplyEditResult(result, VoxelCsgOperation.Subtract);
         }
 
         /// <summary>
@@ -838,6 +881,7 @@ namespace Kizami.EngineAdapter.Voxel
             piece._quality = _quality;
             piece._material = _material;
             piece._materials = _materials;
+            piece._strengths = _strengths;
             piece._colliderMode = VoxelColliderMode.ConvexHull;
             piece._splittable = _splittable;
             piece._minPieceSamples = _minPieceSamples;
@@ -878,6 +922,20 @@ namespace Kizami.EngineAdapter.Voxel
 
             InitialSampleCount = sampleCount;
             _hasInitialSampleCount = true;
+        }
+
+        /// <summary>
+        /// CSG 合成で書き換わりうる範囲を再メッシュ化の対象にし、体積の計測と形状変化の通知を待ちに入れる。
+        /// </summary>
+        private void ApplyEditResult(VoxelEditResult result, VoxelCsgOperation operation)
+        {
+            if (!result.HasChange) return;
+
+            MarkSamplesDirty(result.SampleMin, result.SampleMax);
+            _needsMeasure = true;
+            if (operation == VoxelCsgOperation.Subtract) _needsSplitCheck = true;
+
+            QueueShapeChange(operation, VoxelShapeChangeCause.Edit, result);
         }
 
         private bool HasThermalSettings()
