@@ -33,11 +33,36 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("印の付いた点から丸みが 0 になるまでのセル数（6 近傍でたどった数）")]
         private float _roundnessFalloffVoxels = 2.5f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("柔い素材の丸みの倍率")]
+        private float _softRoundnessScale = 1.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("普通の素材の丸みの倍率")]
+        private float _normalRoundnessScale = 1f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("硬い素材の丸みの倍率")]
+        private float _hardRoundnessScale = 0.3f;
+
         public float VoxelSize => _voxelSize;
         public int ChunkSize => _chunkSize;
         public int RemeshChunksPerFrame => _remeshChunksPerFrame;
         public bool UseBlockShape => _useBlockShape;
         public float RoundnessChangeVoxels => _roundnessChangeVoxels;
         public float RoundnessFalloffVoxels => _roundnessFalloffVoxels;
+
+        /// <summary>
+        /// 素材の強度ごとの丸みの倍率を返す。柔い素材ほど大きく、削れた所が丸く見える。
+        /// </summary>
+        public float GetRoundnessScale(VoxelStrength strength)
+        {
+            return strength switch
+            {
+                VoxelStrength.Soft => _softRoundnessScale,
+                VoxelStrength.Hard => _hardRoundnessScale,
+                _ => _normalRoundnessScale
+            };
+        }
     }
 }

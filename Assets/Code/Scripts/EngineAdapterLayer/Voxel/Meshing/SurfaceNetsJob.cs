@@ -1,5 +1,6 @@
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 
@@ -13,6 +14,8 @@ namespace Kizami.EngineAdapter.Voxel
     /// 頂点と法線はボクセル空間（ローカル空間）で出力する。
     /// 素材が 2 つ以上なら、四角形をその辺の内側の端のサンプルの素材で分け、インデックスを素材の順に並べる。
     /// 頂点は複数の素材の四角形で共有する。
+    /// UseBlockShape なら、頂点をセルの中心（ボクセルを積んだ角ばった形）に置き、法線は滑らかな形のものにする。
+    /// SmoothOffsets の xyz に「滑らかな位置 − 角ばった位置」、w にセルの 8 隅の丸みの平均（0〜1）を書き、シェーダーがこの 2 つで位置を混ぜる。
     /// 読むサンプル範囲は VoxelGridLayout.MESHING_READ_MARGIN と対応している。
     /// </summary>
     [BurstCompile]
@@ -30,6 +33,11 @@ namespace Kizami.EngineAdapter.Voxel
         public NativeList<float3> Normals;
         public NativeList<int> Indices;
 
+        public bool UseBlockShape;
+
+        /// <summary> 頂点ごとの滑らかな位置までの差と丸み。UseBlockShape でなければ書かない </summary>
+        [NativeDisableContainerSafetyRestriction] public NativeList<float4> SmoothOffsets;
+
         /// <summary> 素材の数。1 なら素材で分けない </summary>
         public int MaterialCount;
 
@@ -40,6 +48,12 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> サンプルごとの素材の番号。MaterialCount が 1 なら読まない </summary>
         [ReadOnly] public NativeArray<byte> MaterialIds;
+
+        /// <summary> サンプルごとの丸み（0〜255）。UseBlockShape でなければ読まない </summary>
+        [ReadOnly, NativeDisableContainerSafetyRestriction] public NativeArray<byte> Roundness;
+
+        /// <summary> 素材の番号ごとの丸みの倍率。MaterialCount が 1 なら 0 番目を全点に使う。UseBlockShape でなければ読まない </summary>
+        [ReadOnly, NativeDisableContainerSafetyRestriction] public NativeArray<float> RoundnessScales;
 
         /// <summary>
         /// セルの 12 辺のうち表面をまたぐものについて、表面との交点のセル内座標（0〜1）を平均する。
@@ -112,8 +126,18 @@ namespace Kizami.EngineAdapter.Voxel
 
                 var inCell = AverageCrossing(lower, upper);
                 cellToVertex[slot] = Vertices.Length;
-                Vertices.Add(Layout.Origin + ((float3)cell + inCell) * Layout.VoxelSize);
                 Normals.Add(ComputeNormal(cell, inCell));
+
+                if (UseBlockShape)
+                {
+                    var blockInCell = new float3(0.5f);
+                    Vertices.Add(Layout.Origin + ((float3)cell + blockInCell) * Layout.VoxelSize);
+                    SmoothOffsets.Add(new float4((inCell - blockInCell) * Layout.VoxelSize, AverageRoundness(cell)));
+                }
+                else
+                {
+                    Vertices.Add(Layout.Origin + ((float3)cell + inCell) * Layout.VoxelSize);
+                }
             }
         }
 
@@ -177,6 +201,22 @@ namespace Kizami.EngineAdapter.Voxel
             Indices.Add(a);
             Indices.Add(c);
             Indices.Add(d);
+        }
+
+        /// <summary>
+        /// セルの 8 隅の、素材ごとの倍率を掛けて 0〜1 に収めた丸みを平均する。
+        /// </summary>
+        private float AverageRoundness(int3 cell)
+        {
+            var sum = 0f;
+            for (var i = 0; i < 8; i++)
+            {
+                var index = Layout.ToSampleIndex(cell + (int3)CornerOffset(i));
+                var scale = RoundnessScales[MaterialCount > 1 ? MaterialIds[index] : 0];
+                sum += math.saturate(Roundness[index] / 255f * scale);
+            }
+
+            return sum / 8f;
         }
 
         /// <summary>

@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 着手（2026-10-11）。B-7b-2 まで完了（2026-10-14）。次は B-7b-3。「作業計画の書き直し（2026-10-14）」を最初に読む |
+| 状態 | 着手（2026-10-11）。B-7b-3 まで完了（2026-10-14）。次は B-7b-4。「作業計画の書き直し（2026-10-14）」を最初に読む |
 | 目安の時期 | 2027/03/09〜03/29（最速の推定 2026/10/19〜10/24） |
 | 前提となる区間 | 5, 4D |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -68,7 +68,8 @@
 | B-6 | 加熱を点ごとの融点で割る。液面のメッシュ化の不具合（B-3 で入れたもの）の修正 | 625e985（2 つが 1 つのコミットに入っている） |
 | B-7 | `VoxelBuilding`（階を積み、階ごとにマテリアルを複製して高さを書く）、確認用の階 `BuildingFloorTest`・`BuildingRoofTest` | 4ecc399 |
 | B-7b-1 | B-7a（Dual Contouring と `VoxelQualitySettings._smoothness`）を取り除いた。5 ファイルは 159ef07 の前と同じ内容 | コミット済み |
-| B-7b-2 | 丸みの記録。`VoxelQualitySettings` に `_useBlockShape`・`_roundnessChangeVoxels`（0.05）・`_roundnessFalloffVoxels`（2.5）、`VoxelVolume` に点ごとの丸み（byte）。`VoxelCsgJob`・`VoxelHeatJob` で距離が閾値より変わった点を 255 にし、`VoxelRoundnessSpreadJob` が編集範囲 ＋ 広がる幅だけを最大値で広げる。`Clone`・`ExtractComponent` で引き継ぐ。`VoxelQuality_Building` で有効。確認：普通の素材を半径 1m で削ると、印 33 点（中心から 0.98m 以内）、丸みの付いた点 181（1.70m 以内）。広げる時間は範囲のサンプル数に比例（約 25ns／点、1 階分全体で約 2ms）。切り分け（`Slice`）は範囲がボリューム全体になる | （未コミット） |
+| B-7b-2 | 丸みの記録。`VoxelQualitySettings` に `_useBlockShape`・`_roundnessChangeVoxels`（0.05）・`_roundnessFalloffVoxels`（2.5）、`VoxelVolume` に点ごとの丸み（byte）。`VoxelCsgJob`・`VoxelHeatJob` で距離が閾値より変わった点を 255 にし、`VoxelRoundnessSpreadJob` が編集範囲 ＋ 広がる幅だけを最大値で広げる。`Clone`・`ExtractComponent` で引き継ぐ。`VoxelQuality_Building` で有効。確認：普通の素材を半径 1m で削ると、印 33 点（中心から 0.98m 以内）、丸みの付いた点 181（1.70m 以内）。広げる時間は範囲のサンプル数に比例（約 25ns／点、1 階分全体で約 2ms）。切り分け（`Slice`）は範囲がボリューム全体になる | コミット済み |
+| B-7b-3 | 描き方の組み込み。`SurfaceNetsJob` に `UseBlockShape`（頂点をセルの中心に置き、UV1 に滑らかな位置までの差と丸み）、素材の強度ごとの丸みの倍率（`VoxelQualitySettings`：柔い 1.5・普通 1・硬い 0.3）。`BuildingPattern.shader` に位置と法線の混ぜ方を入れた（試作のグローバルの上書きは外し、法線を切り替える丸みは 0.15 の定数）。再メッシュ化の範囲を丸みの広がる幅だけ広げた。確認：`BuildingTest` が角ばった箱になり、削った角だけ滑らか。1 階分の全チャンクの再メッシュ化（並列、コライダーのクッキング込み）3.82ms | （未コミット） |
 
 ### 途中のこと：角ばりの問題の対策（2026-10-14）
 
@@ -138,7 +139,7 @@ Surface Nets の頂点をセルの中心に置くと、ボクセルを積んだ�
 
 ### その次の作業
 
-「作業計画の書き直し（2026-10-14）」の B-7b-3 から進める。素材の強度ごとの丸みの倍率は、B-7b-2 では掛けずに B-7b-3 のメッシュ生成で掛ける（記録した値に掛けると、次に広げるときの足場が狂う為）。
+「作業計画の書き直し（2026-10-14）」の B-7b-4 から進める。
 
 ### 作業で分かったこと（コードや計画に効くもの）
 

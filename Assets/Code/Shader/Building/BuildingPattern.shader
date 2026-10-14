@@ -5,6 +5,8 @@ Shader "Kizami/BuildingPattern"
     // ボクセルの格子はオブジェクト空間の原点にそろうので、ブロックの寸法をボクセルの大きさの約数にし、削れて浮き出た段差と描いた目地の位置を合わせる。
     // 建物全体を 1 つの続いた模様にする為、階ごとに _PatternOffset の Y へ「階の番号 × 階の高さ」を書く。
     // _JointWidth が 0 の素材は、ブロックを描かずにノイズの色むらだけで塗る。
+    // ボクセルの角ばった描き方（SurfaceNetsJob の UseBlockShape）のメッシュでは、頂点の位置は角ばった位置、UV1 の xyz は滑らかな位置までの差、w は頂点の丸み（0〜1）で、丸みで 2 つの位置を混ぜる。
+    // 丸みが 0 の所は、画面上の位置の変化から求めた面の向きで陰影を付け、角をくっきりさせる。UV1 を持たないメッシュは丸み 0 として描く。
     Properties
     {
         [MainColor] _BaseColor("Block Color", Color) = (0.72, 0.42, 0.32, 1)
@@ -29,6 +31,19 @@ Shader "Kizami/BuildingPattern"
         half _NoiseStrength;
         float4 _PatternOffset;
     CBUFFER_END
+
+    // 陰影を頂点の法線に切り替え終える丸み。小さいほど、手付かずの所だけが面の向きで角ばって見える
+    #define BLOCK_NORMAL_BLEND_THRESHOLD 0.15
+
+    float BlockRoundness(float4 smoothOffset)
+    {
+        return saturate(smoothOffset.w);
+    }
+
+    float3 BlockPosition(float3 positionOS, float4 smoothOffset)
+    {
+        return positionOS + smoothOffset.xyz * BlockRoundness(smoothOffset);
+    }
     ENDHLSL
 
     SubShader
@@ -50,8 +65,9 @@ Shader "Kizami/BuildingPattern"
 
             struct Attributes
             {
-                float4 positionOS : POSITION;
-                float3 normalOS   : NORMAL;
+                float4 positionOS   : POSITION;
+                float3 normalOS     : NORMAL;
+                float4 smoothOffset : TEXCOORD1;
             };
 
             struct Varyings
@@ -59,8 +75,8 @@ Shader "Kizami/BuildingPattern"
                 float4 positionHCS : SV_POSITION;
                 float3 patternPosition : TEXCOORD0;
                 float3 normalOS    : TEXCOORD1;
-                float3 normalWS    : TEXCOORD2;
-                float3 positionWS  : TEXCOORD3;
+                float3 positionWS  : TEXCOORD2;
+                float roundness    : TEXCOORD3;
             };
 
             float Hash(float3 p)
@@ -88,20 +104,29 @@ Shader "Kizami/BuildingPattern"
             Varyings Vert(Attributes input)
             {
                 Varyings output;
-                VertexPositionInputs positions = GetVertexPositionInputs(input.positionOS.xyz);
+                float3 positionOS = BlockPosition(input.positionOS.xyz, input.smoothOffset);
+                VertexPositionInputs positions = GetVertexPositionInputs(positionOS);
                 output.positionHCS = positions.positionCS;
                 output.positionWS = positions.positionWS;
 
-                output.patternPosition = input.positionOS.xyz + _PatternOffset.xyz;
+                output.patternPosition = positionOS + _PatternOffset.xyz;
                 output.normalOS = input.normalOS;
-                output.normalWS = TransformObjectToWorldNormal(input.normalOS);
+                output.roundness = BlockRoundness(input.smoothOffset);
                 return output;
             }
 
             half4 Frag(Varyings input) : SV_Target
             {
                 float3 p = input.patternPosition;
-                float3 n = abs(input.normalOS);
+
+                // 三角形の面の向き。頂点の法線と同じ側を向くように符号をそろえる
+                float3 smoothNormalOS = normalize(input.normalOS);
+                float3 flatNormalOS = normalize(cross(ddy(p), ddx(p)));
+                flatNormalOS *= dot(flatNormalOS, smoothNormalOS) < 0.0 ? -1.0 : 1.0;
+                // 途中まで動いた四角形は平らでなく三角形ごとに向きが食い違うので、少しでも丸みがあれば頂点の法線に寄せる
+                float normalBlend = smoothstep(0.0, BLOCK_NORMAL_BLEND_THRESHOLD, input.roundness);
+                float3 normalOS = normalize(lerp(flatNormalOS, smoothNormalOS, normalBlend));
+                float3 n = abs(normalOS);
 
                 // 法線の向きが最も強い軸に垂直な平面へ投影する
                 float2 uv = n.y >= n.x && n.y >= n.z ? p.xz : (n.x >= n.z ? p.zy : p.xy);
@@ -131,7 +156,7 @@ Shader "Kizami/BuildingPattern"
                 half fade = saturate((max(pixel.x, pixel.y) - 0.15) / 0.35);
                 albedo = lerp(albedo, average, fade);
 
-                float3 normalWS = normalize(input.normalWS);
+                float3 normalWS = TransformObjectToWorldNormal(normalOS);
                 Light mainLight = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
                 half3 diffuse = mainLight.color * saturate(dot(normalWS, mainLight.direction))
                     * mainLight.shadowAttenuation;
@@ -161,14 +186,17 @@ Shader "Kizami/BuildingPattern"
 
             struct Attributes
             {
-                float4 positionOS : POSITION;
-                float3 normalOS   : NORMAL;
+                float4 positionOS   : POSITION;
+                float3 normalOS     : NORMAL;
+                float4 smoothOffset : TEXCOORD1;
             };
 
             float4 ShadowVert(Attributes input) : SV_POSITION
             {
-                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
-                float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
+                float3 positionWS = TransformObjectToWorld(BlockPosition(input.positionOS.xyz, input.smoothOffset));
+                // 頂点の法線は滑らかな形のもので、角ばった所では面と向きが合わない。法線の向きにずらすと角の頂点がばらばらに動いて自分に影を落とす為、丸みの無い所ではずらさない
+                float normalBlend = smoothstep(0.0, BLOCK_NORMAL_BLEND_THRESHOLD, BlockRoundness(input.smoothOffset));
+                float3 normalWS = TransformObjectToWorldNormal(input.normalOS) * normalBlend;
             #if _CASTING_PUNCTUAL_LIGHT_SHADOW
                 float3 lightDirection = normalize(_LightPosition - positionWS);
             #else
@@ -202,9 +230,9 @@ Shader "Kizami/BuildingPattern"
             #pragma vertex DepthVert
             #pragma fragment DepthFrag
 
-            float4 DepthVert(float4 positionOS : POSITION) : SV_POSITION
+            float4 DepthVert(float4 positionOS : POSITION, float4 smoothOffset : TEXCOORD1) : SV_POSITION
             {
-                return TransformObjectToHClip(positionOS.xyz);
+                return TransformObjectToHClip(BlockPosition(positionOS.xyz, smoothOffset));
             }
 
             half DepthFrag() : SV_Target

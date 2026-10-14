@@ -47,6 +47,9 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 点ごとの丸みを持つか </summary>
         public bool HasRoundness => _roundness.IsCreated;
 
+        /// <summary> 印を付けた点から丸みが広がるセル数。丸みを持たなければ 0 </summary>
+        public int RoundnessSpreadCells => HasRoundness ? (int)math.ceil(_roundnessFalloffCells) : 0;
+
         internal NativeArray<float> Samples => _samples;
 
         /// <summary> サンプルごとの、モデルの素材の一覧での番号。HasMaterials でなければ未作成 </summary>
@@ -543,7 +546,7 @@ namespace Kizami.EngineAdapter.Voxel
         {
             if (!HasRoundness) return;
 
-            var spread = (int)math.ceil(_roundnessFalloffCells);
+            var spread = RoundnessSpreadCells;
             new VoxelRoundnessSpreadJob
             {
                 Layout = Layout,

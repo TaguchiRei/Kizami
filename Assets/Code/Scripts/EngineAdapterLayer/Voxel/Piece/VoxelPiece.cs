@@ -1064,6 +1064,12 @@ namespace Kizami.EngineAdapter.Voxel
         private void MarkSamplesDirty(int3 sampleMin, int3 sampleMax)
         {
             var layout = _volume.Layout;
+
+            // 丸みは書き換えた範囲の外へも広がり、そこを読むチャンクの見た目も変わる
+            var spread = _volume.RoundnessSpreadCells;
+            sampleMin = math.max(sampleMin - spread, 0);
+            sampleMax = math.min(sampleMax + spread, layout.SampleCount - 1);
+
             layout.GetChunksAffectedBySamples(sampleMin, sampleMax, out var chunkMin, out var chunkMax);
 
             for (var z = chunkMin.z; z <= chunkMax.z; z++)
@@ -1100,12 +1106,15 @@ namespace Kizami.EngineAdapter.Voxel
             var emptyMaterialIds = UsesMaterials ? default : new NativeArray<byte>(1, Allocator.TempJob);
             var materialIds = UsesMaterials ? _volume.MaterialIds : emptyMaterialIds;
 
+            var useBlockShape = _volume.HasRoundness;
+            var roundnessScales = useBlockShape ? CreateRoundnessScales(materialCount) : default;
+
             for (var i = 0; i < count; i++)
             {
                 var chunkIndex = _dirtyQueue.Dequeue();
                 _isDirty[chunkIndex] = false;
                 chunkIndices[i] = chunkIndex;
-                buffers[i] = new MeshBuffers(materialCount, Allocator.TempJob);
+                buffers[i] = new MeshBuffers(materialCount, useBlockShape, Allocator.TempJob);
 
                 layout.GetChunkCellRange(layout.ToChunkCoord(chunkIndex), out var cellMin, out var cellMax);
                 var meshingHandle = new SurfaceNetsJob
@@ -1119,7 +1128,11 @@ namespace Kizami.EngineAdapter.Voxel
                     Indices = buffers[i].Indices,
                     MaterialCount = materialCount,
                     SubMeshIndexCounts = buffers[i].SubMeshIndexCounts,
-                    MaterialIds = materialIds
+                    MaterialIds = materialIds,
+                    UseBlockShape = useBlockShape,
+                    SmoothOffsets = buffers[i].SmoothOffsets,
+                    Roundness = _volume.Roundness,
+                    RoundnessScales = roundnessScales
                 }.Schedule();
 
                 handles[i] = useHull
@@ -1134,6 +1147,7 @@ namespace Kizami.EngineAdapter.Voxel
             JobHandle.CombineDependencies(handles).Complete();
             handles.Dispose();
             if (emptyMaterialIds.IsCreated) emptyMaterialIds.Dispose();
+            if (roundnessScales.IsCreated) roundnessScales.Dispose();
 
             var colliderTargets = new List<ChunkSlot>(count);
             for (var i = 0; i < count; i++)
@@ -1156,6 +1170,21 @@ namespace Kizami.EngineAdapter.Voxel
             }
 
             LastRemeshMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
+        }
+
+        /// <summary>
+        /// 素材の番号ごとの丸みの倍率を、素材の強度から作る。素材を持たなければ普通の素材の倍率を 1 つ持つ。
+        /// </summary>
+        private NativeArray<float> CreateRoundnessScales(int materialCount)
+        {
+            var scales = new NativeArray<float>(materialCount, Allocator.TempJob);
+            for (var i = 0; i < materialCount; i++)
+            {
+                var strength = UsesMaterials && i < _strengths.Length ? _strengths[i] : VoxelStrength.Normal;
+                scales[i] = _quality.GetRoundnessScale(strength);
+            }
+
+            return scales;
         }
 
         /// <summary>
@@ -1334,14 +1363,18 @@ namespace Kizami.EngineAdapter.Voxel
             public NativeList<float3> Normals;
             public NativeList<int> Indices;
 
+            /// <summary> 角ばった描き方の、頂点ごとの滑らかな位置までの差と丸み。角ばった描き方でなければ未作成 </summary>
+            public NativeList<float4> SmoothOffsets;
+
             /// <summary> 素材ごとのインデックスの数。Indices は素材の順に並ぶ </summary>
             public NativeArray<int> SubMeshIndexCounts;
 
             /// <summary> VoxelHullDirections の方向ごとの、頂点の中で最も外側の点 </summary>
             public NativeArray<float3> Extremes;
 
-            public MeshBuffers(int materialCount, Allocator allocator)
+            public MeshBuffers(int materialCount, bool useBlockShape, Allocator allocator)
             {
+                SmoothOffsets = useBlockShape ? new NativeList<float4>(1024, allocator) : default;
                 Vertices = new NativeList<float3>(1024, allocator);
                 Normals = new NativeList<float3>(1024, allocator);
                 Indices = new NativeList<int>(4096, allocator);
@@ -1354,6 +1387,7 @@ namespace Kizami.EngineAdapter.Voxel
                 Vertices.Dispose();
                 Normals.Dispose();
                 Indices.Dispose();
+                if (SmoothOffsets.IsCreated) SmoothOffsets.Dispose();
                 SubMeshIndexCounts.Dispose();
                 Extremes.Dispose();
             }
@@ -1387,6 +1421,7 @@ namespace Kizami.EngineAdapter.Voxel
                 Mesh.Clear();
                 Mesh.SetVertices(buffers.Vertices.AsArray());
                 Mesh.SetNormals(buffers.Normals.AsArray());
+                if (buffers.SmoothOffsets.IsCreated) Mesh.SetUVs(1, buffers.SmoothOffsets.AsArray());
 
                 var subMeshCount = buffers.SubMeshIndexCounts.Length;
                 Mesh.subMeshCount = subMeshCount;
