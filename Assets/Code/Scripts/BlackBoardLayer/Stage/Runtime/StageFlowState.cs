@@ -3,13 +3,14 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// インゲームの流れの状態（開始・プレイ中・クリア・失敗）、クリアの判定に使う破壊対象の数、倒した敵の数とスコアを保持するステート。
+    /// インゲームの流れの状態（開始・プレイ中・クリア・失敗）とポーズ中か、クリアの判定に使う破壊対象の数、倒した敵の数とスコアを保持するステート。
     /// </summary>
     [RegisterBoard(typeof(StageBoard))]
     public sealed class StageFlowState : SceneStateBase, IStageFlowState
     {
         public StagePhase Phase { get; private set; } = StagePhase.Ready;
         public StageFailReason FailReason { get; private set; } = StageFailReason.None;
+        public bool IsPaused { get; private set; }
         public int TargetCount { get; private set; }
         public int DestroyedTargetCount { get; private set; }
         public int DefeatCount { get; private set; }
@@ -17,7 +18,7 @@ namespace Kizami.BlackBoard
 
         public override string GetLog()
         {
-            return $"Phase: {Phase}  \nFailReason: {FailReason}  \nTargets: {DestroyedTargetCount} / {TargetCount}  \nDefeats: {DefeatCount}  \nScore: {Score}";
+            return $"Phase: {Phase}  \nIsPaused: {IsPaused}  \nFailReason: {FailReason}  \nTargets: {DestroyedTargetCount} / {TargetCount}  \nDefeats: {DefeatCount}  \nScore: {Score}";
         }
 
         /// <summary>
@@ -27,6 +28,15 @@ namespace Kizami.BlackBoard
         public void SetPhase(StagePhase phase)
         {
             Phase = phase;
+        }
+
+        /// <summary>
+        /// ポーズ中かを設定する。
+        /// </summary>
+        /// <param name="isPaused">ポーズ中なら true</param>
+        public void SetPaused(bool isPaused)
+        {
+            IsPaused = isPaused;
         }
 
         /// <summary>
@@ -78,6 +88,9 @@ namespace Kizami.BlackBoard
 
         /// <summary> 失敗した理由。失敗していなければ None </summary>
         StageFailReason FailReason { get; }
+
+        /// <summary> ポーズ中か。プレイ中にだけポーズできる </summary>
+        bool IsPaused { get; }
 
         /// <summary> ステージにある破壊対象の数 </summary>
         int TargetCount { get; }

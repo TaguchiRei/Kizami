@@ -6,6 +6,7 @@ using Kizami.EngineAdapter;
 using Kizami.External;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
+using UsefulToolkit.BlackBoard.Input;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Debugging;
 using UsefulToolkit.Initialization;
@@ -13,11 +14,12 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// インゲームの流れ（StageFlowService / StageFlowState）、破壊対象の数え役（StageClearAdapter）、倒した敵の通知（EnemySpawnAdapter）、HUD（StageHudAdapter）、リザルト（StageResultAdapter）を生成して繋ぎ、プレイを始める配線役。インゲームのシーンへ置く。
+    /// インゲームの流れ（StageFlowService / StageFlowState）、破壊対象の数え役（StageClearAdapter）、倒した敵の通知（EnemySpawnAdapter）、HUD（StageHudAdapter）、ポーズ（StagePauseAdapter）、リザルト（StageResultAdapter）を生成して繋ぎ、プレイを始める配線役。インゲームのシーンへ置く。
     /// 失敗条件の判定にプレイヤーの State を使う為、PlayerInitializer より後に初期化する。
     /// 流れの状態、破壊済みの破壊対象の数、重要パーツごとの削れた割合を画面に出す。表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
-    public sealed class StageInitializer : InitializerBase, IInjectable<GameProgressService>, IInjectable<IGameSceneController>
+    public sealed class StageInitializer : InitializerBase, IInjectable<GameProgressService>, IInjectable<IGameSceneController>,
+        IInjectable<ITimeScaleController>, IInjectable<IInputController>
     {
         private readonly StringBuilder _targetText = new();
 
@@ -25,10 +27,13 @@ namespace Kizami.Initialization
         [SerializeField] private EnemySpawnAdapter _enemySpawnAdapter;
         [SerializeField] private StageResultAdapter _resultAdapter;
         [SerializeField] private StageHudAdapter _hudAdapter;
+        [SerializeField] private StagePauseAdapter _pauseAdapter;
         [SerializeField] private FragmentThrowAdapter _fragmentThrowAdapter;
 
         private GameProgressService _progressService;
         private IGameSceneController _sceneController;
+        private ITimeScaleController _timeScaleController;
+        private IInputController _inputController;
         private StageFlowService _flowService;
         private IStageFlowState _flowState;
 
@@ -40,12 +45,19 @@ namespace Kizami.Initialization
                 return;
             }
 
-            _flowService = new StageFlowService(blackBoard, GetSelectedStage(), gameObject.scene.buildIndex);
+            if (_timeScaleController == null || _inputController == null)
+            {
+                UsefulLogger.LogError("ITimeScaleController か IInputController を受け取れなかった為、ポーズを使えません。", this);
+            }
+
+            _flowService = new StageFlowService(blackBoard, GetSelectedStage(), _timeScaleController, _inputController,
+                gameObject.scene.buildIndex);
             blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this);
             _stageClearAdapter.Initialize(_flowService.ReportTargets);
             _enemySpawnAdapter.SetOnDefeated(_flowService.AddDefeats);
             _resultAdapter.Initialize(blackBoard, BackToOutGame);
             _hudAdapter.Initialize(blackBoard, _fragmentThrowAdapter);
+            _pauseAdapter.Initialize(blackBoard, _flowService.Resume, BackToOutGame);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             DebugGUI.ObserveVariable("Stage", GetTargetText);
 #endif
@@ -63,6 +75,7 @@ namespace Kizami.Initialization
             hasAll &= this.IsAssigned(_enemySpawnAdapter, nameof(EnemySpawnAdapter));
             hasAll &= this.IsAssigned(_resultAdapter, nameof(StageResultAdapter));
             hasAll &= this.IsAssigned(_hudAdapter, nameof(StageHudAdapter));
+            hasAll &= this.IsAssigned(_pauseAdapter, nameof(StagePauseAdapter));
             hasAll &= this.IsAssigned(_fragmentThrowAdapter, nameof(FragmentThrowAdapter));
             return hasAll;
         }
@@ -135,6 +148,16 @@ namespace Kizami.Initialization
         public void Inject(IGameSceneController instance)
         {
             _sceneController = instance;
+        }
+
+        public void Inject(ITimeScaleController instance)
+        {
+            _timeScaleController = instance;
+        }
+
+        public void Inject(IInputController instance)
+        {
+            _inputController = instance;
         }
     }
 }

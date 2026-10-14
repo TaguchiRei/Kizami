@@ -1260,6 +1260,7 @@ GameObject:
   - component: {fileID: 1452220892}
   - component: {fileID: 1452220891}
   - component: {fileID: 1452220894}
+  - component: {fileID: 1452220895}
   m_Layer: 0
   m_Name: Stage
   m_TagString: Untagged
@@ -1283,6 +1284,7 @@ MonoBehaviour:
   _enemySpawnAdapter: {fileID: 1539543158}
   _resultAdapter: {fileID: 1452220894}
   _hudAdapter: {fileID: 60550492}
+  _pauseAdapter: {fileID: 1452220895}
   _fragmentThrowAdapter: {fileID: 1258148392}
 --- !u!114 &1452220892
 MonoBehaviour:
@@ -1309,6 +1311,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageResultAdapter
   _backgroundColor: {r: 0, g: 0, b: 0, a: 0.6}
+  _buttonColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.9}
+--- !u!114 &1452220895
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452220890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: edbde7b06823449dbc9324772cb402ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StagePauseAdapter
+  _backgroundColor: {r: 0, g: 0, b: 0, a: 0.4}
   _buttonColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.9}
 --- !u!4 &1452220893
 Transform:
