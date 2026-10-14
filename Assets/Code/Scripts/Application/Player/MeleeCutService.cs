@@ -37,7 +37,8 @@ namespace Kizami.Application
         /// <param name="tryUseCut">振る直前に呼び、振れる回数を 1 回使う関数。false なら振らない</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public MeleeCutService(IBlackBoard blackBoard, PlayerParameterData parameters,
-            PlayerEnhanceService enhanceService, Action<float, float, DamageType> onSwing, Func<bool> tryUseCut, int sceneId)
+            PlayerEnhanceService enhanceService, Action<float, float, DamageType> onSwing, Func<bool> tryUseCut,
+            int sceneId)
         {
             _parameters = parameters;
             _enhanceService = enhanceService;
