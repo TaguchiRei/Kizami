@@ -15,6 +15,7 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
     /// ピースを見つけた時点の距離を「元の形」として覚え、そこから変わった所を丸める。
     /// 今のピースの描画は Renderer.forceRenderingOff で隠す。VoxelPiece は作り直しのたびに Renderer.enabled を戻すが、forceRenderingOff には触れない為。
     /// F2 で今の描画との切り替え、F3 で丸みの決め方、F4 で滑らかな位置の元（距離か、中身かどうかだけか）を切り替える。
+    /// 当たり判定の比較の為、中身の点をまとめた箱の BoxCollider もチャンクごとに作る。今のピースの MeshCollider はそのまま残す。
     /// </summary>
     [DefaultExecutionOrder(100)]
     public sealed class BlockSmoothPreview : MonoBehaviour
@@ -79,6 +80,7 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
         private int _lastBuildChunkCount;
         private double _lastBuildMilliseconds;
         private double _lastRoundnessMilliseconds;
+        private double _lastColliderMilliseconds;
 
         /// <summary> 丸みの決め方 </summary>
         private enum RoundnessMode
@@ -154,11 +156,17 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
 
         private void OnGUI()
         {
+            var boxCount = 0;
+            foreach (var view in _views)
+            {
+                boxCount += view.BoxCount;
+            }
+
             GUI.Box(new Rect(10f, _hudTop, 560f, 44f),
                 $"F2: 試作の表示 {(_showPreview ? "あり" : "なし")}  F3: {ModeLabel}  " +
                 $"F4: 滑らかな位置の元 {(_useOccupancy ? "中身かどうか" : "距離")}\n" +
                 $"直近の作り直し: {_lastBuildChunkCount} チャンク {_lastBuildMilliseconds:0.00} ms" +
-                $"（うち丸みの計算 {_lastRoundnessMilliseconds:0.00} ms）");
+                $"（うち丸み {_lastRoundnessMilliseconds:0.00} ms、箱の反映 {_lastColliderMilliseconds:0.00} ms）  箱: {boxCount}");
         }
 
         private void HandleKeys()
@@ -300,8 +308,17 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
             {
                 var (view, chunkIndex) = requests[i];
                 view.ApplyMesh(chunkIndex, buffers[i]);
+            }
+
+            var colliderStart = stopwatch.Elapsed.TotalMilliseconds;
+            for (var i = 0; i < requests.Count; i++)
+            {
+                var (view, chunkIndex) = requests[i];
+                view.ApplyBoxes(chunkIndex, buffers[i]);
                 buffers[i].Dispose();
             }
+
+            _lastColliderMilliseconds = stopwatch.Elapsed.TotalMilliseconds - colliderStart;
 
             _lastBuildChunkCount = requests.Count;
             _lastBuildMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
@@ -321,8 +338,16 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
             /// <summary> 素材ごとのインデックスの数。Indices は素材の順に並ぶ </summary>
             public NativeArray<int> SubMeshIndexCounts;
 
+            /// <summary> 当たり判定の箱の最小のサンプル座標（含む） </summary>
+            public NativeList<int3> BoxMins;
+
+            /// <summary> 当たり判定の箱の最大のサンプル座標（含む） </summary>
+            public NativeList<int3> BoxMaxs;
+
             public MeshBuffers(int materialCount, Allocator allocator)
             {
+                BoxMins = new NativeList<int3>(64, allocator);
+                BoxMaxs = new NativeList<int3>(64, allocator);
                 Vertices = new NativeList<float3>(1024, allocator);
                 Normals = new NativeList<float3>(1024, allocator);
                 SmoothOffsets = new NativeList<float4>(1024, allocator);
@@ -337,6 +362,8 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
                 SmoothOffsets.Dispose();
                 Indices.Dispose();
                 SubMeshIndexCounts.Dispose();
+                BoxMins.Dispose();
+                BoxMaxs.Dispose();
             }
         }
 
@@ -354,6 +381,9 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
             private readonly Queue<int> _dirtyQueue = new();
             private readonly bool[] _isDirty;
             private readonly Mesh[] _meshes;
+            private readonly List<BoxCollider>[] _boxes;
+            private readonly GameObject[] _chunkObjects;
+            private readonly int[] _activeBoxCounts;
 
             private NativeArray<float> _initialSamples;
             private NativeArray<float> _roundness;
@@ -375,6 +405,9 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
                 var chunkTotal = _volume.Layout.ChunkTotal;
                 _isDirty = new bool[chunkTotal];
                 _meshes = new Mesh[chunkTotal];
+                _boxes = new List<BoxCollider>[chunkTotal];
+                _chunkObjects = new GameObject[chunkTotal];
+                _activeBoxCounts = new int[chunkTotal];
 
                 var containerObject = new GameObject(CONTAINER_NAME) { layer = piece.gameObject.layer };
                 _container = containerObject.transform;
@@ -391,6 +424,9 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
             public bool IsRoundnessDirty { get; private set; }
 
             public int MaterialCount => _materials.Length;
+
+            /// <summary> 有効な当たり判定の箱の数 </summary>
+            public int BoxCount { get; private set; }
 
             private NativeArray<byte> MaterialIds => _volume.HasMaterials ? _volume.MaterialIds : _emptyMaterialIds;
 
@@ -454,7 +490,18 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
                 var layout = _volume.Layout;
                 layout.GetChunkCellRange(layout.ToChunkCoord(chunkIndex), out var cellMin, out var cellMax);
 
-                return new BlockSmoothMeshJob
+                layout.GetChunkSampleRange(layout.ToChunkCoord(chunkIndex), out var sampleMin, out var sampleMax);
+                var colliderHandle = new BlockColliderJob
+                {
+                    Layout = layout,
+                    SampleMin = sampleMin,
+                    SampleMax = sampleMax,
+                    Samples = _volume.Samples,
+                    BoxMins = buffers.BoxMins,
+                    BoxMaxs = buffers.BoxMaxs
+                }.Schedule();
+
+                var meshingHandle = new BlockSmoothMeshJob
                 {
                     Layout = layout,
                     CellMin = cellMin,
@@ -470,6 +517,8 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
                     MaterialIds = MaterialIds,
                     Roundness = _roundness
                 }.Schedule();
+
+                return JobHandle.CombineDependencies(meshingHandle, colliderHandle);
             }
 
             public void ApplyMesh(int chunkIndex, MeshBuffers buffers)
@@ -480,7 +529,9 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
                     return;
                 }
 
-                var mesh = _meshes[chunkIndex] ??= CreateChunk(chunkIndex);
+                if (_meshes[chunkIndex] == null) CreateChunk(chunkIndex);
+
+                var mesh = _meshes[chunkIndex];
                 mesh.Clear();
                 mesh.SetVertices(buffers.Vertices.AsArray());
                 mesh.SetNormals(buffers.Normals.AsArray());
@@ -500,6 +551,39 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
                 var bounds = mesh.bounds;
                 bounds.Expand(_volume.Layout.VoxelSize * 2f);
                 mesh.bounds = bounds;
+            }
+
+            /// <summary>
+            /// 箱をチャンクの BoxCollider に反映する。足りなければ足し、余った分は無効にして使い回す。
+            /// </summary>
+            public void ApplyBoxes(int chunkIndex, MeshBuffers buffers)
+            {
+                var boxCount = buffers.BoxMins.Length;
+                if (boxCount > 0 && _boxes[chunkIndex] == null) CreateChunk(chunkIndex);
+
+                var colliders = _boxes[chunkIndex];
+                if (colliders == null) return;
+
+                var layout = _volume.Layout;
+                for (var i = 0; i < boxCount; i++)
+                {
+                    if (i == colliders.Count) colliders.Add(_chunkObjects[chunkIndex].AddComponent<BoxCollider>());
+
+                    var min = buffers.BoxMins[i];
+                    var max = buffers.BoxMaxs[i];
+                    var box = colliders[i];
+                    box.center = layout.Origin + (float3)(min + max) * 0.5f * layout.VoxelSize;
+                    box.size = (float3)(max - min + 1) * layout.VoxelSize;
+                    box.enabled = true;
+                }
+
+                for (var i = boxCount; i < colliders.Count; i++)
+                {
+                    colliders[i].enabled = false;
+                }
+
+                BoxCount += boxCount - _activeBoxCounts[chunkIndex];
+                _activeBoxCounts[chunkIndex] = boxCount;
             }
 
             public void Dispose()
@@ -562,7 +646,10 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
                 }
             }
 
-            private Mesh CreateChunk(int chunkIndex)
+            /// <summary>
+            /// チャンクの GameObject を作り、Mesh と箱の入れ物を用意する。
+            /// </summary>
+            private void CreateChunk(int chunkIndex)
             {
                 var coord = _volume.Layout.ToChunkCoord(chunkIndex);
                 var chunkObject = new GameObject($"BlockChunk_{coord.x}_{coord.y}_{coord.z}")
@@ -580,7 +667,10 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
 
                 chunkObject.AddComponent<MeshFilter>().sharedMesh = mesh;
                 chunkObject.AddComponent<MeshRenderer>().sharedMaterials = _materials;
-                return mesh;
+
+                _chunkObjects[chunkIndex] = chunkObject;
+                _meshes[chunkIndex] = mesh;
+                _boxes[chunkIndex] = new List<BoxCollider>();
             }
         }
     }
