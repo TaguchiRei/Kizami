@@ -65,11 +65,11 @@
 | 11-3 | HUD | EngineAdapter | HP、チャージ、スキルの 3 枠、破壊の進み具合、ランチャーの装填状態 |
 | 11-3a | 失敗 | Application / EngineAdapter | HP が 0 になったら失敗にする（区間4から移した）。ステージごとの失敗条件は 11-7 |
 | 11-4 | リザルト | EngineAdapter | クリアと失敗の画面、アウトゲームへ戻る |
-| 11-4a | スコア | BlackBoard / Application | 倒した敵の数、クリアタイム、合計被ダメージを数え、スコアを計算してリザルトに出す |
+| 11-4a | スコア | BlackBoard / Application | 倒した敵の数とクリアの基礎スコアからスコアを計算してリザルトに出す（2026-10-14 に変更。決めたこと 5） |
 | 11-4b | リトライ | UsefulToolkit / Application | 同じステージをもう一度始める。同じ SceneGroup を読み直せないので、UsefulToolkit にシーンを読み直す経路を足す（2026-10-05 決定。ダミーのシーングループを経由する案より、こちらを採る）。区間2と同じく、要件定義を書いて UsefulToolkit のリポジトリで作る |
 | 11-5 | アウトゲームとの受け渡し | Application | 装備しているスキルを受け取り、初回クリアの通貨を返す |
 | 11-6 | ポーズ | Application / EngineAdapter | ポーズ中の時間の止め方と、プレイヤーのアニメーションの停止 |
-| 11-7 | ステージごとの失敗条件 | Application | 基本の「HP が 0」以外の失敗条件を、ステージデータから差し替えられるようにする |
+| 11-7 | ステージごとの失敗条件 | External / Application | 失敗条件をステージデータから差し替えられるようにし、「HP が 0」も外せるようにする（決めたこと 7） |
 
 ## 完了条件
 
@@ -97,22 +97,29 @@
 
 ## 詳細仕様で決めること
 
-すべて推奨の案で決めた（2026-10-14、ユーザー）。値は区間13で調整する。
+2026-10-14 にユーザーと決めた。5・7・8・10 は推奨の案から変えた。値は区間13で調整する。
 
 | # | 項目 | 決めたこと |
 |---|---|---|
 | 1 | アウトゲームをどこまで作るか | 仮の OnGUI を広げる。ステージ選択、スキルの装備（3 枠）、通貨の表示だけ。スキルの購入、本物の UI、セーブは作らない（アウトゲームの作業に回す）。通貨は常駐の State に持ち、ゲームを終えると消える |
-| 2 | ステージデータの中身 | `StageData`（ScriptableObject、External）に表示名、SceneGroup、目標タイム（スコア用）を持たせる。敵の出し方と破壊対象はステージシーンに置いた物（`EnemySpawnSystem`・`DestructionTarget`）が持っているので、データには持たせない。初回クリアの通貨は全ステージ同じ（仕様）なので、ステージごとには持たせない |
+| 2 | ステージデータの中身 | `StageData`（ScriptableObject、External）に表示名、SceneGroup、クリアの基礎スコア、失敗条件（決めたこと 7）を持たせる。敵の出し方と破壊対象はステージシーンに置いた物（`EnemySpawnSystem`・`DestructionTarget`）が持っているので、データには持たせない。初回クリアの通貨は全ステージ同じ（仕様）なので、ステージごとには持たせない |
 | 3 | 選んだステージと装備の受け渡し | 常駐の State（AppBoard）に、選んだステージの番号、装備したスキルの番号 3 つ、通貨、クリア済みのステージを持たせる。番号と `StageData`・`SkillData` の対応は、常駐の Initializer の Inspector に並べた配列で持つ |
 | 4 | インゲームの流れの状態 | Ready → Playing → Cleared / Failed。Ready は開始の表示（1 秒）だけ。InGame の SceneState に置き、`StageFlowService`（Application）が書く。クリアの判定もここへ移す |
-| 5 | スコアの計算式 | スコア ＝ 倒した敵の数 × 100 ＋ 時間のボーナス − 合計被ダメージ × 10。下限は 0。時間のボーナス ＝ max(0, 目標タイム − クリアタイム（秒）) × 20 |
+| 5 | スコアの計算式 | スコア ＝ 倒した敵の数 × 1 ＋ クリアの基礎スコア（クリアしたときだけ）＋ Brilliant Skill の追加スコア。クリアタイムと被ダメージはスコアに使わない（時間をかけて準備して壊す遊び方を損なわない為）。Brilliant Skill（よい行動をしたとき、空間にボクセルの文字を出してほめる仕組み。例：短時間に敵を大量に倒す、大きな構造物を崩す）の扱いは「詳細仕様で決めること（残り）」 |
 | 6 | ポーズ | Esc で切り替える。`ITimeScaleController.SetScale(0)` で止め、解くときにポーズ前の倍率に戻す。ポーズ中は Player マップの入力を止め、スローモードの継続の消費を止める。`PauseBoard` / `IPausable` は止める対象が 1 つなので使わない |
-| 7 | ステージごとの失敗条件（11-7） | 仕様は「HP が 0」だけなので、区間14へ持ち越す。差し替える仕組みは作らない |
-| 8 | `DebugGUI` の重複 | リトライと一緒に直す。UsefulToolkit の要件定義に、登録を外す API を含める |
+| 7 | ステージごとの失敗条件（11-7） | 差し替える仕組みを区間11で作る。`StageData` に失敗条件の一覧を持たせ、「プレイヤーの HP が 0」を外せるようにする（チュートリアル用）。新しく作った `StageData` は、初めから「HP が 0」が入った状態にする。ほかの条件の中身は区間14で決める |
+| 8 | UsefulToolkit の問題（同じ SceneGroup を読み直せない、`DebugGUI` の登録を外せない） | ユーザーが UsefulToolkit 側で直す。kizami 側はそれを使ってリトライを作り、重複を止める |
 | 9 | HUD とリザルトの作り方 | uGUI（Screen Space の Canvas）にする。値は State から読み、Canvas を持つ Adapter を PC 用として作る。VR のワールド空間の UI は、VR に対応するときに Adapter を足す |
-| 10 | 失敗したときのリザルト | 倒した敵の数、経過時間、合計被ダメージを出し、スコアは出さない。最高スコアは保存しない |
+| 10 | 失敗したときのリザルト | 失敗した理由と倒した敵の数を出す。基礎スコアは入らない。最高スコアは保存しない |
 | 11 | 倒した敵の数 | 核で倒した敵、崩落・圧死で倒した敵を数える。吸収された敵は、プレイヤーが倒していないので数えない |
 | 12 | 出す敵の総数 | 区間4G の出し直しで敵は尽きないので、総数は持たせない（区間14で必要になったら決める） |
+
+### 詳細仕様で決めること（残り）
+
+| # | 項目 | 案 |
+|---|---|---|
+| 13 | Brilliant Skill をどこで作るか | 判定（何をよい行動とするか）とボクセルの文字の演出は、区間11とは別の区間にする。区間11は、倒した数と基礎スコアまで |
+| 14 | 失敗条件の持ち方 | `StageData` に `[SerializeReference]` で失敗条件の一覧を持たせる（`PlayerDeathFailCondition` など。条件ごとに値を持てる）。判定は `StageFlowService` が条件の型ごとに行う。もう一つの案は、フラグの列挙型（`PlayerDeath` などを並べる）。値を持てないが、作りは小さい |
 
 ## 作業計画（2026-10-14）
 
@@ -120,12 +127,13 @@
 
 | 型 | 層 | 今の区間で使うもの |
 |---|---|---|
-| `StageData` | External | アウトゲームのステージ選択、`GameSceneController`、スコアの目標タイム |
+| `StageData` | External | アウトゲームのステージ選択、`GameSceneController`、基礎スコア、失敗条件 |
+| 失敗条件の型 | External | `StageData` の失敗条件の一覧。形は「詳細仕様で決めること（残り）」 |
 | `GameProgressState` / `IGameProgressState` | BlackBoard（AppBoard、常駐） | アウトゲームの表示、インゲームの初期化（ステージと装備） |
 | `GameProgressService` | Application（常駐、DI で渡す） | アウトゲームの選択と装備、`StageFlowService` の初回クリア |
 | `StageBoard` | BlackBoard | `StageFlowState` の置き場。プレイヤーにも敵にも属さない為 |
-| `StageFlowState` / `IStageFlowState` | BlackBoard（StageBoard、InGame） | 流れの状態、経過時間、倒した数、合計被ダメージ、破壊済みの数、スコア。HUD、リザルト、ポーズが読む |
-| `StageFlowService` | Application | 流れの状態を進め、数え、スコアを計算する |
+| `StageFlowState` / `IStageFlowState` | BlackBoard（StageBoard、InGame） | 流れの状態、失敗の理由、倒した数、破壊済みの数、スコア。HUD、リザルト、ポーズが読む |
+| `StageFlowService` | Application | 流れの状態を進め、失敗条件を判定し、数え、スコアを計算する |
 | `StageHudAdapter` | EngineAdapter | HUD（`PlayerHudAdapter` を置き換える） |
 | `StageResultAdapter` | EngineAdapter | リザルト。ボタンからリトライとアウトゲームへ戻るを要求する |
 | `PauseService` | Application | ポーズの切り替え。倍率と入力とスローの消費を止める |
@@ -136,15 +144,14 @@
 
 | # | 内容 | 確かめ方 |
 |---|---|---|
-| 1 | UsefulToolkit に足す「同じ SceneGroup を読み直す経路」と「`DebugGUI.ObserveVariable` の登録を外す API」の要件定義（ドキュメント） | ユーザーの確認。UsefulToolkit のリポジトリで作る |
-| 2 | `StageData`、`GameProgressState` / `Service`、`GameSceneController` で選んだステージのグループを読む。仮のアウトゲームにステージ選択を足す | ステージを選んでインゲームに入れる。TestStage で今までどおり遊べる |
-| 3 | `StageBoard`、`StageFlowState` / `Service`。クリアの判定を `StageClearAdapter` から移し、HP 0 で失敗にする | クリアと失敗で状態が変わる（DebugGUI の表示） |
-| 4 | 倒した数と被ダメージを数え、スコアを計算する。`StageResultAdapter`、アウトゲームへ戻る | リザルトに値が出て、アウトゲームへ戻れる |
-| 5 | `StageHudAdapter`（HP、チャージ、スキル 3 枠、破壊の進み具合、ランチャーの装填状態）。`PlayerHudAdapter` を消す | 表示を目で確かめる |
-| 6 | Pause の Action、`PauseService` | 止める・戻す。スロー中にポーズして待ってもスローが解けない。ポーズ中に切断やスキルが出ない |
-| 7 | 装備を `GameProgressState` から受け取り、仮のアウトゲームで装備を選べるようにする。初回クリアで通貨を返す | 装備したスキルが使える。初回クリアでだけ通貨が増える |
-| 8 | リトライと `DebugGUI` の重複の修正（UsefulToolkit 側の実装のあと） | 同じステージに何度か入り直して、状態と表示が初めからになる |
-| 9 | 完了条件の確認、実装結果、全体計画書の更新 | 完了条件すべて |
+| 1 | `StageData`、`GameProgressState` / `Service`、`GameSceneController` で選んだステージのグループを読む。仮のアウトゲームにステージ選択を足す | ステージを選んでインゲームに入れる。TestStage で今までどおり遊べる |
+| 2 | `StageBoard`、`StageFlowState` / `Service`。クリアの判定を `StageClearAdapter` から移す。失敗条件の一覧と「HP が 0」 | クリアと失敗で状態が変わる。「HP が 0」を外した `StageData` では HP 0 で失敗しない |
+| 3 | 倒した数を数え、スコアを計算する。`StageResultAdapter`、アウトゲームへ戻る | リザルトに値が出て、アウトゲームへ戻れる |
+| 4 | `StageHudAdapter`（HP、チャージ、スキル 3 枠、破壊の進み具合、ランチャーの装填状態）。`PlayerHudAdapter` を消す | 表示を目で確かめる |
+| 5 | Pause の Action、`PauseService` | 止める・戻す。スロー中にポーズして待ってもスローが解けない。ポーズ中に切断やスキルが出ない |
+| 6 | 装備を `GameProgressState` から受け取り、仮のアウトゲームで装備を選べるようにする。初回クリアで通貨を返す | 装備したスキルが使える。初回クリアでだけ通貨が増える |
+| 7 | リトライと `DebugGUI` の重複の修正（ユーザーが UsefulToolkit 側を直したあと） | 同じステージに何度か入り直して、状態と表示が初めからになる |
+| 8 | 完了条件の確認、実装結果、全体計画書の更新 | 完了条件すべて |
 
 クラウドでは Unity が動かないので、コンパイルとプレイモードの確認は、各コミットのあとにローカルで行う。
 
