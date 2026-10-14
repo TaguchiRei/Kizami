@@ -12,6 +12,9 @@ namespace Kizami.EngineAdapter.Voxel
         ChunkMesh,
 
         /// <summary> 表面を包む凸包の MeshCollider を 1 つ作る。動く Rigidbody に使える </summary>
-        ConvexHull
+        ConvexHull,
+
+        /// <summary> チャンクごとに、中身の点をまとめた箱の BoxCollider を作る。角ばった描き方の形と一致し、動く Rigidbody にも使える </summary>
+        Boxes
     }
 }

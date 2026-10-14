@@ -210,6 +210,8 @@ namespace Kizami.EngineAdapter.Voxel
                 }
 
                 piece.SetQuality(_quality);
+                // 角ばった描き方の形は、中身の点をまとめた箱と一致する
+                if (_quality.UseBlockShape) piece.SetColliderMode(VoxelColliderMode.Boxes);
                 piece.SetMaterial(ResolveMaterial(target));
                 if (partData.HasMaterials) piece.SetMaterials(ResolveMaterials(target));
                 piece.SetSplittable(_splittable);

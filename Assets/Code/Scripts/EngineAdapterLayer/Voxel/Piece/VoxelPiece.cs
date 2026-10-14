@@ -165,6 +165,9 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 全チャンクの三角形数の合計 </summary>
         public int TriangleCount { get; private set; }
 
+        /// <summary> 箱の当たり判定の、全チャンクの有効な BoxCollider の数 </summary>
+        public int BoxColliderCount { get; private set; }
+
         /// <summary> 直近の再メッシュ化とコライダー更新にかかった時間 </summary>
         public double LastRemeshMilliseconds { get; private set; }
 
@@ -1096,6 +1099,7 @@ namespace Kizami.EngineAdapter.Voxel
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var layout = _volume.Layout;
             var useHull = _colliderMode == VoxelColliderMode.ConvexHull;
+            var useBoxes = _colliderMode == VoxelColliderMode.Boxes;
             var count = math.min(maxCount, _dirtyQueue.Count);
             var chunkIndices = new int[count];
             var buffers = new MeshBuffers[count];
@@ -1114,7 +1118,7 @@ namespace Kizami.EngineAdapter.Voxel
                 var chunkIndex = _dirtyQueue.Dequeue();
                 _isDirty[chunkIndex] = false;
                 chunkIndices[i] = chunkIndex;
-                buffers[i] = new MeshBuffers(materialCount, useBlockShape, Allocator.TempJob);
+                buffers[i] = new MeshBuffers(materialCount, useBlockShape, useBoxes, Allocator.TempJob);
 
                 layout.GetChunkCellRange(layout.ToChunkCoord(chunkIndex), out var cellMin, out var cellMax);
                 var meshingHandle = new SurfaceNetsJob
@@ -1142,6 +1146,21 @@ namespace Kizami.EngineAdapter.Voxel
                         Extremes = buffers[i].Extremes
                     }.Schedule(meshingHandle)
                     : meshingHandle;
+
+                if (useBoxes)
+                {
+                    layout.GetChunkSampleRange(layout.ToChunkCoord(chunkIndex), out var sampleMin, out var sampleMax);
+                    var boxHandle = new VoxelBoxColliderJob
+                    {
+                        Layout = layout,
+                        SampleMin = sampleMin,
+                        SampleMax = sampleMax,
+                        Samples = _volume.Samples,
+                        BoxMins = buffers[i].BoxMins,
+                        BoxMaxs = buffers[i].BoxMaxs
+                    }.Schedule();
+                    handles[i] = JobHandle.CombineDependencies(handles[i], boxHandle);
+                }
             }
 
             JobHandle.CombineDependencies(handles).Complete();
@@ -1190,24 +1209,41 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary>
         /// メッシュ化の結果をチャンクへ反映する。
         /// </summary>
+        /// 箱の当たり判定では、面が無くても中身の点があれば（中身だけのチャンク）箱を置く。
+        /// </summary>
         /// <returns>面を持つチャンク。面が無ければ null</returns>
         private ChunkSlot ApplyMesh(int chunkIndex, MeshBuffers buffers, bool useHull)
         {
             var slot = _chunks[chunkIndex];
             var triangleCount = buffers.Indices.Length / 3;
+            var boxCount = buffers.BoxMins.IsCreated ? buffers.BoxMins.Length : 0;
 
-            if (triangleCount == 0)
+            if (triangleCount == 0 && boxCount == 0)
             {
                 if (slot == null) return null;
 
                 TriangleCount -= slot.TriangleCount;
+                BoxColliderCount -= slot.BoxCount;
                 slot.Clear();
                 return null;
             }
 
             slot ??= _chunks[chunkIndex] = CreateChunkSlot(chunkIndex);
-            TriangleCount += triangleCount - slot.TriangleCount;
 
+            if (buffers.BoxMins.IsCreated)
+            {
+                BoxColliderCount += boxCount - slot.BoxCount;
+                slot.SetBoxes(_volume.Layout, buffers.BoxMins, buffers.BoxMaxs);
+            }
+
+            TriangleCount -= slot.TriangleCount;
+            if (triangleCount == 0)
+            {
+                slot.ClearMesh();
+                return null;
+            }
+
+            TriangleCount += triangleCount;
             slot.SetMesh(buffers, triangleCount);
             slot.ExtremePoints = useHull ? buffers.Extremes.ToArray() : null;
             return slot;
@@ -1349,6 +1385,7 @@ namespace Kizami.EngineAdapter.Voxel
             _isDirty = null;
             _dirtyQueue.Clear();
             TriangleCount = 0;
+            BoxColliderCount = 0;
 
             _volume?.Dispose();
             _volume = null;
@@ -1366,15 +1403,23 @@ namespace Kizami.EngineAdapter.Voxel
             /// <summary> 角ばった描き方の、頂点ごとの滑らかな位置までの差と丸み。角ばった描き方でなければ未作成 </summary>
             public NativeList<float4> SmoothOffsets;
 
+            /// <summary> 箱の当たり判定の、箱の最小のサンプル座標（含む）。箱の当たり判定でなければ未作成 </summary>
+            public NativeList<int3> BoxMins;
+
+            /// <summary> 箱の当たり判定の、箱の最大のサンプル座標（含む）。箱の当たり判定でなければ未作成 </summary>
+            public NativeList<int3> BoxMaxs;
+
             /// <summary> 素材ごとのインデックスの数。Indices は素材の順に並ぶ </summary>
             public NativeArray<int> SubMeshIndexCounts;
 
             /// <summary> VoxelHullDirections の方向ごとの、頂点の中で最も外側の点 </summary>
             public NativeArray<float3> Extremes;
 
-            public MeshBuffers(int materialCount, bool useBlockShape, Allocator allocator)
+            public MeshBuffers(int materialCount, bool useBlockShape, bool useBoxes, Allocator allocator)
             {
                 SmoothOffsets = useBlockShape ? new NativeList<float4>(1024, allocator) : default;
+                BoxMins = useBoxes ? new NativeList<int3>(64, allocator) : default;
+                BoxMaxs = useBoxes ? new NativeList<int3>(64, allocator) : default;
                 Vertices = new NativeList<float3>(1024, allocator);
                 Normals = new NativeList<float3>(1024, allocator);
                 Indices = new NativeList<int>(4096, allocator);
@@ -1388,6 +1433,8 @@ namespace Kizami.EngineAdapter.Voxel
                 Normals.Dispose();
                 Indices.Dispose();
                 if (SmoothOffsets.IsCreated) SmoothOffsets.Dispose();
+                if (BoxMins.IsCreated) BoxMins.Dispose();
+                if (BoxMaxs.IsCreated) BoxMaxs.Dispose();
                 SubMeshIndexCounts.Dispose();
                 Extremes.Dispose();
             }
@@ -1403,6 +1450,9 @@ namespace Kizami.EngineAdapter.Voxel
             public readonly MeshRenderer Renderer;
             public readonly MeshCollider Collider;
 
+            /// <summary> 箱の当たり判定の BoxCollider。足りなければ足し、余った分は無効にして使い回す </summary>
+            private readonly List<BoxCollider> _boxes = new();
+
             public ChunkSlot(GameObject gameObject, Mesh mesh, MeshRenderer renderer, MeshCollider collider)
             {
                 GameObject = gameObject;
@@ -1412,6 +1462,9 @@ namespace Kizami.EngineAdapter.Voxel
             }
 
             public int TriangleCount { get; private set; }
+
+            /// <summary> 有効な BoxCollider の数 </summary>
+            public int BoxCount { get; private set; }
 
             /// <summary> 凸包コライダー用の、方向ごとに最も外側の頂点。ConvexHull 以外や面が無いときは null </summary>
             public float3[] ExtremePoints { get; set; }
@@ -1439,6 +1492,36 @@ namespace Kizami.EngineAdapter.Voxel
             }
 
             /// <summary>
+            /// 箱を BoxCollider に反映する。箱は両端のサンプルの ±半ボクセルを覆う。
+            /// </summary>
+            public void SetBoxes(VoxelGridLayout layout, NativeList<int3> boxMins, NativeList<int3> boxMaxs)
+            {
+                for (var i = 0; i < boxMins.Length; i++)
+                {
+                    if (i == _boxes.Count) _boxes.Add(GameObject.AddComponent<BoxCollider>());
+
+                    var box = _boxes[i];
+                    box.center = layout.Origin + (float3)(boxMins[i] + boxMaxs[i]) * 0.5f * layout.VoxelSize;
+                    box.size = (float3)(boxMaxs[i] - boxMins[i] + 1) * layout.VoxelSize;
+                    box.enabled = true;
+                }
+
+                DisableBoxes(boxMins.Length);
+                BoxCount = boxMins.Length;
+            }
+
+            /// <summary>
+            /// 面が無くなったが中身の点が残るチャンクの、メッシュだけを非表示にする。
+            /// </summary>
+            public void ClearMesh()
+            {
+                Mesh.Clear();
+                Renderer.enabled = false;
+                TriangleCount = 0;
+                ExtremePoints = null;
+            }
+
+            /// <summary>
             /// ベイク済みの物理メッシュを MeshCollider へ割り当て直す。
             /// </summary>
             public void AssignCollider()
@@ -1450,19 +1533,26 @@ namespace Kizami.EngineAdapter.Voxel
             }
 
             /// <summary>
-            /// 面が無くなったチャンクを非表示にし、当たり判定を外す。
+            /// 面も中身の点も無くなったチャンクを非表示にし、当たり判定を外す。
             /// </summary>
             public void Clear()
             {
-                Mesh.Clear();
-                Renderer.enabled = false;
-                TriangleCount = 0;
-                ExtremePoints = null;
+                ClearMesh();
+                DisableBoxes(0);
+                BoxCount = 0;
 
                 if (Collider == null) return;
 
                 Collider.sharedMesh = null;
                 Collider.enabled = false;
+            }
+
+            private void DisableBoxes(int startIndex)
+            {
+                for (var i = startIndex; i < _boxes.Count; i++)
+                {
+                    _boxes[i].enabled = false;
+                }
             }
         }
     }
