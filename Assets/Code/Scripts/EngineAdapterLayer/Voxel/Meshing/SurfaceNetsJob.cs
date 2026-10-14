@@ -7,9 +7,8 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// セル範囲 [CellMin, CellMax) の等値面（距離 0 の面）を Surface Nets で抽出する。
-    /// 表面をまたぐセルごとに頂点を 1 つ置き、表面をまたぐ格子の辺ごとに、その辺を囲む 4 セルの頂点を四角形で結ぶ。
-    /// 頂点は、セルの辺と表面の交点の平均（Surface Nets。角が丸まる）と、
-    /// 交点と法線から求めた角を保つ点（Dual Contouring）を、Smoothness で混ぜた位置に置く。
+    /// 表面をまたぐセルごとに頂点を 1 つ置き（セルの辺と表面の交点の平均）、
+    /// 表面をまたぐ格子の辺ごとに、その辺を囲む 4 セルの頂点を四角形で結ぶ。
     /// 法線は各格子点の中心差分の勾配を、頂点位置でトリリニア補間して求める。
     /// 頂点と法線はボクセル空間（ローカル空間）で出力する。
     /// 素材が 2 つ以上なら、四角形をその辺の内側の端のサンプルの素材で分け、インデックスを素材の順に並べる。
@@ -19,9 +18,6 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct SurfaceNetsJob : IJob
     {
-        /// <summary> 角を保つ点を求めるとき、交点の平均へ引き寄せる強さ。平らな所や線の上で解が 1 つに決まるようにする </summary>
-        private const float SHARP_REGULARIZATION = 0.05f;
-
         public VoxelGridLayout Layout;
 
         /// <summary> 面を作るセル範囲の最小（含む） </summary>
@@ -29,9 +25,6 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> 面を作るセル範囲の最大（含まない） </summary>
         public int3 CellMax;
-
-        /// <summary> 角の滑らかさ。0 なら Dual Contouring の点、1 なら交点の平均に頂点を置く </summary>
-        public float Smoothness;
 
         public NativeList<float3> Vertices;
         public NativeList<float3> Normals;
@@ -118,11 +111,6 @@ namespace Kizami.EngineAdapter.Voxel
                 }
 
                 var inCell = AverageCrossing(lower, upper);
-                if (Smoothness < 1f)
-                {
-                    inCell = math.lerp(SharpCrossing(cell, lower, upper, inCell), inCell, Smoothness);
-                }
-
                 cellToVertex[slot] = Vertices.Length;
                 Vertices.Add(Layout.Origin + ((float3)cell + inCell) * Layout.VoxelSize);
                 Normals.Add(ComputeNormal(cell, inCell));
@@ -207,34 +195,6 @@ namespace Kizami.EngineAdapter.Voxel
                 SampleAt(cell + new int3(1, 0, 1)),
                 SampleAt(cell + new int3(0, 1, 1)),
                 SampleAt(cell + new int3(1, 1, 1)));
-        }
-
-        /// <summary>
-        /// 交点ごとの接平面（交点を通り、法線に垂直な面）からの距離の二乗和が最も小さいセル内座標を求める（Dual Contouring）。
-        /// 平らな所や辺の上では解が 1 つに決まらない為、交点の平均 average へ弱く引き寄せる。結果はセルの中に収める。
-        /// </summary>
-        private float3 SharpCrossing(int3 cell, float4 lower, float4 upper, float3 average)
-        {
-            var matrix = float3x3.identity * SHARP_REGULARIZATION;
-            var vector = average * SHARP_REGULARIZATION;
-
-            for (var a = 0; a < 8; a++)
-            for (var bit = 1; bit < 8; bit <<= 1)
-            {
-                if ((a & bit) != 0) continue;
-
-                var b = a | bit;
-                var distanceA = Corner(lower, upper, a);
-                var distanceB = Corner(lower, upper, b);
-                if (distanceA < 0f == distanceB < 0f) continue;
-
-                var point = math.lerp(CornerOffset(a), CornerOffset(b), distanceA / (distanceA - distanceB));
-                var normal = ComputeNormal(cell, point);
-                matrix += new float3x3(normal * normal.x, normal * normal.y, normal * normal.z);
-                vector += normal * math.dot(normal, point);
-            }
-
-            return math.saturate(math.mul(math.inverse(matrix), vector));
         }
 
         /// <summary>

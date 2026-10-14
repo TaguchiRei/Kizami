@@ -21,13 +21,8 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("1 フレームで再メッシュ化するチャンクの上限数")]
         private int _remeshChunksPerFrame = 8;
 
-        [SerializeField, Range(0f, 1f)]
-        [Tooltip("表面の角の滑らかさ。0 なら角を保って角ばり、1 なら角がボクセル半分ほど丸まる")]
-        private float _smoothness = 1f;
-
         public float VoxelSize => _voxelSize;
         public int ChunkSize => _chunkSize;
         public int RemeshChunksPerFrame => _remeshChunksPerFrame;
-        public float Smoothness => _smoothness;
     }
 }

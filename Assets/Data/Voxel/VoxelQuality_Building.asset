@@ -15,4 +15,3 @@ MonoBehaviour:
   _voxelSize: 0.4
   _chunkSize: 32
   _remeshChunksPerFrame: 8
-  _smoothness: 0
