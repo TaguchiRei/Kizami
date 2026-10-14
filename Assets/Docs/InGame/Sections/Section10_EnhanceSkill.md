@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手（着手前にこの計画を見直す） |
+| 状態 | 着手（2026-10-14）。作業ブランチ `claude/alpha/enhance-skill`（`feature/alpha/big-voxel` の a60c965 から切った） |
 | 目安の時期 | 2027/03/30〜04/12（最速の推定 2026/10/25〜10/28） |
 | 前提となる区間 | 6, 7 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -49,30 +49,97 @@ HP を回復するスキルを作る（2026-10-05 追加。HP の回復は基本
 | 区間6の成果 | スキルの定義データ `SkillData`（効果の種類 `SkillEffect` は Beam / Explosion。強化型を分けるデータはまだない）、発動の `SkillService`（効果の種類で分岐して、`PlayerInitializer` から渡された関数を呼ぶ）、チャージの消費 `ChargeService.TryConsume`、装備枠の消費量の `SkillSlotState`、仮の HUD `PlayerHudAdapter`（消費量の位置に線を引く） |
 | [VoxelPiece.Slice](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs) | ワールド空間の平面（点と法線）でピースを 2 つに切り分ける。体積は減らない。平面はピースの端から端まで無限に広いものとして扱う。体積の多い側をこのピースに残し、もう一方を、つながった塊ごとに新しいピース（Rigidbody 付き）として切り離す。分離しない設定のピースでは何もしない。説明は [Piece.md](../../Voxel/Detailed/Piece.md) |
 
+## 前提の変化（2026-10-14、着手時）
+
+- 区間15は `feature/alpha/big-voxel` で進行中で、この区間より先に終わる見込み。`VoxelDestructionAdapter` は強さ P と減衰率 a の攻撃（`VoxelPiece.ApplyStrike`）に置き換わり、手付かずの形のメッシュで置いたモデル（`VoxelModelLoader.LoadStatic`）は攻撃が当たったときにボクセルにする。この区間が触る所と重なるので、作業ブランチは `feature/alpha/big-voxel` の最新から切った（ユーザー）
+- 各攻撃の P と a は、区間15で今の半径を再現する値になっている。この区間では決め直さない（決めたこと 10）
+- スキル構想（2026-10-14、ユーザー）。スキルの目的は、破壊や敵の攻撃に対してプレイヤーにプラスの効果を与え、結果としてより多くの破壊につなげること
+  - 強化型：通常攻撃に属性を足す（シルブレ＝装甲を破壊する属性、ボクセル破壊）、通常攻撃の範囲の増加、通常攻撃の連発の速さの増加、かけらが爆発する。一定時間のものと、指定回数のものがある
+  - 発動型：特定の形のビームを出す（N 種類）。形を増やすのは量産のとき
+  - 特殊型：ボクセルのかけらを取得してチャージし、解放すると全部が上から落ちてくる（専用 UI）。この区間の外で、量産のときに作る（ユーザー）
+  - UI：スキルごとに、アイコンとその右に可・不を出す。不のときは文字を灰色にし、その上に必要なエネルギー量を出す。エネルギーのゲージの中央に、溜まっている量を数値で出す
+
+## 既存コードの確認結果（2026-10-14）
+
+| 対象 | 今の状態 |
+|---|---|
+| `SkillData` / `SkillEffect` | 効果は Beam / Explosion だけ。効果時間・回数・アイコンはない |
+| `SkillService` | 効果の種類で分岐して、`PlayerInitializer` から渡された関数を呼ぶ |
+| `MeleeCutService` | 攻撃間隔は `PlayerParameterData.MeleeAttackInterval`（実時間）。`Swing` に渡すのは角度だけ |
+| `MeleeCutAdapter` | 刃の箱に入った `ArmorPanel` に `ApplyHit` を呼ぶ。ボクセルのピースは集めていない。幅と届く距離は SerializeField |
+| `ArmorPanel` を呼ぶ所 | 5 か所（剣 1、G キー・ビーム・爆発 3、かけら 1 の `Shatter`）。区間9のバリアも `ArmorPanel` |
+| `PlayerHealthService` | ダメージの `ApplyDamage` だけ |
+| `FragmentThrowAdapter` | 飛んでいるかけらがぶつかったら、装甲なら `Shatter` してプールへ返す |
+| `VoxelDestructionAdapter.CarveExplosion` | カメラの位置を中心にした球だけ。中心を指定する口はない |
+| `VoxelPiece.Slice` | 実装済み。0.4m で 27ms（区間15の計測） |
+| `PlayerHudAdapter` | OnGUI の仮の HUD。HP とチャージのゲージ、スキルの消費量の線 |
+
 ## 作業一覧
 
 | # | 作業 | 層 | 内容 |
 |---|---|---|---|
-| 10-1 | 強化型スキルの仕組み | Application / BlackBoard | 効果時間と、効果中の攻撃にダメージタイプなどを追加する仕組み |
-| 10-2 | 切断に破壊属性を付ける | Application | 効果中の切断を、攻撃タイプと破壊タイプの両方を持つダメージにする |
-| 10-3 | ボクセルを切断面で切り分ける | EngineAdapter | 破壊属性の切断が当たったボクセルのピースに、刃と同じ平面で `VoxelPiece.Slice` を呼ぶ |
-| 10-4 | 切断速度アップ | Application | 攻撃間隔を短くする |
-| 10-5 | 投げたかけらの爆発 | Application / EngineAdapter | 投げたかけらが当たった場所で範囲ダメージを出す |
-| 10-6 | 回復スキル | Application | チャージを消費して HP を回復する。`PlayerHealthService` に回復の操作を足す（区間1の Service は被ダメージだけを持つ） |
+| 10-1 | 強化型スキルの仕組み | Application / BlackBoard / External | 時間または回数で切れる強化を、種類ごとに持つ |
+| 10-2 | 切断にボクセル破壊・シルブレの属性を付ける | Application / EngineAdapter | 効果中の切断のダメージタイプに、破壊または粉砕を足す |
+| 10-3 | ボクセルを切断面で切り分ける | EngineAdapter | ボクセル破壊が付いた切断で、刃の箱に入ったピースに `VoxelPiece.Slice` を呼ぶ |
+| 10-4 | 切断速度アップ | Application | 攻撃間隔に倍率を掛ける |
+| 10-5 | 投げたかけらの爆発 | Application / EngineAdapter | かけらが当たった点を中心に爆発させる |
+| 10-6 | 回復スキル | Application | チャージを消費して HP を回復する |
+| 10-7 | 切断範囲アップ | EngineAdapter | 刃の幅と届く距離に倍率を掛ける |
+| 10-8 | スキルの HUD | EngineAdapter / Initialization | エネルギーの数値、スキルごとのアイコンと可・不 |
+| 10-9 | ダメージタイプの窓口 | BlackBoard / EngineAdapter | 1 つの攻撃が複数のタイプを持てるようにし、装甲への効き方を 1 か所で決める |
 
 ## 完了条件
 
-- 強化型スキルが 2 種以上動く
+- 強化型スキルが 2 種以上動く（時間で切れるものと、回数で切れるものの両方）
 - 回復スキルで HP が回復し、最大値を超えない
-- 破壊属性を付けた切断で、ボクセルが切断面に沿って分かれる
+- ボクセル破壊を付けた切断で、ボクセルが切断面に沿って分かれる
+- シルブレを付けた切断で、装甲が一撃で壊れる
+- HUD に、エネルギーの数値と、スキルごとのアイコンと可・不（不のときは灰色と必要量）が出る
 
 ## 詳細仕様で決めること
 
-- 強化型スキルの一覧と、それぞれの効果時間と消費量
-- 切り分ける対象をどう選ぶか。`Slice` は平面がピース全体を貫く前提なので、刃の範囲に入ったピースだけを対象にするなど、範囲の絞り方を決める
-- 切り離された側（新しいピース）の扱い。そのまま落とすか、破壊対象の削れた割合（区間5）に数えるか
-- 爆発の範囲と、どのダメージタイプを持たせるか
-- 回復スキルの回復量と消費量。攻撃型・強化型のどちらに含めるか（別の種類にするか）
+すべて決めた（2026-10-14、ユーザー）。
+
+| # | 項目 | 決めたこと |
+|---|---|---|
+| 1 | スキルの種類 | `SkillEffect` を Beam / Explosion / Heal / EnhanceDestroy（ボクセル破壊）/ EnhanceArmorBreak（シルブレ）/ EnhanceRange / EnhanceSpeed / ExplosiveFragment にする。強化型・発動型の分類の値は、使う所がないので持たない |
+| 2 | 強化の続き方 | `SkillData` に「時間（秒）」か「回数」を持たせる。回数はプレイヤーが攻撃を行った回数（剣を振った回数、かけらを投げた・撃った回数）で数える |
+| 3 | 時間の数え方 | 実時間。スローモードの影響を受けない |
+| 4 | 重ねて使ったとき | 同じ種類は最初から数え直す。違う種類は同時にかかる |
+| 5 | 範囲アップ | `MeleeCutAdapter` の幅と届く距離に、`SkillData` の倍率を掛ける |
+| 6 | 切り分ける対象 | 刃の箱に入ったピースだけ。手付かずの形のモデルはボクセルにしてから切る。装甲の奥のピースは切らない。切り離された側はそのまま落とし、破壊対象の削れた割合には数えない |
+| 7 | 複数のタイプを持つ攻撃の、装甲への効き方 | 粉砕を含むなら `Shatter`。含まなければ攻撃・破壊のどちらがあっても `ApplyHit` を 1 回 |
+| 8 | かけらの爆発 | 当たった点を中心にした球。破壊タイプ。強さと減衰率は爆発（`CarveExplosion`）と同じ形で持つ |
+| 9 | 回復 | `SkillEffect.Heal`。回復量は `SkillData`。最大 HP で止める |
+| 10 | 各攻撃の P と a | 区間15の値（今の半径を再現）を使う。決め直しは区間13へ持ち越す |
+| 11 | HUD | 今の OnGUI の仮の HUD を広げる。アイコンは `SkillData` の `Texture2D` を `PlayerInitializer` から HUD へ渡す（EngineAdapter は External を参照しない為）。可・不は `ISkillSlotState` と `IChargeState` から HUD が判定する。強化の残りは出さない |
+
+## 作業計画（2026-10-14）
+
+### 新しく作る型
+
+| 型 | 層 | 今の区間で使うもの |
+|---|---|---|
+| `DamageType`（Flags の enum） | BlackBoard | 剣・ボクセルの破壊・かけら、`ArmorPanel.ApplyDamage` |
+| `PlayerEnhanceState`（強化の種類ごとの終了時刻と残り回数） | BlackBoard | `MeleeCutService`（速さ・範囲・破壊・シルブレ）、`FragmentThrowService`（爆発） |
+
+ダメージタイプの窓口は新しいクラスにせず、`ArmorPanel.ApplyDamage(DamageType)` にする。`DamageType` は、強化中の切断のタイプを決める Application と、装甲・攻撃の Adapter の両方が使うので、`PlayerMoveMode` などの共有の enum と同じく BlackBoard に置く。
+
+### コミットの分け方
+
+| # | 内容 | 確かめ方（ローカル） |
+|---|---|---|
+| 1 | 10-9：`DamageType` と `ArmorPanel.ApplyDamage`。今の 5 か所を置き換える。挙動は変えない | コンパイル。剣・G キー・ビーム・爆発で装甲が 1 減り、かけらで一撃で壊れる |
+| 2 | 10-6：`PlayerHealthService.Heal`、`SkillEffect.Heal`、`SkillData` の回復量 | 敵の攻撃で減った HP が回復し、最大値を超えない |
+| 3 | 10-8：HUD のエネルギーの数値、スキルの枠のアイコンと可・不 | 表示 |
+| 4 | 10-1・10-4・10-7：`PlayerEnhanceState`、`SkillData` の時間・回数・倍率、攻撃間隔と刃の大きさの倍率 | 時間と回数で切れること、連打の間隔と範囲 |
+| 5 | 10-2・10-3：ボクセル破壊とシルブレの切断 | ボクセルが刃の面で分かれる。装甲が一撃で壊れる |
+| 6 | 10-5：かけらの爆発 | 当たった所が球で削れ、範囲の装甲に当たる |
+| 7 | 実装結果、全体計画書の更新 | 完了条件すべて |
+
+## 見つけた問題（今回は扱わない）
+
+- `VoxelMeltSystem` は InGame にも TestStage にも置かれていない（全体計画書の記載どおり。演出は区間13）
 
 ## 他プラットフォームへの対応
 
