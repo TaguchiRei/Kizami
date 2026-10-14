@@ -1,22 +1,41 @@
+using System.Collections.Generic;
+using System.Linq;
 using UsefulToolkit.BlackBoard.BlackBoard;
 
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// アウトゲームとインゲームの間で受け渡す進行（選んだステージ）を保持するゲームステート。シーンを跨いで保たれる。
-    /// ステージは番号で持ち、番号とステージの定義の対応は Application が持つ。BlackBoard から External を参照できない為。
+    /// アウトゲームとインゲームの間で受け渡す進行（選んだステージ、装備したスキル、通貨、クリア済みのステージ）を保持するゲームステート。シーンを跨いで保たれる。
+    /// ステージとスキルは番号で持ち、番号と定義の対応は Application が持つ。BlackBoard から External を参照できない為。
     /// </summary>
+    // TODO: セーブを作るときに、通貨・装備・クリア済みのステージを保存して読み込む
     [RegisterBoard(typeof(AppBoard))]
     public sealed class GameProgressState : GameStateBase, IGameProgressState
     {
         /// <summary> ステージを選んでいないことを表す番号 </summary>
         public const int NO_STAGE = -1;
 
+        /// <summary> 装備枠が空きであることを表すスキルの番号 </summary>
+        public const int NO_SKILL = -1;
+
+        private readonly int[] _equippedSkillIndices;
+        private readonly HashSet<int> _clearedStageIndices = new();
+
         public int SelectedStageIndex { get; private set; } = NO_STAGE;
+        public int Currency { get; private set; }
+        public int SlotCount => _equippedSkillIndices.Length;
+
+        /// <param name="slotCount">スキルの装備枠の数。すべての枠は空きから始まる</param>
+        public GameProgressState(int slotCount)
+        {
+            _equippedSkillIndices = Enumerable.Repeat(NO_SKILL, slotCount).ToArray();
+        }
 
         public override string GetLog()
         {
-            return $"SelectedStageIndex: {SelectedStageIndex}";
+            return $"SelectedStageIndex: {SelectedStageIndex}  \nCurrency: {Currency}  \n" +
+                   $"EquippedSkills: {string.Join(", ", _equippedSkillIndices)}  \n" +
+                   $"ClearedStages: {string.Join(", ", _clearedStageIndices.OrderBy(i => i))}";
         }
 
         /// <summary>
@@ -27,6 +46,44 @@ namespace Kizami.BlackBoard
         {
             SelectedStageIndex = stageIndex;
         }
+
+        /// <summary>
+        /// 装備枠に装備するスキルの番号を設定する。
+        /// </summary>
+        /// <param name="slot">枠の番号（0 から）</param>
+        /// <param name="skillIndex">スキルの番号。空きにするなら NO_SKILL</param>
+        public void SetEquippedSkillIndex(int slot, int skillIndex)
+        {
+            _equippedSkillIndices[slot] = skillIndex;
+        }
+
+        /// <summary>
+        /// 通貨の量を設定する。
+        /// </summary>
+        /// <param name="currency">通貨の量</param>
+        public void SetCurrency(int currency)
+        {
+            Currency = currency;
+        }
+
+        /// <summary>
+        /// ステージをクリア済みにする。
+        /// </summary>
+        /// <param name="stageIndex">ステージの番号（0 から）</param>
+        public void MarkStageCleared(int stageIndex)
+        {
+            _clearedStageIndices.Add(stageIndex);
+        }
+
+        public int GetEquippedSkillIndex(int slot)
+        {
+            return _equippedSkillIndices[slot];
+        }
+
+        public bool IsStageCleared(int stageIndex)
+        {
+            return _clearedStageIndices.Contains(stageIndex);
+        }
     }
 
     /// <summary>
@@ -36,5 +93,19 @@ namespace Kizami.BlackBoard
     {
         /// <summary> 選んだステージの番号。選んでいなければ GameProgressState.NO_STAGE </summary>
         int SelectedStageIndex { get; }
+
+        /// <summary> 通貨の量 </summary>
+        int Currency { get; }
+
+        /// <summary> スキルの装備枠の数 </summary>
+        int SlotCount { get; }
+
+        /// <summary> 装備枠に装備しているスキルの番号。空きなら GameProgressState.NO_SKILL </summary>
+        /// <param name="slot">枠の番号（0 から）</param>
+        int GetEquippedSkillIndex(int slot);
+
+        /// <summary> ステージをクリアしたことがあるか </summary>
+        /// <param name="stageIndex">ステージの番号（0 から）</param>
+        bool IsStageCleared(int stageIndex);
     }
 }

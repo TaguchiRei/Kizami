@@ -1,42 +1,91 @@
 using Kizami.Application;
+using Kizami.BlackBoard;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.Initialization;
 
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// 仮のアウトゲームに、ステージを選んでインゲームへ遷移するボタンを並べる Initializer。仮のアウトゲームの場面シーンへ置く。
+    /// 仮のアウトゲームに、通貨、スキルの装備枠、ステージのボタンを並べる Initializer。仮のアウトゲームの場面シーンへ置く。
+    /// 装備枠のボタンを押すと装備できるスキルを順に替え、ステージのボタンを押すとそのステージのインゲームへ遷移する。
     /// </summary>
-    // TODO: アウトゲーム本来の流れに置き換える
-    public sealed class OutGameStartInitializer : InitializerBase, IInjectable<IGameSceneController>
+    // TODO: アウトゲーム本来の流れ（スキルの購入、装備の画面、セーブ）に置き換える
+    public sealed class OutGameStartInitializer : InitializerBase, IInjectable<IGameSceneController>,
+        IInjectable<GameProgressService>
     {
-        private const float BUTTON_WIDTH = 200f;
+        private const float AREA_WIDTH = 320f;
         private const float BUTTON_HEIGHT = 50f;
+        private const string EMPTY_SLOT_TEXT = "(empty)";
 
         private IGameSceneController _sceneController;
+        private GameProgressService _progressService;
+        private IGameProgressState _progressState;
         private bool _isTransitioning;
+
+        public override void Initialize(IBlackBoard blackBoard)
+        {
+            blackBoard.TryGetGameState<AppBoard, IGameProgressState>(out _progressState, this);
+            base.Initialize(blackBoard);
+        }
 
         private void OnGUI()
         {
             if (_sceneController == null || _isTransitioning) return;
 
-            var stages = _sceneController.Stages;
-            var area = new Rect(Screen.width * 0.5f - BUTTON_WIDTH * 0.5f,
-                Screen.height * 0.5f - BUTTON_HEIGHT * stages.Count * 0.5f,
-                BUTTON_WIDTH, BUTTON_HEIGHT * stages.Count);
-
+            var area = new Rect(Screen.width * 0.5f - AREA_WIDTH * 0.5f, Screen.height * 0.2f, AREA_WIDTH,
+                Screen.height * 0.6f);
             GUILayout.BeginArea(area);
+
+            DrawProgress();
+            DrawStages();
+
+            GUILayout.EndArea();
+        }
+
+        /// <summary>
+        /// 通貨と、スキルの装備枠のボタンを並べる。
+        /// </summary>
+        private void DrawProgress()
+        {
+            if (_progressService == null || _progressState == null) return;
+
+            GUILayout.Label($"Currency: {_progressState.Currency}");
+
+            var skills = _progressService.Skills;
+            for (var slot = 0; slot < _progressState.SlotCount; slot++)
+            {
+                var index = _progressState.GetEquippedSkillIndex(slot);
+                var skillName = index >= 0 && index < skills.Count && skills[index] != null
+                    ? skills[index].DisplayName
+                    : EMPTY_SLOT_TEXT;
+
+                if (GUILayout.Button($"Skill {slot + 1}: {skillName}", GUILayout.Height(BUTTON_HEIGHT)))
+                {
+                    _progressService.CycleEquippedSkill(slot);
+                }
+            }
+
+            GUILayout.Space(BUTTON_HEIGHT * 0.5f);
+        }
+
+        /// <summary>
+        /// ステージのボタンを並べる。クリアしたことのあるステージには印を付ける。
+        /// </summary>
+        private void DrawStages()
+        {
+            var stages = _sceneController.Stages;
             for (var i = 0; i < stages.Count; i++)
             {
                 if (stages[i] == null) continue;
 
-                if (GUILayout.Button(stages[i].DisplayName, GUILayout.Height(BUTTON_HEIGHT)))
+                var isCleared = _progressState != null && _progressState.IsStageCleared(i);
+                var label = isCleared ? $"{stages[i].DisplayName} (cleared)" : stages[i].DisplayName;
+                if (GUILayout.Button(label, GUILayout.Height(BUTTON_HEIGHT)))
                 {
                     GoToStage(i);
                 }
             }
-
-            GUILayout.EndArea();
         }
 
         private async void GoToStage(int stageIndex)
@@ -51,6 +100,11 @@ namespace Kizami.Initialization
         public void Inject(IGameSceneController instance)
         {
             _sceneController = instance;
+        }
+
+        public void Inject(GameProgressService instance)
+        {
+            _progressService = instance;
         }
     }
 }

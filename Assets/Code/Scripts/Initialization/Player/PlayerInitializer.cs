@@ -15,7 +15,7 @@ namespace Kizami.Initialization
     /// 投擲の Adapter は、かけらの Adapter の管理から外せたかけらだけをつかむ。
     /// 操作系ごとの視点の回転のさせ方の違いは、シーンへ置く PlayerMovementAdapterBase の派生が吸収する。
     /// </summary>
-    public sealed class PlayerInitializer : InitializerBase, IInjectable<ITimeScaleController>
+    public sealed class PlayerInitializer : InitializerBase, IInjectable<ITimeScaleController>, IInjectable<GameProgressService>
     {
         private readonly PlayerHealthService _healthService = new();
         private readonly PlayerMovementService _movementService = new();
@@ -34,9 +34,8 @@ namespace Kizami.Initialization
         [SerializeField] private VoxelDestructionAdapter _voxelDestructionAdapter;
         [SerializeField] private FragmentThrowAdapter _fragmentThrowAdapter;
 
-        // TODO: アウトゲームで装備したスキルを受け取る
         [SerializeField]
-        [Tooltip("スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
+        [Tooltip("アウトゲームを通さずに始めたとき（インゲームのシーンから直接再生したときなど）に、スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
         private SkillData[] _equippedSkills = new SkillData[SkillService.SLOT_COUNT];
 
         private PlayerLookService _lookService;
@@ -46,6 +45,7 @@ namespace Kizami.Initialization
         private SlowModeService _slowModeService;
         private FragmentThrowService _fragmentThrowService;
         private ITimeScaleController _timeScaleController;
+        private GameProgressService _progressService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -73,7 +73,7 @@ namespace Kizami.Initialization
             _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, sceneId);
-            _skillService = new SkillService(blackBoard, _equippedSkills, _chargeService,
+            _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService,
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, sceneId);
 
             _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake);
@@ -117,6 +117,16 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
+        /// アウトゲームで装備したスキルを返す。アウトゲームを通さずに始めたときは、Inspector で装備したスキルを返す。
+        /// </summary>
+        private SkillData[] GetEquippedSkills()
+        {
+            return _progressService != null && _progressService.TryGetSelectedStage(out _)
+                ? _progressService.GetEquippedSkills()
+                : _equippedSkills;
+        }
+
+        /// <summary>
         /// 切断の結果を、敵の Adapter、かけらの Adapter の順に渡す。
         /// 敵の Adapter は体に残す側のかけらをプールへ返して非アクティブにするので、かけらの Adapter はそれを管理に加えない。
         /// </summary>
@@ -145,6 +155,11 @@ namespace Kizami.Initialization
         public void Inject(ITimeScaleController instance)
         {
             _timeScaleController = instance;
+        }
+
+        public void Inject(GameProgressService instance)
+        {
+            _progressService = instance;
         }
     }
 }

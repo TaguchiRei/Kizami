@@ -51,7 +51,7 @@ namespace Kizami.Initialization
             }
 
             _flowService = new StageFlowService(blackBoard, GetSelectedStage(), _timeScaleController, _inputController,
-                gameObject.scene.buildIndex);
+                _progressService != null ? _progressService.CompleteSelectedStage : null, gameObject.scene.buildIndex);
             blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this);
             _stageClearAdapter.Initialize(_flowService.ReportTargets);
             _enemySpawnAdapter.SetOnDefeated(_flowService.AddDefeats);

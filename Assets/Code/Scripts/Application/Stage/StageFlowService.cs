@@ -24,6 +24,7 @@ namespace Kizami.Application
         private readonly ITimeScaleController _timeScaleController;
         private readonly ITimeScaleState _timeScaleState;
         private readonly IInputController _inputController;
+        private readonly Action _onCleared;
 
         /// <summary> ポーズを解いたときに戻す時間の倍率 </summary>
         private float _resumeScale = 1f;
@@ -35,13 +36,15 @@ namespace Kizami.Application
         /// <param name="stage">遊ぶステージの定義</param>
         /// <param name="timeScaleController">ポーズで時間の倍率を変える操作面</param>
         /// <param name="inputController">ポーズ中とクリア・失敗のあとに Player マップを止める操作面</param>
+        /// <param name="onCleared">クリアしたときに呼ぶ処理（初回クリアの通貨を足すなど）</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public StageFlowService(IBlackBoard blackBoard, StageData stage, ITimeScaleController timeScaleController,
-            IInputController inputController, int sceneId)
+            IInputController inputController, Action onCleared, int sceneId)
         {
             _clearScore = stage.ClearScore;
             _timeScaleController = timeScaleController;
             _inputController = inputController;
+            _onCleared = onCleared;
 
             if (!blackBoard.TryGetBoard<StageBoard>(out var stageBoard, this) ||
                 !blackBoard.TryGetGameState<AppBoard, ITimeScaleState>(out _timeScaleState, this) ||
@@ -165,6 +168,7 @@ namespace Kizami.Application
             _state.SetScore(_state.Score + _clearScore);
             Finish(StagePhase.Cleared);
             UsefulLogger.Log("すべての破壊対象が破壊済みになった為、クリアにしました。", this);
+            _onCleared?.Invoke();
         }
 
         /// <summary>

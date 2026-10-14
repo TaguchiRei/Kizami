@@ -320,6 +320,10 @@ MonoBehaviour:
   _outGameGroup: {fileID: 11400000, guid: 9e29efc0c2d64ec449d65b6914e2f856, type: 2}
   _stages:
   - {fileID: 11400000, guid: 9a5b703bc41b47c8bdd654e9a12b5d72, type: 2}
+  _skills:
+  - {fileID: 11400000, guid: 3c8d0496d6baf774494d30e32f8f5cda, type: 2}
+  - {fileID: 11400000, guid: 992c0f9acc63fff468eee1c55f9d0a68, type: 2}
+  _firstClearReward: 100
   _transitionOnStart: 1
 --- !u!1 &752471123
 GameObject:
