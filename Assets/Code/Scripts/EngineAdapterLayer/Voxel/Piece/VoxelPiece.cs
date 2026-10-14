@@ -22,6 +22,9 @@ namespace Kizami.EngineAdapter.Voxel
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelPiece : MonoBehaviour
     {
+        /// <summary> 加熱で融点の逆数を取るときの、融点の下限 </summary>
+        private const float MIN_MELTING_POINT = 0.01f;
+
         private const MeshColliderCookingOptions COLLIDER_COOKING_OPTIONS =
             MeshColliderCookingOptions.CookForFasterSimulation |
             MeshColliderCookingOptions.EnableMeshCleaning |
@@ -471,8 +474,9 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// ローカル空間で表した形状の内側を加熱する。
-        /// 温度が融点（1）以上になった部分は固体から取り除き、同じ体積を融解した粒として VoxelMeltSystem へ渡す。
-        /// 取り除いた時点の温度が蒸発点以上なら、粒にせず蒸発させる。
+        /// 温度は点ごとの素材の融点を 1 とした値で持ち、加える温度を融点で割る。融点の高い素材ほど温まりにくい。
+        /// 温度が 1 以上になった部分は固体から取り除き、同じ体積を融解した粒として VoxelMeltSystem へ渡す。
+        /// 取り除いた時点の温度が蒸発点（融点に対する倍率）以上なら、粒にせず蒸発させる。
         /// 融解で分かれた塊は削ったときと同じく切り離し、切り離すには小さすぎる塊は粒にする。
         /// VoxelMeltSystem か、その VoxelThermalSettings が未設定なら何もしない。
         /// </summary>
@@ -499,10 +503,18 @@ namespace Kizami.EngineAdapter.Voxel
                 return;
             }
 
+            var settings = _meltSystem.Settings;
+            var inverseMeltingPoints = new NativeArray<float>(math.max(_strengths.Length, 1), Allocator.TempJob);
+            for (var i = 0; i < _strengths.Length; i++)
+            {
+                inverseMeltingPoints[i] = 1f / math.max(settings.GetMeltingPoint(_strengths[i]), MIN_MELTING_POINT);
+            }
+
             var meltedSamples = new NativeList<int>(Allocator.TempJob);
             try
             {
-                var result = _volume.ApplyHeat(localShape, amount, falloff, meltedSamples);
+                var result = _volume.ApplyHeat(localShape, amount, falloff, meltedSamples,
+                    UsesMaterials ? inverseMeltingPoints : default, 1f / VoxelThermalSettings.NORMAL_MELTING_POINT);
                 if (meltedSamples.Length > 0)
                 {
                     EmitMelted(meltedSamples.AsArray());
@@ -519,6 +531,7 @@ namespace Kizami.EngineAdapter.Voxel
             finally
             {
                 meltedSamples.Dispose();
+                inverseMeltingPoints.Dispose();
             }
         }
 

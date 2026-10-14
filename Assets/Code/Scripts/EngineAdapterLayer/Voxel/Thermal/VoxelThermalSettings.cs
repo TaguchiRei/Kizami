@@ -4,8 +4,9 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// 加熱・融解・蒸発・冷却と、融解した粒の動きに関わる設定。
-    /// 温度は、常温を 0、普通の強度の素材の融点を 1 とした値。
-    /// 素材の融点は強度も表し、強さと減衰率で削る攻撃は、届く強さが融点以上の所を壊す。
+    /// 融点は、普通の強度の素材を 1 とした値で、強度も表す。強さと減衰率で削る攻撃は、届く強さが融点以上の所を壊す。
+    /// 温度は、常温を 0、その点の素材の融点を 1 とした値で持つ。加えた温度は融点で割って足すので、融点の高い素材ほど温まりにくい。
+    /// 蒸発点・凝固点も、融点を 1 とした値で比べる。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     [CreateAssetMenu(menuName = "Kizami/Voxel/Thermal Settings", fileName = "VoxelThermalSettings")]
@@ -25,7 +26,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         [Header("温度")]
         [SerializeField, Min(1f)]
-        [Tooltip("この温度以上で蒸発する。固体がこの温度以上で融解したときは、粒にならずに直接蒸発する")]
+        [Tooltip("融点を 1 とした温度がこの値以上で蒸発する。固体がこの温度以上で融解したときは、粒にならずに直接蒸発する")]
         private float _evaporationTemperature = 2f;
 
         [SerializeField, Range(0f, 1f)]

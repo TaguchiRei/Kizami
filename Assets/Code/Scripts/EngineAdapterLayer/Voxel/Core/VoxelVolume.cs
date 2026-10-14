@@ -144,7 +144,8 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 形状の内側のサンプルを加熱し、温度が融点（1）以上になった内側のサンプルを外側にする。
+        /// 形状の内側のサンプルを加熱し、温度が融点以上になった内側のサンプルを外側にする。
+        /// 温度はサンプルの素材の融点を 1 とした値で持ち、加える温度を融点で割る。
         /// 形状は Layout と同じローカル空間で表す。温度は 0 未満にならない。
         /// 温度が融点に近づくと表面近くの距離も引き上げる為、融解の境目は格子の段差にならずに進む。
         /// </summary>
@@ -152,9 +153,11 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="amount">形状の中心側で加える温度。負なら冷やす</param>
         /// <param name="falloff">形状の境界から内側へ、加える温度を 0 から amount まで強めていく幅。0 なら内側全体に amount を加える</param>
         /// <param name="meltedSamples">内側から外側になったサンプルの添字の出力先。呼ぶ前の中身は消す</param>
+        /// <param name="inverseMeltingPoints">素材の番号ごとの融点の逆数。HasMaterials でなければ使わない</param>
+        /// <param name="uniformInverseMeltingPoint">素材を持たないときの融点の逆数</param>
         /// <returns>距離を書き換えたサンプルを含む範囲。距離が変わらなければ HasChange が false</returns>
         public VoxelEditResult ApplyHeat<TShape>(in TShape shape, float amount, float falloff,
-            NativeList<int> meltedSamples)
+            NativeList<int> meltedSamples, NativeArray<float> inverseMeltingPoints, float uniformInverseMeltingPoint)
             where TShape : struct, IVoxelShape
         {
             meltedSamples.Clear();
@@ -169,6 +172,12 @@ namespace Kizami.EngineAdapter.Voxel
             var rangeTotal = rangeSize.x * rangeSize.y * rangeSize.z;
             if (meltedSamples.Capacity < rangeTotal) meltedSamples.Capacity = rangeTotal;
 
+            var useMaterials = HasMaterials && inverseMeltingPoints.IsCreated;
+
+            // ジョブの入力には作った配列を渡す必要がある為、使わないときは 1 要素の配列を渡す
+            var emptyInverses = useMaterials ? default : new NativeArray<float>(1, Allocator.TempJob);
+            var emptyIds = useMaterials ? default : new NativeArray<byte>(1, Allocator.TempJob);
+
             var changed = new NativeArray<int>(1, Allocator.TempJob);
             new VoxelHeatJob<TShape>
             {
@@ -182,8 +191,15 @@ namespace Kizami.EngineAdapter.Voxel
                 RangeSize = rangeSize,
                 TruncationDistance = TruncationDistance,
                 MeltedSamples = meltedSamples.AsParallelWriter(),
-                Changed = changed
+                Changed = changed,
+                UseMaterials = useMaterials,
+                UniformInverseMeltingPoint = uniformInverseMeltingPoint,
+                InverseMeltingPoints = useMaterials ? inverseMeltingPoints : emptyInverses,
+                MaterialIds = useMaterials ? _materialIds : emptyIds
             }.Schedule(rangeTotal, 256).Complete();
+
+            if (emptyInverses.IsCreated) emptyInverses.Dispose();
+            if (emptyIds.IsCreated) emptyIds.Dispose();
 
             var hasChange = changed[0] != 0;
             changed.Dispose();

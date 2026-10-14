@@ -7,7 +7,8 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// サンプル範囲内の、形状の内側にあるサンプルを加熱し、融解させる。
-    /// 距離は max(距離, (温度 - 1) × 切り詰め距離) へ引き上げる。温度が融点（1）以上なら外側になる。
+    /// 温度はサンプルの素材の融点を 1 とした値で持ち、加える温度を融点で割る。融点の高い素材ほど温まりにくい。
+    /// 距離は max(距離, (温度 - 1) × 切り詰め距離) へ引き上げる。温度が 1 以上なら外側になる。
     /// 温度が 0 のときの引き上げ先は -切り詰め距離 で、切り詰め済みの距離はそれ以上小さくならない為、距離は変わらない。
     /// 具象の形状ごとに [assembly: RegisterGenericJobType(typeof(VoxelHeatJob&lt;形状&gt;))] で登録すること。
     /// 登録が無いと Burst でコンパイルされない。
@@ -27,6 +28,15 @@ namespace Kizami.EngineAdapter.Voxel
         public int3 RangeMin;
         public int3 RangeSize;
         public float TruncationDistance;
+        public bool UseMaterials;
+
+        /// <summary> UseMaterials でないときの、融点の逆数 </summary>
+        public float UniformInverseMeltingPoint;
+
+        /// <summary> UseMaterials のときの、素材の番号ごとの融点の逆数 </summary>
+        [ReadOnly] public NativeArray<float> InverseMeltingPoints;
+
+        [ReadOnly] public NativeArray<byte> MaterialIds;
 
         /// <summary> 内側から外側になったサンプルの添字の出力先。容量は範囲のサンプル数以上にしておくこと </summary>
         public NativeList<int>.ParallelWriter MeltedSamples;
@@ -50,7 +60,10 @@ namespace Kizami.EngineAdapter.Voxel
 
             var sampleIndex = Layout.ToSampleIndex(sample);
             var weight = Falloff > 0f ? math.saturate(-shapeDistance / Falloff) : 1f;
-            var temperature = math.max(Temperatures[sampleIndex] + Amount * weight, 0f);
+            var inverseMeltingPoint = UseMaterials
+                ? InverseMeltingPoints[MaterialIds[sampleIndex]]
+                : UniformInverseMeltingPoint;
+            var temperature = math.max(Temperatures[sampleIndex] + Amount * weight * inverseMeltingPoint, 0f);
             Temperatures[sampleIndex] = temperature;
 
             var current = Samples[sampleIndex];
