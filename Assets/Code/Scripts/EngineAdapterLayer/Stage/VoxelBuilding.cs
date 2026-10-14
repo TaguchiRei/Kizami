@@ -32,7 +32,7 @@ namespace Kizami.EngineAdapter
         private readonly List<VoxelModelLoader> _floors = new();
         private readonly List<Material> _floorMaterials = new();
         private readonly List<IDisposable> _subscriptions = new();
-        private readonly List<FallingGroup> _fallingGroups = new();
+        private readonly List<Rigidbody> _fallingBodies = new();
         private readonly List<Rigidbody> _restingBodies = new();
         private readonly ActionChannel<Rigidbody> _collapsed = new();
 
@@ -312,7 +312,7 @@ namespace Kizami.EngineAdapter
             _standingFloorCount = firstFloor;
 
             var body = AddGroupBody(groupObject);
-            StartFalling(body);
+            _fallingBodies.Add(body);
             _collapsed.Invoke(body);
         }
 
@@ -342,7 +342,7 @@ namespace Kizami.EngineAdapter
             var body = AddGroupBody(groupObject);
             body.linearVelocity = source.GetPointVelocity(body.worldCenterOfMass);
             body.angularVelocity = source.angularVelocity;
-            StartFalling(body);
+            _fallingBodies.Add(body);
             _collapsed.Invoke(body);
         }
 
@@ -394,25 +394,11 @@ namespace Kizami.EngineAdapter
 
                 body.isKinematic = false;
                 body.WakeUp();
-                StartFalling(body);
+                _fallingBodies.Add(body);
             }
 
             _restingBodies.Clear();
             UpdateConnections(floorIndex);
-        }
-
-        /// <summary>
-        /// 倒れた階のまとまりを、落ちている物として見張り始める。
-        /// </summary>
-        private void StartFalling(Rigidbody body)
-        {
-            _fallingGroups.Add(new FallingGroup
-            {
-                Body = body,
-                LocalCenterOfMass = body.centerOfMass,
-                StartCenterOfMass = body.worldCenterOfMass,
-                StartRotation = body.rotation
-            });
         }
 
         /// <summary>
@@ -426,7 +412,6 @@ namespace Kizami.EngineAdapter
             if (!IsConnectionReady) return;
 
             var halfVoxel = _quality.VoxelSize * 0.5f;
-            var floor = _floors[floorIndex].transform;
             for (var i = 1; i < pieces.Length; i++)
             {
                 var piece = pieces[i];
@@ -449,9 +434,6 @@ namespace Kizami.EngineAdapter
                 }
 
                 piece.transform.SetParent(target, true);
-
-                // TODO: 倒壊で敵を巻き込む条件を決めたら消す
-                UsefulLogger.Log($"{floor.name} から切り離された塊を {target.name} にくっつけました（上の面 {upperArea:F0}・下の面 {lowerArea:F0}）。", this);
             }
         }
 
@@ -709,32 +691,19 @@ namespace Kizami.EngineAdapter
         {
             if (IsConnectionReady) SwapNearFloors();
 
-            for (var i = _fallingGroups.Count - 1; i >= 0; i--)
+            for (var i = _fallingBodies.Count - 1; i >= 0; i--)
             {
-                var group = _fallingGroups[i];
-                var body = group.Body;
-                if (body != null && !body.IsSleeping())
-                {
-                    group.MaxFallSpeed = math.max(group.MaxFallSpeed, -body.linearVelocity.y);
-                    _fallingGroups[i] = group;
-                    continue;
-                }
+                var body = _fallingBodies[i];
+                if (body != null && !body.IsSleeping()) continue;
 
                 if (body != null)
                 {
                     // 敵の格子は眠ったことで止まったと気づく為、Rigidbody は消さずにキネマティックにする
                     body.isKinematic = true;
                     _restingBodies.Add(body);
-
-                    // TODO: 倒壊で敵を巻き込む条件を決めたら消す
-                    var drop = group.StartCenterOfMass.y - body.transform.TransformPoint(group.LocalCenterOfMass).y;
-                    var tilt = Quaternion.Angle(group.StartRotation, body.rotation);
-                    UsefulLogger.Log(
-                        $"{body.name} が止まりました（重心の落ちた距離 {drop:F2}m、傾き {tilt:F1}°、下向きの最大速度 {group.MaxFallSpeed:F2}m/s）。",
-                        this);
                 }
 
-                _fallingGroups.RemoveAt(i);
+                _fallingBodies.RemoveAt(i);
             }
         }
 
@@ -753,18 +722,6 @@ namespace Kizami.EngineAdapter
             }
 
             _floorMaterials.Clear();
-        }
-
-        /// <summary>
-        /// 倒れて落ちている階のまとまり。止まったときに落ち方をログに出す為、落ち始めの重心と向き、下向きの最大速度を持つ。
-        /// </summary>
-        private struct FallingGroup
-        {
-            public Rigidbody Body;
-            public Vector3 LocalCenterOfMass;
-            public Vector3 StartCenterOfMass;
-            public Quaternion StartRotation;
-            public float MaxFallSpeed;
         }
     }
 }

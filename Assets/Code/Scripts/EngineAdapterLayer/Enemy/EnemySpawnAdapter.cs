@@ -494,15 +494,7 @@ namespace Kizami.EngineAdapter
                 {
                     MoveAgents();
                     ReturnStrandedAgents();
-                    var crushedCount = _collapseDetector.Detect(_agents);
-                    CrushDefeatCount += crushedCount;
-
-                    // TODO: 倒壊で敵を巻き込む条件を決めたら消す
-                    if (crushedCount > 0)
-                    {
-                        UsefulLogger.Log($"落ちてくる塊で敵を {crushedCount} 体潰しました（累計 {CrushDefeatCount} 体）。", this);
-                    }
-
+                    CrushDefeatCount += _collapseDetector.Detect(_agents);
                     CountCollapseDefeats();
                 }
 
