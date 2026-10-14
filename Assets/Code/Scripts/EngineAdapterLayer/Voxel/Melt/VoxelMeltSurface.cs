@@ -207,6 +207,9 @@ namespace Kizami.EngineAdapter.Voxel
 
             var buffers = new ChunkBuffers[count];
             var handles = new NativeArray<JobHandle>(count, Allocator.Temp);
+
+            // 液面は素材で分けないが、ジョブの入力には作った配列を渡す必要がある
+            var emptyMaterialIds = new NativeArray<byte>(1, Allocator.TempJob);
             var reach = SplatReach;
             var emptyDistance = _voxelSize * VoxelVolume.TRUNCATION_VOXELS;
 
@@ -236,12 +239,16 @@ namespace Kizami.EngineAdapter.Voxel
                     CellMax = new int3(PADDING_CELLS + CHUNK_CELLS),
                     Vertices = buffers[i].Vertices,
                     Normals = buffers[i].Normals,
-                    Indices = buffers[i].Indices
+                    Indices = buffers[i].Indices,
+                    MaterialCount = 1,
+                    SubMeshIndexCounts = buffers[i].SubMeshIndexCounts,
+                    MaterialIds = emptyMaterialIds
                 }.Schedule(splatHandle);
             }
 
             JobHandle.CombineDependencies(handles).Complete();
             handles.Dispose();
+            emptyMaterialIds.Dispose();
 
             for (var i = 0; i < count; i++)
             {
@@ -303,12 +310,16 @@ namespace Kizami.EngineAdapter.Voxel
             public readonly NativeList<float3> Normals;
             public readonly NativeList<int> Indices;
 
+            /// <summary> SurfaceNetsJob の素材ごとのインデックスの数の出力先。液面は素材が 1 つ </summary>
+            public readonly NativeArray<int> SubMeshIndexCounts;
+
             public ChunkBuffers(int sampleTotal)
             {
                 Field = new NativeArray<float>(sampleTotal, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
                 Vertices = new NativeList<float3>(256, Allocator.TempJob);
                 Normals = new NativeList<float3>(256, Allocator.TempJob);
                 Indices = new NativeList<int>(1024, Allocator.TempJob);
+                SubMeshIndexCounts = new NativeArray<int>(1, Allocator.TempJob);
             }
 
             public void Dispose()
@@ -317,6 +328,7 @@ namespace Kizami.EngineAdapter.Voxel
                 Vertices.Dispose();
                 Normals.Dispose();
                 Indices.Dispose();
+                SubMeshIndexCounts.Dispose();
             }
         }
 

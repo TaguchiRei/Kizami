@@ -19,6 +19,9 @@ namespace Kizami.EngineAdapter.Voxel
 
     /// <summary>
     /// サンプル範囲内の各サンプルへ、形状の距離を CSG 合成する。
+    /// 形状の距離にはずらし量を足す。UseMaterials ならサンプルの素材ごとの値、そうでなければ UniformOffset を足す。
+    /// 強さと減衰率で削る攻撃では、ずらし量を「融点 ÷ 減衰率」にして、素材ごとに削れる半径を変える。
+    /// MarkRoundness なら、距離が RoundnessChangeThreshold より変わったサンプルの丸みを最大にする。
     /// 具象の形状ごとに [assembly: RegisterGenericJobType(typeof(VoxelCsgJob&lt;形状&gt;))] で登録すること。
     /// 登録が無いと Burst でコンパイルされない。
     /// </summary>
@@ -31,8 +34,25 @@ namespace Kizami.EngineAdapter.Voxel
         public int3 RangeMin;
         public int3 RangeSize;
         public float TruncationDistance;
+        public bool UseMaterials;
+
+        /// <summary> UseMaterials でないときに、形状の距離に足す値 </summary>
+        public float UniformOffset;
+
+        public bool MarkRoundness;
+
+        /// <summary> 丸みの印を付ける距離の変化（ローカル空間の長さ） </summary>
+        public float RoundnessChangeThreshold;
 
         [NativeDisableParallelForRestriction] public NativeArray<float> Samples;
+
+        /// <summary> UseMaterials のときに、素材の番号ごとに形状の距離に足す値 </summary>
+        [ReadOnly] public NativeArray<float> MaterialOffsets;
+
+        [ReadOnly] public NativeArray<byte> MaterialIds;
+
+        /// <summary> MarkRoundness のときに印を書く、サンプルごとの丸み </summary>
+        [NativeDisableParallelForRestriction] public NativeArray<byte> Roundness;
 
         public void Execute(int index)
         {
@@ -43,14 +63,21 @@ namespace Kizami.EngineAdapter.Voxel
             var sample = RangeMin + offset;
             var sampleIndex = Layout.ToSampleIndex(sample);
 
-            var shapeDistance = Shape.Distance(Layout.ToLocalPosition(sample));
+            var shapeDistance = Shape.Distance(Layout.ToLocalPosition(sample))
+                + (UseMaterials ? MaterialOffsets[MaterialIds[sampleIndex]] : UniformOffset);
             var current = Samples[sampleIndex];
             var result = Operation == VoxelCsgOperation.Union
                 ? math.min(current, shapeDistance)
                 : math.max(current, -shapeDistance);
             result = math.clamp(result, -TruncationDistance, TruncationDistance);
 
-            Samples[sampleIndex] = Layout.EnforceBoundary(sample, result);
+            result = Layout.EnforceBoundary(sample, result);
+            Samples[sampleIndex] = result;
+
+            if (MarkRoundness && math.abs(result - current) > RoundnessChangeThreshold)
+            {
+                Roundness[sampleIndex] = byte.MaxValue;
+            }
         }
     }
 }

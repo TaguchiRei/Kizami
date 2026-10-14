@@ -4,15 +4,29 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// 加熱・融解・蒸発・冷却と、融解した粒の動きに関わる設定。
-    /// 温度は、常温を 0、融点を 1 とした値。
+    /// 融点は、普通の強度の素材を 1 とした値で、強度も表す。強さと減衰率で削る攻撃は、届く強さが融点以上の所を壊す。
+    /// 温度は、常温を 0、その点の素材の融点を 1 とした値で持つ。加えた温度は融点で割って足すので、融点の高い素材ほど温まりにくい。
+    /// 蒸発点・凝固点も、融点を 1 とした値で比べる。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     [CreateAssetMenu(menuName = "Kizami/Voxel/Thermal Settings", fileName = "VoxelThermalSettings")]
     public sealed class VoxelThermalSettings : ScriptableObject
     {
+        /// <summary> 普通の強度の素材の融点。素材を持たない物や、設定の無い物もこの値で扱う </summary>
+        public const float NORMAL_MELTING_POINT = 1f;
+
+        [Header("強度")]
+        [SerializeField, Min(0f)]
+        [Tooltip("柔い素材の融点")]
+        private float _softMeltingPoint = 0.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("硬い素材の融点")]
+        private float _hardMeltingPoint = 2f;
+
         [Header("温度")]
         [SerializeField, Min(1f)]
-        [Tooltip("この温度以上で蒸発する。固体がこの温度以上で融解したときは、粒にならずに直接蒸発する")]
+        [Tooltip("融点を 1 とした温度がこの値以上で蒸発する。固体がこの温度以上で融解したときは、粒にならずに直接蒸発する")]
         private float _evaporationTemperature = 2f;
 
         [SerializeField, Range(0f, 1f)]
@@ -68,5 +82,18 @@ namespace Kizami.EngineAdapter.Voxel
         public float ColdTangentDamping => _coldTangentDamping;
         public float SpreadSpeed => _spreadSpeed;
         public float SpreadRestFill => _spreadRestFill;
+
+        /// <summary>
+        /// 強度の段階の融点。
+        /// </summary>
+        public float GetMeltingPoint(VoxelStrength strength)
+        {
+            return strength switch
+            {
+                VoxelStrength.Soft => _softMeltingPoint,
+                VoxelStrength.Hard => _hardMeltingPoint,
+                _ => NORMAL_MELTING_POINT
+            };
+        }
     }
 }

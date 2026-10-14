@@ -22,6 +22,9 @@ namespace Kizami.EngineAdapter.Voxel
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelPiece : MonoBehaviour
     {
+        /// <summary> 加熱で融点の逆数を取るときの、融点の下限 </summary>
+        private const float MIN_MELTING_POINT = 0.01f;
+
         private const MeshColliderCookingOptions COLLIDER_COOKING_OPTIONS =
             MeshColliderCookingOptions.CookForFasterSimulation |
             MeshColliderCookingOptions.EnableMeshCleaning |
@@ -77,18 +80,26 @@ namespace Kizami.EngineAdapter.Voxel
         private Mesh _hullMesh;
         private bool _needsMeasure;
         private bool _needsSplitCheck;
+        private Material[] _materials = Array.Empty<Material>();
+        private VoxelStrength[] _strengths = Array.Empty<VoxelStrength>();
         private bool _hasInitialSampleCount;
         private bool _meltedSinceMeasure;
         private bool _hasWarnedThermalSettings;
 
         public VoxelQualitySettings Quality => _quality;
         public Material Material => _material;
+
+        /// <summary> 素材の番号ごとのマテリアル。ボリュームが素材を持つとき、Material の代わりに使う </summary>
+        public IReadOnlyList<Material> Materials => _materials;
         public VoxelColliderMode ColliderMode => _colliderMode;
         public bool IsSplittable => _splittable;
         public VoxelMeltSystem MeltSystem => _meltSystem;
 
         /// <summary> 粒との当たり判定などで SDF を直接読む為のボリューム。まだ作られていなければ null </summary>
         internal VoxelVolume VolumeData => _volume;
+
+        /// <summary> 素材の番号ごとの強度 </summary>
+        internal IReadOnlyList<VoxelStrength> Strengths => _strengths;
 
         /// <summary> ボクセル 1 つの一辺の長さ（ワールド空間, m）。ボリュームが無ければ 0 </summary>
         public float VoxelSize => _volume != null ? _volume.Layout.VoxelSize * transform.lossyScale.x : 0f;
@@ -157,8 +168,43 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 全チャンクの三角形数の合計 </summary>
         public int TriangleCount { get; private set; }
 
+        /// <summary> 箱の当たり判定の、全チャンクの有効な BoxCollider の数 </summary>
+        public int BoxColliderCount { get; private set; }
+
         /// <summary> 直近の再メッシュ化とコライダー更新にかかった時間 </summary>
         public double LastRemeshMilliseconds { get; private set; }
+
+        /// <summary> 直近の CSG 合成にかかった時間 </summary>
+        public double LastEditMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測（分離の判定と切り離し）にかかった時間 </summary>
+        public double LastMeasureMilliseconds { get; private set; }
+
+        /// <summary> 直近の平面での切り分けにかかった時間。再メッシュ化は含まない </summary>
+        public double LastSliceMilliseconds { get; private set; }
+
+        /// <summary> ボリュームの格子点の総数。ボリュームが無ければ 0 </summary>
+        public int GridSampleTotal => _volume != null ? _volume.Layout.SampleTotal : 0;
+
+        /// <summary> 表面を持つチャンクの数 </summary>
+        public int SurfaceChunkCount
+        {
+            get
+            {
+                if (_chunks == null) return 0;
+
+                var count = 0;
+                foreach (var slot in _chunks)
+                {
+                    if (slot != null && slot.TriangleCount > 0) count++;
+                }
+
+                return count;
+            }
+        }
+
+        /// <summary> ボリュームが素材を持ち、素材ごとのマテリアルが設定されているか </summary>
+        private bool UsesMaterials => _volume != null && _volume.HasMaterials && _materials.Length > 0;
 
         private float VoxelCubicVolume
         {
@@ -206,6 +252,21 @@ namespace Kizami.EngineAdapter.Voxel
         public void SetMaterial(Material material)
         {
             _material = material;
+        }
+
+        /// <summary>
+        /// 素材の番号ごとのマテリアルと強度を差し替える。ボリュームが素材を持つときに使い、チャンクは素材ごとのサブメッシュで塗り分ける。
+        /// マテリアルは、これ以降に生成するチャンクから反映される。
+        /// </summary>
+        public void SetMaterials(IReadOnlyList<VoxelMaterialEntry> materials)
+        {
+            _materials = new Material[materials.Count];
+            _strengths = new VoxelStrength[materials.Count];
+            for (var i = 0; i < _materials.Length; i++)
+            {
+                _materials[i] = materials[i].Material;
+                _strengths[i] = materials[i].Strength;
+            }
         }
 
         /// <summary>
@@ -286,14 +347,10 @@ namespace Kizami.EngineAdapter.Voxel
                 return;
             }
 
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var result = _volume.ApplyEdit(localShape, operation);
-            if (!result.HasChange) return;
-
-            MarkSamplesDirty(result.SampleMin, result.SampleMax);
-            _needsMeasure = true;
-            if (operation == VoxelCsgOperation.Subtract) _needsSplitCheck = true;
-
-            QueueShapeChange(operation, VoxelShapeChangeCause.Edit, result);
+            LastEditMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
+            ApplyEditResult(result, operation);
         }
 
         /// <summary>
@@ -308,6 +365,58 @@ namespace Kizami.EngineAdapter.Voxel
         {
             var localShape = space == Space.World ? shape.Transformed(transform.worldToLocalMatrix) : shape;
             ApplyEdit(localShape, operation);
+        }
+
+        /// <summary>
+        /// 強さと減衰率で削る攻撃を当てる。中心から距離 d の点に届く強さは「強さ − 減衰率 × d」で、その点の素材の融点以上なら壊れる。
+        /// 形状は、融点 0 の素材まで届く範囲（半径が 強さ ÷ 減衰率 の球やカプセル）を space で表す。
+        /// 素材を持たない物や、VoxelThermalSettings が無い物は、普通の強度として扱う。
+        /// </summary>
+        /// <param name="reach">space で表した、融点 0 の素材まで届く範囲</param>
+        /// <param name="falloff">1m（space の長さ）あたりに減る強さ</param>
+        /// <param name="space">reach と falloff を表している空間</param>
+        /// <remarks>モデルに属していれば、当てた攻撃を VoxelStrikeRecord にしてモデルへ通知する。</remarks>
+        public void ApplyStrike<TShape>(in TShape reach, float falloff, Space space)
+            where TShape : struct, ITransformableVoxelShape<TShape>
+        {
+            if (_volume == null)
+            {
+                UsefulLogger.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
+                return;
+            }
+
+            if (falloff <= 0f)
+            {
+                UsefulLogger.LogError($"減衰率 {falloff} は正の値にしてください。", this);
+                return;
+            }
+
+            var localReach = space == Space.World ? reach.Transformed(transform.worldToLocalMatrix) : reach;
+            var lengthScale = space == Space.World ? WorldToLocalLength(1f) : 1f;
+            var settings = HasThermalSettings() ? _meltSystem.Settings : null;
+
+            var materialOffsets = new NativeArray<float>(math.max(_strengths.Length, 1), Allocator.TempJob);
+            for (var i = 0; i < _strengths.Length; i++)
+            {
+                var meltingPoint = settings != null
+                    ? settings.GetMeltingPoint(_strengths[i])
+                    : VoxelThermalSettings.NORMAL_MELTING_POINT;
+                materialOffsets[i] = meltingPoint / falloff * lengthScale;
+            }
+
+            var uniformOffset = VoxelThermalSettings.NORMAL_MELTING_POINT / falloff * lengthScale;
+
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var result = _volume.ApplyStrike(localReach, UsesMaterials ? materialOffsets : default, uniformOffset);
+            LastEditMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
+            materialOffsets.Dispose();
+
+            ApplyEditResult(result, VoxelCsgOperation.Subtract);
+
+            if (Model != null && VoxelStrikeRecord.TryCreate(localReach, falloff / lengthScale, out var record))
+            {
+                Model.NotifyStruck(this, record);
+            }
         }
 
         /// <summary>
@@ -333,6 +442,7 @@ namespace Kizami.EngineAdapter.Voxel
             var localNormal = math.normalizesafe((float3)transform.InverseTransformDirection(worldNormal));
             if (math.all(localNormal == 0f)) return Array.Empty<VoxelPiece>();
 
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             float3 localPoint = transform.InverseTransformPoint(worldPoint);
             var bounds = _volume.LocalBounds;
 
@@ -368,6 +478,7 @@ namespace Kizami.EngineAdapter.Voxel
                 QueueShapeChange(VoxelCsgOperation.Subtract, VoxelShapeChangeCause.Slice, keepResult);
             }
 
+            LastSliceMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
             FlushRemesh();
             _pendingSlicePieces.AddRange(pieces);
             return pieces;
@@ -375,8 +486,9 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// ローカル空間で表した形状の内側を加熱する。
-        /// 温度が融点（1）以上になった部分は固体から取り除き、同じ体積を融解した粒として VoxelMeltSystem へ渡す。
-        /// 取り除いた時点の温度が蒸発点以上なら、粒にせず蒸発させる。
+        /// 温度は点ごとの素材の融点を 1 とした値で持ち、加える温度を融点で割る。融点の高い素材ほど温まりにくい。
+        /// 温度が 1 以上になった部分は固体から取り除き、同じ体積を融解した粒として VoxelMeltSystem へ渡す。
+        /// 取り除いた時点の温度が蒸発点（融点に対する倍率）以上なら、粒にせず蒸発させる。
         /// 融解で分かれた塊は削ったときと同じく切り離し、切り離すには小さすぎる塊は粒にする。
         /// VoxelMeltSystem か、その VoxelThermalSettings が未設定なら何もしない。
         /// </summary>
@@ -403,10 +515,18 @@ namespace Kizami.EngineAdapter.Voxel
                 return;
             }
 
+            var settings = _meltSystem.Settings;
+            var inverseMeltingPoints = new NativeArray<float>(math.max(_strengths.Length, 1), Allocator.TempJob);
+            for (var i = 0; i < _strengths.Length; i++)
+            {
+                inverseMeltingPoints[i] = 1f / math.max(settings.GetMeltingPoint(_strengths[i]), MIN_MELTING_POINT);
+            }
+
             var meltedSamples = new NativeList<int>(Allocator.TempJob);
             try
             {
-                var result = _volume.ApplyHeat(localShape, amount, falloff, meltedSamples);
+                var result = _volume.ApplyHeat(localShape, amount, falloff, meltedSamples,
+                    UsesMaterials ? inverseMeltingPoints : default, 1f / VoxelThermalSettings.NORMAL_MELTING_POINT);
                 if (meltedSamples.Length > 0)
                 {
                     EmitMelted(meltedSamples.AsArray());
@@ -423,6 +543,7 @@ namespace Kizami.EngineAdapter.Voxel
             finally
             {
                 meltedSamples.Dispose();
+                inverseMeltingPoints.Dispose();
             }
         }
 
@@ -596,7 +717,9 @@ namespace Kizami.EngineAdapter.Voxel
             VoxelPiece[] splitPieces = null;
             if (_needsMeasure)
             {
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                 splitPieces = Measure(_needsSplitCheck && _splittable);
+                LastMeasureMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
                 _needsMeasure = false;
                 _needsSplitCheck = false;
                 _meltedSinceMeasure = false;
@@ -610,6 +733,13 @@ namespace Kizami.EngineAdapter.Voxel
             {
                 _split.Invoke(splitPieces);
                 if (Model != null) Model.NotifySplit(splitPieces);
+            }
+
+            // 切り離された塊が削られて中身を失ったら消す。モデルの元のパーツは、空になってもモデルの一部として残す
+            if (Generation > 0 && SampleCount == 0)
+            {
+                Destroy(gameObject);
+                return;
             }
 
             if (_volume != null && _dirtyQueue.Count > 0)
@@ -782,6 +912,8 @@ namespace Kizami.EngineAdapter.Voxel
             var piece = pieceObject.AddComponent<VoxelPiece>();
             piece._quality = _quality;
             piece._material = _material;
+            piece._materials = _materials;
+            piece._strengths = _strengths;
             piece._colliderMode = VoxelColliderMode.ConvexHull;
             piece._splittable = _splittable;
             piece._minPieceSamples = _minPieceSamples;
@@ -822,6 +954,20 @@ namespace Kizami.EngineAdapter.Voxel
 
             InitialSampleCount = sampleCount;
             _hasInitialSampleCount = true;
+        }
+
+        /// <summary>
+        /// CSG 合成で書き換わりうる範囲を再メッシュ化の対象にし、体積の計測と形状変化の通知を待ちに入れる。
+        /// </summary>
+        private void ApplyEditResult(VoxelEditResult result, VoxelCsgOperation operation)
+        {
+            if (!result.HasChange) return;
+
+            MarkSamplesDirty(result.SampleMin, result.SampleMax);
+            _needsMeasure = true;
+            if (operation == VoxelCsgOperation.Subtract) _needsSplitCheck = true;
+
+            QueueShapeChange(operation, VoxelShapeChangeCause.Edit, result);
         }
 
         private bool HasThermalSettings()
@@ -899,11 +1045,17 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 既存のボリュームとチャンクを破棄し、新しいボリュームに差し替える。体積と編集の待ちも初期化する。
+        /// 品質設定が角ばった描き方なら、ボリュームに丸みを持たせる。
         /// </summary>
         private void AssignVolume(VoxelVolume volume)
         {
             ReleaseVolume();
             _volume = volume;
+            if (_quality.UseBlockShape)
+            {
+                volume.EnableRoundness(_quality.RoundnessChangeVoxels, _quality.RoundnessFalloffVoxels);
+            }
+
             _chunks = new ChunkSlot[volume.Layout.ChunkTotal];
             _isDirty = new bool[volume.Layout.ChunkTotal];
 
@@ -931,6 +1083,12 @@ namespace Kizami.EngineAdapter.Voxel
         private void MarkSamplesDirty(int3 sampleMin, int3 sampleMax)
         {
             var layout = _volume.Layout;
+
+            // 丸みは書き換えた範囲の外へも広がり、そこを読むチャンクの見た目も変わる
+            var spread = _volume.RoundnessSpreadCells;
+            sampleMin = math.max(sampleMin - spread, 0);
+            sampleMax = math.min(sampleMax + spread, layout.SampleCount - 1);
+
             layout.GetChunksAffectedBySamples(sampleMin, sampleMax, out var chunkMin, out var chunkMax);
 
             for (var z = chunkMin.z; z <= chunkMax.z; z++)
@@ -957,17 +1115,26 @@ namespace Kizami.EngineAdapter.Voxel
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var layout = _volume.Layout;
             var useHull = _colliderMode == VoxelColliderMode.ConvexHull;
+            var useBoxes = _colliderMode == VoxelColliderMode.Boxes;
             var count = math.min(maxCount, _dirtyQueue.Count);
             var chunkIndices = new int[count];
             var buffers = new MeshBuffers[count];
             var handles = new NativeArray<JobHandle>(count, Allocator.Temp);
+            var materialCount = UsesMaterials ? _materials.Length : 1;
+
+            // 素材を持たないボリュームでも、ジョブの入力として作った配列を渡す必要がある
+            var emptyMaterialIds = UsesMaterials ? default : new NativeArray<byte>(1, Allocator.TempJob);
+            var materialIds = UsesMaterials ? _volume.MaterialIds : emptyMaterialIds;
+
+            var useBlockShape = _volume.HasRoundness;
+            var roundnessScales = useBlockShape ? CreateRoundnessScales(materialCount) : default;
 
             for (var i = 0; i < count; i++)
             {
                 var chunkIndex = _dirtyQueue.Dequeue();
                 _isDirty[chunkIndex] = false;
                 chunkIndices[i] = chunkIndex;
-                buffers[i] = new MeshBuffers(Allocator.TempJob);
+                buffers[i] = new MeshBuffers(materialCount, useBlockShape, useBoxes, Allocator.TempJob);
 
                 layout.GetChunkCellRange(layout.ToChunkCoord(chunkIndex), out var cellMin, out var cellMax);
                 var meshingHandle = new SurfaceNetsJob
@@ -978,7 +1145,14 @@ namespace Kizami.EngineAdapter.Voxel
                     CellMax = cellMax,
                     Vertices = buffers[i].Vertices,
                     Normals = buffers[i].Normals,
-                    Indices = buffers[i].Indices
+                    Indices = buffers[i].Indices,
+                    MaterialCount = materialCount,
+                    SubMeshIndexCounts = buffers[i].SubMeshIndexCounts,
+                    MaterialIds = materialIds,
+                    UseBlockShape = useBlockShape,
+                    SmoothOffsets = buffers[i].SmoothOffsets,
+                    Roundness = _volume.Roundness,
+                    RoundnessScales = roundnessScales
                 }.Schedule();
 
                 handles[i] = useHull
@@ -988,10 +1162,27 @@ namespace Kizami.EngineAdapter.Voxel
                         Extremes = buffers[i].Extremes
                     }.Schedule(meshingHandle)
                     : meshingHandle;
+
+                if (useBoxes)
+                {
+                    layout.GetChunkSampleRange(layout.ToChunkCoord(chunkIndex), out var sampleMin, out var sampleMax);
+                    var boxHandle = new VoxelBoxColliderJob
+                    {
+                        Layout = layout,
+                        SampleMin = sampleMin,
+                        SampleMax = sampleMax,
+                        Samples = _volume.Samples,
+                        BoxMins = buffers[i].BoxMins,
+                        BoxMaxs = buffers[i].BoxMaxs
+                    }.Schedule();
+                    handles[i] = JobHandle.CombineDependencies(handles[i], boxHandle);
+                }
             }
 
             JobHandle.CombineDependencies(handles).Complete();
             handles.Dispose();
+            if (emptyMaterialIds.IsCreated) emptyMaterialIds.Dispose();
+            if (roundnessScales.IsCreated) roundnessScales.Dispose();
 
             var colliderTargets = new List<ChunkSlot>(count);
             for (var i = 0; i < count; i++)
@@ -1017,26 +1208,58 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// 素材の番号ごとの丸みの倍率を、素材の強度から作る。素材を持たなければ普通の素材の倍率を 1 つ持つ。
+        /// </summary>
+        private NativeArray<float> CreateRoundnessScales(int materialCount)
+        {
+            var scales = new NativeArray<float>(materialCount, Allocator.TempJob);
+            for (var i = 0; i < materialCount; i++)
+            {
+                var strength = UsesMaterials && i < _strengths.Length ? _strengths[i] : VoxelStrength.Normal;
+                scales[i] = _quality.GetRoundnessScale(strength);
+            }
+
+            return scales;
+        }
+
+        /// <summary>
         /// メッシュ化の結果をチャンクへ反映する。
+        /// </summary>
+        /// 箱の当たり判定では、面が無くても中身の点があれば（中身だけのチャンク）箱を置く。
         /// </summary>
         /// <returns>面を持つチャンク。面が無ければ null</returns>
         private ChunkSlot ApplyMesh(int chunkIndex, MeshBuffers buffers, bool useHull)
         {
             var slot = _chunks[chunkIndex];
             var triangleCount = buffers.Indices.Length / 3;
+            var boxCount = buffers.BoxMins.IsCreated ? buffers.BoxMins.Length : 0;
 
-            if (triangleCount == 0)
+            if (triangleCount == 0 && boxCount == 0)
             {
                 if (slot == null) return null;
 
                 TriangleCount -= slot.TriangleCount;
+                BoxColliderCount -= slot.BoxCount;
                 slot.Clear();
                 return null;
             }
 
             slot ??= _chunks[chunkIndex] = CreateChunkSlot(chunkIndex);
-            TriangleCount += triangleCount - slot.TriangleCount;
 
+            if (buffers.BoxMins.IsCreated)
+            {
+                BoxColliderCount += boxCount - slot.BoxCount;
+                slot.SetBoxes(_volume.Layout, buffers.BoxMins, buffers.BoxMaxs);
+            }
+
+            TriangleCount -= slot.TriangleCount;
+            if (triangleCount == 0)
+            {
+                slot.ClearMesh();
+                return null;
+            }
+
+            TriangleCount += triangleCount;
             slot.SetMesh(buffers, triangleCount);
             slot.ExtremePoints = useHull ? buffers.Extremes.ToArray() : null;
             return slot;
@@ -1133,7 +1356,14 @@ namespace Kizami.EngineAdapter.Voxel
 
             var meshFilter = chunkObject.AddComponent<MeshFilter>();
             var meshRenderer = chunkObject.AddComponent<MeshRenderer>();
-            meshRenderer.sharedMaterial = _material;
+            if (UsesMaterials)
+            {
+                meshRenderer.sharedMaterials = _materials;
+            }
+            else
+            {
+                meshRenderer.sharedMaterial = _material;
+            }
 
             // MeshFilter に空の Mesh が入った状態で追加すると、空の Mesh をベイクしようとする為、先に追加する
             MeshCollider meshCollider = null;
@@ -1171,6 +1401,7 @@ namespace Kizami.EngineAdapter.Voxel
             _isDirty = null;
             _dirtyQueue.Clear();
             TriangleCount = 0;
+            BoxColliderCount = 0;
 
             _volume?.Dispose();
             _volume = null;
@@ -1185,14 +1416,30 @@ namespace Kizami.EngineAdapter.Voxel
             public NativeList<float3> Normals;
             public NativeList<int> Indices;
 
+            /// <summary> 角ばった描き方の、頂点ごとの滑らかな位置までの差と丸み。角ばった描き方でなければ未作成 </summary>
+            public NativeList<float4> SmoothOffsets;
+
+            /// <summary> 箱の当たり判定の、箱の最小のサンプル座標（含む）。箱の当たり判定でなければ未作成 </summary>
+            public NativeList<int3> BoxMins;
+
+            /// <summary> 箱の当たり判定の、箱の最大のサンプル座標（含む）。箱の当たり判定でなければ未作成 </summary>
+            public NativeList<int3> BoxMaxs;
+
+            /// <summary> 素材ごとのインデックスの数。Indices は素材の順に並ぶ </summary>
+            public NativeArray<int> SubMeshIndexCounts;
+
             /// <summary> VoxelHullDirections の方向ごとの、頂点の中で最も外側の点 </summary>
             public NativeArray<float3> Extremes;
 
-            public MeshBuffers(Allocator allocator)
+            public MeshBuffers(int materialCount, bool useBlockShape, bool useBoxes, Allocator allocator)
             {
+                SmoothOffsets = useBlockShape ? new NativeList<float4>(1024, allocator) : default;
+                BoxMins = useBoxes ? new NativeList<int3>(64, allocator) : default;
+                BoxMaxs = useBoxes ? new NativeList<int3>(64, allocator) : default;
                 Vertices = new NativeList<float3>(1024, allocator);
                 Normals = new NativeList<float3>(1024, allocator);
                 Indices = new NativeList<int>(4096, allocator);
+                SubMeshIndexCounts = new NativeArray<int>(materialCount, allocator);
                 Extremes = new NativeArray<float3>(VoxelHullDirections.COUNT, allocator);
             }
 
@@ -1201,6 +1448,10 @@ namespace Kizami.EngineAdapter.Voxel
                 Vertices.Dispose();
                 Normals.Dispose();
                 Indices.Dispose();
+                if (SmoothOffsets.IsCreated) SmoothOffsets.Dispose();
+                if (BoxMins.IsCreated) BoxMins.Dispose();
+                if (BoxMaxs.IsCreated) BoxMaxs.Dispose();
+                SubMeshIndexCounts.Dispose();
                 Extremes.Dispose();
             }
         }
@@ -1215,6 +1466,9 @@ namespace Kizami.EngineAdapter.Voxel
             public readonly MeshRenderer Renderer;
             public readonly MeshCollider Collider;
 
+            /// <summary> 箱の当たり判定の BoxCollider。足りなければ足し、余った分は無効にして使い回す </summary>
+            private readonly List<BoxCollider> _boxes = new();
+
             public ChunkSlot(GameObject gameObject, Mesh mesh, MeshRenderer renderer, MeshCollider collider)
             {
                 GameObject = gameObject;
@@ -1225,6 +1479,9 @@ namespace Kizami.EngineAdapter.Voxel
 
             public int TriangleCount { get; private set; }
 
+            /// <summary> 有効な BoxCollider の数 </summary>
+            public int BoxCount { get; private set; }
+
             /// <summary> 凸包コライダー用の、方向ごとに最も外側の頂点。ConvexHull 以外や面が無いときは null </summary>
             public float3[] ExtremePoints { get; set; }
 
@@ -1233,10 +1490,51 @@ namespace Kizami.EngineAdapter.Voxel
                 Mesh.Clear();
                 Mesh.SetVertices(buffers.Vertices.AsArray());
                 Mesh.SetNormals(buffers.Normals.AsArray());
-                Mesh.SetIndices(buffers.Indices.AsArray(), MeshTopology.Triangles, 0);
+                if (buffers.SmoothOffsets.IsCreated) Mesh.SetUVs(1, buffers.SmoothOffsets.AsArray());
+
+                var subMeshCount = buffers.SubMeshIndexCounts.Length;
+                Mesh.subMeshCount = subMeshCount;
+                var indices = buffers.Indices.AsArray();
+                var start = 0;
+                for (var subMesh = 0; subMesh < subMeshCount; subMesh++)
+                {
+                    var length = buffers.SubMeshIndexCounts[subMesh];
+                    Mesh.SetIndices(indices.GetSubArray(start, length), MeshTopology.Triangles, subMesh);
+                    start += length;
+                }
 
                 Renderer.enabled = true;
                 TriangleCount = triangleCount;
+            }
+
+            /// <summary>
+            /// 箱を BoxCollider に反映する。箱は両端のサンプルの ±半ボクセルを覆う。
+            /// </summary>
+            public void SetBoxes(VoxelGridLayout layout, NativeList<int3> boxMins, NativeList<int3> boxMaxs)
+            {
+                for (var i = 0; i < boxMins.Length; i++)
+                {
+                    if (i == _boxes.Count) _boxes.Add(GameObject.AddComponent<BoxCollider>());
+
+                    var box = _boxes[i];
+                    box.center = layout.Origin + (float3)(boxMins[i] + boxMaxs[i]) * 0.5f * layout.VoxelSize;
+                    box.size = (float3)(boxMaxs[i] - boxMins[i] + 1) * layout.VoxelSize;
+                    box.enabled = true;
+                }
+
+                DisableBoxes(boxMins.Length);
+                BoxCount = boxMins.Length;
+            }
+
+            /// <summary>
+            /// 面が無くなったが中身の点が残るチャンクの、メッシュだけを非表示にする。
+            /// </summary>
+            public void ClearMesh()
+            {
+                Mesh.Clear();
+                Renderer.enabled = false;
+                TriangleCount = 0;
+                ExtremePoints = null;
             }
 
             /// <summary>
@@ -1251,19 +1549,26 @@ namespace Kizami.EngineAdapter.Voxel
             }
 
             /// <summary>
-            /// 面が無くなったチャンクを非表示にし、当たり判定を外す。
+            /// 面も中身の点も無くなったチャンクを非表示にし、当たり判定を外す。
             /// </summary>
             public void Clear()
             {
-                Mesh.Clear();
-                Renderer.enabled = false;
-                TriangleCount = 0;
-                ExtremePoints = null;
+                ClearMesh();
+                DisableBoxes(0);
+                BoxCount = 0;
 
                 if (Collider == null) return;
 
                 Collider.sharedMesh = null;
                 Collider.enabled = false;
+            }
+
+            private void DisableBoxes(int startIndex)
+            {
+                for (var i = startIndex; i < _boxes.Count; i++)
+                {
+                    _boxes[i].enabled = false;
+                }
             }
         }
     }

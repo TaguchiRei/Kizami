@@ -42,7 +42,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// 元の格子のサンプル範囲の値を、新しい格子へそのまま写す。
     /// </summary>
     [BurstCompile]
-    public struct VoxelCopySamplesJob : IJobParallelFor
+    public struct VoxelCopySamplesJob<T> : IJobParallelFor where T : unmanaged
     {
         public VoxelGridLayout SourceLayout;
 
@@ -51,9 +51,9 @@ namespace Kizami.EngineAdapter.Voxel
 
         public VoxelGridLayout Layout;
 
-        [ReadOnly] public NativeArray<float> SourceValues;
+        [ReadOnly] public NativeArray<T> SourceValues;
 
-        [WriteOnly] public NativeArray<float> Values;
+        [WriteOnly] public NativeArray<T> Values;
 
         public void Execute(int index)
         {

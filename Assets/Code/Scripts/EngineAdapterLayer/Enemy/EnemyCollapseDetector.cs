@@ -43,6 +43,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 落ちる塊を調べる対象に加える。Rigidbody は塊自身か、まとめて落とす親に付いた物。
+        /// </summary>
+        public void WatchFalling(VoxelPiece piece, Rigidbody body)
+        {
+            _separatedPieces.Add(new SeparatedPiece { Piece = piece, Body = body });
+        }
+
+        /// <summary>
         /// 下限より速く落ちている、下限より大きい塊に体の中心が入った敵を倒し、崩落で倒されたことを記録する。
         /// </summary>
         /// <returns>この呼び出しで倒した敵の数</returns>
@@ -86,10 +94,7 @@ namespace Kizami.EngineAdapter
         {
             for (var i = 1; i < pieces.Length; i++)
             {
-                if (pieces[i].TryGetComponent<Rigidbody>(out var body))
-                {
-                    _separatedPieces.Add(new SeparatedPiece { Piece = pieces[i], Body = body });
-                }
+                if (pieces[i].TryGetComponent<Rigidbody>(out var body)) WatchFalling(pieces[i], body);
             }
         }
 

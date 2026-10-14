@@ -1,5 +1,6 @@
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 
@@ -11,6 +12,10 @@ namespace Kizami.EngineAdapter.Voxel
     /// 表面をまたぐ格子の辺ごとに、その辺を囲む 4 セルの頂点を四角形で結ぶ。
     /// 法線は各格子点の中心差分の勾配を、頂点位置でトリリニア補間して求める。
     /// 頂点と法線はボクセル空間（ローカル空間）で出力する。
+    /// 素材が 2 つ以上なら、四角形をその辺の内側の端のサンプルの素材で分け、インデックスを素材の順に並べる。
+    /// 頂点は複数の素材の四角形で共有する。
+    /// UseBlockShape なら、頂点をセルの中心（ボクセルを積んだ角ばった形）に置き、法線は滑らかな形のものにする。
+    /// SmoothOffsets の xyz に「滑らかな位置 − 角ばった位置」、w にセルの 8 隅の丸みの平均（0〜1）を書き、シェーダーがこの 2 つで位置を混ぜる。
     /// 読むサンプル範囲は VoxelGridLayout.MESHING_READ_MARGIN と対応している。
     /// </summary>
     [BurstCompile]
@@ -28,7 +33,27 @@ namespace Kizami.EngineAdapter.Voxel
         public NativeList<float3> Normals;
         public NativeList<int> Indices;
 
+        public bool UseBlockShape;
+
+        /// <summary> 頂点ごとの滑らかな位置までの差と丸み。UseBlockShape でなければ書かない </summary>
+        [NativeDisableContainerSafetyRestriction] public NativeList<float4> SmoothOffsets;
+
+        /// <summary> 素材の数。1 なら素材で分けない </summary>
+        public int MaterialCount;
+
+        /// <summary> 素材ごとのインデックスの数の出力先。長さは MaterialCount </summary>
+        public NativeArray<int> SubMeshIndexCounts;
+
         [ReadOnly] public NativeArray<float> Samples;
+
+        /// <summary> サンプルごとの素材の番号。MaterialCount が 1 なら読まない </summary>
+        [ReadOnly] public NativeArray<byte> MaterialIds;
+
+        /// <summary> サンプルごとの丸み（0〜255）。UseBlockShape でなければ読まない </summary>
+        [ReadOnly, NativeDisableContainerSafetyRestriction] public NativeArray<byte> Roundness;
+
+        /// <summary> 素材の番号ごとの丸みの倍率。MaterialCount が 1 なら 0 番目を全点に使う。UseBlockShape でなければ読まない </summary>
+        [ReadOnly, NativeDisableContainerSafetyRestriction] public NativeArray<float> RoundnessScales;
 
         /// <summary>
         /// セルの 12 辺のうち表面をまたぐものについて、表面との交点のセル内座標（0〜1）を平均する。
@@ -101,8 +126,18 @@ namespace Kizami.EngineAdapter.Voxel
 
                 var inCell = AverageCrossing(lower, upper);
                 cellToVertex[slot] = Vertices.Length;
-                Vertices.Add(Layout.Origin + ((float3)cell + inCell) * Layout.VoxelSize);
                 Normals.Add(ComputeNormal(cell, inCell));
+
+                if (UseBlockShape)
+                {
+                    var blockInCell = new float3(0.5f);
+                    Vertices.Add(Layout.Origin + ((float3)cell + blockInCell) * Layout.VoxelSize);
+                    SmoothOffsets.Add(new float4((inCell - blockInCell) * Layout.VoxelSize, AverageRoundness(cell)));
+                }
+                else
+                {
+                    Vertices.Add(Layout.Origin + ((float3)cell + inCell) * Layout.VoxelSize);
+                }
             }
         }
 
@@ -110,7 +145,9 @@ namespace Kizami.EngineAdapter.Voxel
         /// チャンクのセル範囲を基点とする辺のうち、表面をまたぐものごとに四角形を張る。
         /// 表側は距離が増える向き（外側）に向ける。
         /// </summary>
-        private void GenerateQuads(int3 vertexCellMin, int3 vertexCellSize, NativeArray<int> cellToVertex)
+        /// <param name="quadMaterials">四角形ごとの素材の番号の出力先。MaterialCount が 1 なら使わない</param>
+        private void GenerateQuads(int3 vertexCellMin, int3 vertexCellSize, NativeArray<int> cellToVertex,
+            NativeList<byte> quadMaterials)
         {
             for (var z = CellMin.z; z < CellMax.z; z++)
             for (var y = CellMin.y; y < CellMax.y; y++)
@@ -146,6 +183,12 @@ namespace Kizami.EngineAdapter.Voxel
                     {
                         AddQuad(v00, v01, v11, v10);
                     }
+
+                    if (MaterialCount > 1)
+                    {
+                        var insideSample = isInside ? point : point + Unit(axis);
+                        quadMaterials.Add(MaterialIds[Layout.ToSampleIndex(insideSample)]);
+                    }
                 }
             }
         }
@@ -158,6 +201,22 @@ namespace Kizami.EngineAdapter.Voxel
             Indices.Add(a);
             Indices.Add(c);
             Indices.Add(d);
+        }
+
+        /// <summary>
+        /// セルの 8 隅の、素材ごとの倍率を掛けて 0〜1 に収めた丸みを平均する。
+        /// </summary>
+        private float AverageRoundness(int3 cell)
+        {
+            var sum = 0f;
+            for (var i = 0; i < 8; i++)
+            {
+                var index = Layout.ToSampleIndex(cell + (int3)CornerOffset(i));
+                var scale = RoundnessScales[MaterialCount > 1 ? MaterialIds[index] : 0];
+                sum += math.saturate(Roundness[index] / 255f * scale);
+            }
+
+            return sum / 8f;
         }
 
         /// <summary>
@@ -227,9 +286,60 @@ namespace Kizami.EngineAdapter.Voxel
                 Allocator.Temp, NativeArrayOptions.UninitializedMemory);
 
             GenerateVertices(vertexCellMin, vertexCellSize, cellToVertex);
-            GenerateQuads(vertexCellMin, vertexCellSize, cellToVertex);
+
+            var quadMaterials = MaterialCount > 1
+                ? new NativeList<byte>(Indices.Capacity / 6, Allocator.Temp)
+                : default;
+            GenerateQuads(vertexCellMin, vertexCellSize, cellToVertex, quadMaterials);
+
+            if (MaterialCount > 1)
+            {
+                SortQuadsByMaterial(quadMaterials);
+                quadMaterials.Dispose();
+            }
+            else
+            {
+                SubMeshIndexCounts[0] = Indices.Length;
+            }
 
             cellToVertex.Dispose();
+        }
+
+        /// <summary>
+        /// 四角形のインデックスを素材の順に並べ替え、素材ごとのインデックスの数を数える。
+        /// </summary>
+        private void SortQuadsByMaterial(NativeList<byte> quadMaterials)
+        {
+            const int INDICES_PER_QUAD = 6;
+
+            for (var i = 0; i < MaterialCount; i++)
+            {
+                SubMeshIndexCounts[i] = 0;
+            }
+
+            for (var quad = 0; quad < quadMaterials.Length; quad++)
+            {
+                SubMeshIndexCounts[quadMaterials[quad]] += INDICES_PER_QUAD;
+            }
+
+            var starts = new NativeArray<int>(MaterialCount, Allocator.Temp);
+            for (var i = 1; i < MaterialCount; i++)
+            {
+                starts[i] = starts[i - 1] + SubMeshIndexCounts[i - 1];
+            }
+
+            var sorted = new NativeArray<int>(Indices.Length, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            for (var quad = 0; quad < quadMaterials.Length; quad++)
+            {
+                var material = quadMaterials[quad];
+                NativeArray<int>.Copy(Indices.AsArray(), quad * INDICES_PER_QUAD, sorted, starts[material],
+                    INDICES_PER_QUAD);
+                starts[material] += INDICES_PER_QUAD;
+            }
+
+            Indices.AsArray().CopyFrom(sorted);
+            sorted.Dispose();
+            starts.Dispose();
         }
     }
 }

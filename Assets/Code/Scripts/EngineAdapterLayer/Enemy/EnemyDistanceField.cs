@@ -414,6 +414,16 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 落ちる塊を見張り、止まったら（Rigidbody が眠るかキネマティックになったら）その範囲を足場か障害物にする。
+        /// Rigidbody は塊自身か、まとめて落とす親に付いた物。落ち始めた位置は、塊が動いている間は格子に数えない為、ここで調べ直す。
+        /// </summary>
+        public void WatchFalling(VoxelPiece piece, Rigidbody body)
+        {
+            _pendingRegions.Add(new PendingRegion(null, piece.WorldBounds, false));
+            _separatedPieces.Add(new SeparatedPiece { Piece = piece, Body = body, IsResting = false });
+        }
+
+        /// <summary>
         /// 中心から半径の中にある立てる層を、プレイヤーまでの距離の色（近いほど赤、遠いほど青、たどり着けないか追跡範囲の外なら灰）でギズモに描く。
         /// 追跡範囲の外枠も、中心の高さに描く。
         /// </summary>
@@ -659,7 +669,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 切り離された塊が止まったら（Rigidbody が眠ったら）その範囲を足場か障害物にし、また動き出したらその範囲を空ける。
+        /// 切り離された塊が止まったら（Rigidbody が眠るかキネマティックになったら）その範囲を足場か障害物にし、また動き出したらその範囲を空ける。
         /// </summary>
         private void UpdateSeparatedPieces()
         {
@@ -672,7 +682,7 @@ namespace Kizami.EngineAdapter
                     continue;
                 }
 
-                var isResting = separated.Body.IsSleeping();
+                var isResting = !IsMoving(separated.Body);
                 if (isResting == separated.IsResting) continue;
 
                 separated.IsResting = isResting;

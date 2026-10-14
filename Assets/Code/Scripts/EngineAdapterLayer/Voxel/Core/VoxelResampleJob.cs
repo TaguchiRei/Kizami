@@ -62,4 +62,31 @@ namespace Kizami.EngineAdapter.Voxel
             Samples[index] = Layout.EnforceBoundary(sample, distance);
         }
     }
+
+    /// <summary>
+    /// 元の SDF 格子の素材の番号を、ボリュームの各サンプル位置に最も近い元のサンプルから写す。
+    /// 元の格子の範囲外は、範囲の端のサンプルの番号を使う。
+    /// </summary>
+    [BurstCompile]
+    public struct VoxelResampleMaterialJob : IJobParallelFor
+    {
+        public int3 SourceSampleCount;
+        public float3 SourceOrigin;
+        public float SourceVoxelSize;
+
+        public VoxelGridLayout Layout;
+
+        [ReadOnly] public NativeArray<byte> SourceMaterialIds;
+
+        [WriteOnly] public NativeArray<byte> MaterialIds;
+
+        public void Execute(int index)
+        {
+            var sample = Layout.ToSampleCoord(index);
+            var sourceGrid = (Layout.ToLocalPosition(sample) - SourceOrigin) / SourceVoxelSize;
+            var source = math.clamp((int3)math.round(sourceGrid), 0, SourceSampleCount - 1);
+            MaterialIds[index] =
+                SourceMaterialIds[source.x + SourceSampleCount.x * (source.y + SourceSampleCount.y * source.z)];
+        }
+    }
 }

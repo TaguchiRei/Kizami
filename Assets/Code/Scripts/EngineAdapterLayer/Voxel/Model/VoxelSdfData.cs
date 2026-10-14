@@ -21,6 +21,10 @@ namespace Kizami.EngineAdapter.Voxel
         [SerializeField] private float _maxDistance;
         [SerializeField] private short[] _samples;
 
+        [SerializeField]
+        [Tooltip("サンプルごとの、モデルの素材の一覧での番号。空なら素材を持たない")]
+        private byte[] _materialIds;
+
         public string Path => _path;
         public float3 Origin => _origin;
         public int3 SampleCount => new(_sampleCount.x, _sampleCount.y, _sampleCount.z);
@@ -31,11 +35,16 @@ namespace Kizami.EngineAdapter.Voxel
 
         public short[] Samples => _samples;
 
+        /// <summary> サンプルごとの素材の番号。素材を持たなければ空 </summary>
+        public byte[] MaterialIds => _materialIds ?? Array.Empty<byte>();
+
+        public bool HasMaterials => _materialIds != null && _materialIds.Length > 0;
+
         /// <summary> 端のサンプル同士を結ぶ、ローカル空間の範囲 </summary>
         public VoxelBounds LocalBounds => new(Origin, Origin + (float3)(SampleCount - 1) * _voxelSize);
 
         public VoxelSdfData(string path, Vector3 origin, Vector3Int sampleCount, float voxelSize, float maxDistance,
-            short[] samples)
+            short[] samples, byte[] materialIds = null)
         {
             _path = path;
             _origin = origin;
@@ -43,6 +52,7 @@ namespace Kizami.EngineAdapter.Voxel
             _voxelSize = voxelSize;
             _maxDistance = maxDistance;
             _samples = samples;
+            _materialIds = materialIds;
         }
     }
 }
