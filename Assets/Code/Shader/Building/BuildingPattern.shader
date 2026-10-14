@@ -2,19 +2,18 @@ Shader "Kizami/BuildingPattern"
 {
     // 大きな建物の階を、テクスチャと UV を使わずにオブジェクト空間の座標から塗るシェーダー。
     // メッシュのままの階とボクセルの階で同じ模様になり、落ちる建物でも模様が表面を滑らない。
-    // ブロックの寸法は階の格子（_GridOrigin とボクセルの大きさ）にそろえ、削れて浮き出た段差と描いた目地の位置を合わせる。
-    // 階ごとに模様をずらす量は、_PatternOffset（マテリアル）か UV1（メッシュ）から読む。
+    // ボクセルの格子はオブジェクト空間の原点にそろうので、ブロックの寸法をボクセルの大きさの約数にし、削れて浮き出た段差と描いた目地の位置を合わせる。
+    // 建物全体を 1 つの続いた模様にする為、階ごとに _PatternOffset の Y へ「階の番号 × 階の高さ」を書く。
+    // _JointWidth が 0 の素材は、ブロックを描かずにノイズの色むらだけで塗る。
     Properties
     {
         [MainColor] _BaseColor("Block Color", Color) = (0.72, 0.42, 0.32, 1)
         _JointColor("Joint Color", Color) = (0.78, 0.76, 0.72, 1)
-        _GridOrigin("Grid Origin", Vector) = (0, 0, 0, 0)
-        _BlockSize("Block Size (width, height)", Vector) = (0.8, 0.4, 0, 0)
+        _BlockSize("Block Size (width, height)", Vector) = (0.4, 0.2, 0, 0)
         _JointWidth("Joint Width", Float) = 0.05
         _NoiseScale("Noise Scale", Float) = 1.5
         _NoiseStrength("Noise Strength", Range(0, 1)) = 0.25
         _PatternOffset("Pattern Offset", Vector) = (0, 0, 0, 0)
-        [Toggle] _OffsetFromUv1("Offset From UV1", Float) = 0
     }
 
     HLSLINCLUDE
@@ -24,13 +23,11 @@ Shader "Kizami/BuildingPattern"
     CBUFFER_START(UnityPerMaterial)
         half4 _BaseColor;
         half4 _JointColor;
-        float4 _GridOrigin;
         float4 _BlockSize;
         float _JointWidth;
         float _NoiseScale;
         half _NoiseStrength;
         float4 _PatternOffset;
-        float _OffsetFromUv1;
     CBUFFER_END
     ENDHLSL
 
@@ -55,7 +52,6 @@ Shader "Kizami/BuildingPattern"
             {
                 float4 positionOS : POSITION;
                 float3 normalOS   : NORMAL;
-                float3 offset     : TEXCOORD1;
             };
 
             struct Varyings
@@ -96,8 +92,7 @@ Shader "Kizami/BuildingPattern"
                 output.positionHCS = positions.positionCS;
                 output.positionWS = positions.positionWS;
 
-                float3 offset = _OffsetFromUv1 > 0.5 ? input.offset : _PatternOffset.xyz;
-                output.patternPosition = input.positionOS.xyz - _GridOrigin.xyz + offset;
+                output.patternPosition = input.positionOS.xyz + _PatternOffset.xyz;
                 output.normalOS = input.normalOS;
                 output.normalWS = TransformObjectToWorldNormal(input.normalOS);
                 return output;
@@ -122,9 +117,10 @@ Shader "Kizami/BuildingPattern"
                 float2 pixel = fwidth(cell);
                 float2 inner = smoothstep(jointHalf - pixel, jointHalf + pixel, local)
                     * smoothstep(jointHalf - pixel, jointHalf + pixel, 1.0 - local);
-                half block = inner.x * inner.y;
+                half hasBlocks = step(1e-5, _JointWidth);
+                half block = lerp(1.0, inner.x * inner.y, hasBlocks);
 
-                half variation = (Hash(blockId) - 0.5) * 0.3
+                half variation = (Hash(blockId) - 0.5) * 0.3 * hasBlocks
                     + (ValueNoise(p * _NoiseScale) + 0.5 * ValueNoise(p * _NoiseScale * 2.0) - 0.75) * _NoiseStrength;
                 half3 blockColor = _BaseColor.rgb * (1.0 + variation);
                 half3 albedo = lerp(_JointColor.rgb, blockColor, block);
