@@ -2331,9 +2331,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
-  _groundFloor: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
-  _middleFloor: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
-  _roof: {fileID: 11400000, guid: 3f25c186baa780447aa35910cffcfa9a, type: 2}
+  _groundFloor: {fileID: 11400000, guid: 06067b20e9718c94db78f5cb4a111727, type: 2}
+  _middleFloor: {fileID: 11400000, guid: 06067b20e9718c94db78f5cb4a111727, type: 2}
+  _roof: {fileID: 11400000, guid: 8ec3fcfe5e4942d468976c02eb72b730, type: 2}
   _floorCount: 5
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
