@@ -97,7 +97,7 @@
 
 ## 詳細仕様で決めること
 
-2026-10-14 にユーザーと決めた。5・7・8・10 は推奨の案から変えた。値は区間13で調整する。
+2026-10-14 にユーザーと決めた。5・7・8・10・13・14 は最初の推奨の案から変えたもの。値は区間13で調整する。
 
 | # | 項目 | 決めたこと |
 |---|---|---|
@@ -114,12 +114,10 @@
 | 11 | 倒した敵の数 | 核で倒した敵、崩落・圧死で倒した敵を数える。吸収された敵は、プレイヤーが倒していないので数えない |
 | 12 | 出す敵の総数 | 区間4G の出し直しで敵は尽きないので、総数は持たせない（区間14で必要になったら決める） |
 
-### 詳細仕様で決めること（残り）
+| 13 | Brilliant Skill をどこで作るか | 区間11とは別の区間で作る（判定とボクセルの文字の演出）。区間11は倒した数と基礎スコアまでで、追加スコアを受け取る口も Brilliant Skill の区間で足す。仕様は Notion の「Brilliant Skill」 |
+| 14 | 失敗条件の持ち方 | `StageData` に `[SerializeReference]` で失敗条件の一覧を持たせる。区間11で作る条件は `PlayerDeathFailCondition`（HP が 0）だけ。新しく作った `StageData` は、この条件が 1 つ入った状態にする（フィールドの初期値）。判定は `StageFlowService` が条件の型ごとに行う |
 
-| # | 項目 | 案 |
-|---|---|---|
-| 13 | Brilliant Skill をどこで作るか | 判定（何をよい行動とするか）とボクセルの文字の演出は、区間11とは別の区間にする。区間11は、倒した数と基礎スコアまで |
-| 14 | 失敗条件の持ち方 | `StageData` に `[SerializeReference]` で失敗条件の一覧を持たせる（`PlayerDeathFailCondition` など。条件ごとに値を持てる）。判定は `StageFlowService` が条件の型ごとに行う。もう一つの案は、フラグの列挙型（`PlayerDeath` などを並べる）。値を持てないが、作りは小さい |
+Notion の「スコア」「失敗条件」に反映し、「Brilliant Skill」のページを仕様リストに作った（2026-10-14）。
 
 ## 作業計画（2026-10-14）
 
@@ -128,7 +126,7 @@
 | 型 | 層 | 今の区間で使うもの |
 |---|---|---|
 | `StageData` | External | アウトゲームのステージ選択、`GameSceneController`、基礎スコア、失敗条件 |
-| 失敗条件の型 | External | `StageData` の失敗条件の一覧。形は「詳細仕様で決めること（残り）」 |
+| `StageFailCondition` / `PlayerDeathFailCondition` | External | `StageData` の失敗条件の一覧（`[SerializeReference]`）。`StageFlowService` が判定する。基底の型は、`StageData` が一覧を持つために要る |
 | `GameProgressState` / `IGameProgressState` | BlackBoard（AppBoard、常駐） | アウトゲームの表示、インゲームの初期化（ステージと装備） |
 | `GameProgressService` | Application（常駐、DI で渡す） | アウトゲームの選択と装備、`StageFlowService` の初回クリア |
 | `StageBoard` | BlackBoard | `StageFlowState` の置き場。プレイヤーにも敵にも属さない為 |
