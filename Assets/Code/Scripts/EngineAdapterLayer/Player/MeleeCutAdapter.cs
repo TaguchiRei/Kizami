@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Kizami.BlackBoard;
+using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
@@ -12,7 +13,8 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 近接切断の振り（Swing）を受けて、カメラの位置と向き、切断面の角度から刃を配置し、
     /// カメラの前方へ伸びる薄い直方体の範囲にある切れる CuttableObject をまとめて切断する Adapter。
-    /// 攻撃タイプの攻撃として、範囲にある装甲のパネルには 1 回ずつ当てる。パネルは切断しないので、かけらは出ない。
+    /// 範囲にある装甲のパネルには、振りのダメージの種類で 1 回ずつ当てる。パネルは切断しないので、かけらは出ない。
+    /// 破壊タイプを含む振りでは、範囲にあるボクセルのピースを刃の平面で切り分ける（VoxelPiece.Slice）。手付かずの形のメッシュのまま置いたモデルは、ボクセルにしてから切り分ける。
     /// カメラから見て装甲の奥にある対象（ディフェンダーのバリアの中の敵など）は切らない。
     /// </summary>
     public sealed class MeleeCutAdapter : InitializableMonoBehaviour
@@ -23,6 +25,7 @@ namespace Kizami.EngineAdapter
         private readonly Collider[] _hitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly List<CuttableObject> _targets = new();
         private readonly HashSet<ArmorPanel> _armorPanels = new();
+        private readonly HashSet<VoxelPiece> _pieces = new();
 
         [SerializeField]
         [Tooltip("切断に使う刃。プールと同じシーンに置かれたもの")]
@@ -71,6 +74,21 @@ namespace Kizami.EngineAdapter
             return Mathf.Abs(distance) < radius;
         }
 
+        /// <summary>
+        /// 回転した箱を包む、軸平行の箱を返す。
+        /// </summary>
+        private static Bounds GetRotatedBounds(Vector3 center, Vector3 halfExtents, Quaternion rotation)
+        {
+            var axisX = rotation * new Vector3(halfExtents.x, 0f, 0f);
+            var axisY = rotation * new Vector3(0f, halfExtents.y, 0f);
+            var axisZ = rotation * new Vector3(0f, 0f, halfExtents.z);
+            var extents = new Vector3(
+                Mathf.Abs(axisX.x) + Mathf.Abs(axisY.x) + Mathf.Abs(axisZ.x),
+                Mathf.Abs(axisX.y) + Mathf.Abs(axisY.y) + Mathf.Abs(axisZ.y),
+                Mathf.Abs(axisX.z) + Mathf.Abs(axisY.z) + Mathf.Abs(axisZ.z));
+            return new Bounds(center, extents * 2f);
+        }
+
         /// <param name="onCut">切断が終わったときに、切断の結果と切断面を渡す関数。切断面の法線は表のかけらの側を向く</param>
         public void Initialize(Action<MultiCutResult[], Plane> onCut)
         {
@@ -86,10 +104,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 振ったときの角度で刃を配置し、範囲内の切れる対象を切断する。範囲内の装甲のパネルには 1 回ずつ当てる。
+        /// 破壊タイプを含むなら、範囲内のボクセルのピースを刃の平面で切り分ける。
         /// </summary>
         /// <param name="angle">切断面の角度（度）</param>
         /// <param name="rangeScale">範囲の幅と届く距離に掛ける倍率</param>
-        public void Swing(float angle, float rangeScale)
+        /// <param name="damageType">振りが持つダメージの種類</param>
+        public void Swing(float angle, float rangeScale, DamageType damageType)
         {
             if (!Initialized || _blade == null) return;
 
@@ -112,29 +132,39 @@ namespace Kizami.EngineAdapter
             var normal = Quaternion.AngleAxis(angle, forward) * cameraTransform.up;
             var bladeRotation = Quaternion.LookRotation(forward, normal);
 
-            CollectTargets(origin, forward, normal, bladeRotation, rangeScale);
+            var slicesVoxels = (damageType & DamageType.Destroy) != 0;
+            CollectTargets(origin, forward, normal, bladeRotation, rangeScale, slicesVoxels);
 
             foreach (var armorPanel in _armorPanels)
             {
-                armorPanel.ApplyDamage(DamageType.Attack);
+                armorPanel.ApplyDamage(damageType);
             }
 
             _armorPanels.Clear();
+
+            var planeNormal = bladeRotation * Vector3.up;
+            foreach (var piece in _pieces)
+            {
+                piece.Slice(origin, planeNormal);
+            }
+
+            _pieces.Clear();
             if (_targets.Count == 0) return;
 
             _blade.transform.SetPositionAndRotation(origin, bladeRotation);
-            CutAsync(_targets.ToArray(), new Plane(bladeRotation * Vector3.up, origin)).Forget();
+            CutAsync(_targets.ToArray(), new Plane(planeNormal, origin)).Forget();
         }
 
         /// <summary>
         /// 範囲内にあり、今切れる状態で、Renderer のバウンディングボックスが刃の平面をまたぎ、装甲の奥にない CuttableObject を _targets に集める。
-        /// 範囲内の装甲のパネルは _armorPanels に集める。
+        /// 範囲内の装甲のパネルは _armorPanels に集める。collectsPieces なら、範囲内にあり装甲の奥にないボクセルのピースを _pieces に集める。
         /// </summary>
         private void CollectTargets(Vector3 origin, Vector3 forward, Vector3 normal, Quaternion bladeRotation,
-            float rangeScale)
+            float rangeScale, bool collectsPieces)
         {
             _targets.Clear();
             _armorPanels.Clear();
+            _pieces.Clear();
 
             var reach = _reach * rangeScale;
             var center = origin + forward * (reach * 0.5f);
@@ -155,6 +185,11 @@ namespace Kizami.EngineAdapter
                     continue;
                 }
 
+                if (collectsPieces && TryCollectPieces(_hitBuffer[i], origin, center, halfExtents, bladeRotation))
+                {
+                    continue;
+                }
+
                 if (!_hitBuffer[i].TryGetComponent(out CuttableObject cuttable)) continue;
                 if (!cuttable.IsCuttable || _targets.Contains(cuttable)) continue;
                 if (!IsStraddlingPlane(cuttable, origin, normal) || IsBehindArmor(origin, cuttable)) continue;
@@ -164,11 +199,50 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// コライダーがボクセルのピースか、手付かずの形のメッシュのまま置いたモデルのものなら、切り分けるピースを _pieces に集める。
+        /// モデルはボクセルにしてから、範囲の箱を包む軸平行の箱と交わる部分（パーツ）だけを集める。装甲の奥にあるピースは集めない。
+        /// </summary>
+        /// <returns>コライダーがボクセルのものなら true</returns>
+        private bool TryCollectPieces(Collider hit, Vector3 origin, Vector3 center, Vector3 halfExtents,
+            Quaternion bladeRotation)
+        {
+            var piece = hit.GetComponentInParent<VoxelPiece>();
+            if (piece != null)
+            {
+                if (!IsBehindArmor(origin, piece.WorldBounds.center)) _pieces.Add(piece);
+                return true;
+            }
+
+            var loader = hit.GetComponentInParent<VoxelModelLoader>();
+            if (loader == null || !loader.IsStatic) return false;
+
+            loader.Load();
+            var range = GetRotatedBounds(center, halfExtents, bladeRotation);
+            foreach (var part in loader.Parts)
+            {
+                if (part.WorldBounds.Intersects(range) && !IsBehindArmor(origin, part.WorldBounds.center))
+                {
+                    _pieces.Add(part);
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// カメラの位置 origin から対象の Renderer のバウンディングボックスの中心までの間に、装甲の当たり判定があるか。
         /// </summary>
         private bool IsBehindArmor(Vector3 origin, CuttableObject cuttable)
         {
-            var toTarget = cuttable.Renderer.bounds.center - origin;
+            return IsBehindArmor(origin, cuttable.Renderer.bounds.center);
+        }
+
+        /// <summary>
+        /// カメラの位置 origin から target までの間に、装甲の当たり判定があるか。
+        /// </summary>
+        private bool IsBehindArmor(Vector3 origin, Vector3 target)
+        {
+            var toTarget = target - origin;
             return Physics.Raycast(origin, toTarget, toTarget.magnitude, _armorLayers, QueryTriggerInteraction.Ignore);
         }
 
