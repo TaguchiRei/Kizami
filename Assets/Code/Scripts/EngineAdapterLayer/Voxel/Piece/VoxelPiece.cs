@@ -1108,6 +1108,7 @@ namespace Kizami.EngineAdapter.Voxel
                     Layout = layout,
                     CellMin = cellMin,
                     CellMax = cellMax,
+                    Smoothness = _quality.Smoothness,
                     Vertices = buffers[i].Vertices,
                     Normals = buffers[i].Normals,
                     Indices = buffers[i].Indices,

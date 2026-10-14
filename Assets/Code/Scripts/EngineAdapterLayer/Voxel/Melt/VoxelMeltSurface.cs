@@ -237,6 +237,7 @@ namespace Kizami.EngineAdapter.Voxel
                     Layout = layout,
                     CellMin = new int3(PADDING_CELLS),
                     CellMax = new int3(PADDING_CELLS + CHUNK_CELLS),
+                    Smoothness = 1f,
                     Vertices = buffers[i].Vertices,
                     Normals = buffers[i].Normals,
                     Indices = buffers[i].Indices,
