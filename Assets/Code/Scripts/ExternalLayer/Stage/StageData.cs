@@ -1,10 +1,11 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UsefulToolkit.External.Scene;
 
 namespace Kizami.External
 {
     /// <summary>
-    /// ステージ 1 つの定義。アウトゲームの選択肢に出す名前と、インゲームで読み込むシーングループを持つ。
+    /// ステージ 1 つの定義。アウトゲームの選択肢に出す名前、インゲームで読み込むシーングループ、失敗条件を持つ。
     /// 敵の出し方と破壊対象は、ステージシーンに置いた物が持つ。
     /// </summary>
     [CreateAssetMenu(fileName = "StageData", menuName = "Kizami/Stage/StageData")]
@@ -18,10 +19,17 @@ namespace Kizami.External
         [Tooltip("インゲームで読み込むシーングループ。ステージシーンをアクティブにし、InGame を加える")]
         private SceneGroupDataBase _sceneGroup;
 
+        [SerializeReference]
+        [Tooltip("失敗条件。どれか 1 つを満たしたら失敗にする。空ならこのステージでは失敗しない")]
+        private StageFailCondition[] _failConditions = { new PlayerDeathFailCondition() };
+
         /// <summary> アウトゲームの選択肢に出す名前 </summary>
         public string DisplayName => _displayName;
 
         /// <summary> インゲームで読み込むシーングループ </summary>
         public SceneGroupDataBase SceneGroup => _sceneGroup;
+
+        /// <summary> 失敗条件。どれか 1 つを満たしたら失敗にする </summary>
+        public IReadOnlyList<StageFailCondition> FailConditions => _failConditions;
     }
 }

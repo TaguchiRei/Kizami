@@ -49,5 +49,17 @@ namespace Kizami.Application
             _state.SetSelectedStageIndex(stageIndex);
             return true;
         }
+
+        /// <summary>
+        /// 選んだステージの定義を取得する。
+        /// </summary>
+        /// <param name="stage">選んだステージの定義</param>
+        /// <returns>ステージを選んでいるか</returns>
+        public bool TryGetSelectedStage(out StageData stage)
+        {
+            var index = _state.SelectedStageIndex;
+            stage = index >= 0 && index < _stages.Length ? _stages[index] : null;
+            return stage != null;
+        }
     }
 }
