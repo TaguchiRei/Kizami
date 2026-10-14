@@ -99,6 +99,14 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// 読み込むモデルを差し替える。次の Load から反映される。
+        /// </summary>
+        public void SetModel(VoxelModelAsset model)
+        {
+            _model = model;
+        }
+
+        /// <summary>
         /// 品質設定を差し替える。次の Load から反映される。
         /// </summary>
         public void SetQuality(VoxelQualitySettings quality)

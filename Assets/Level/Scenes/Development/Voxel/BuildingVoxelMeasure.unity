@@ -1775,6 +1775,57 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 517756659}
   m_Mesh: {fileID: 4300000, guid: 63ffc13daa0285145869245b5386a9fa, type: 2}
+--- !u!1 &555299021
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 555299023}
+  - component: {fileID: 555299022}
+  m_Layer: 0
+  m_Name: BuildingTest
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &555299022
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 555299021}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
+  _groundFloor: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
+  _middleFloor: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
+  _roof: {fileID: 11400000, guid: 3f25c186baa780447aa35910cffcfa9a, type: 2}
+  _floorCount: 5
+  _floorHeight: 4
+  _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
+  _meltSystem: {fileID: 2120036641}
+--- !u!4 &555299023
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 555299021}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 40, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &569094481
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7231,3 +7282,4 @@ SceneRoots:
   - {fileID: 2120036642}
   - {fileID: 1644239050}
   - {fileID: 1005629106}
+  - {fileID: 555299023}
