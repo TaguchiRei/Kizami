@@ -100,30 +100,30 @@ Surface Nets の頂点をセルの中心に置くと、ボクセルを積んだ�
 
 ![影のふち（上：全部角ばる、下：壊した周りだけ滑らか）](Images/BlockSmooth/10_ShadowEdge_04m.png)
 
-## 試作の置き場所と使い方
+## 採った結果（2026-10-14）
 
-| ファイル | 中身 |
+試作は消し、次のとおり今のボクセルに組み込んだ。決めた理由は [区間15 の計画書](../InGame/Sections/Section15_LargeVoxelBuilding.md) の「作業計画の書き直し（2026-10-14）」にある。
+
+| 項目 | 決定 | 組み込んだ場所 |
+|---|---|---|
+| 描き方 | 角ばった頂点 ＋ 壊した周りだけ滑らか。品質設定で切り替え、敵などは今の描き方のまま | `VoxelQualitySettings.UseBlockShape`、`SurfaceNetsJob.UseBlockShape`、`BuildingPattern.shader` |
+| 丸み | 点ごとに byte で持ち、削る・加熱で距離が変わった点に印を付け、変わった範囲だけを広げ直す。素材の強度ごとの倍率はメッシュを作るときに掛ける | `VoxelVolume`（`EnableRoundness`）、`VoxelCsgJob`・`VoxelHeatJob`、`VoxelRoundnessSpreadJob` |
+| 当たり判定 | 中身の点をまとめた箱の BoxCollider | `VoxelColliderMode.Boxes`、`VoxelBoxColliderJob` |
+| ボクセルの大きさ | 0.4m のまま | `VoxelQuality_Building.asset` |
+| 階を N×N の箱に分ける | 今は分けない | ― |
+| データ | 距離を持ち続ける | ― |
+| 攻撃の種類ごとの丸み | 区間10 で決める | ― |
+
+組み込んだあとの値（0.4m、1 階分）
+
+| | 値 |
 |---|---|
-| `Assets/Code/Scripts/EngineAdapterLayer/Voxel/Experimental/BlockSmoothMeshJob.cs` | 角ばった位置と滑らかな位置を持つメッシュの生成 |
-| `Assets/Code/Scripts/EngineAdapterLayer/Voxel/Experimental/BlockSmoothRoundnessJob.cs` | 点ごとの丸み |
-| `Assets/Code/Scripts/EngineAdapterLayer/Voxel/Experimental/BlockColliderJob.cs` | 中身の点を箱にまとめる |
-| `Assets/Code/Scripts/EngineAdapterLayer/Voxel/Experimental/BlockSmoothPreview.cs` | 建物に付けて、子のピースを試作のメッシュと箱で描き直す |
-| `Assets/Code/Shader/Building/BuildingPatternBlock.shader` | 位置と法線を丸みで混ぜるシェーダー |
-| `Assets/Data/Voxel/Experimental/VoxelQuality_Building02.asset` | 比べる為の 0.2m の品質設定 |
+| 全チャンクの再メッシュ化（並列、箱の当たり判定込み） | 2.66ms |
+| 丸みを広げる時間 | 範囲のサンプル数に比例（約 25ns／点）。半径 1m の攻撃で 0.66ms、1 階分全体で約 2ms |
+| 箱の数（6 階の建物） | 181 → 4 か所削って 202 |
+| 物理の 1 ステップ（剛体 30 個） | 建物の上 0.097ms、地面 0.109ms |
 
-- 既存のコードは変えていない。削る処理と当たり判定は今のピースのまま使い、試作はボリュームを読むだけ
-- `VoxelPiece.VolumeData` などが internal なので、`Kizami.EngineAdapter.Runtime` の中に置いている。片付けるまではビルドにも入る
-- シーン `BuildingVoxelMeasure` の `BuildingTest`（0.4m）と `BuildingTest02`（0.2m）に `BlockSmoothPreview` が付いている
-- プレイ中のキー：F2 で今の描画と切り替え、F3 で丸みの決め方（全部角ばる・全部滑らか・壊した周りだけ）、F4 で滑らかな位置の元（距離・中身かどうか）。強度ごとの倍率・薄める距離・法線のしきい値は Inspector で変える
+残ったこと
 
-## 次に決めること
-
-| 項目 | 内容 |
-|---|---|
-| 描き方 | 「角ばった頂点 ＋ 壊した周りだけ滑らか」を建物の描き方として採るか |
-| 当たり判定 | 建物の当たり判定を箱にするか。採るなら、物理の毎フレームの重さ、プレイヤーが歩いたときの挙動、落ちるかけらの当たり判定を確かめる |
-| ボクセルの大きさ | 0.4m のままにするか、0.2m にするか（区間15 の #1 の見直し） |
-| 箱に分ける | 階をさらに N×N の箱に分け、箱ごとに差し替えるか。採るなら、箱の境目のつなぎ方、箱をまたぐつながりの判定、メッシュの状態の持ち方を決める |
-| データ | 距離をやめ、素材の番号と丸みだけで持つか |
-| 丸みの決め方 | 攻撃の種類（爆発・切断・加熱）と素材の強度で丸みを変えるか。変えるなら、区間10 のダメージタイプの表で P・a と一緒に決める |
-| 丸みの計算 | 変わった範囲だけを計算し直す形にする |
+- プレイヤーと同じ大きさのカプセルを速度で動かすと、箱の継ぎ目で約 6cm 跳ねる。区間15 の B-10 か、レビューのときに本物のプレイヤーで確かめる
+- 落ちるかけら（分離したピース）は凸包の当たり判定のまま

@@ -1785,7 +1785,6 @@ GameObject:
   m_Component:
   - component: {fileID: 555299023}
   - component: {fileID: 555299022}
-  - component: {fileID: 555299024}
   m_Layer: 0
   m_Name: BuildingTest
   m_TagString: Untagged
@@ -1827,33 +1826,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &555299024
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 555299021}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e4aa02e260d5c640b592c5dc4486f13, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.Experimental.BlockSmoothPreview
-  _shader: {fileID: 4800000, guid: 037a4f2165a9b494c8eadb95af269850, type: 3}
-  _strengthSources:
-  - {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
-  - {fileID: 11400000, guid: 3f25c186baa780447aa35910cffcfa9a, type: 2}
-  _showPreview: 1
-  _mode: 2
-  _useOccupancy: 0
-  _falloffDistance: 1
-  _changeThresholdVoxels: 0.05
-  _softScale: 1.5
-  _normalScale: 1
-  _hardScale: 0.3
-  _normalBlendThreshold: 0.15
-  _chunksPerFrame: 64
-  _hudTop: 340
 --- !u!1001 &569094481
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7344,85 +7316,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2128444995}
   m_Mesh: {fileID: 4300000, guid: 63ffc13daa0285145869245b5386a9fa, type: 2}
---- !u!1 &2146946984
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2146946987}
-  - component: {fileID: 2146946986}
-  - component: {fileID: 2146946985}
-  m_Layer: 0
-  m_Name: BuildingTest02
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &2146946985
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2146946984}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e4aa02e260d5c640b592c5dc4486f13, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.Experimental.BlockSmoothPreview
-  _shader: {fileID: 4800000, guid: 037a4f2165a9b494c8eadb95af269850, type: 3}
-  _strengthSources:
-  - {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
-  - {fileID: 11400000, guid: 3f25c186baa780447aa35910cffcfa9a, type: 2}
-  _showPreview: 1
-  _mode: 2
-  _useOccupancy: 0
-  _falloffDistance: 1
-  _changeThresholdVoxels: 0.05
-  _softScale: 1.5
-  _normalScale: 1
-  _hardScale: 0.3
-  _normalBlendThreshold: 0.15
-  _chunksPerFrame: 64
-  _hudTop: 390
---- !u!114 &2146946986
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2146946984}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
-  _groundFloor: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
-  _middleFloor: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
-  _roof: {fileID: 11400000, guid: 3f25c186baa780447aa35910cffcfa9a, type: 2}
-  _floorCount: 5
-  _floorHeight: 4
-  _quality: {fileID: 11400000, guid: 3c80665208e0e5249a18bafdd87c9360, type: 2}
-  _meltSystem: {fileID: 2120036641}
---- !u!4 &2146946987
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2146946984}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 65, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -7435,4 +7328,3 @@ SceneRoots:
   - {fileID: 1644239050}
   - {fileID: 1005629106}
   - {fileID: 555299023}
-  - {fileID: 2146946987}

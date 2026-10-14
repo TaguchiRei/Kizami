@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 着手（2026-10-11）。B-7b-4 の実装まで完了（2026-10-14）。箱の継ぎ目での引っかかりの扱いを決めてから B-7b-5。「作業計画の書き直し（2026-10-14）」を最初に読む |
+| 状態 | 着手（2026-10-11）。B-7b-5 まで完了（2026-10-14）。次は B-8。「作業計画の書き直し（2026-10-14）」を最初に読む |
 | 目安の時期 | 2027/03/09〜03/29（最速の推定 2026/10/19〜10/24） |
 | 前提となる区間 | 5, 4D |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -70,7 +70,8 @@
 | B-7b-1 | B-7a（Dual Contouring と `VoxelQualitySettings._smoothness`）を取り除いた。5 ファイルは 159ef07 の前と同じ内容 | コミット済み |
 | B-7b-2 | 丸みの記録。`VoxelQualitySettings` に `_useBlockShape`・`_roundnessChangeVoxels`（0.05）・`_roundnessFalloffVoxels`（2.5）、`VoxelVolume` に点ごとの丸み（byte）。`VoxelCsgJob`・`VoxelHeatJob` で距離が閾値より変わった点を 255 にし、`VoxelRoundnessSpreadJob` が編集範囲 ＋ 広がる幅だけを最大値で広げる。`Clone`・`ExtractComponent` で引き継ぐ。`VoxelQuality_Building` で有効。確認：普通の素材を半径 1m で削ると、印 33 点（中心から 0.98m 以内）、丸みの付いた点 181（1.70m 以内）。広げる時間は範囲のサンプル数に比例（約 25ns／点、1 階分全体で約 2ms）。切り分け（`Slice`）は範囲がボリューム全体になる | コミット済み |
 | B-7b-3 | 描き方の組み込み。`SurfaceNetsJob` に `UseBlockShape`（頂点をセルの中心に置き、UV1 に滑らかな位置までの差と丸み）、素材の強度ごとの丸みの倍率（`VoxelQualitySettings`：柔い 1.5・普通 1・硬い 0.3）。`BuildingPattern.shader` に位置と法線の混ぜ方を入れた（試作のグローバルの上書きは外し、法線を切り替える丸みは 0.15 の定数）。再メッシュ化の範囲を丸みの広がる幅だけ広げた。確認：`BuildingTest` が角ばった箱になり、削った角だけ滑らか。1 階分の全チャンクの再メッシュ化（並列、コライダーのクッキング込み）3.82ms | コミット済み |
-| B-7b-4 | 箱の当たり判定。`VoxelColliderMode.Boxes`、`VoxelBoxColliderJob`（試作の `BlockColliderJob` を移した物）、チャンクの BoxCollider の使い回し、面の無い中身だけのチャンクにも箱を置く。`VoxelModelLoader` は角ばった描き方の品質設定なら `Boxes` にする。確認：箱 181（報告書と同じ）→ 4 か所削って 202。1 階分の再メッシュ化 2.66ms（MeshCollider のクッキングがあったときは 3.82ms）。物理の 1 ステップは剛体 30 個が屋上で 0.097ms、地面で 0.109ms で差が無い。プレイヤーと同じ大きさのカプセル（半径 0.23・高さ 1.5、速度で動かす）は屋上・床を歩けるが、箱の継ぎ目で約 6cm 跳ねる（屋上の z = 1.6 の継ぎ目で確認） | （未コミット） |
+| B-7b-4 | 箱の当たり判定。`VoxelColliderMode.Boxes`、`VoxelBoxColliderJob`（試作の `BlockColliderJob` を移した物）、チャンクの BoxCollider の使い回し、面の無い中身だけのチャンクにも箱を置く。`VoxelModelLoader` は角ばった描き方の品質設定なら `Boxes` にする。確認：箱 181（報告書と同じ）→ 4 か所削って 202。1 階分の再メッシュ化 2.66ms（MeshCollider のクッキングがあったときは 3.82ms）。物理の 1 ステップは剛体 30 個が屋上で 0.097ms、地面で 0.109ms で差が無い。プレイヤーと同じ大きさのカプセル（半径 0.23・高さ 1.5、速度で動かす）は屋上・床を歩けるが、箱の継ぎ目で約 6cm 跳ねる（屋上の z = 1.6 の継ぎ目で確認）。決定：今は受け入れ、B-10 で建物を実際のステージに置くときか、レビューのときに本物のプレイヤーで確かめる | コミット済み |
+| B-7b-5 | 試作（`Voxel/Experimental/`、`BuildingPatternBlock.shader`、`VoxelQuality_Building02.asset`、シーンの `BuildingTest02` と `BlockSmoothPreview`）を消し、[BlockSmoothReport.md](../../Voxel/BlockSmoothReport.md) に採った結果を書いた。確認：コンパイルとメタファイルの検査が通り、シーンに参照の切れたコンポーネントが無く、`BuildingTest` の見た目が消す前と同じ | （未コミット） |
 
 ### 途中のこと：角ばりの問題の対策（2026-10-14）
 
@@ -140,7 +141,7 @@ Surface Nets の頂点をセルの中心に置くと、ボクセルを積んだ�
 
 ### その次の作業
 
-B-7b-4 の継ぎ目の引っかかりの扱いを決めてから、「作業計画の書き直し（2026-10-14）」の B-7b-5 へ進む。
+「作業計画の書き直し（2026-10-14）」の B-8 から進める。
 
 ### 作業で分かったこと（コードや計画に効くもの）
 
