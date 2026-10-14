@@ -63,6 +63,11 @@ namespace Kizami.Initialization
 
             var sceneId = gameObject.scene.buildIndex;
             _movementService.Initialize(blackBoard, _parameters, sceneId);
+
+            // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の初期化より後に初期化する。
+            // SkillService が PlayerHealthState を取得する為、SkillService の生成より前に初期化する
+            _healthService.Initialize(blackBoard, _parameters, sceneId);
+
             _lookService = new PlayerLookService(blackBoard, sceneId);
             _chargeService = new ChargeService(blackBoard, _parameters, sceneId);
 
@@ -75,16 +80,14 @@ namespace Kizami.Initialization
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, sceneId);
             _skillService = new SkillService(blackBoard, _equippedSkills, _chargeService,
-                _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, sceneId);
+                _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
+                sceneId);
 
             _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake);
 
             // FragmentThrowService は SlowModeState を取得する為、SlowModeService の生成より後に生成する
             _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _fragmentThrowAdapter.TryGrab,
                 _fragmentThrowAdapter.Throw, _fragmentThrowAdapter.TryLoad, _fragmentThrowAdapter.Fire);
-
-            // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の初期化より後に初期化する
-            _healthService.Initialize(blackBoard, _parameters, sceneId);
 
             // 以降の Adapter は Service が登録した State を取得する為、Service の生成より後に初期化する
             _movementAdapter.Initialize(blackBoard, _movementService.Step);

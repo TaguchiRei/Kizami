@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Kizami.External
 {
     /// <summary>
-    /// チャージを消費して発動するスキル 1 つの定義。効果の種類と、消費量、削る形の大きさを持つ。
+    /// チャージを消費して発動するスキル 1 つの定義。効果の種類と、消費量、削る形の大きさ、回復量を持つ。
     /// </summary>
     [CreateAssetMenu(fileName = "SkillData", menuName = "Kizami/Player/SkillData")]
     public sealed class SkillData : ScriptableObject
@@ -28,6 +28,10 @@ namespace Kizami.External
         [Tooltip("ビームの長さ（m）。ビームでだけ使う")]
         private float _length = 30f;
 
+        [SerializeField, Min(0)]
+        [Tooltip("回復する HP。回復でだけ使う")]
+        private int _healAmount = 30;
+
         /// <summary> HUD に出す名前 </summary>
         public string DisplayName => _displayName;
 
@@ -42,6 +46,9 @@ namespace Kizami.External
 
         /// <summary> ビームの長さ（m） </summary>
         public float Length => _length;
+
+        /// <summary> 回復する HP </summary>
+        public int HealAmount => _healAmount;
     }
 
     /// <summary>
@@ -54,5 +61,8 @@ namespace Kizami.External
 
         /// <summary> カメラの位置を中心に、球で一度だけ削る </summary>
         Explosion,
+
+        /// <summary> HP を回復する。最大 HP を超えた分は捨てる </summary>
+        Heal,
     }
 }

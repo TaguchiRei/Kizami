@@ -21,20 +21,25 @@ namespace Kizami.Application
         private readonly ChargeService _chargeService;
         private readonly Action<float, float> _onBeam;
         private readonly Action<float> _onExplosion;
+        private readonly Action<int> _onHeal;
         private readonly List<IDisposable> _subscriptions = new();
+        private readonly IPlayerHealthState _healthState;
 
-        /// <param name="blackBoard">SkillSlotState の登録先と、入力の取得元</param>
+        /// <param name="blackBoard">SkillSlotState の登録先と、入力・HP の取得元</param>
         /// <param name="equippedSkills">枠ごとに装備するスキル。空きの枠と、SLOT_COUNT を超えた分は無視する</param>
         /// <param name="chargeService">発動に使うチャージの消費先</param>
         /// <param name="onBeam">ビームを出す関数。引数は長さ（m）と半径（m）</param>
         /// <param name="onExplosion">爆発を出す関数。引数は半径（m）</param>
+        /// <param name="onHeal">HP を回復する関数。引数は回復量</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
-            ChargeService chargeService, Action<float, float> onBeam, Action<float> onExplosion, int sceneId)
+            ChargeService chargeService, Action<float, float> onBeam, Action<float> onExplosion, Action<int> onHeal,
+            int sceneId)
         {
             _chargeService = chargeService;
             _onBeam = onBeam;
             _onExplosion = onExplosion;
+            _onHeal = onHeal;
 
             var count = Math.Min(equippedSkills.Count, SLOT_COUNT);
             for (var i = 0; i < count; i++)
@@ -44,7 +49,8 @@ namespace Kizami.Application
             }
 
             if (!blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this) ||
-                !blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this)) return;
+                !blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this) ||
+                !blackBoard.TryGetSceneState<PlayerBoard, IPlayerHealthState>(out _healthState, this)) return;
 
             playerBoard.RegisterSceneState<ISkillSlotState>(_slotState, sceneId);
 
@@ -58,6 +64,7 @@ namespace Kizami.Application
 
         /// <summary>
         /// 枠にスキルがあり、その消費量だけチャージを消費できたら、スキルの効果を出す。
+        /// 回復は、HP が 0 のときと最大のときは発動せず、チャージも消費しない。
         /// </summary>
         private void OnSkill(InputContext<float> context, int slot)
         {
@@ -65,6 +72,7 @@ namespace Kizami.Application
 
             var skill = _slots[slot];
             if (skill == null) return;
+            if (skill.Effect == SkillEffect.Heal && !CanHeal()) return;
             if (!_chargeService.TryConsume(skill.Cost)) return;
 
             switch (skill.Effect)
@@ -75,7 +83,15 @@ namespace Kizami.Application
                 case SkillEffect.Explosion:
                     _onExplosion?.Invoke(skill.Radius);
                     break;
+                case SkillEffect.Heal:
+                    _onHeal?.Invoke(skill.HealAmount);
+                    break;
             }
+        }
+
+        private bool CanHeal()
+        {
+            return _healthState != null && _healthState.Current > 0 && _healthState.Current < _healthState.Max;
         }
 
         public void Dispose()
