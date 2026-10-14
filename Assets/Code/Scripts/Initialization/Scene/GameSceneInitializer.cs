@@ -1,5 +1,6 @@
 using Cysharp.Threading.Tasks;
 using Kizami.Application;
+using Kizami.External;
 using UnityEngine;
 using UsefulToolkit.Attributes;
 using UsefulToolkit.BlackBoard.BlackBoard;
@@ -11,11 +12,12 @@ using UsefulToolkit.Utility;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// シーン遷移の操作面を組み立て、起動時にアウトゲームへ遷移する Initializer。常駐シーンへ置く。
+    /// 進行（GameProgressService）とシーン遷移の操作面を組み立て、起動時にアウトゲームへ遷移する Initializer。常駐シーンへ置く。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.Initializer)]
     public sealed class GameSceneInitializer : InitializerBase
     {
+        private readonly GameProgressService _progressService = new();
         private readonly GameSceneController _sceneController = new();
 
         [SerializeField]
@@ -23,8 +25,8 @@ namespace Kizami.Initialization
         private SceneGroupDataBase _outGameGroup;
 
         [SerializeField]
-        [Tooltip("インゲームで読み込むシーングループ。")]
-        private SceneGroupDataBase _inGameGroup;
+        [Tooltip("アウトゲームで選べるステージ。ステージの番号はこの並びの位置。")]
+        private StageData[] _stages;
 
         [SerializeField]
         [Tooltip("起動時にアウトゲームへ自動で遷移する。")]
@@ -32,14 +34,14 @@ namespace Kizami.Initialization
 
         public override void Initialize(IBlackBoard blackBoard)
         {
-            if (_outGameGroup == null || _outGameGroup.GroupData == null ||
-                _inGameGroup == null || _inGameGroup.GroupData == null)
+            if (_outGameGroup == null || _outGameGroup.GroupData == null)
             {
-                UsefulLogger.LogError("シーングループが設定されていない為、シーン遷移を初期化できません。", this);
+                UsefulLogger.LogError("アウトゲームのシーングループが設定されていない為、シーン遷移を初期化できません。", this);
                 return;
             }
 
-            if (!_sceneController.Initialize(blackBoard, _outGameGroup.GroupData, _inGameGroup.GroupData)) return;
+            _progressService.Initialize(blackBoard, _stages);
+            if (!_sceneController.Initialize(blackBoard, _outGameGroup.GroupData, _progressService)) return;
 
             base.Initialize(blackBoard);
 

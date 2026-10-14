@@ -318,7 +318,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.GameSceneInitializer
   _outGameGroup: {fileID: 11400000, guid: 9e29efc0c2d64ec449d65b6914e2f856, type: 2}
-  _inGameGroup: {fileID: 11400000, guid: 9887d82077f25504f982d304dd4e9f8b, type: 2}
+  _stages:
+  - {fileID: 11400000, guid: 9a5b703bc41b47c8bdd654e9a12b5d72, type: 2}
   _transitionOnStart: 1
 --- !u!1 &752471123
 GameObject:
