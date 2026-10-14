@@ -11,7 +11,8 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 1 階分ずつベイクしたボクセルのモデルを、縦に積み重ねた大きな建物。ステージシーンへ置く。
     /// 階ごとに別の VoxelModelLoader にし、削ったときの分離の判定を削った階だけで済ませる。
-    /// 階は Awake で作り、各 VoxelModelLoader の Start で読み込む。
+    /// 階は Awake で作り、Start で手付かずの形のメッシュ（VoxelModelLoader.LoadStatic）で置く。
+    /// プレイヤーから差し替える距離の中にかかった階と、攻撃が当たった階（VoxelDestructionAdapter が読み込む）だけをボクセルにする。
     /// 模様が階をまたいで続くよう、階ごとにマテリアルを複製し、_PatternOffset の Y に「階の番号 × 階の高さ」を書く。
     /// MaterialPropertyBlock は SRP Batcher の対象から外れる為、使わない。
     /// 隣り合う階の境目ごとに、下の階の上の面と上の階の下の面から半ボクセル内側の段で、両方が中身の点を数えてつながりを判定する。
@@ -71,6 +72,14 @@ namespace Kizami.EngineAdapter
         [Tooltip("倒れる階のまとまりの密度（kg/m³）。質量は ピースの体積の合計 × 密度")]
         private float _collapseDensity = 500f;
 
+        [SerializeField]
+        [Tooltip("差し替えの距離を測るプレイヤー。未設定なら MainCamera から測る")]
+        private Transform _target;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("プレイヤーからこの距離（m）の中にかかるメッシュのままの階を、ボクセルにする")]
+        private float _swapDistance = 40f;
+
         private float[] _initialAreas = Array.Empty<float>();
         private float[] _connectionRatios = Array.Empty<float>();
         private byte[] _layerBuffer = Array.Empty<byte>();
@@ -83,7 +92,10 @@ namespace Kizami.EngineAdapter
 
         private byte[] _lowerFace = Array.Empty<byte>();
         private byte[] _upperFace = Array.Empty<byte>();
-        private int _loadedCount;
+        private Bounds[] _floorBounds = Array.Empty<Bounds>();
+
+        /// <summary> 階ごとの、素材の番号ごとのつながりの面積の重み </summary>
+        private byte[][] _materialWeights = Array.Empty<byte[]>();
 
         /// <summary> 倒れずに立っている階の数。この番号から上の階は倒れた </summary>
         private int _standingFloorCount;
@@ -96,7 +108,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 境目の数。境目 i は、i 階とその下（0 なら地面）の境目 </summary>
         public int JointCount => _connectionRatios.Length;
 
-        /// <summary> 全部の階を読み込み、つながりの元の面積を測ったか </summary>
+        /// <summary> 全部の階を置き、つながりの元の面積を測ったか </summary>
         public bool IsConnectionReady { get; private set; }
 
         /// <summary>
@@ -136,7 +148,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 階を作り、読み込んだら階ごとのマテリアルを渡す。
+        /// 階を作る。読み込みは Start で、手付かずの形のメッシュから始める。
         /// </summary>
         private void CreateFloor(int floorIndex, VoxelModelAsset model)
         {
@@ -151,29 +163,26 @@ namespace Kizami.EngineAdapter
             loader.SetModel(model);
             loader.SetQuality(_quality);
             loader.SetMeltSystem(_meltSystem);
-
-            var materials = CreateFloorMaterials(model, floorIndex);
-            _subscriptions.Add(loader.RegisterOnLoaded(loaded =>
-            {
-                foreach (var part in loaded.Parts)
-                {
-                    part.SetMaterials(materials);
-                }
-
-                OnFloorLoaded();
-            }));
+            loader.SetLoadOnStart(false);
+            loader.SetMaterialEntries(CreateFloorMaterials(model, floorIndex));
             _subscriptions.Add(loader.RegisterOnPieceShapeChanged(_ => UpdateConnections(floorIndex)));
 
             _floors.Add(loader);
         }
 
         /// <summary>
-        /// 全部の階が読み込まれたら、各境目の元の面積を測る。
+        /// 全部の階を手付かずの形のメッシュで置き、各境目の元の面積と、差し替えの判定に使う階の範囲を測る。
         /// </summary>
-        private void OnFloorLoaded()
+        private void InitializeFloors()
         {
-            _loadedCount++;
-            if (_loadedCount < _floors.Count) return;
+            _floorBounds = new Bounds[_floors.Count];
+            _materialWeights = new byte[_floors.Count][];
+            for (var i = 0; i < _floors.Count; i++)
+            {
+                _floors[i].LoadStatic();
+                _floorBounds[i] = MeasureFloorBounds(_floors[i]);
+                _materialWeights[i] = CreateMaterialWeights(i);
+            }
 
             InitializeFaces();
             _initialAreas = new float[_floors.Count];
@@ -186,6 +195,46 @@ namespace Kizami.EngineAdapter
 
             _standingFloorCount = _floors.Count;
             IsConnectionReady = true;
+        }
+
+        /// <summary>
+        /// メッシュのままの階のうち、プレイヤーから差し替える距離の中にかかる階を、近い順に 1 フレーム 1 階ずつボクセルにする。
+        /// 1 階の差し替えに数 ms かかる為、近づいて何階も範囲に入っても 1 フレームに集めない。
+        /// </summary>
+        private void SwapNearFloors()
+        {
+            // プレイヤーは常駐シーンにいて参照を持てない為、未設定なら MainCamera から測る
+            var target = _target != null ? _target : Camera.main != null ? Camera.main.transform : null;
+            if (target == null) return;
+
+            var position = target.position;
+            var nearest = -1;
+            var nearestSqrDistance = _swapDistance * _swapDistance;
+            for (var i = 0; i < _standingFloorCount; i++)
+            {
+                if (!_floors[i].IsStatic) continue;
+
+                var sqrDistance = _floorBounds[i].SqrDistance(position);
+                if (sqrDistance > nearestSqrDistance) continue;
+
+                nearest = i;
+                nearestSqrDistance = sqrDistance;
+            }
+
+            if (nearest >= 0) _floors[nearest].Load();
+        }
+
+        private Bounds MeasureFloorBounds(VoxelModelLoader floor)
+        {
+            var bounds = new Bounds(floor.transform.position, Vector3.zero);
+            foreach (var staticPart in floor.StaticParts)
+            {
+                var localBounds = staticPart.Shape.Mesh.bounds;
+                bounds.Encapsulate(staticPart.Target.TransformPoint(localBounds.min));
+                bounds.Encapsulate(staticPart.Target.TransformPoint(localBounds.max));
+            }
+
+            return bounds;
         }
 
         /// <summary>
@@ -223,6 +272,9 @@ namespace Kizami.EngineAdapter
             var volume = 0f;
             for (var i = firstFloor; i < _standingFloorCount; i++)
             {
+                // メッシュのままの階もボクセルにし、敵の格子と崩落の判定がピースとして見張れるようにする
+                if (_floors[i].IsStatic) _floors[i].Load();
+
                 _floors[i].transform.SetParent(groupObject.transform, true);
                 foreach (var part in _floors[i].Parts)
                 {
@@ -268,59 +320,88 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// floorIndex 階の、階のローカル空間で高さ floorLocalY の段の中身の点を、建物の水平方向の格子の番号ごとの重みにする。
-        /// パーツが重なる点は重みの大きい方を使う。
+        /// ボクセルの階はピースの今の形、メッシュのままの階は手付かずの形から読む。パーツが重なる点は重みの大きい方を使う。
         /// </summary>
         private void ReadFace(int floorIndex, float floorLocalY, byte[] face)
         {
             Array.Clear(face, 0, face.Length);
             var floor = _floors[floorIndex];
+            var floorPoint = floor.transform.TransformPoint(0f, floorLocalY, 0f);
+            var weights = _materialWeights[floorIndex];
 
             foreach (var part in floor.Parts)
             {
                 var volume = part != null ? part.VolumeData : null;
                 if (volume == null) continue;
 
-                var layout = volume.Layout;
-                var floorPoint = floor.transform.TransformPoint(0f, floorLocalY, 0f);
-                var partLocalY = part.transform.InverseTransformPoint(floorPoint).y;
-                var sampleY = (int)math.round((partLocalY - layout.Origin.y) / layout.VoxelSize);
-                if (sampleY < 0 || sampleY >= layout.SampleCount.y) continue;
+                if (!TryGetSampleY(part.transform, volume.Layout, floorPoint, out var sampleY)) continue;
 
-                var count = layout.SampleCount;
-                if (_layerBuffer.Length < count.x * count.z) _layerBuffer = new byte[count.x * count.z];
-                volume.ReadLayerWeights(sampleY, CreateMaterialWeights(part), 1, _layerBuffer);
+                PrepareLayerBuffer(volume.Layout);
+                volume.ReadLayerWeights(sampleY, weights, 1, _layerBuffer);
+                AddLayer(part.transform, volume.Layout, sampleY, face);
+            }
 
-                // 回転させずに置く前提なので、建物の格子の番号はサンプル番号と同じだけ進む
-                var key = ToFaceKey(part, layout, sampleY) - _faceMin;
-                for (var z = 0; z < count.z; z++)
-                for (var x = 0; x < count.x; x++)
-                {
-                    var weight = _layerBuffer[x + z * count.x];
-                    var cell = key + new int2(x, z);
-                    if (weight == 0 || math.any(cell < 0) || math.any(cell >= _faceSize)) continue;
+            foreach (var staticPart in floor.StaticParts)
+            {
+                var layout = staticPart.Shape.Layout;
+                if (!TryGetSampleY(staticPart.Target, layout, floorPoint, out var sampleY)) continue;
 
-                    var index = cell.x + cell.y * _faceSize.x;
-                    face[index] = Math.Max(face[index], weight);
-                }
+                PrepareLayerBuffer(layout);
+                staticPart.Shape.ReadLayerWeights(sampleY, weights, 1, _layerBuffer);
+                AddLayer(staticPart.Target, layout, sampleY, face);
+            }
+        }
+
+        private bool TryGetSampleY(Transform partTransform, VoxelGridLayout layout, Vector3 worldPoint,
+            out int sampleY)
+        {
+            var partLocalY = partTransform.InverseTransformPoint(worldPoint).y;
+            sampleY = (int)math.round((partLocalY - layout.Origin.y) / layout.VoxelSize);
+            return sampleY >= 0 && sampleY < layout.SampleCount.y;
+        }
+
+        private void PrepareLayerBuffer(VoxelGridLayout layout)
+        {
+            var length = layout.SampleCount.x * layout.SampleCount.z;
+            if (_layerBuffer.Length < length) _layerBuffer = new byte[length];
+        }
+
+        /// <summary>
+        /// _layerBuffer に読んだ 1 段分の重みを、面の配列へ重みの大きい方で重ねる。
+        /// </summary>
+        private void AddLayer(Transform partTransform, VoxelGridLayout layout, int sampleY, byte[] face)
+        {
+            var count = layout.SampleCount;
+
+            // 回転させずに置く前提なので、建物の格子の番号はサンプル番号と同じだけ進む
+            var key = ToFaceKey(partTransform, layout, sampleY) - _faceMin;
+            for (var z = 0; z < count.z; z++)
+            for (var x = 0; x < count.x; x++)
+            {
+                var weight = _layerBuffer[x + z * count.x];
+                var cell = key + new int2(x, z);
+                if (weight == 0 || math.any(cell < 0) || math.any(cell >= _faceSize)) continue;
+
+                var index = cell.x + cell.y * _faceSize.x;
+                face[index] = Math.Max(face[index], weight);
             }
         }
 
         /// <summary>
-        /// 全部の階のパーツを覆う、建物の水平方向の格子の範囲を求め、面の重みの配列を作る。
+        /// 全部の階の手付かずの形を覆う、建物の水平方向の格子の範囲を求め、面の重みの配列を作る。
+        /// ボクセルにしたあとのピースの格子は手付かずの形と同じなので、範囲は変わらない。
         /// </summary>
         private void InitializeFaces()
         {
             var min = new int2(int.MaxValue);
             var max = new int2(int.MinValue);
             foreach (var floor in _floors)
-            foreach (var part in floor.Parts)
+            foreach (var staticPart in floor.StaticParts)
             {
-                var volume = part != null ? part.VolumeData : null;
-                if (volume == null) continue;
-
-                var key = ToFaceKey(part, volume.Layout, 0);
+                var layout = staticPart.Shape.Layout;
+                var key = ToFaceKey(staticPart.Target, layout, 0);
                 min = math.min(min, key);
-                max = math.max(max, key + volume.Layout.SampleCount.xz - 1);
+                max = math.max(max, key + layout.SampleCount.xz - 1);
             }
 
             _faceMin = min;
@@ -332,25 +413,25 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// パーツのサンプル (0, sampleY, 0) の、建物の水平方向の格子の番号。格子の点はボクセルの倍数 ＋ 半ボクセルに並ぶ。
         /// </summary>
-        private int2 ToFaceKey(VoxelPiece part, VoxelGridLayout layout, int sampleY)
+        private int2 ToFaceKey(Transform partTransform, VoxelGridLayout layout, int sampleY)
         {
             var voxelSize = _quality.VoxelSize;
             var origin = transform.InverseTransformPoint(
-                part.transform.TransformPoint(layout.ToLocalPosition(new int3(0, sampleY, 0))));
+                partTransform.TransformPoint(layout.ToLocalPosition(new int3(0, sampleY, 0))));
             return new int2(
                 (int)math.round(origin.x / voxelSize - 0.5f),
                 (int)math.round(origin.z / voxelSize - 0.5f));
         }
 
         /// <summary>
-        /// パーツの素材の番号ごとの、つながりの面積の重みを作る。
+        /// floorIndex 階の素材の番号ごとの、つながりの面積の重みを作る。
         /// </summary>
-        private byte[] CreateMaterialWeights(VoxelPiece part)
+        private byte[] CreateMaterialWeights(int floorIndex)
         {
-            var weights = new byte[part.Strengths.Count];
+            var weights = new byte[GetFloorModel(floorIndex).Materials.Count];
             for (var i = 0; i < weights.Length; i++)
             {
-                weights[i] = part.Strengths[i] == VoxelStrength.Hard ? (byte)_hardWeight : (byte)1;
+                weights[i] = _floors[floorIndex].GetMaterialStrength(i) == VoxelStrength.Hard ? (byte)_hardWeight : (byte)1;
             }
 
             return weights;
@@ -397,8 +478,15 @@ namespace Kizami.EngineAdapter
             }
         }
 
+        private void Start()
+        {
+            if (_floors.Count > 0) InitializeFloors();
+        }
+
         private void Update()
         {
+            if (IsConnectionReady) SwapNearFloors();
+
             for (var i = _fallingBodies.Count - 1; i >= 0; i--)
             {
                 var body = _fallingBodies[i];

@@ -7,7 +7,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// MainCamera を基準にした形（狙った所の球、視線の向きへ伸びるカプセル、カメラの位置を中心にした球）の範囲にあるボクセルのピースを、同じ形でまとめて削る Adapter。
-    /// 範囲が複数のピースにまたがるときも、範囲内のすべてのピースを削る。
+    /// 範囲が複数のピースにまたがるときも、範囲内のすべてのピースを削る。手付かずの形のメッシュのまま置いたモデル（VoxelModelLoader.LoadStatic）に当たったら、ボクセルにしてから削る。
     /// 攻撃は強さと減衰率で当て、普通の強度の素材がちょうど指定の半径で削れる強さにする。柔い素材は深く、硬い素材は浅く削れる。
     /// 破壊タイプの攻撃として、装甲のパネルに当たったら 1 回当たったものとし、装甲の奥のピースは削らない。
     /// </summary>
@@ -197,7 +197,21 @@ namespace Kizami.EngineAdapter
             for (var i = 0; i < hitCount; i++)
             {
                 var piece = _hitBuffer[i].GetComponentInParent<VoxelPiece>();
-                if (piece != null) _pieces.Add(piece);
+                if (piece != null)
+                {
+                    _pieces.Add(piece);
+                    continue;
+                }
+
+                // 手付かずの形のメッシュのまま置いたモデルは、当たったときにボクセルにしてから削る
+                var loader = _hitBuffer[i].GetComponentInParent<VoxelModelLoader>();
+                if (loader == null || !loader.IsStatic) continue;
+
+                loader.Load();
+                foreach (var part in loader.Parts)
+                {
+                    _pieces.Add(part);
+                }
             }
 
             foreach (var piece in _pieces)
