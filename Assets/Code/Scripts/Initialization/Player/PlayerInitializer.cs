@@ -84,11 +84,12 @@ namespace Kizami.Initialization
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
                 sceneId);
 
-            _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake);
+            _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake, _voxelDestructionAdapter.CarveExplosionAt);
 
             // FragmentThrowService は SlowModeState を取得する為、SlowModeService の生成より後に生成する
-            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _fragmentThrowAdapter.TryGrab,
-                _fragmentThrowAdapter.Throw, _fragmentThrowAdapter.TryLoad, _fragmentThrowAdapter.Fire);
+            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _enhanceService,
+                _fragmentThrowAdapter.TryGrab, _fragmentThrowAdapter.TryThrow, _fragmentThrowAdapter.TryLoad,
+                _fragmentThrowAdapter.TryFire);
 
             // 以降の Adapter は Service が登録した State を取得する為、Service の生成より後に初期化する
             _movementAdapter.Initialize(blackBoard, _movementService.Step);

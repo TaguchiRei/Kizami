@@ -7,7 +7,7 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// MainCamera を基準にした形（狙った所の球、視線の向きへ伸びるカプセル、カメラの位置を中心にした球）の範囲にあるボクセルのピースを、同じ形でまとめて削る Adapter。
+    /// MainCamera を基準にした形（狙った所の球、視線の向きへ伸びるカプセル、カメラの位置を中心にした球）と、指定した点を中心にした球の範囲にあるボクセルのピースを、同じ形でまとめて削る Adapter。
     /// 範囲が複数のピースにまたがるときも、範囲内のすべてのピースを削る。手付かずの形のメッシュのまま置いたモデル（VoxelModelLoader.LoadStatic）に当たったら、ボクセルにしてから削る。
     /// 攻撃は強さと減衰率で当て、普通の強度の素材がちょうど指定の半径で削れる強さにする。柔い素材は深く、硬い素材は浅く削れる。
     /// 破壊タイプの攻撃として、装甲のパネルに当たったら 1 回当たったものとし、装甲の奥のピースは削らない。
@@ -118,16 +118,25 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// カメラの位置を中心に球で削る。足場がボクセルなら足場も削れる。
-        /// 球に入った装甲のパネルすべてに 1 回ずつ当て、中心から見て装甲の奥にあるピースは削らない。
-        /// 遮断は中心から各ピースのバウンディングボックスの中心へのレイで判定するので、ピースの一部だけが装甲の陰にあっても、ピース全体を削るか削らないかのどちらかになる。
+        /// カメラの位置を中心に球で削る。足場がボクセルなら足場も削れる。装甲への当て方は CarveExplosionAt と同じ。
         /// </summary>
         /// <param name="radius">球の半径（m）</param>
         public void CarveExplosion(float radius)
         {
             if (!TryGetCameraTransform(out var cameraTransform)) return;
 
-            var center = cameraTransform.position;
+            CarveExplosionAt(cameraTransform.position, radius);
+        }
+
+        /// <summary>
+        /// 指定した点を中心に球で削る。
+        /// 球に入った装甲のパネルすべてに 1 回ずつ当て、中心から見て装甲の奥にあるピースは削らない。
+        /// 遮断は中心から各ピースのバウンディングボックスの中心へのレイで判定するので、ピースの一部だけが装甲の陰にあっても、ピース全体を削るか削らないかのどちらかになる。
+        /// </summary>
+        /// <param name="center">球の中心（ワールド空間）</param>
+        /// <param name="radius">球の半径（m）</param>
+        public void CarveExplosionAt(Vector3 center, float radius)
+        {
             CollectArmorPanels(center, radius);
 
             var reach = ReachRadius(radius, _explosionFalloff);
