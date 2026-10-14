@@ -74,7 +74,9 @@
 | B-7b-5 | 試作（`Voxel/Experimental/`、`BuildingPatternBlock.shader`、`VoxelQuality_Building02.asset`、シーンの `BuildingTest02` と `BlockSmoothPreview`）を消し、[BlockSmoothReport.md](../../Voxel/BlockSmoothReport.md) に採った結果を書いた。確認：コンパイルとメタファイルの検査が通り、シーンに参照の切れたコンポーネントが無く、`BuildingTest` の見た目が消す前と同じ | コミット済み |
 | B-8 | 上下の面のつながりの判定。`VoxelBuilding` が、全部の階を読み込んだときに境目ごとの元の面積を測り、階のピースの形が変わるたび（分離の処理のあと）にその階の上下の境目を数え直す。下の階の上の面と上の階の下の面から半ボクセル内側の段で、両方が中身の点を数え、硬い素材の点は 4 倍に数える。5% を下回ったら切れたとしてログを出す（`IsConnected`・`GetConnectionRatio`）。1 段の読み出しは `VoxelLayerWeightsJob`。確認：`BuildingTest` の 3 階（Floor_02）の四隅の柱を、鉄筋ごと半径 3m で 1 本ずつ断つと、上の境目が 0.891 → 0.641 → 0.391 → 0（切れた）になった。1 つの階の上下の 2 つの境目を数え直す時間は 0.22ms | コミット済み |
 | B-9 | 倒壊。`VoxelBuilding` は境目が切れたら、その上の立っている階を新しい親（`Collapsed_NN`）の子にし、親に Rigidbody を付けて落とす（質量は体積の合計 × `_collapseDensity`）。当たり判定は各階のチャンクの BoxCollider がそのまま使われる。眠ったらキネマティックにして止める。倒れた階はつながりの判定から外す。`RegisterOnCollapsed` で `EnemySpawnAdapter` が受け、`EnemyDistanceField.WatchFalling`・`EnemyCollapseDetector.WatchFalling` に倒れた階のピースとその Rigidbody を渡す。敵の格子は、止まったかを「眠った」ではなく「動いていない（眠ったかキネマティック）」で見るようにした。確認（`BuildingVoxelMeasure`）：3 階の四隅の柱を断つと、4〜6 階がまとまって 1.23m 落ち、3 階の残りの上で止まってキネマティックになった。敵を巻き込むこと・倒れた建物を敵が避けることは、敵の仕組みが動くシーンが要るので B-10 で確かめる（決定） | コミット済み |
-| B-10 | メッシュからの差し替え（実装済み、InGame での確認は未）。`VoxelModelLoader.LoadStatic` が、手付かずの形を `VoxelStaticShape`（角ばった描き方の `SurfaceNetsJob` と `VoxelBoxColliderJob` をボリューム全体に 1 回かけた 1 枚のメッシュと箱。同じベイク・大きさなら使い回し、つながりの判定用に距離と素材の写しも持つ）で置き、`Load` で消してボクセルにし、その場で全チャンクを作る。`VoxelBuilding` は Start で全階を `LoadStatic` し、プレイヤー（`_target`、未設定なら MainCamera）から 40m の中にかかる階を近い順に 1 フレーム 1 階ずつ `Load` する。倒れる階は倒す前に `Load` する。つながりの判定はメッシュのままの階を手付かずの形から読む。`VoxelDestructionAdapter.Carve` は、メッシュのままのモデルに当たったら `Load` してから削る。`VoxelModelLoader.SetMaterialEntries`・`SetLoadOnStart` を足した。確認（`BuildingVoxelMeasure`）：起動直後は 6 階ともメッシュのままでチャンク 0・箱 127、つながりは全部 1.00。全階を `Load` すると箱 181 になり、画面は差し替えの前後で見分けが付かない。1 階の差し替えは 4.5〜8ms（最初の 1 回は 22〜54ms）。`TestStage` に `VoxelBuildingTest`（(-25, -1, -25)、BuildingTest と同じ設定）を置いた | （未コミット） |
+| B-10 | メッシュからの差し替え。`VoxelModelLoader.LoadStatic` が、手付かずの形を `VoxelStaticShape`（角ばった描き方の `SurfaceNetsJob` と `VoxelBoxColliderJob` をボリューム全体に 1 回かけた 1 枚のメッシュと箱。同じベイク・大きさなら使い回し、つながりの判定用に距離と素材の写しも持つ）で置き、`Load` で消してボクセルにし、その場で全チャンクを作る。`VoxelBuilding` は Start で全階を `LoadStatic` し、プレイヤー（`_target`、未設定なら MainCamera）から 40m の中にかかる階を近い順に 1 フレーム 1 階ずつ `Load` する。倒れる階は倒す前に `Load` する。つながりの判定はメッシュのままの階を手付かずの形から読む。`VoxelDestructionAdapter.Carve` は、メッシュのままのモデルに当たったら `Load` してから削る。`VoxelModelLoader.SetMaterialEntries`・`SetLoadOnStart` を足した。確認（`BuildingVoxelMeasure`）：起動直後は 6 階ともメッシュのままでチャンク 0・箱 127、つながりは全部 1.00。全階を `Load` すると箱 181 になり、画面は差し替えの前後で見分けが付かない。1 階の差し替えは 4.5〜8ms（最初の 1 回は 22〜54ms）。`TestStage` に `VoxelBuildingTest`（(-25, -1, -25)、BuildingTest と同じ設定）を置いた | a60c965 |
+| B-10 の確認 | InGame（TestStage）の `VoxelBuildingTest` で確かめた。撃つと当たった階がボクセルに差し替わって削れる。近づくと近い順に 1 フレーム 1 階ずつ差し替わる。倒れた建物で敵を潰せる（6m 四方の塔を横倒しにして 1 体。下向きの最大速度 7.15m/s）。確認用に 6m 四方の細い階 `BuildingFloorTall`・`BuildingRoofTall`（6 階と屋上、高さ約 24m）を足し、`VoxelBuildingTest` をこれに差し替えた | （未コミット） |
+| B-10 の直し | ステージの囲い（`TestWalls/StageBounds`）を層 `StageBounds`（13 番、Player とだけ当たる）に移した。塔が天井を突き抜けていて、倒れた瞬間に押し出されて浮いた為。敵の経路・弾・ビーム・バリアの天井のマスクにこの層を足し、囲いは今までどおり障害物にした。`VoxelBuilding` は、階から切り離された塊が上下の階と境目の面で中身の点を共有していれば、その階の子にして一緒に動かす（1 階の塊は下の面に中身があれば地面にくっついているとみなし、その場に残す。くっつけた塊はつながりの判定に数えない）。止まって固定した倒壊のまとまりは、建物の形が変わるたびに起こし、支えが無ければ落とし直す。倒壊が止まったとき・敵を潰したとき・塊をくっつけたときのログを出す（`// TODO:` 付き。巻き込みの条件を決めたら消す） | （未コミット） |
 
 ### 途中のこと：角ばりの問題の対策（2026-10-14）
 
@@ -144,12 +146,17 @@ Surface Nets の頂点をセルの中心に置くと、ボクセルを積んだ�
 
 ### その次の作業
 
-InGame（TestStage）の `VoxelBuildingTest` で次を確かめてから B-11 へ進む：差し替え（近づく・撃つ）と見た目、B-9 の持ち越し（倒れた建物が敵を巻き込む・敵が避ける）、B-7b-4 の持ち越し（本物のプレイヤーが箱の継ぎ目で跳ねないか）。`VoxelBuildingTest` の `_meltSystem` はシーンをまたいだ参照で切れているので、加熱を確かめるなら TestStage の物を設定する。
+1. 倒れたまとまりの中でも、階の境目のつながりを数え続け、切れたら上の階を新しい Rigidbody のまとまりに分ける（今は倒れた階をつながりの判定から外していて、倒れている途中で階の間を断っても分かれない）
+2. B-9 の持ち越しの残り：倒れて止まった建物を、敵が避けて動くか
+3. B-7b-4 の持ち越し：本物のプレイヤーが、箱の継ぎ目で跳ねないか
+4. 確認用のログ（`// TODO: 倒壊で敵を巻き込む条件を決めたら消す`）を消すか、巻き込みの条件を決める
+5. そのあと B-11 の作業計画を出す
 
 ### 作業で分かったこと（コードや計画に効くもの）
 
 - 建物のパーツのベイクは、内外の補正を 0 回にする（`VoxelBakeSettings.SignPassCount = 0`）。補正 1 回だと、接した箱がたくさん並ぶモデルで外の点まで内側になり、体積が 1.76 倍になった
 - 素材の違う箱を重ねてはいけない。重なった所は距離の深い方の素材になる。鉄筋の周りのコンクリートは、鉄筋と重ならない 4 つの箱で組む（`BuildingFloorTest` の柱が手本）
+- 建物の高さは、ステージの天井（`StageBounds/Ceiling`、TestStage では y = 25〜30）より低くする。天井を突き抜けて置くと、倒れて Rigidbody になった瞬間に天井から押し出され、跳ねたり宙に浮いたりする
 - 部材の寸法と位置は 0.4m の倍数にし、モデルの原点に合わせて置く。格子はオブジェクト空間の 0.4m の倍数 + 0.2m に点を置く
 - 素材の番号ごとの強度は `VoxelPiece.SetMaterials(VoxelMaterialEntry[])` で渡す。`VoxelModelLoader` は読み込みのときにモデルの素材の一覧から渡し、`VoxelBuilding` は読み込みの通知で階ごとのマテリアルの複製に差し替える
 - 攻撃の強さは「普通の素材がちょうど今の半径で削れる値」（P = 1 + a × 半径）。届く範囲の半径は 半径 + 1 / a。減衰率 a は `VoxelDestructionAdapter` の設定値（既定 0.5）で、区間10で決め直す
@@ -175,6 +182,13 @@ InGame（TestStage）の `VoxelBuildingTest` で次を確かめてから B-11 �
 ### 見つけた問題
 
 「見つけた問題（今回は扱わない）」の節を参照（斜めの面で模様が折れる、建物の大きさの物を融かすと重い）。
+
+B-10 の確認で見つけたこと
+
+- くっつけた塊があとで削られて体積が 0 になっても、空の GameObject が残る。当たり判定は止まるので害はない。消す処理を入れるかは未定
+- 倒壊のまとまりが倒れた瞬間に、柱を断っただけの下の階の壁に乗ると、床の板が中の敵の体の中心まで下りず、潰せない（敵を 1 階の中に置いて確かめた）。巻き込みの条件をどうするかは未定
+- `TestStage` に `VoxelMeltSystem` が無い為、`VoxelBuildingTest` の `_meltSystem` は空のまま（加熱は確かめていない）
+- 1 回目の差し替えが重い（22〜54ms。原因は未確認）。Voxel の説明ドキュメントに、角ばった描き方・丸み・箱の当たり判定・`LoadStatic` の説明が無い
 
 試作で見つけたこと
 
