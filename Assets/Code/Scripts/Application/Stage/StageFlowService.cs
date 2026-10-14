@@ -10,11 +10,13 @@ namespace Kizami.Application
     /// <summary>
     /// インゲームの流れ（StageFlowState）を進めるユースケース。破壊対象がすべて破壊済みになったらクリアにし、
     /// ステージの失敗条件のどれかを満たしたら失敗にする。クリアと失敗はプレイ中にだけ起こり、一度決まったら変わらない。
+    /// スコアは、倒した敵 1 体につき 1 点と、クリアしたときの基礎スコアの合計。クリアタイムと被ダメージは、時間をかけて準備して壊す遊び方を損なわない為、使わない。
     /// </summary>
     public sealed class StageFlowService : IDisposable
     {
         private readonly StageFlowState _state = new();
         private readonly List<IDisposable> _subscriptions = new();
+        private readonly int _clearScore;
 
         /// <summary>
         /// StageFlowState を StageBoard へ登録し、失敗条件の判定に使う State の変化を購読する。
@@ -24,6 +26,8 @@ namespace Kizami.Application
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public StageFlowService(IBlackBoard blackBoard, StageData stage, int sceneId)
         {
+            _clearScore = stage.ClearScore;
+
             if (!blackBoard.TryGetBoard<StageBoard>(out var stageBoard, this)) return;
 
             stageBoard.RegisterSceneState<IStageFlowState>(_state, sceneId);
@@ -54,6 +58,18 @@ namespace Kizami.Application
         {
             _state.SetTargets(targetCount, destroyedCount);
             TryClear();
+        }
+
+        /// <summary>
+        /// 倒した敵の数を足し、スコアに反映する。プレイ中のときだけ数える。
+        /// </summary>
+        /// <param name="count">倒した敵の数</param>
+        public void AddDefeats(int count)
+        {
+            if (_state.Phase != StagePhase.Playing || count <= 0) return;
+
+            _state.SetDefeatCount(_state.DefeatCount + count);
+            _state.SetScore(_state.Score + count);
         }
 
         public void Dispose()
@@ -97,6 +113,7 @@ namespace Kizami.Application
             if (_state.Phase != StagePhase.Playing || _state.TargetCount == 0 ||
                 _state.DestroyedTargetCount < _state.TargetCount) return;
 
+            _state.SetScore(_state.Score + _clearScore);
             _state.SetPhase(StagePhase.Cleared);
             UsefulLogger.Log("すべての破壊対象が破壊済みになった為、クリアにしました。", this);
         }

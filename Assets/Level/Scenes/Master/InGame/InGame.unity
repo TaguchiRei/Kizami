@@ -1264,6 +1264,7 @@ GameObject:
   - component: {fileID: 1452220893}
   - component: {fileID: 1452220892}
   - component: {fileID: 1452220891}
+  - component: {fileID: 1452220894}
   m_Layer: 0
   m_Name: Stage
   m_TagString: Untagged
@@ -1284,6 +1285,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.StageInitializer
   _stageClearAdapter: {fileID: 1452220892}
+  _enemySpawnAdapter: {fileID: 1539543158}
+  _resultAdapter: {fileID: 1452220894}
 --- !u!114 &1452220892
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1296,6 +1299,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e6c206ed488ac649a8faae70d0517ec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageClearAdapter
+--- !u!114 &1452220894
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452220890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d48a0d04ff5d464da8cfc9861544fc42, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageResultAdapter
+  _backgroundColor: {r: 0, g: 0, b: 0, a: 0.6}
+  _buttonColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.9}
 --- !u!4 &1452220893
 Transform:
   m_ObjectHideFlags: 0

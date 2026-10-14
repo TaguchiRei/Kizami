@@ -128,8 +128,10 @@ namespace Kizami.EngineAdapter
         /// <param name="results">MultiCutBlade.ExecuteCut の結果</param>
         /// <param name="plane">振ったときの切断面。法線は表のかけらの側を向く</param>
         /// <param name="agents">敵の状態</param>
-        public void ReceiveCutResults(MultiCutResult[] results, Plane plane, NativeArray<EnemyAgent> agents)
+        /// <returns>倒れた敵の数</returns>
+        public int ReceiveCutResults(MultiCutResult[] results, Plane plane, NativeArray<EnemyAgent> agents)
         {
+            var defeatedCount = 0;
             foreach (var result in results)
             {
                 if (result.Original == null || !_partOwners.TryGetValue(result.Original, out var bodyIndex)) continue;
@@ -146,10 +148,13 @@ namespace Kizami.EngineAdapter
                 {
                     agent.BodyIndex = -1;
                     _bodyAgents[bodyIndex] = -1;
+                    defeatedCount++;
                 }
 
                 agents[agentIndex] = agent;
             }
+
+            return defeatedCount;
         }
 
         /// <summary>

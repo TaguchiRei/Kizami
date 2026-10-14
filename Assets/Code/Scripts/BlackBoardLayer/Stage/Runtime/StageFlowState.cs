@@ -3,7 +3,7 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// インゲームの流れの状態（開始・プレイ中・クリア・失敗）と、クリアの判定に使う破壊対象の数を保持するステート。
+    /// インゲームの流れの状態（開始・プレイ中・クリア・失敗）、クリアの判定に使う破壊対象の数、倒した敵の数とスコアを保持するステート。
     /// </summary>
     [RegisterBoard(typeof(StageBoard))]
     public sealed class StageFlowState : SceneStateBase, IStageFlowState
@@ -12,10 +12,12 @@ namespace Kizami.BlackBoard
         public StageFailReason FailReason { get; private set; } = StageFailReason.None;
         public int TargetCount { get; private set; }
         public int DestroyedTargetCount { get; private set; }
+        public int DefeatCount { get; private set; }
+        public int Score { get; private set; }
 
         public override string GetLog()
         {
-            return $"Phase: {Phase}  \nFailReason: {FailReason}  \nTargets: {DestroyedTargetCount} / {TargetCount}";
+            return $"Phase: {Phase}  \nFailReason: {FailReason}  \nTargets: {DestroyedTargetCount} / {TargetCount}  \nDefeats: {DefeatCount}  \nScore: {Score}";
         }
 
         /// <summary>
@@ -46,6 +48,24 @@ namespace Kizami.BlackBoard
             TargetCount = targetCount;
             DestroyedTargetCount = destroyedCount;
         }
+
+        /// <summary>
+        /// 倒した敵の数を設定する。
+        /// </summary>
+        /// <param name="defeatCount">倒した敵の数</param>
+        public void SetDefeatCount(int defeatCount)
+        {
+            DefeatCount = defeatCount;
+        }
+
+        /// <summary>
+        /// スコアを設定する。
+        /// </summary>
+        /// <param name="score">スコア</param>
+        public void SetScore(int score)
+        {
+            Score = score;
+        }
     }
 
     /// <summary>
@@ -64,6 +84,12 @@ namespace Kizami.BlackBoard
 
         /// <summary> 破壊済みの破壊対象の数 </summary>
         int DestroyedTargetCount { get; }
+
+        /// <summary> プレイ中に倒した敵の数 </summary>
+        int DefeatCount { get; }
+
+        /// <summary> スコア。倒した敵 1 体につき 1 点と、クリアしたときの基礎スコアの合計 </summary>
+        int Score { get; }
     }
 
     /// <summary>
