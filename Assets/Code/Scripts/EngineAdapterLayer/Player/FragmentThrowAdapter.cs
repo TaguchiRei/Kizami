@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kizami.BlackBoard;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
@@ -315,7 +316,7 @@ namespace Kizami.EngineAdapter
         {
             if (!_flyingFragments.ContainsKey(fragment)) return;
 
-            if (other.TryGetComponent(out ArmorPanel armorPanel)) armorPanel.Shatter();
+            if (other.TryGetComponent(out ArmorPanel armorPanel)) armorPanel.ApplyDamage(DamageType.Shatter);
 
             Release(fragment);
         }

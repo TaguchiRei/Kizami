@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
+using Kizami.BlackBoard;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
@@ -114,7 +115,7 @@ namespace Kizami.EngineAdapter
 
             foreach (var armorPanel in _armorPanels)
             {
-                armorPanel.ApplyHit();
+                armorPanel.ApplyDamage(DamageType.Attack);
             }
 
             _armorPanels.Clear();

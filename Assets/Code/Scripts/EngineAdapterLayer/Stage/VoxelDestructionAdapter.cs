@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Kizami.BlackBoard;
 using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
@@ -74,7 +75,7 @@ namespace Kizami.EngineAdapter
 
             if (hit.collider.TryGetComponent(out ArmorPanel armorPanel))
             {
-                armorPanel.ApplyHit();
+                armorPanel.ApplyDamage(DamageType.Destroy);
                 return;
             }
 
@@ -99,7 +100,10 @@ namespace Kizami.EngineAdapter
 
             if (Physics.Raycast(start, forward, out var armorHit, length, _armorLayers, QueryTriggerInteraction.Ignore))
             {
-                if (armorHit.collider.TryGetComponent(out ArmorPanel armorPanel)) armorPanel.ApplyHit();
+                if (armorHit.collider.TryGetComponent(out ArmorPanel armorPanel))
+                {
+                    armorPanel.ApplyDamage(DamageType.Destroy);
+                }
 
                 // カプセルの端の半球が装甲を越えないよう、中心の線を半径の分だけ手前で止める
                 length = armorHit.distance - radius;
@@ -135,7 +139,7 @@ namespace Kizami.EngineAdapter
 
             foreach (var armorPanel in _armorPanels)
             {
-                armorPanel.ApplyHit();
+                armorPanel.ApplyDamage(DamageType.Destroy);
             }
 
             _armorPanels.Clear();
