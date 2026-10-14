@@ -247,7 +247,13 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void UpdateConnections(int floorIndex)
         {
-            if (!IsConnectionReady || floorIndex >= _standingFloorCount) return;
+            if (!IsConnectionReady) return;
+
+            if (floorIndex >= _standingFloorCount)
+            {
+                UpdateFallenConnections(floorIndex);
+                return;
+            }
 
             for (var joint = floorIndex; joint <= floorIndex + 1 && joint < _standingFloorCount; joint++)
             {
@@ -264,36 +270,115 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 倒れたまとまりの中の floorIndex 階の上下の境目を数え直す。同じまとまりの階どうしの境目が切れたら、上の階をまとまりから分ける。
+        /// </summary>
+        private void UpdateFallenConnections(int floorIndex)
+        {
+            for (var joint = floorIndex; joint <= floorIndex + 1 && joint < _floors.Count; joint++)
+            {
+                if (joint <= _standingFloorCount) continue;
+
+                var group = _floors[joint].transform.parent;
+                if (_floors[joint - 1].transform.parent != group) continue;
+
+                var wasConnected = IsConnected(joint);
+                _connectionRatios[joint] = _initialAreas[joint] > 0f ? MeasureJointArea(joint) / _initialAreas[joint] : 0f;
+
+                if (wasConnected && !IsConnected(joint))
+                {
+                    UsefulLogger.Log($"倒れた {group.name} の {joint} 階の下の境目が切れました（元の面積の {_connectionRatios[joint]:P1}）。", this);
+                    SplitFallenGroup(group.GetComponent<Rigidbody>(), joint);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
         /// firstFloor 階から上の立っている階を、1 つの Rigidbody の子にまとめて落とす。
         /// </summary>
         private void Collapse(int firstFloor)
         {
-            var groupObject = new GameObject($"Collapsed_{firstFloor:00}")
-            {
-                layer = gameObject.layer
-            };
+            var groupObject = CreateGroupObject(firstFloor);
             groupObject.transform.SetParent(transform, false);
 
-            var volume = 0f;
             for (var i = firstFloor; i < _standingFloorCount; i++)
             {
                 // メッシュのままの階もボクセルにし、敵の格子と崩落の判定がピースとして見張れるようにする
                 if (_floors[i].IsStatic) _floors[i].Load();
 
                 _floors[i].transform.SetParent(groupObject.transform, true);
-                foreach (var part in _floors[i].Parts)
+            }
+
+            _standingFloorCount = firstFloor;
+
+            var body = AddGroupBody(groupObject);
+            StartFalling(body);
+            _collapsed.Invoke(body);
+        }
+
+        /// <summary>
+        /// 倒れたまとまり source のうち、firstFloor 階から上の階を新しいまとまりに移して分ける。
+        /// 新しいまとまりは、分ける前の自分の位置での source の速度と角速度を引き継ぐ。
+        /// </summary>
+        private void SplitFallenGroup(Rigidbody source, int firstFloor)
+        {
+            if (source == null) return;
+
+            var groupObject = CreateGroupObject(firstFloor);
+            groupObject.transform.SetParent(transform, false);
+            groupObject.transform.SetPositionAndRotation(source.position, source.rotation);
+
+            for (var i = firstFloor; i < _floors.Count; i++)
+            {
+                if (_floors[i].transform.parent != source.transform) break;
+
+                _floors[i].transform.SetParent(groupObject.transform, true);
+            }
+
+            source.mass = MeasureGroupMass(source.transform);
+            source.isKinematic = false;
+            source.WakeUp();
+
+            var body = AddGroupBody(groupObject);
+            body.linearVelocity = source.GetPointVelocity(body.worldCenterOfMass);
+            body.angularVelocity = source.angularVelocity;
+            StartFalling(body);
+            _collapsed.Invoke(body);
+        }
+
+        private GameObject CreateGroupObject(int firstFloor)
+        {
+            return new GameObject($"Collapsed_{firstFloor:00}")
+            {
+                layer = gameObject.layer
+            };
+        }
+
+        private Rigidbody AddGroupBody(GameObject groupObject)
+        {
+            var body = groupObject.AddComponent<Rigidbody>();
+            body.mass = MeasureGroupMass(groupObject.transform);
+            body.interpolation = RigidbodyInterpolation.Interpolate;
+            return body;
+        }
+
+        /// <summary>
+        /// まとまりの子の階のピースの体積の合計 × 密度。
+        /// </summary>
+        private float MeasureGroupMass(Transform group)
+        {
+            var volume = 0f;
+            foreach (var floor in _floors)
+            {
+                if (floor.transform.parent != group) continue;
+
+                foreach (var part in floor.Parts)
                 {
                     if (part != null) volume += part.Volume;
                 }
             }
 
-            _standingFloorCount = firstFloor;
-
-            var body = groupObject.AddComponent<Rigidbody>();
-            body.mass = math.max(volume * _collapseDensity, 0.01f);
-            body.interpolation = RigidbodyInterpolation.Interpolate;
-            StartFalling(body);
-            _collapsed.Invoke(body);
+            return math.max(volume * _collapseDensity, 0.01f);
         }
 
         /// <summary>
