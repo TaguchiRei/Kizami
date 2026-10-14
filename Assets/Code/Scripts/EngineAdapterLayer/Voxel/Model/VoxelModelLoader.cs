@@ -281,6 +281,28 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// ボクセルにしたパーツを消し、手付かずの形のメッシュに戻す。
+        /// 切り離されたピースのうち、自分の Rigidbody を持たない物（ほかの物にくっつけた塊）も消す。落ちているかけらは残す。
+        /// </summary>
+        public void Unload()
+        {
+            if (!IsLoaded) return;
+
+            foreach (var piece in _pieces)
+            {
+                if (piece == null) continue;
+
+                if (piece.Generation == 0) Destroy(piece);
+                else if (!piece.TryGetComponent<Rigidbody>(out _)) Destroy(piece.gameObject);
+            }
+
+            _parts.Clear();
+            _pieces.RemoveAll(piece => piece == null || piece.Generation == 0 || !piece.TryGetComponent<Rigidbody>(out _));
+            IsLoaded = false;
+            LoadStatic();
+        }
+
+        /// <summary>
         /// ボクセルを作らずに、各パーツの手付かずの形のメッシュと BoxCollider を置く。元のモデルの MeshRenderer は非表示にする。
         /// 形は VoxelStaticShape を使い回す。Load を呼ぶと消してボクセルへ差し替える。
         /// </summary>

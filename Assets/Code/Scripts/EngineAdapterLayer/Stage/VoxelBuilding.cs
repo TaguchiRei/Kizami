@@ -36,6 +36,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 階ごとの、本体のピースに当たった攻撃の記録。上限を超えた階は上限 ＋ 1 件で止める </summary>
         private readonly List<List<VoxelStrikeRecord>> _strikeRecords = new();
+
+        /// <summary> 階ごとの、記録を当て直したフレーム。そのフレームに切り離された塊は落とさずに扱う </summary>
+        private readonly List<int> _replayFrames = new();
         private readonly List<Material> _floorMaterials = new();
         private readonly List<IDisposable> _subscriptions = new();
         private readonly List<Rigidbody> _fallingBodies = new();
@@ -110,6 +113,11 @@ namespace Kizami.EngineAdapter
         /// <summary> 倒れずに立っている階の数。この番号から上の階は倒れた </summary>
         private int _standingFloorCount;
 
+        /// <summary> 傷を残す範囲（ワールド座標の x・z）。外に出た倒れていない階はメッシュに戻す </summary>
+        private Rect _retainArea;
+
+        private bool _hasRetainArea;
+
         /// <summary> 下から順の階。屋上を積んだ場合は最後の要素 </summary>
         public IReadOnlyList<VoxelModelLoader> Floors => _floors;
 
@@ -129,6 +137,15 @@ namespace Kizami.EngineAdapter
         public IDisposable RegisterOnCollapsed(Action<Rigidbody> callback)
         {
             return _collapsed.Register(callback);
+        }
+
+        /// <summary>
+        /// 傷を残す範囲（敵の追跡範囲。ワールド座標の x・z）を設定する。範囲の外に出た倒れていない階はメッシュに戻し、記録のある階が範囲に入ったら当て直す。
+        /// </summary>
+        public void SetRetainArea(Rect area)
+        {
+            _retainArea = area;
+            _hasRetainArea = true;
         }
 
         /// <summary>
@@ -178,7 +195,9 @@ namespace Kizami.EngineAdapter
             _subscriptions.Add(loader.RegisterOnPieceShapeChanged(_ => OnFloorShapeChanged(floorIndex)));
             _subscriptions.Add(loader.RegisterOnPieceSplit(pieces => AttachSeparatedPieces(floorIndex, pieces)));
             _subscriptions.Add(loader.RegisterOnPieceStruck(struck => RecordStrike(floorIndex, struck.Piece, struck.Record)));
+            _subscriptions.Add(loader.RegisterOnLoaded(_ => ReplayStrikes(floorIndex)));
             _strikeRecords.Add(new List<VoxelStrikeRecord>());
+            _replayFrames.Add(-1);
 
             _floors.Add(loader);
         }
@@ -211,30 +230,76 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// メッシュのままの階のうち、プレイヤーから差し替える距離の中にかかる階を、近い順に 1 フレーム 1 階ずつボクセルにする。
+        /// メッシュのままの階のうち、プレイヤーから差し替える距離の中にかかる階と、傷の記録があり傷を残す範囲にかかる階を、
+        /// 近い順に 1 フレーム 1 階ずつボクセルにする。
         /// 1 階の差し替えに数 ms かかる為、近づいて何階も範囲に入っても 1 フレームに集めない。
         /// </summary>
-        private void SwapNearFloors()
+        private void SwapNearFloors(Vector3 position)
         {
-            // プレイヤーは常駐シーンにいて参照を持てない為、未設定なら MainCamera から測る
-            var target = _target != null ? _target : Camera.main != null ? Camera.main.transform : null;
-            if (target == null) return;
-
-            var position = target.position;
             var nearest = -1;
-            var nearestSqrDistance = _swapDistance * _swapDistance;
+            var nearestSqrDistance = float.PositiveInfinity;
+            var swapSqrDistance = _swapDistance * _swapDistance;
             for (var i = 0; i < _standingFloorCount; i++)
             {
                 if (!_floors[i].IsStatic) continue;
 
                 var sqrDistance = _floorBounds[i].SqrDistance(position);
-                if (sqrDistance > nearestSqrDistance) continue;
+                var isNeeded = sqrDistance <= swapSqrDistance || (_strikeRecords[i].Count > 0 && IsInRetainArea(i));
+                if (!isNeeded || sqrDistance >= nearestSqrDistance) continue;
 
                 nearest = i;
                 nearestSqrDistance = sqrDistance;
             }
 
             if (nearest >= 0) _floors[nearest].Load();
+        }
+
+        /// <summary>
+        /// ボクセルにした倒れていない階のうち、傷を残す範囲の外にあり、プレイヤーから差し替える距離より遠い階を、1 フレーム 1 階ずつメッシュに戻す。
+        /// 記録が上限を超えた階は、当て直せないので戻さない。範囲を渡されていなければ戻さない。
+        /// </summary>
+        private void RestoreFarFloors(Vector3 position)
+        {
+            if (!_hasRetainArea) return;
+
+            var swapSqrDistance = _swapDistance * _swapDistance;
+            for (var i = 0; i < _standingFloorCount; i++)
+            {
+                if (!_floors[i].IsLoaded || _strikeRecords[i].Count > MAX_STRIKE_RECORDS) continue;
+                if (IsInRetainArea(i) || _floorBounds[i].SqrDistance(position) <= swapSqrDistance) continue;
+
+                _floors[i].Unload();
+                return;
+            }
+        }
+
+        private bool IsInRetainArea(int floorIndex)
+        {
+            var bounds = _floorBounds[floorIndex];
+            return _hasRetainArea && _retainArea.Overlaps(Rect.MinMaxRect(bounds.min.x, bounds.min.z, bounds.max.x, bounds.max.z));
+        }
+
+        /// <summary>
+        /// floorIndex 階を読み込んだら、記録した攻撃を順に当て直す。当て直す間は記録しない。
+        /// 当て直しで切り離された塊は、元のプレイ中に落ちたかけらにあたるので、上下の階にくっつかなければ消す（AttachSeparatedPieces）。
+        /// </summary>
+        private void ReplayStrikes(int floorIndex)
+        {
+            var records = _strikeRecords[floorIndex];
+            if (records.Count == 0) return;
+
+            var parts = _floors[floorIndex].Parts;
+            if (parts.Count == 0 || parts[0] == null) return;
+
+            // 当て直す攻撃も ApplyStrike を通る為、記録を一度外して二重に記録しないようにする
+            _strikeRecords[floorIndex] = new List<VoxelStrikeRecord>();
+            foreach (var record in records)
+            {
+                parts[0].ApplyStrike(record.Reach, record.Falloff, Space.Self);
+            }
+
+            _strikeRecords[floorIndex] = records;
+            _replayFrames[floorIndex] = Time.frameCount;
         }
 
         private Bounds MeasureFloorBounds(VoxelModelLoader floor)
@@ -441,7 +506,11 @@ namespace Kizami.EngineAdapter
                 var lowerArea = floorIndex == 0
                     ? CountPieceFace(piece, floorIndex, halfVoxel)
                     : CountSharedFace(piece, floorIndex, floorIndex - 1, halfVoxel, _floorHeight - halfVoxel);
-                if (upperArea == 0f && lowerArea == 0f) continue;
+                if (upperArea == 0f && lowerArea == 0f)
+                {
+                    if (_replayFrames[floorIndex] == Time.frameCount) Destroy(piece.gameObject);
+                    continue;
+                }
 
                 Transform target;
                 if (upperArea >= lowerArea) target = _floors[floorIndex + 1].transform;
@@ -709,7 +778,13 @@ namespace Kizami.EngineAdapter
 
         private void Update()
         {
-            if (IsConnectionReady) SwapNearFloors();
+            // プレイヤーは常駐シーンにいて参照を持てない為、未設定なら MainCamera から測る
+            var target = _target != null ? _target : Camera.main != null ? Camera.main.transform : null;
+            if (IsConnectionReady && target != null)
+            {
+                SwapNearFloors(target.position);
+                RestoreFarFloors(target.position);
+            }
 
             for (var i = _fallingBodies.Count - 1; i >= 0; i--)
             {
