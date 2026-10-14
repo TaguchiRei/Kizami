@@ -19,6 +19,7 @@ namespace Kizami.Initialization
     {
         private readonly PlayerHealthService _healthService = new();
         private readonly PlayerMovementService _movementService = new();
+        private readonly PlayerEnhanceService _enhanceService = new();
 
         [SerializeField]
         [Tooltip("プレイヤーの移動・HP・近接切断・チャージのパラメータ")]
@@ -77,9 +78,9 @@ namespace Kizami.Initialization
 
             // SlowModeService は ChargeState を取得する為、ChargeService の生成より後に生成する
             _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
-            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _meleeCutAdapter.Swing,
+            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, sceneId);
-            _skillService = new SkillService(blackBoard, _equippedSkills, _chargeService,
+            _skillService = new SkillService(blackBoard, _equippedSkills, _chargeService, _enhanceService,
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
                 sceneId);
 

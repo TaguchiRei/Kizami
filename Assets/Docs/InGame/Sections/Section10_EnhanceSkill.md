@@ -121,7 +121,9 @@ HP を回復するスキルを作る（2026-10-05 追加。HP の回復は基本
 | 型 | 層 | 今の区間で使うもの |
 |---|---|---|
 | `DamageType`（Flags の enum） | BlackBoard | 剣・ボクセルの破壊・かけら、`ArmorPanel.ApplyDamage` |
-| `PlayerEnhanceState`（強化の種類ごとの終了時刻と残り回数） | BlackBoard | `MeleeCutService`（速さ・範囲・破壊・シルブレ）、`FragmentThrowService`（爆発） |
+| `PlayerEnhanceService`（強化の種類ごとの終了時刻と残り回数） | Application | `SkillService`（かける）、`MeleeCutService`（速さ・範囲・破壊・シルブレ）、`FragmentThrowService`（爆発） |
+
+強化は、計画では State にする予定だったが、Service にした（作業中に決めた）。回数で切れる強化は攻撃するたびに残りを減らすので、`MeleeCutService` と `FragmentThrowService` の両方が書く側になり、State にすると Single Writer に反する。読む側も Service だけで、HUD には強化の残りを出さない（決めたこと 11）。強化の種類は `SkillEffect` をそのままキーにする。HUD に残りを出すことになったら、この Service が書く State を足す。
 
 ダメージタイプの窓口は新しいクラスにせず、`ArmorPanel.ApplyDamage(DamageType)` にする。`DamageType` は、強化中の切断のタイプを決める Application と、装甲・攻撃の Adapter の両方が使うので、`PlayerMoveMode` などの共有の enum と同じく BlackBoard に置く。
 
@@ -132,7 +134,7 @@ HP を回復するスキルを作る（2026-10-05 追加。HP の回復は基本
 | 1 | 10-9：`DamageType` と `ArmorPanel.ApplyDamage`。今の 5 か所を置き換える。挙動は変えない | コンパイル。剣・G キー・ビーム・爆発で装甲が 1 減り、かけらで一撃で壊れる |
 | 2 | 10-6：`PlayerHealthService.Heal`、`SkillEffect.Heal`、`SkillData` の回復量 | 敵の攻撃で減った HP が回復し、最大値を超えない |
 | 3 | 10-8：HUD のエネルギーの数値、スキルの枠のアイコンと可・不 | 表示 |
-| 4 | 10-1・10-4・10-7：`PlayerEnhanceState`、`SkillData` の時間・回数・倍率、攻撃間隔と刃の大きさの倍率 | 時間と回数で切れること、連打の間隔と範囲 |
+| 4 | 10-1・10-4・10-7：`PlayerEnhanceService`、`SkillData` の時間・回数・倍率、攻撃間隔と刃の大きさの倍率 | 時間と回数で切れること、連打の間隔と範囲 |
 | 5 | 10-2・10-3：ボクセル破壊とシルブレの切断 | ボクセルが刃の面で分かれる。装甲が一撃で壊れる |
 | 6 | 10-5：かけらの爆発 | 当たった所が球で削れ、範囲の装甲に当たる |
 | 7 | 実装結果、全体計画書の更新 | 完了条件すべて |

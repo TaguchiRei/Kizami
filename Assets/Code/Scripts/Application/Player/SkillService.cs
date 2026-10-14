@@ -9,7 +9,7 @@ using UsefulToolkit.BlackBoard.Input;
 namespace Kizami.Application
 {
     /// <summary>
-    /// スキル 1〜3 の入力を受けて、その枠に装備しているスキルの分のチャージを消費し、効果の実行役を呼ぶユースケース。
+    /// スキル 1〜3 の入力を受けて、その枠に装備しているスキルの分のチャージを消費し、効果の実行役を呼ぶユースケース。強化型スキルは PlayerEnhanceService にかける。
     /// </summary>
     public sealed class SkillService : IDisposable
     {
@@ -19,6 +19,7 @@ namespace Kizami.Application
         private readonly SkillData[] _slots = new SkillData[SLOT_COUNT];
         private readonly SkillSlotState _slotState = new(SLOT_COUNT);
         private readonly ChargeService _chargeService;
+        private readonly PlayerEnhanceService _enhanceService;
         private readonly Action<float, float> _onBeam;
         private readonly Action<float> _onExplosion;
         private readonly Action<int> _onHeal;
@@ -28,15 +29,17 @@ namespace Kizami.Application
         /// <param name="blackBoard">SkillSlotState の登録先と、入力・HP の取得元</param>
         /// <param name="equippedSkills">枠ごとに装備するスキル。空きの枠と、SLOT_COUNT を超えた分は無視する</param>
         /// <param name="chargeService">発動に使うチャージの消費先</param>
+        /// <param name="enhanceService">強化型スキルをかける先</param>
         /// <param name="onBeam">ビームを出す関数。引数は長さ（m）と半径（m）</param>
         /// <param name="onExplosion">爆発を出す関数。引数は半径（m）</param>
         /// <param name="onHeal">HP を回復する関数。引数は回復量</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
-            ChargeService chargeService, Action<float, float> onBeam, Action<float> onExplosion, Action<int> onHeal,
-            int sceneId)
+            ChargeService chargeService, PlayerEnhanceService enhanceService, Action<float, float> onBeam,
+            Action<float> onExplosion, Action<int> onHeal, int sceneId)
         {
             _chargeService = chargeService;
+            _enhanceService = enhanceService;
             _onBeam = onBeam;
             _onExplosion = onExplosion;
             _onHeal = onHeal;
@@ -74,6 +77,12 @@ namespace Kizami.Application
             if (skill == null) return;
             if (skill.Effect == SkillEffect.Heal && !CanHeal()) return;
             if (!_chargeService.TryConsume(skill.Cost)) return;
+
+            if (skill.IsEnhancement)
+            {
+                _enhanceService.Begin(skill);
+                return;
+            }
 
             switch (skill.Effect)
             {

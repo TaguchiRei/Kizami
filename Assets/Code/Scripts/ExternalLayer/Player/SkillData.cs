@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Kizami.External
 {
     /// <summary>
-    /// チャージを消費して発動するスキル 1 つの定義。効果の種類と、消費量、削る形の大きさ、回復量を持つ。
+    /// チャージを消費して発動するスキル 1 つの定義。効果の種類と、消費量、削る形の大きさ、回復量、強化の続き方と倍率を持つ。
     /// </summary>
     [CreateAssetMenu(fileName = "SkillData", menuName = "Kizami/Player/SkillData")]
     public sealed class SkillData : ScriptableObject
@@ -36,6 +36,22 @@ namespace Kizami.External
         [Tooltip("回復する HP。回復でだけ使う")]
         private int _healAmount = 30;
 
+        [SerializeField]
+        [Tooltip("強化が切れる条件。強化型でだけ使う")]
+        private EnhanceLimit _enhanceLimit;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("強化が続く実時間（秒）。時間で切れる強化でだけ使う")]
+        private float _enhanceDuration = 10f;
+
+        [SerializeField, Min(1)]
+        [Tooltip("強化が続く攻撃の回数。回数で切れる強化でだけ使う")]
+        private int _enhanceCount = 5;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("強化の倍率。範囲アップは刃の幅と届く距離に、速さアップは攻撃間隔に掛ける")]
+        private float _enhanceScale = 1.5f;
+
         /// <summary> HUD に出す名前 </summary>
         public string DisplayName => _displayName;
 
@@ -56,6 +72,21 @@ namespace Kizami.External
 
         /// <summary> 回復する HP </summary>
         public int HealAmount => _healAmount;
+
+        /// <summary> 強化が切れる条件 </summary>
+        public EnhanceLimit EnhanceLimit => _enhanceLimit;
+
+        /// <summary> 強化が続く実時間（秒） </summary>
+        public float EnhanceDuration => _enhanceDuration;
+
+        /// <summary> 強化が続く攻撃の回数 </summary>
+        public int EnhanceCount => _enhanceCount;
+
+        /// <summary> 強化の倍率 </summary>
+        public float EnhanceScale => _enhanceScale;
+
+        /// <summary> 強化型スキルか </summary>
+        public bool IsEnhancement => _effect >= SkillEffect.EnhanceDestroy;
     }
 
     /// <summary>
@@ -71,5 +102,32 @@ namespace Kizami.External
 
         /// <summary> HP を回復する。最大 HP を超えた分は捨てる </summary>
         Heal,
+
+        /// <summary> 強化型。剣の切断にボクセル破壊の属性を足し、当たったボクセルを切断面で切り分ける </summary>
+        EnhanceDestroy,
+
+        /// <summary> 強化型。剣の切断にシルブレ（装甲を一撃で壊す属性）を足す </summary>
+        EnhanceArmorBreak,
+
+        /// <summary> 強化型。剣の切断の範囲の幅と届く距離に倍率を掛ける </summary>
+        EnhanceRange,
+
+        /// <summary> 強化型。剣の攻撃間隔に倍率を掛ける </summary>
+        EnhanceSpeed,
+
+        /// <summary> 強化型。投げた・撃ったかけらが、当たった所で爆発する </summary>
+        ExplosiveFragment,
+    }
+
+    /// <summary>
+    /// 強化型スキルの効果が切れる条件。
+    /// </summary>
+    public enum EnhanceLimit
+    {
+        /// <summary> 決めた実時間が経つと切れる </summary>
+        Duration,
+
+        /// <summary> プレイヤーが決めた回数だけ攻撃すると切れる </summary>
+        Count,
     }
 }

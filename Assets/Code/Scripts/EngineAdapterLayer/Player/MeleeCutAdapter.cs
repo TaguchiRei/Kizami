@@ -88,7 +88,8 @@ namespace Kizami.EngineAdapter
         /// 振ったときの角度で刃を配置し、範囲内の切れる対象を切断する。範囲内の装甲のパネルには 1 回ずつ当てる。
         /// </summary>
         /// <param name="angle">切断面の角度（度）</param>
-        public void Swing(float angle)
+        /// <param name="rangeScale">範囲の幅と届く距離に掛ける倍率</param>
+        public void Swing(float angle, float rangeScale)
         {
             if (!Initialized || _blade == null) return;
 
@@ -111,7 +112,7 @@ namespace Kizami.EngineAdapter
             var normal = Quaternion.AngleAxis(angle, forward) * cameraTransform.up;
             var bladeRotation = Quaternion.LookRotation(forward, normal);
 
-            CollectTargets(origin, forward, normal, bladeRotation);
+            CollectTargets(origin, forward, normal, bladeRotation, rangeScale);
 
             foreach (var armorPanel in _armorPanels)
             {
@@ -129,13 +130,15 @@ namespace Kizami.EngineAdapter
         /// 範囲内にあり、今切れる状態で、Renderer のバウンディングボックスが刃の平面をまたぎ、装甲の奥にない CuttableObject を _targets に集める。
         /// 範囲内の装甲のパネルは _armorPanels に集める。
         /// </summary>
-        private void CollectTargets(Vector3 origin, Vector3 forward, Vector3 normal, Quaternion bladeRotation)
+        private void CollectTargets(Vector3 origin, Vector3 forward, Vector3 normal, Quaternion bladeRotation,
+            float rangeScale)
         {
             _targets.Clear();
             _armorPanels.Clear();
 
-            var center = origin + forward * (_reach * 0.5f);
-            var halfExtents = new Vector3(_width * 0.5f, _thickness * 0.5f, _reach * 0.5f);
+            var reach = _reach * rangeScale;
+            var center = origin + forward * (reach * 0.5f);
+            var halfExtents = new Vector3(_width * rangeScale * 0.5f, _thickness * 0.5f, reach * 0.5f);
             var hitCount = Physics.OverlapBoxNonAlloc(center, halfExtents, _hitBuffer, bladeRotation,
                 _targetLayers, QueryTriggerInteraction.Ignore);
 
