@@ -153,6 +153,41 @@ Notion の「スコア」「失敗条件」に反映し、「Brilliant Skill」�
 
 クラウドでは Unity が動かないので、コンパイルとプレイモードの確認は、各コミットのあとにローカルで行う。
 
+## 実装の途中経過（2026-10-14、クラウド）
+
+コミット 1〜6 をクラウドで実装した。Unity を動かせないので、コンパイルも動作もまだ確かめていない。コミット7（リトライ）は、UsefulToolkit 側でシーンの読み直しと `DebugGUI` の登録を外す API が入るのを待つ。
+
+### 計画から変えたこと
+
+- `PauseService` は作らず、ポーズを `StageFlowService` に持たせた。プレイ中にだけポーズでき、クリア・失敗と同じく Player マップを止める処理を共有する為。ポーズ中かは `StageFlowState.IsPaused`
+- ポーズの入力は Player マップに Action を足さず、UI マップの `Cancel`（Esc）を使う。ポーズ中は Player マップを止めるので、Player マップの Action では解けない為。プレイを始めたときに UI マップを有効にする
+- スローモードの継続の消費は、時間の倍率（`ITimeScaleState.Scale`）が 0 の間は止める。ポーズを知らせずに済む
+- ポーズの画面は `StagePauseAdapter`。プレイに戻るボタンとアウトゲームへ戻るボタンを置く
+- HUD とリザルトとポーズの画面の uGUI は、シーンに置かず、初期化のときにコードで組み立てる（`UiBuilder`）。クラウドからシーンの UI を組めない為。見た目を作り込むときにプレハブへ置き換える（TODO）。`PlayerHudAdapter` は `StageHudAdapter` に名前を変え（スクリプトの GUID はそのまま）、初期化を `StageInitializer` へ移した
+- ランチャーの装填状態は State がないので、HUD が `FragmentThrowAdapter.IsLoaded` を直接読む
+- 選べるステージの一覧は `IGameSceneController.Stages` で渡す。`GameProgressService` は `GameSceneInitializer` が組み立て、常駐のコンテナへ登録する
+- クリアの基礎スコアは `StageData.ClearScore`（既定 1000）。初回クリアの通貨は `GameSceneInitializer` の Inspector（既定 100）
+- アウトゲームを通さずにインゲームを始めたときは、既定の値の `StageData`（失敗条件は HP 0）と、`PlayerInitializer` の Inspector の装備で始める
+
+### ローカルで確かめること
+
+1. コンパイル（Kizami の Runtime の asmdef すべて）
+2. 生成された Compositor を手で直した（`UsefulToolkitPersistentCompositor` の `StageBoard` の登録、`InGameCompositor` と `OutGameCompositor` の注入）。UsefulToolkit の生成を実行し直して、差分が出ないこと
+3. シーンとアセットを手で書き換えた。参照が切れていないこと
+   - `UsefulToolkitPersistent` の `GameSceneInitializer`：`_stages`（TestStageData）、`_skills`（Skill_Beam、Skill_Explosion）、`_firstClearReward`
+   - `InGame` の `Stage`：`StageInitializer` の参照（`StageClearAdapter`、`EnemySpawnAdapter`、`StageResultAdapter`、`StageHudAdapter`、`StagePauseAdapter`、`FragmentThrowAdapter`）、追加した `StageResultAdapter` と `StagePauseAdapter`
+   - `InGame` の `StageHud`（旧 `PlayerHud`）が `StageHudAdapter` になっていること。`PlayerInitializer` から `_hudAdapter` を外した
+   - `TestStageData.asset` を手で作った。失敗条件は書いていないので、読み込んだときにフィールドの初期値（HP 0）が入ること。Inspector で一度保存すると書き出される
+4. 常駐シーンから再生して、次を確かめる
+   - アウトゲームに通貨（0）、スキルの装備枠 3 つ（Beam、Explosion、空き）、TestStage のボタンが出る。枠のボタンでスキルが替わる
+   - TestStage に入ると、HUD（HP、チャージと線、スキルの枠、Targets、Defeated、Launcher）と START が出る。装備したスキルが使える
+   - 敵を核で倒す、崩落で倒すと Defeated が増える。フィニッシャーに吸収された敵は増えない
+   - 門を 2 つ壊すとクリアのリザルト（倒した数、スコア ＝ 倒した数 ＋ 1000）が出て、カーソルが出る。Back to Menu でアウトゲームへ戻り、通貨が 100 増え、TestStage に (cleared) が付く。もう一度クリアしても通貨は増えない
+   - HP を 0 にすると失敗のリザルト（HP reached 0、倒した数）が出る。`TestStageData` の失敗条件を空にすると、HP が 0 でも失敗しない
+   - Esc でポーズの画面が出て、時間と操作が止まる。Esc か Resume で戻る。スロー中にポーズして待っても、チャージが減らずスローが解けない。ポーズから Back to Menu で戻ると、アウトゲームの時間が等速
+   - リザルトのあとは、プレイヤーを操作できない
+5. 失敗条件の一覧（`[SerializeReference]`）は、Unity の既定の Inspector では要素を消せるが、型を選んで足すことはできない。消したあとに HP 0 を戻すときは、`StageData` を作り直すか、型を選べる表示を足す（区間14で条件を増やすときに決める）
+
 ## 見つけた問題（今回は扱わない）
 
 - なし

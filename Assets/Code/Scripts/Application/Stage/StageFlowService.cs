@@ -100,7 +100,8 @@ namespace Kizami.Application
         /// </summary>
         public void Pause()
         {
-            if (_state.Phase != StagePhase.Playing || _state.IsPaused || _timeScaleController == null) return;
+            if (_state.Phase != StagePhase.Playing || _state.IsPaused || _timeScaleController == null ||
+                _timeScaleState == null) return;
 
             _resumeScale = _timeScaleState.Scale;
             _timeScaleController.SetScale(0f);
