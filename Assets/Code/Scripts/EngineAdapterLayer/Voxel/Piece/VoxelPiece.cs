@@ -77,12 +77,16 @@ namespace Kizami.EngineAdapter.Voxel
         private Mesh _hullMesh;
         private bool _needsMeasure;
         private bool _needsSplitCheck;
+        private Material[] _materials = Array.Empty<Material>();
         private bool _hasInitialSampleCount;
         private bool _meltedSinceMeasure;
         private bool _hasWarnedThermalSettings;
 
         public VoxelQualitySettings Quality => _quality;
         public Material Material => _material;
+
+        /// <summary> 素材の番号ごとのマテリアル。ボリュームが素材を持つとき、Material の代わりに使う </summary>
+        public IReadOnlyList<Material> Materials => _materials;
         public VoxelColliderMode ColliderMode => _colliderMode;
         public bool IsSplittable => _splittable;
         public VoxelMeltSystem MeltSystem => _meltSystem;
@@ -189,6 +193,9 @@ namespace Kizami.EngineAdapter.Voxel
             }
         }
 
+        /// <summary> ボリュームが素材を持ち、素材ごとのマテリアルが設定されているか </summary>
+        private bool UsesMaterials => _volume != null && _volume.HasMaterials && _materials.Length > 0;
+
         private float VoxelCubicVolume
         {
             get
@@ -235,6 +242,19 @@ namespace Kizami.EngineAdapter.Voxel
         public void SetMaterial(Material material)
         {
             _material = material;
+        }
+
+        /// <summary>
+        /// 素材の番号ごとのマテリアルを差し替える。ボリュームが素材を持つときに使い、チャンクは素材ごとのサブメッシュで塗り分ける。
+        /// これ以降に生成するチャンクから反映される。
+        /// </summary>
+        public void SetMaterials(IReadOnlyList<Material> materials)
+        {
+            _materials = new Material[materials.Count];
+            for (var i = 0; i < _materials.Length; i++)
+            {
+                _materials[i] = materials[i];
+            }
         }
 
         /// <summary>
@@ -817,6 +837,7 @@ namespace Kizami.EngineAdapter.Voxel
             var piece = pieceObject.AddComponent<VoxelPiece>();
             piece._quality = _quality;
             piece._material = _material;
+            piece._materials = _materials;
             piece._colliderMode = VoxelColliderMode.ConvexHull;
             piece._splittable = _splittable;
             piece._minPieceSamples = _minPieceSamples;
@@ -996,13 +1017,18 @@ namespace Kizami.EngineAdapter.Voxel
             var chunkIndices = new int[count];
             var buffers = new MeshBuffers[count];
             var handles = new NativeArray<JobHandle>(count, Allocator.Temp);
+            var materialCount = UsesMaterials ? _materials.Length : 1;
+
+            // 素材を持たないボリュームでも、ジョブの入力として作った配列を渡す必要がある
+            var emptyMaterialIds = UsesMaterials ? default : new NativeArray<byte>(1, Allocator.TempJob);
+            var materialIds = UsesMaterials ? _volume.MaterialIds : emptyMaterialIds;
 
             for (var i = 0; i < count; i++)
             {
                 var chunkIndex = _dirtyQueue.Dequeue();
                 _isDirty[chunkIndex] = false;
                 chunkIndices[i] = chunkIndex;
-                buffers[i] = new MeshBuffers(Allocator.TempJob);
+                buffers[i] = new MeshBuffers(materialCount, Allocator.TempJob);
 
                 layout.GetChunkCellRange(layout.ToChunkCoord(chunkIndex), out var cellMin, out var cellMax);
                 var meshingHandle = new SurfaceNetsJob
@@ -1013,7 +1039,10 @@ namespace Kizami.EngineAdapter.Voxel
                     CellMax = cellMax,
                     Vertices = buffers[i].Vertices,
                     Normals = buffers[i].Normals,
-                    Indices = buffers[i].Indices
+                    Indices = buffers[i].Indices,
+                    MaterialCount = materialCount,
+                    SubMeshIndexCounts = buffers[i].SubMeshIndexCounts,
+                    MaterialIds = materialIds
                 }.Schedule();
 
                 handles[i] = useHull
@@ -1027,6 +1056,7 @@ namespace Kizami.EngineAdapter.Voxel
 
             JobHandle.CombineDependencies(handles).Complete();
             handles.Dispose();
+            if (emptyMaterialIds.IsCreated) emptyMaterialIds.Dispose();
 
             var colliderTargets = new List<ChunkSlot>(count);
             for (var i = 0; i < count; i++)
@@ -1168,7 +1198,14 @@ namespace Kizami.EngineAdapter.Voxel
 
             var meshFilter = chunkObject.AddComponent<MeshFilter>();
             var meshRenderer = chunkObject.AddComponent<MeshRenderer>();
-            meshRenderer.sharedMaterial = _material;
+            if (UsesMaterials)
+            {
+                meshRenderer.sharedMaterials = _materials;
+            }
+            else
+            {
+                meshRenderer.sharedMaterial = _material;
+            }
 
             // MeshFilter に空の Mesh が入った状態で追加すると、空の Mesh をベイクしようとする為、先に追加する
             MeshCollider meshCollider = null;
@@ -1220,14 +1257,18 @@ namespace Kizami.EngineAdapter.Voxel
             public NativeList<float3> Normals;
             public NativeList<int> Indices;
 
+            /// <summary> 素材ごとのインデックスの数。Indices は素材の順に並ぶ </summary>
+            public NativeArray<int> SubMeshIndexCounts;
+
             /// <summary> VoxelHullDirections の方向ごとの、頂点の中で最も外側の点 </summary>
             public NativeArray<float3> Extremes;
 
-            public MeshBuffers(Allocator allocator)
+            public MeshBuffers(int materialCount, Allocator allocator)
             {
                 Vertices = new NativeList<float3>(1024, allocator);
                 Normals = new NativeList<float3>(1024, allocator);
                 Indices = new NativeList<int>(4096, allocator);
+                SubMeshIndexCounts = new NativeArray<int>(materialCount, allocator);
                 Extremes = new NativeArray<float3>(VoxelHullDirections.COUNT, allocator);
             }
 
@@ -1236,6 +1277,7 @@ namespace Kizami.EngineAdapter.Voxel
                 Vertices.Dispose();
                 Normals.Dispose();
                 Indices.Dispose();
+                SubMeshIndexCounts.Dispose();
                 Extremes.Dispose();
             }
         }
@@ -1268,7 +1310,17 @@ namespace Kizami.EngineAdapter.Voxel
                 Mesh.Clear();
                 Mesh.SetVertices(buffers.Vertices.AsArray());
                 Mesh.SetNormals(buffers.Normals.AsArray());
-                Mesh.SetIndices(buffers.Indices.AsArray(), MeshTopology.Triangles, 0);
+
+                var subMeshCount = buffers.SubMeshIndexCounts.Length;
+                Mesh.subMeshCount = subMeshCount;
+                var indices = buffers.Indices.AsArray();
+                var start = 0;
+                for (var subMesh = 0; subMesh < subMeshCount; subMesh++)
+                {
+                    var length = buffers.SubMeshIndexCounts[subMesh];
+                    Mesh.SetIndices(indices.GetSubArray(start, length), MeshTopology.Triangles, subMesh);
+                    start += length;
+                }
 
                 Renderer.enabled = true;
                 TriangleCount = triangleCount;

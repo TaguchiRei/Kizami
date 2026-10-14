@@ -203,6 +203,7 @@ namespace Kizami.EngineAdapter.Voxel
 
                 piece.SetQuality(_quality);
                 piece.SetMaterial(ResolveMaterial(target));
+                if (partData.HasMaterials) piece.SetMaterials(ResolveMaterials(target));
                 piece.SetSplittable(_splittable);
                 piece.SetMeltSystem(_meltSystem);
                 piece.BindToModel(this, partData.Path);
@@ -255,6 +256,21 @@ namespace Kizami.EngineAdapter.Voxel
         private void Start()
         {
             if (_loadOnStart) Load();
+        }
+
+        /// <summary>
+        /// 素材の番号ごとのマテリアル。上書き指定があれば全素材をそれで塗り、素材のマテリアルが空なら ResolveMaterial で補う。
+        /// </summary>
+        private Material[] ResolveMaterials(Transform target)
+        {
+            var materials = new Material[_model.Materials.Count];
+            for (var i = 0; i < materials.Length; i++)
+            {
+                var material = _materialOverride != null ? _materialOverride : _model.Materials[i].Material;
+                materials[i] = material != null ? material : ResolveMaterial(target);
+            }
+
+            return materials;
         }
 
         /// <summary>
