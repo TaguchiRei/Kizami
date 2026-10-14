@@ -729,6 +729,13 @@ namespace Kizami.EngineAdapter.Voxel
                 if (Model != null) Model.NotifySplit(splitPieces);
             }
 
+            // 切り離された塊が削られて中身を失ったら消す。モデルの元のパーツは、空になってもモデルの一部として残す
+            if (Generation > 0 && SampleCount == 0)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
             if (_volume != null && _dirtyQueue.Count > 0)
             {
                 RemeshPending(_quality.RemeshChunksPerFrame);
