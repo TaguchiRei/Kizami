@@ -13,7 +13,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// インゲームの流れ（StageFlowService / StageFlowState）、破壊対象の数え役（StageClearAdapter）、倒した敵の通知（EnemySpawnAdapter）、リザルト（StageResultAdapter）を生成して繋ぎ、プレイを始める配線役。インゲームのシーンへ置く。
+    /// インゲームの流れ（StageFlowService / StageFlowState）、破壊対象の数え役（StageClearAdapter）、倒した敵の通知（EnemySpawnAdapter）、HUD（StageHudAdapter）、リザルト（StageResultAdapter）を生成して繋ぎ、プレイを始める配線役。インゲームのシーンへ置く。
     /// 失敗条件の判定にプレイヤーの State を使う為、PlayerInitializer より後に初期化する。
     /// 流れの状態、破壊済みの破壊対象の数、重要パーツごとの削れた割合を画面に出す。表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
@@ -24,6 +24,8 @@ namespace Kizami.Initialization
         [SerializeField] private StageClearAdapter _stageClearAdapter;
         [SerializeField] private EnemySpawnAdapter _enemySpawnAdapter;
         [SerializeField] private StageResultAdapter _resultAdapter;
+        [SerializeField] private StageHudAdapter _hudAdapter;
+        [SerializeField] private FragmentThrowAdapter _fragmentThrowAdapter;
 
         private GameProgressService _progressService;
         private IGameSceneController _sceneController;
@@ -43,6 +45,7 @@ namespace Kizami.Initialization
             _stageClearAdapter.Initialize(_flowService.ReportTargets);
             _enemySpawnAdapter.SetOnDefeated(_flowService.AddDefeats);
             _resultAdapter.Initialize(blackBoard, BackToOutGame);
+            _hudAdapter.Initialize(blackBoard, _fragmentThrowAdapter);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             DebugGUI.ObserveVariable("Stage", GetTargetText);
 #endif
@@ -59,6 +62,8 @@ namespace Kizami.Initialization
             var hasAll = this.IsAssigned(_stageClearAdapter, nameof(StageClearAdapter));
             hasAll &= this.IsAssigned(_enemySpawnAdapter, nameof(EnemySpawnAdapter));
             hasAll &= this.IsAssigned(_resultAdapter, nameof(StageResultAdapter));
+            hasAll &= this.IsAssigned(_hudAdapter, nameof(StageHudAdapter));
+            hasAll &= this.IsAssigned(_fragmentThrowAdapter, nameof(FragmentThrowAdapter));
             return hasAll;
         }
 

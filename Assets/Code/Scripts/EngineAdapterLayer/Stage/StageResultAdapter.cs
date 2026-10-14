@@ -1,8 +1,6 @@
 using System;
 using Kizami.BlackBoard;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.Initialization;
@@ -14,13 +12,11 @@ namespace Kizami.EngineAdapter
     /// クリアなら倒した敵の数とスコア、失敗なら失敗した理由と倒した敵の数を出し、アウトゲームへ戻るボタンを置く。
     /// 画面は uGUI の Canvas を初期化のときに組み立てる。シーンに EventSystem がなければ、ボタンを押せるように作る。
     /// </summary>
-    // TODO: 見た目を作り込むときは、組み立てをプレハブに置き換える
     public sealed class StageResultAdapter : InitializableMonoBehaviour
     {
         private const int SORTING_ORDER = 100;
         private const int TITLE_FONT_SIZE = 64;
         private const int BODY_FONT_SIZE = 32;
-        private static readonly Vector2 _referenceResolution = new(1920f, 1080f);
         private static readonly Vector2 _buttonSize = new(360f, 80f);
 
         [SerializeField]
@@ -45,31 +41,6 @@ namespace Kizami.EngineAdapter
                 StageFailReason.PlayerDeath => "HP reached 0",
                 _ => reason.ToString(),
             };
-        }
-
-        private static T CreateChild<T>(Transform parent, string name) where T : Component
-        {
-            var child = new GameObject(name, typeof(RectTransform), typeof(T));
-            child.transform.SetParent(parent, false);
-            return child.GetComponent<T>();
-        }
-
-        private static Text CreateText(Transform parent, string name, Font font, int fontSize)
-        {
-            var text = CreateChild<Text>(parent, name);
-            text.font = font;
-            text.fontSize = fontSize;
-            text.alignment = TextAnchor.MiddleCenter;
-            text.color = Color.white;
-            return text;
-        }
-
-        private static void Stretch(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
-        {
-            rect.anchorMin = anchorMin;
-            rect.anchorMax = anchorMax;
-            rect.offsetMin = Vector2.zero;
-            rect.offsetMax = Vector2.zero;
         }
 
         /// <summary>
@@ -122,43 +93,25 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void BuildView()
         {
-            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var canvas = UiBuilder.CreateCanvas(transform, "StageResult", SORTING_ORDER, true);
+            _root = canvas.gameObject;
 
-            _root = new GameObject("StageResult", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler),
-                typeof(GraphicRaycaster));
-            _root.transform.SetParent(transform, false);
+            var background = UiBuilder.CreateImage(canvas, "Background", _backgroundColor);
+            UiBuilder.SetAnchors(background.rectTransform, Vector2.zero, Vector2.one);
 
-            var canvas = _root.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = SORTING_ORDER;
+            _titleText = UiBuilder.CreateText(canvas, "Title", TITLE_FONT_SIZE);
+            UiBuilder.SetAnchors(_titleText.rectTransform, new Vector2(0f, 0.65f), new Vector2(1f, 0.85f));
 
-            var scaler = _root.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = _referenceResolution;
+            _bodyText = UiBuilder.CreateText(canvas, "Body", BODY_FONT_SIZE);
+            UiBuilder.SetAnchors(_bodyText.rectTransform, new Vector2(0f, 0.4f), new Vector2(1f, 0.65f));
 
-            var background = CreateChild<Image>(_root.transform, "Background");
-            Stretch(background.rectTransform, Vector2.zero, Vector2.one);
-            background.color = _backgroundColor;
-
-            _titleText = CreateText(_root.transform, "Title", font, TITLE_FONT_SIZE);
-            Stretch(_titleText.rectTransform, new Vector2(0f, 0.65f), new Vector2(1f, 0.85f));
-
-            _bodyText = CreateText(_root.transform, "Body", font, BODY_FONT_SIZE);
-            Stretch(_bodyText.rectTransform, new Vector2(0f, 0.4f), new Vector2(1f, 0.65f));
-
-            var buttonImage = CreateChild<Image>(_root.transform, "BackButton");
-            buttonImage.color = _buttonColor;
-            var buttonRect = buttonImage.rectTransform;
+            var backButton = UiBuilder.CreateButton(canvas, "BackButton", "Back to Menu", BODY_FONT_SIZE, _buttonColor);
+            var buttonRect = (RectTransform)backButton.transform;
             buttonRect.anchorMin = buttonRect.anchorMax = new Vector2(0.5f, 0.25f);
             buttonRect.sizeDelta = _buttonSize;
-            var button = buttonImage.gameObject.AddComponent<Button>();
-            button.onClick.AddListener(OnBackClicked);
+            backButton.onClick.AddListener(OnBackClicked);
 
-            var buttonText = CreateText(buttonRect, "Label", font, BODY_FONT_SIZE);
-            Stretch(buttonText.rectTransform, Vector2.zero, Vector2.one);
-            buttonText.text = "Back to Menu";
-
-            EnsureEventSystem();
+            UiBuilder.EnsureEventSystem(transform);
             _root.SetActive(false);
         }
 
@@ -166,17 +119,6 @@ namespace Kizami.EngineAdapter
         {
             _root.SetActive(false);
             _backToOutGame?.Invoke();
-        }
-
-        /// <summary>
-        /// シーンに EventSystem がなければ、新しい Input System 用の入力モジュールを付けて作る。
-        /// </summary>
-        private void EnsureEventSystem()
-        {
-            if (EventSystem.current != null || FindAnyObjectByType<EventSystem>() != null) return;
-
-            var eventSystem = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
-            eventSystem.transform.SetParent(transform, false);
         }
     }
 }

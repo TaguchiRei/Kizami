@@ -32,7 +32,6 @@ namespace Kizami.Initialization
         [SerializeField] private EnemyEnergyAdapter _enemyEnergyAdapter;
         [SerializeField] private EnemySpawnAdapter _enemySpawnAdapter;
         [SerializeField] private VoxelDestructionAdapter _voxelDestructionAdapter;
-        [SerializeField] private PlayerHudAdapter _hudAdapter;
         [SerializeField] private FragmentThrowAdapter _fragmentThrowAdapter;
 
         // TODO: アウトゲームで装備したスキルを受け取る
@@ -96,7 +95,6 @@ namespace Kizami.Initialization
             }
 
             _meleeCutPreviewAdapter.Initialize(blackBoard);
-            _hudAdapter.Initialize(blackBoard);
 
             base.Initialize(blackBoard);
         }
@@ -114,7 +112,6 @@ namespace Kizami.Initialization
             hasAll &= this.IsAssigned(_enemyEnergyAdapter, nameof(EnemyEnergyAdapter));
             hasAll &= this.IsAssigned(_enemySpawnAdapter, nameof(EnemySpawnAdapter));
             hasAll &= this.IsAssigned(_voxelDestructionAdapter, nameof(VoxelDestructionAdapter));
-            hasAll &= this.IsAssigned(_hudAdapter, nameof(PlayerHudAdapter));
             hasAll &= this.IsAssigned(_fragmentThrowAdapter, nameof(FragmentThrowAdapter));
             return hasAll;
         }
