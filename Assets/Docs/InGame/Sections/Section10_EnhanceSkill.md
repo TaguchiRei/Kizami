@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 着手（2026-10-14）。作業ブランチ `claude/alpha/enhance-skill`（`feature/alpha/big-voxel` の a60c965 から切った） |
+| 状態 | 実装済み・ローカルでの確認待ち（2026-10-14）。作業ブランチ `claude/alpha/enhance-skill`（`feature/alpha/big-voxel` の a60c965 から切った） |
 | 目安の時期 | 2027/03/30〜04/12（最速の推定 2026/10/25〜10/28） |
 | 前提となる区間 | 6, 7 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -142,6 +142,48 @@ HP を回復するスキルを作る（2026-10-05 追加。HP の回復は基本
 ## 見つけた問題（今回は扱わない）
 
 - `VoxelMeltSystem` は InGame にも TestStage にも置かれていない（全体計画書の記載どおり。演出は区間13）
+
+## 実装結果（2026-10-14、クラウドで実装。コンパイルと動作はローカルで未確認）
+
+### 作業中に決めたこと
+
+- 強化はユーザーの決めたとおりに Service（`PlayerEnhanceService`）に持たせ、State は作らなかった（「作業計画」に理由）
+- 回復は HP が最大か 0 のときに発動せず、チャージも消費しない（決めたこと 9）
+- チャージのゲージの数値は今の量だけを出す（`45` のように。最大値は出さない）
+- 速さアップの倍率は攻撃間隔に掛けるので、1 より小さくすると速くなる（`Skill_EnhanceSpeed` は 0.5）
+- かけらの爆発の半径は `FragmentThrowAdapter` の設定値（既定 2m）にした。爆発の中心はぶつかったときのかけらの見た目の中心
+- かけらの爆発の強化は、実際に投げた・撃ったときだけ回数を使う（持っていないときの投げる入力では減らない）。剣の強化は、攻撃間隔と振れる回数の判定を通って振ったときに回数を使う
+- 振ったときの強化の回数は、かかっている強化それぞれから 1 回ずつ減らす
+
+### 作った主なもの
+
+| 種類 | もの |
+|---|---|
+| 新しい型 | `DamageType`（BlackBoard）、`PlayerEnhanceService`（Application）、`EnhanceLimit`（External、`SkillData.cs` の中） |
+| 変えたもの | `ArmorPanel.ApplyDamage`（`ApplyHit` と `Shatter` をまとめた）、`SkillData`（アイコン・回復量・強化の条件と倍率、`SkillEffect` に 6 つ）、`SkillService`、`MeleeCutService`、`MeleeCutAdapter`（範囲の倍率、ピースの `Slice`）、`FragmentThrowService` / `FragmentThrowAdapter`（`Throw` / `Fire` を `TryThrow` / `TryFire` にした）、`VoxelDestructionAdapter.CarveExplosionAt`、`PlayerHealthService.Heal`、`PlayerHudAdapter`、`PlayerInitializer` |
+| アセット | `Assets/Level/Data/Player/` の `Skill_Heal`・`Skill_EnhanceSpeed`（時間）・`Skill_EnhanceRange`（回数）・`Skill_EnhanceDestroy`（時間）・`Skill_EnhanceArmorBreak`（回数）・`Skill_ExplosiveFragment`（回数）。InGame の 3 枠目に `Skill_Heal` を装備した。アイコンはまだない（灰色の四角で出る） |
+
+### ローカルで確かめること
+
+1. Unity でコンパイルが通ること（`Kizami.BlackBoard.Runtime`・`Kizami.External.Runtime`・`Kizami.Application.Runtime`・`Kizami.EngineAdapter.Runtime`・`Kizami.Initialization.Runtime`）。新しいファイル（`DamageType.cs`・`PlayerEnhanceService.cs`）の `.meta` は Unity が作るので、一緒にコミットする
+2. InGame を開き、次を確かめる
+   - コミット 1：剣・G キー・ビーム・爆発で装甲の耐久値が 1 減り、投げたかけらで一撃で壊れる（今までと同じ）
+   - コミット 2：敵の攻撃で HP を減らし、3 キー（回復）で回復し、最大を超えない。満タンのときはチャージが減らない
+   - コミット 3：HUD のチャージのゲージの中央に数値が出る。スキルの枠に「可」「不」が出て、不のときは灰色の「不」の上に必要量が出る。日本語の文字が出るか（OnGUI の既定のフォント）。ゲージの高さ 10px に対して数値の文字が大きければ、Inspector の `_chargeHeight` か `_fontSize` を合わせる
+   - コミット 4：`PlayerInitializer` の枠に `Skill_EnhanceSpeed` と `Skill_EnhanceRange` を入れ、連打の間隔が短くなり 10 秒で戻ること、範囲が広がり 5 回振ると戻ること
+   - コミット 5：`Skill_EnhanceDestroy` で、建物やボクセルの物が刃の面に沿って分かれる。`Skill_EnhanceArmorBreak` で、装甲とディフェンダーのバリアが一撃で壊れる
+   - コミット 6：`Skill_ExplosiveFragment` をかけて投げた・撃ったかけらが、当たった所で半径 2m を削り、範囲の装甲に当たる。3 回で切れる
+3. 完了条件すべて
+
+### 次の区間へ持ち越すこと
+
+- 特殊型スキル（ボクセルのかけらを溜めて、解放すると上から落とす。専用 UI）。量産のときに作る（ユーザー、2026-10-14）
+- 発動型のビームの形を増やす（N 種類）。量産のとき
+- スキルのアイコンの画像。今は灰色の四角
+- 強化の残り時間・残り回数の表示。出すことになったら、`PlayerEnhanceService` が書く State を足す
+- 各攻撃の強さ P と減衰率 a の決め直し（区間13）
+- 範囲アップの刃は、範囲の箱が大きくなると集めるコライダーが上限（128）に届きやすくなる。上限に届くと警告が出るので、出たら上限を見直す
+- `VoxelPiece.Slice` は 0.4m のボクセルで 1 回 27ms（区間15の計測）。範囲に入ったピースの数だけ呼ぶので、広い範囲で多くのピースを切ると重くなる。体感で重ければ、1 回の振りで切るピースの数を絞る
 
 ## 他プラットフォームへの対応
 
