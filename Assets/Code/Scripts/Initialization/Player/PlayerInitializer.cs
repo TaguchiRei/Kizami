@@ -99,7 +99,7 @@ namespace Kizami.Initialization
             }
 
             _meleeCutPreviewAdapter.Initialize(blackBoard);
-            _hudAdapter.Initialize(blackBoard);
+            _hudAdapter.Initialize(blackBoard, GetSkillIcons());
 
             base.Initialize(blackBoard);
         }
@@ -130,6 +130,20 @@ namespace Kizami.Initialization
         {
             _enemySpawnAdapter.ReceiveCutResults(results, plane);
             _fragmentOrbAdapter.ReceiveCutResults(results);
+        }
+
+        /// <summary>
+        /// 装備枠ごとのスキルのアイコンを返す。空きの枠は null にする。
+        /// </summary>
+        private Texture2D[] GetSkillIcons()
+        {
+            var icons = new Texture2D[_equippedSkills.Length];
+            for (var i = 0; i < icons.Length; i++)
+            {
+                icons[i] = _equippedSkills[i] != null ? _equippedSkills[i].Icon : null;
+            }
+
+            return icons;
         }
 
         private void Awake()

@@ -13,6 +13,10 @@ namespace Kizami.External
         private string _displayName = "Skill";
 
         [SerializeField]
+        [Tooltip("HUD に出すアイコン")]
+        private Texture2D _icon;
+
+        [SerializeField]
         [Tooltip("発動したときの効果")]
         private SkillEffect _effect;
 
@@ -34,6 +38,9 @@ namespace Kizami.External
 
         /// <summary> HUD に出す名前 </summary>
         public string DisplayName => _displayName;
+
+        /// <summary> HUD に出すアイコン </summary>
+        public Texture2D Icon => _icon;
 
         /// <summary> 発動したときの効果 </summary>
         public SkillEffect Effect => _effect;
