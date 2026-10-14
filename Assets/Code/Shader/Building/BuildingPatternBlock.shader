@@ -33,6 +33,9 @@ Shader "Kizami/BuildingPatternBlock"
     // 全体の丸みの上書き。負なら頂点ごとの丸みを使う
     float _BlockRoundnessOverride;
 
+    // 陰影を頂点の法線に切り替え終える丸み。BlockSmoothPreview が設定する
+    float _BlockNormalBlendThreshold;
+
     float BlockRoundness(float4 smoothOffset)
     {
         return _BlockRoundnessOverride >= 0.0 ? _BlockRoundnessOverride : saturate(smoothOffset.w);
@@ -121,7 +124,9 @@ Shader "Kizami/BuildingPatternBlock"
                 float3 smoothNormalOS = normalize(input.normalOS);
                 float3 flatNormalOS = normalize(cross(ddy(p), ddx(p)));
                 flatNormalOS *= dot(flatNormalOS, smoothNormalOS) < 0.0 ? -1.0 : 1.0;
-                float3 normalOS = normalize(lerp(flatNormalOS, smoothNormalOS, input.roundness));
+                // 途中まで動いた四角形は平らでなく三角形ごとに向きが食い違うので、少しでも丸みがあれば頂点の法線に寄せる
+                float normalBlend = smoothstep(0.0, max(_BlockNormalBlendThreshold, 1e-4), input.roundness);
+                float3 normalOS = normalize(lerp(flatNormalOS, smoothNormalOS, normalBlend));
                 float3 n = abs(normalOS);
 
                 // 法線の向きが最も強い軸に垂直な平面へ投影する
@@ -190,7 +195,9 @@ Shader "Kizami/BuildingPatternBlock"
             float4 ShadowVert(Attributes input) : SV_POSITION
             {
                 float3 positionWS = TransformObjectToWorld(BlockPosition(input.positionOS.xyz, input.smoothOffset));
-                float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
+                // 頂点の法線は滑らかな形のもので、角ばった所では面と向きが合わない。法線の向きにずらすと角の頂点がばらばらに動いて自分に影を落とす為、丸みの無い所ではずらさない
+                float normalBlend = smoothstep(0.0, max(_BlockNormalBlendThreshold, 1e-4), BlockRoundness(input.smoothOffset));
+                float3 normalWS = TransformObjectToWorldNormal(input.normalOS) * normalBlend;
             #if _CASTING_PUNCTUAL_LIGHT_SHADOW
                 float3 lightDirection = normalize(_LightPosition - positionWS);
             #else

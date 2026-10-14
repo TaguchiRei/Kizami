@@ -22,6 +22,7 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
         private const string CONTAINER_NAME = "BlockSmoothPreview";
 
         private static readonly int _roundnessOverrideId = Shader.PropertyToID("_BlockRoundnessOverride");
+        private static readonly int _normalBlendThresholdId = Shader.PropertyToID("_BlockNormalBlendThreshold");
 
         private readonly List<PieceView> _views = new();
         private readonly List<VoxelPiece> _foundPieces = new();
@@ -61,6 +62,10 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
 
         [SerializeField, Min(0f)]
         private float _hardScale = 0.3f;
+
+        [SerializeField, Range(0.01f, 1f)]
+        [Tooltip("陰影を頂点の法線に切り替え終える丸み。小さいほど、手付かずの所だけが面の向きで角ばって見える")]
+        private float _normalBlendThreshold = 0.15f;
 
         [SerializeField, Min(1)]
         [Tooltip("1 フレームで作り直すチャンクの上限数")]
@@ -124,6 +129,7 @@ namespace Kizami.EngineAdapter.Voxel.Experimental
         {
             HandleKeys();
             Shader.SetGlobalFloat(_roundnessOverrideId, RoundnessOverride);
+            Shader.SetGlobalFloat(_normalBlendThresholdId, _normalBlendThreshold);
             SyncViews();
 
             foreach (var view in _views)
