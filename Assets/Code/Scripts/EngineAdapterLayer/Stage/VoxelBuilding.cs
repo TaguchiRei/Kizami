@@ -24,12 +24,16 @@ namespace Kizami.EngineAdapter
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/LargeObjectVoxel.md">説明ドキュメント: 巨大なオブジェクトへのボクセルの適用</seealso>
     public sealed class VoxelBuilding : MonoBehaviour
     {
+        /// <summary> 切り離された塊を隣の階にくっつけるとき、2 つの階の向きがそろっているとみなす角度の差（度） </summary>
+        private const float ALIGNED_ANGLE = 1f;
+
         private static readonly int _patternOffsetId = Shader.PropertyToID("_PatternOffset");
 
         private readonly List<VoxelModelLoader> _floors = new();
         private readonly List<Material> _floorMaterials = new();
         private readonly List<IDisposable> _subscriptions = new();
-        private readonly List<Rigidbody> _fallingBodies = new();
+        private readonly List<FallingGroup> _fallingGroups = new();
+        private readonly List<Rigidbody> _restingBodies = new();
         private readonly ActionChannel<Rigidbody> _collapsed = new();
 
         [SerializeField]
@@ -165,7 +169,8 @@ namespace Kizami.EngineAdapter
             loader.SetMeltSystem(_meltSystem);
             loader.SetLoadOnStart(false);
             loader.SetMaterialEntries(CreateFloorMaterials(model, floorIndex));
-            _subscriptions.Add(loader.RegisterOnPieceShapeChanged(_ => UpdateConnections(floorIndex)));
+            _subscriptions.Add(loader.RegisterOnPieceShapeChanged(_ => OnFloorShapeChanged(floorIndex)));
+            _subscriptions.Add(loader.RegisterOnPieceSplit(pieces => AttachSeparatedPieces(floorIndex, pieces)));
 
             _floors.Add(loader);
         }
@@ -287,8 +292,131 @@ namespace Kizami.EngineAdapter
             var body = groupObject.AddComponent<Rigidbody>();
             body.mass = math.max(volume * _collapseDensity, 0.01f);
             body.interpolation = RigidbodyInterpolation.Interpolate;
-            _fallingBodies.Add(body);
+            StartFalling(body);
             _collapsed.Invoke(body);
+        }
+
+        /// <summary>
+        /// floorIndex 階のピース（くっつけた塊も含む）の形が変わったら、止まっている倒れた階のまとまりを起こし、つながりを数え直す。
+        /// 止まったまとまりはキネマティックで、支えを削られても自分からは落ちない為、建物のどこかの形が変わるたびに落とし直す。
+        /// 支えが残っていれば、すぐ眠ってまた止まる。
+        /// </summary>
+        private void OnFloorShapeChanged(int floorIndex)
+        {
+            foreach (var body in _restingBodies)
+            {
+                if (body == null) continue;
+
+                body.isKinematic = false;
+                body.WakeUp();
+                StartFalling(body);
+            }
+
+            _restingBodies.Clear();
+            UpdateConnections(floorIndex);
+        }
+
+        /// <summary>
+        /// 倒れた階のまとまりを、落ちている物として見張り始める。
+        /// </summary>
+        private void StartFalling(Rigidbody body)
+        {
+            _fallingGroups.Add(new FallingGroup
+            {
+                Body = body,
+                LocalCenterOfMass = body.centerOfMass,
+                StartCenterOfMass = body.worldCenterOfMass,
+                StartRotation = body.rotation
+            });
+        }
+
+        /// <summary>
+        /// floorIndex 階から切り離された塊のうち、上下の階と境目の面で中身の点を共有する塊を、その階の子にして一緒に動かす。
+        /// 1 階の塊は、下の面に中身の点があれば地面にくっついているとみなし、建物の子にしてその場に残す。
+        /// 共有する点が多い方につける。くっつけた塊は飾りとして動くだけで、つながりの判定には数えない。
+        /// 当たり判定は切り離したときの凸包のまま使う。同じ剛体の子どうしは当たらない為。
+        /// </summary>
+        private void AttachSeparatedPieces(int floorIndex, VoxelPiece[] pieces)
+        {
+            if (!IsConnectionReady) return;
+
+            var halfVoxel = _quality.VoxelSize * 0.5f;
+            var floor = _floors[floorIndex].transform;
+            for (var i = 1; i < pieces.Length; i++)
+            {
+                var piece = pieces[i];
+                if (piece == null) continue;
+
+                var upperArea = CountSharedFace(piece, floorIndex, floorIndex + 1, _floorHeight - halfVoxel, halfVoxel);
+                var lowerArea = floorIndex == 0
+                    ? CountPieceFace(piece, floorIndex, halfVoxel)
+                    : CountSharedFace(piece, floorIndex, floorIndex - 1, halfVoxel, _floorHeight - halfVoxel);
+                if (upperArea == 0f && lowerArea == 0f) continue;
+
+                Transform target;
+                if (upperArea >= lowerArea) target = _floors[floorIndex + 1].transform;
+                else target = floorIndex == 0 ? transform : _floors[floorIndex - 1].transform;
+
+                if (piece.TryGetComponent<Rigidbody>(out var body))
+                {
+                    body.isKinematic = true;
+                    Destroy(body);
+                }
+
+                piece.transform.SetParent(target, true);
+
+                // TODO: 倒壊で敵を巻き込む条件を決めたら消す
+                UsefulLogger.Log($"{floor.name} から切り離された塊を {target.name} にくっつけました（上の面 {upperArea:F0}・下の面 {lowerArea:F0}）。", this);
+            }
+        }
+
+        /// <summary>
+        /// ピースの floorLocalY の段と、otherFloor 階の otherLocalY の段の両方が中身の点を、重みの大きい方で数える。
+        /// 2 つの階が積んだときの位置と向きのままそろっていないときは 0。
+        /// 切り離しは形の変化の通知より後に届く為、境目が切れて倒れ始めたばかりの階とも比べられるよう、親ではなく位置で判定する。
+        /// </summary>
+        private float CountSharedFace(VoxelPiece piece, int floorIndex, int otherFloor, float floorLocalY, float otherLocalY)
+        {
+            if (otherFloor < 0 || otherFloor >= _floors.Count) return 0f;
+
+            var floor = _floors[floorIndex].transform;
+            var other = _floors[otherFloor].transform;
+            var expected = floor.TransformPoint(0f, (otherFloor - floorIndex) * _floorHeight, 0f);
+            if (Vector3.Distance(other.position, expected) > _quality.VoxelSize * 0.5f ||
+                Quaternion.Angle(other.rotation, floor.rotation) > ALIGNED_ANGLE)
+            {
+                return 0f;
+            }
+
+            Array.Clear(_upperFace, 0, _upperFace.Length);
+            ReadPieceLayer(piece, floorIndex, floor.TransformPoint(0f, floorLocalY, 0f), floor, _upperFace);
+
+            ReadFace(otherFloor, otherLocalY, _lowerFace);
+            var area = 0f;
+            for (var i = 0; i < _upperFace.Length; i++)
+            {
+                if (_upperFace[i] != 0 && _lowerFace[i] != 0) area += Math.Max(_upperFace[i], _lowerFace[i]);
+            }
+
+            return area;
+        }
+
+        /// <summary>
+        /// ピースの floorLocalY の段の中身の点を、重みつきで数える。
+        /// </summary>
+        private float CountPieceFace(VoxelPiece piece, int floorIndex, float floorLocalY)
+        {
+            var floor = _floors[floorIndex].transform;
+            Array.Clear(_upperFace, 0, _upperFace.Length);
+            ReadPieceLayer(piece, floorIndex, floor.TransformPoint(0f, floorLocalY, 0f), floor, _upperFace);
+
+            var area = 0f;
+            foreach (var weight in _upperFace)
+            {
+                area += weight;
+            }
+
+            return area;
         }
 
         /// <summary>
@@ -331,14 +459,7 @@ namespace Kizami.EngineAdapter
 
             foreach (var part in floor.Parts)
             {
-                var volume = part != null ? part.VolumeData : null;
-                if (volume == null) continue;
-
-                if (!TryGetSampleY(part.transform, volume.Layout, floorPoint, out var sampleY)) continue;
-
-                PrepareLayerBuffer(volume.Layout);
-                volume.ReadLayerWeights(sampleY, weights, 1, _layerBuffer);
-                AddLayer(part.transform, volume.Layout, sampleY, face);
+                ReadPieceLayer(part, floorIndex, floorPoint, floor.transform, face);
             }
 
             foreach (var staticPart in floor.StaticParts)
@@ -348,8 +469,23 @@ namespace Kizami.EngineAdapter
 
                 PrepareLayerBuffer(layout);
                 staticPart.Shape.ReadLayerWeights(sampleY, weights, 1, _layerBuffer);
-                AddLayer(staticPart.Target, layout, sampleY, face);
+                AddLayer(staticPart.Target, layout, sampleY, floor.transform, face);
             }
+        }
+
+        /// <summary>
+        /// floorIndex 階の素材の重みで、ピースの worldPoint の高さの段を、frame の水平方向の格子の番号ごとに face へ重ねる。
+        /// </summary>
+        private void ReadPieceLayer(VoxelPiece piece, int floorIndex, Vector3 worldPoint, Transform frame, byte[] face)
+        {
+            var volume = piece != null ? piece.VolumeData : null;
+            if (volume == null) return;
+
+            if (!TryGetSampleY(piece.transform, volume.Layout, worldPoint, out var sampleY)) return;
+
+            PrepareLayerBuffer(volume.Layout);
+            volume.ReadLayerWeights(sampleY, _materialWeights[floorIndex], 1, _layerBuffer);
+            AddLayer(piece.transform, volume.Layout, sampleY, frame, face);
         }
 
         private bool TryGetSampleY(Transform partTransform, VoxelGridLayout layout, Vector3 worldPoint,
@@ -369,12 +505,12 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// _layerBuffer に読んだ 1 段分の重みを、面の配列へ重みの大きい方で重ねる。
         /// </summary>
-        private void AddLayer(Transform partTransform, VoxelGridLayout layout, int sampleY, byte[] face)
+        private void AddLayer(Transform partTransform, VoxelGridLayout layout, int sampleY, Transform frame, byte[] face)
         {
             var count = layout.SampleCount;
 
-            // 回転させずに置く前提なので、建物の格子の番号はサンプル番号と同じだけ進む
-            var key = ToFaceKey(partTransform, layout, sampleY) - _faceMin;
+            // パーツは階に対して回転させずに置く前提なので、格子の番号はサンプル番号と同じだけ進む
+            var key = ToFaceKey(partTransform, layout, sampleY, frame) - _faceMin;
             for (var z = 0; z < count.z; z++)
             for (var x = 0; x < count.x; x++)
             {
@@ -399,7 +535,7 @@ namespace Kizami.EngineAdapter
             foreach (var staticPart in floor.StaticParts)
             {
                 var layout = staticPart.Shape.Layout;
-                var key = ToFaceKey(staticPart.Target, layout, 0);
+                var key = ToFaceKey(staticPart.Target, layout, 0, floor.transform);
                 min = math.min(min, key);
                 max = math.max(max, key + layout.SampleCount.xz - 1);
             }
@@ -411,12 +547,13 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// パーツのサンプル (0, sampleY, 0) の、建物の水平方向の格子の番号。格子の点はボクセルの倍数 ＋ 半ボクセルに並ぶ。
+        /// パーツのサンプル (0, sampleY, 0) の、階 frame の水平方向の格子の番号。格子の点はボクセルの倍数 ＋ 半ボクセルに並ぶ。
+        /// 階は建物から高さだけずらして積む為、どの階で測っても建物の格子の番号と同じになり、同じまとまりで倒れた階どうしでも比べられる。
         /// </summary>
-        private int2 ToFaceKey(Transform partTransform, VoxelGridLayout layout, int sampleY)
+        private int2 ToFaceKey(Transform partTransform, VoxelGridLayout layout, int sampleY, Transform frame)
         {
             var voxelSize = _quality.VoxelSize;
-            var origin = transform.InverseTransformPoint(
+            var origin = frame.InverseTransformPoint(
                 partTransform.TransformPoint(layout.ToLocalPosition(new int3(0, sampleY, 0))));
             return new int2(
                 (int)math.round(origin.x / voxelSize - 0.5f),
@@ -487,14 +624,32 @@ namespace Kizami.EngineAdapter
         {
             if (IsConnectionReady) SwapNearFloors();
 
-            for (var i = _fallingBodies.Count - 1; i >= 0; i--)
+            for (var i = _fallingGroups.Count - 1; i >= 0; i--)
             {
-                var body = _fallingBodies[i];
-                if (body != null && !body.IsSleeping()) continue;
+                var group = _fallingGroups[i];
+                var body = group.Body;
+                if (body != null && !body.IsSleeping())
+                {
+                    group.MaxFallSpeed = math.max(group.MaxFallSpeed, -body.linearVelocity.y);
+                    _fallingGroups[i] = group;
+                    continue;
+                }
 
-                // 敵の格子は眠ったことで止まったと気づく為、Rigidbody は消さずにキネマティックにする
-                if (body != null) body.isKinematic = true;
-                _fallingBodies.RemoveAt(i);
+                if (body != null)
+                {
+                    // 敵の格子は眠ったことで止まったと気づく為、Rigidbody は消さずにキネマティックにする
+                    body.isKinematic = true;
+                    _restingBodies.Add(body);
+
+                    // TODO: 倒壊で敵を巻き込む条件を決めたら消す
+                    var drop = group.StartCenterOfMass.y - body.transform.TransformPoint(group.LocalCenterOfMass).y;
+                    var tilt = Quaternion.Angle(group.StartRotation, body.rotation);
+                    UsefulLogger.Log(
+                        $"{body.name} が止まりました（重心の落ちた距離 {drop:F2}m、傾き {tilt:F1}°、下向きの最大速度 {group.MaxFallSpeed:F2}m/s）。",
+                        this);
+                }
+
+                _fallingGroups.RemoveAt(i);
             }
         }
 
@@ -513,6 +668,18 @@ namespace Kizami.EngineAdapter
             }
 
             _floorMaterials.Clear();
+        }
+
+        /// <summary>
+        /// 倒れて落ちている階のまとまり。止まったときに落ち方をログに出す為、落ち始めの重心と向き、下向きの最大速度を持つ。
+        /// </summary>
+        private struct FallingGroup
+        {
+            public Rigidbody Body;
+            public Vector3 LocalCenterOfMass;
+            public Vector3 StartCenterOfMass;
+            public Quaternion StartRotation;
+            public float MaxFallSpeed;
         }
     }
 }
