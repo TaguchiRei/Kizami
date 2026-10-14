@@ -98,6 +98,9 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 粒との当たり判定などで SDF を直接読む為のボリューム。まだ作られていなければ null </summary>
         internal VoxelVolume VolumeData => _volume;
 
+        /// <summary> 素材の番号ごとの強度 </summary>
+        internal IReadOnlyList<VoxelStrength> Strengths => _strengths;
+
         /// <summary> ボクセル 1 つの一辺の長さ（ワールド空間, m）。ボリュームが無ければ 0 </summary>
         public float VoxelSize => _volume != null ? _volume.Layout.VoxelSize * transform.lossyScale.x : 0f;
 

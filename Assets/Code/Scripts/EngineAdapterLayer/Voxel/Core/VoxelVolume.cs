@@ -354,6 +354,45 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// y のサンプル番号 sampleY の段について、内側のサンプルに素材ごとの重みを、外側のサンプルに 0 を書く。
+        /// 出力の添字は x + z × SampleCount.x。
+        /// </summary>
+        /// <param name="materialWeights">素材の番号ごとの重み。HasMaterials でなければ使わない</param>
+        /// <param name="uniformWeight">素材を持たないときの重み</param>
+        /// <param name="weights">出力先。長さは SampleCount.x × SampleCount.z 以上</param>
+        internal void ReadLayerWeights(int sampleY, byte[] materialWeights, byte uniformWeight, byte[] weights)
+        {
+            var count = Layout.SampleCount;
+            var length = count.x * count.z;
+            var useMaterials = HasMaterials && materialWeights != null && materialWeights.Length > 0;
+
+            // ジョブの入力には作った配列を渡す必要がある為、使わないときは 1 要素の配列を渡す
+            var nativeMaterialWeights = useMaterials
+                ? new NativeArray<byte>(materialWeights, Allocator.TempJob)
+                : new NativeArray<byte>(1, Allocator.TempJob);
+            var emptyIds = useMaterials ? default : new NativeArray<byte>(1, Allocator.TempJob);
+            var output = new NativeArray<byte>(length, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+
+            new VoxelLayerWeightsJob
+            {
+                Layout = Layout,
+                SampleY = sampleY,
+                UseMaterials = useMaterials,
+                UniformWeight = uniformWeight,
+                Samples = _samples,
+                MaterialIds = useMaterials ? _materialIds : emptyIds,
+                MaterialWeights = nativeMaterialWeights,
+                Weights = output
+            }.Schedule().Complete();
+
+            NativeArray<byte>.Copy(output, weights, length);
+
+            output.Dispose();
+            nativeMaterialWeights.Dispose();
+            if (emptyIds.IsCreated) emptyIds.Dispose();
+        }
+
+        /// <summary>
         /// 内側のサンプルを 6 近傍でつながった塊に分ける。
         /// </summary>
         /// <param name="labels">サンプルごとの塊の番号の出力先。長さは Layout.SampleTotal。外側は VoxelComponentLabelJob.OUTSIDE_LABEL</param>
