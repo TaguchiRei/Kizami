@@ -22,6 +22,7 @@ namespace Kizami.EngineAdapter.Voxel
         private readonly ActionChannel<VoxelShapeChange> _pieceShapeChanged = new();
         private readonly ActionChannel<VoxelPiece[]> _pieceSplit = new();
         private readonly ActionChannel<VoxelPiece> _pieceDestroyed = new();
+        private readonly ActionChannel<(VoxelPiece Piece, VoxelStrikeRecord Record)> _pieceStruck = new();
 
         [SerializeField]
         [Tooltip("読み込む事前ベイク済みのモデル")]
@@ -195,6 +196,14 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// このモデルのいずれかのピースに強さと減衰率の攻撃が当たったときに呼ぶ処理を登録する。記録はそのピースのローカル空間で表す。
+        /// </summary>
+        public IDisposable RegisterOnPieceStruck(Action<(VoxelPiece Piece, VoxelStrikeRecord Record)> callback)
+        {
+            return _pieceStruck.Register(callback);
+        }
+
+        /// <summary>
         /// このモデルのいずれかのピースから塊が分離したときに呼ぶ処理を登録する。
         /// 引数の 0 番目は分離元のピース、1 番目以降は切り離された新しいピース。
         /// </summary>
@@ -341,6 +350,11 @@ namespace Kizami.EngineAdapter.Voxel
         internal void NotifyShapeChanged(in VoxelShapeChange change)
         {
             _pieceShapeChanged.Invoke(change);
+        }
+
+        internal void NotifyStruck(VoxelPiece piece, in VoxelStrikeRecord record)
+        {
+            _pieceStruck.Invoke((piece, record));
         }
 
         internal void NotifySplit(VoxelPiece[] pieces)

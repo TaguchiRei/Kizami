@@ -375,6 +375,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="reach">space で表した、融点 0 の素材まで届く範囲</param>
         /// <param name="falloff">1m（space の長さ）あたりに減る強さ</param>
         /// <param name="space">reach と falloff を表している空間</param>
+        /// <remarks>モデルに属していれば、当てた攻撃を VoxelStrikeRecord にしてモデルへ通知する。</remarks>
         public void ApplyStrike<TShape>(in TShape reach, float falloff, Space space)
             where TShape : struct, ITransformableVoxelShape<TShape>
         {
@@ -411,6 +412,11 @@ namespace Kizami.EngineAdapter.Voxel
             materialOffsets.Dispose();
 
             ApplyEditResult(result, VoxelCsgOperation.Subtract);
+
+            if (Model != null && VoxelStrikeRecord.TryCreate(localReach, falloff / lengthScale, out var record))
+            {
+                Model.NotifyStruck(this, record);
+            }
         }
 
         /// <summary>

@@ -27,9 +27,15 @@ namespace Kizami.EngineAdapter
         /// <summary> 切り離された塊を隣の階にくっつけるとき、2 つの階の向きがそろっているとみなす角度の差（度） </summary>
         private const float ALIGNED_ANGLE = 1f;
 
+        /// <summary> 1 階に記録する攻撃の数の上限。超えた階はメッシュに戻さずボクセルのまま残す </summary>
+        private const int MAX_STRIKE_RECORDS = 128;
+
         private static readonly int _patternOffsetId = Shader.PropertyToID("_PatternOffset");
 
         private readonly List<VoxelModelLoader> _floors = new();
+
+        /// <summary> 階ごとの、本体のピースに当たった攻撃の記録。上限を超えた階は上限 ＋ 1 件で止める </summary>
+        private readonly List<List<VoxelStrikeRecord>> _strikeRecords = new();
         private readonly List<Material> _floorMaterials = new();
         private readonly List<IDisposable> _subscriptions = new();
         private readonly List<Rigidbody> _fallingBodies = new();
@@ -171,6 +177,8 @@ namespace Kizami.EngineAdapter
             loader.SetMaterialEntries(CreateFloorMaterials(model, floorIndex));
             _subscriptions.Add(loader.RegisterOnPieceShapeChanged(_ => OnFloorShapeChanged(floorIndex)));
             _subscriptions.Add(loader.RegisterOnPieceSplit(pieces => AttachSeparatedPieces(floorIndex, pieces)));
+            _subscriptions.Add(loader.RegisterOnPieceStruck(struck => RecordStrike(floorIndex, struck.Piece, struck.Record)));
+            _strikeRecords.Add(new List<VoxelStrikeRecord>());
 
             _floors.Add(loader);
         }
@@ -399,6 +407,18 @@ namespace Kizami.EngineAdapter
 
             _restingBodies.Clear();
             UpdateConnections(floorIndex);
+        }
+
+        /// <summary>
+        /// floorIndex 階の本体のピースに当たった攻撃を記録する。本体はその階の GameObject にあるので、記録は階のローカル空間になる。
+        /// 切り離された塊に当たった分は記録しない。
+        /// </summary>
+        private void RecordStrike(int floorIndex, VoxelPiece piece, in VoxelStrikeRecord record)
+        {
+            var records = _strikeRecords[floorIndex];
+            if (piece.Generation > 0 || records.Count > MAX_STRIKE_RECORDS) return;
+
+            records.Add(record);
         }
 
         /// <summary>
