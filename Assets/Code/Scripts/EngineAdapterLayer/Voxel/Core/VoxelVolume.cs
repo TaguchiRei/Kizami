@@ -11,6 +11,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// 距離は ±TruncationDistance に切り詰めて保持する。
     /// 格子の最外周のサンプルは常に正（外側）に保たれる為、生成されるメッシュは必ず閉じる。
     /// 温度は常温を 0、融点を 1 とした値で、初めて加熱されたときに配列を確保する。
+    /// EnableRoundness を呼んだボリュームは、点ごとの丸み（0〜255）も持つ。削る・加熱で距離が変わった点を 255 にし、周りへ薄めて広げる。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelVolume : IDisposable
@@ -26,6 +27,9 @@ namespace Kizami.EngineAdapter.Voxel
         private NativeArray<float> _samples;
         private NativeArray<float> _temperatures;
         private NativeArray<byte> _materialIds;
+        private NativeArray<byte> _roundness;
+        private float _roundnessChangeThreshold;
+        private float _roundnessFalloffCells;
 
         public VoxelGridLayout Layout { get; }
         public float TruncationDistance => Layout.VoxelSize * TRUNCATION_VOXELS;
@@ -40,10 +44,16 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 温度が 0 より高いサンプルを含みうるチャンクがあるか </summary>
         public bool HasHotChunks => _hotChunks.Count > 0;
 
+        /// <summary> 点ごとの丸みを持つか </summary>
+        public bool HasRoundness => _roundness.IsCreated;
+
         internal NativeArray<float> Samples => _samples;
 
         /// <summary> サンプルごとの、モデルの素材の一覧での番号。HasMaterials でなければ未作成 </summary>
         internal NativeArray<byte> MaterialIds => _materialIds;
+
+        /// <summary> サンプルごとの丸み。255 が削った・融けた点で、そこから離れるほど 0 に近づく。HasRoundness でなければ未作成 </summary>
+        internal NativeArray<byte> Roundness => _roundness;
 
         /// <summary> 格子のローカル空間での範囲（最外周のサンプルを含む） </summary>
         public VoxelBounds LocalBounds => new(Layout.ToLocalPosition(int3.zero), Layout.ToLocalPosition(Layout.SampleCount - 1));
@@ -92,6 +102,12 @@ namespace Kizami.EngineAdapter.Voxel
                 result._materialIds = new NativeArray<byte>(_materialIds, Allocator.Persistent);
             }
 
+            if (_roundness.IsCreated)
+            {
+                result._roundness = new NativeArray<byte>(_roundness, Allocator.Persistent);
+                result.CopyRoundnessSettings(this);
+            }
+
             Array.Copy(_isHotChunk, result._isHotChunk, _isHotChunk.Length);
             result._hotChunks.AddRange(_hotChunks);
 
@@ -113,6 +129,18 @@ namespace Kizami.EngineAdapter.Voxel
             var result = count[0];
             count.Dispose();
             return result;
+        }
+
+        /// <summary>
+        /// 点ごとの丸みを持たせる。丸みは全点 0 から始め、以降の削る・加熱で印を付ける。既に持っていれば設定だけを差し替える。
+        /// </summary>
+        /// <param name="changeVoxels">印を付ける距離の変化（ボクセル数換算）</param>
+        /// <param name="falloffCells">印の付いた点から丸みが 0 になるまでのセル数</param>
+        public void EnableRoundness(float changeVoxels, float falloffCells)
+        {
+            _roundnessChangeThreshold = changeVoxels * Layout.VoxelSize;
+            _roundnessFalloffCells = math.max(falloffCells, 1f);
+            if (!_roundness.IsCreated) _roundness = new NativeArray<byte>(Layout.SampleTotal, Allocator.Persistent);
         }
 
         /// <summary>
@@ -178,6 +206,8 @@ namespace Kizami.EngineAdapter.Voxel
             var emptyInverses = useMaterials ? default : new NativeArray<float>(1, Allocator.TempJob);
             var emptyIds = useMaterials ? default : new NativeArray<byte>(1, Allocator.TempJob);
 
+            var emptyRoundness = HasRoundness ? default : new NativeArray<byte>(1, Allocator.TempJob);
+
             var changed = new NativeArray<int>(1, Allocator.TempJob);
             new VoxelHeatJob<TShape>
             {
@@ -195,16 +225,21 @@ namespace Kizami.EngineAdapter.Voxel
                 UseMaterials = useMaterials,
                 UniformInverseMeltingPoint = uniformInverseMeltingPoint,
                 InverseMeltingPoints = useMaterials ? inverseMeltingPoints : emptyInverses,
-                MaterialIds = useMaterials ? _materialIds : emptyIds
+                MaterialIds = useMaterials ? _materialIds : emptyIds,
+                MarkRoundness = HasRoundness,
+                RoundnessChangeThreshold = _roundnessChangeThreshold,
+                Roundness = HasRoundness ? _roundness : emptyRoundness
             }.Schedule(rangeTotal, 256).Complete();
 
             if (emptyInverses.IsCreated) emptyInverses.Dispose();
             if (emptyIds.IsCreated) emptyIds.Dispose();
+            if (emptyRoundness.IsCreated) emptyRoundness.Dispose();
 
             var hasChange = changed[0] != 0;
             changed.Dispose();
 
             if (amount > 0f) MarkHot(sampleMin, sampleMax);
+            if (hasChange) SpreadRoundness(sampleMin, sampleMax);
 
             return hasChange ? new VoxelEditResult(sampleMin, sampleMax) : default;
         }
@@ -333,7 +368,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 1 つの塊だけを取り出した新しいボリュームを作る。塊を囲むサンプル範囲に 1 サンプルの余白を付ける。
-        /// ボクセルの大きさ・チャンクの大きさ・ローカル空間は元と同じ。温度があれば、同じ範囲の温度も写す。
+        /// ボクセルの大きさ・チャンクの大きさ・ローカル空間は元と同じ。温度・素材・丸みがあれば、同じ範囲の値も写す。
         /// </summary>
         /// <param name="labels">LabelComponents が振った塊の番号</param>
         /// <param name="component">取り出す塊</param>
@@ -385,6 +420,22 @@ namespace Kizami.EngineAdapter.Voxel
                     SourceLayout = Layout,
                     SourceSampleMin = sampleMin,
                     Values = result._materialIds,
+                    Layout = layout
+                }.Schedule(layout.SampleTotal, 256).Complete();
+            }
+
+            if (_roundness.IsCreated)
+            {
+                result._roundness = new NativeArray<byte>(layout.SampleTotal, Allocator.Persistent,
+                    NativeArrayOptions.UninitializedMemory);
+                result.CopyRoundnessSettings(this);
+
+                new VoxelCopySamplesJob<byte>
+                {
+                    SourceValues = _roundness,
+                    SourceLayout = Layout,
+                    SourceSampleMin = sampleMin,
+                    Values = result._roundness,
                     Layout = layout
                 }.Schedule(layout.SampleTotal, 256).Complete();
             }
@@ -486,6 +537,30 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// 印を付けうるサンプル範囲 [sampleMin, sampleMax] を広がる幅だけ広げた範囲で、丸みを周りへ広げる。丸みを持たなければ何もしない。
+        /// </summary>
+        private void SpreadRoundness(int3 sampleMin, int3 sampleMax)
+        {
+            if (!HasRoundness) return;
+
+            var spread = (int)math.ceil(_roundnessFalloffCells);
+            new VoxelRoundnessSpreadJob
+            {
+                Layout = Layout,
+                RangeMin = math.max(sampleMin - spread, 0),
+                RangeMax = math.min(sampleMax + spread, Layout.SampleCount - 1),
+                Step = byte.MaxValue / _roundnessFalloffCells,
+                Roundness = _roundness
+            }.Schedule().Complete();
+        }
+
+        private void CopyRoundnessSettings(VoxelVolume source)
+        {
+            _roundnessChangeThreshold = source._roundnessChangeThreshold;
+            _roundnessFalloffCells = source._roundnessFalloffCells;
+        }
+
+        /// <summary>
         /// 形状の距離にずらし量を足して CSG 合成する。ずらし量は正なので、範囲は形状の範囲に収まる。
         /// </summary>
         /// <param name="materialOffsets">素材の番号ごとのずらし量。作られていなければ uniformOffset を使う</param>
@@ -504,6 +579,7 @@ namespace Kizami.EngineAdapter.Voxel
             // ジョブの入力には作った配列を渡す必要がある為、使わないときは 1 要素の配列を渡す
             var emptyOffsets = useMaterials ? default : new NativeArray<float>(1, Allocator.TempJob);
             var emptyIds = useMaterials ? default : new NativeArray<byte>(1, Allocator.TempJob);
+            var emptyRoundness = HasRoundness ? default : new NativeArray<byte>(1, Allocator.TempJob);
 
             var rangeSize = sampleMax - sampleMin + 1;
             var job = new VoxelCsgJob<TShape>
@@ -518,12 +594,18 @@ namespace Kizami.EngineAdapter.Voxel
                 UseMaterials = useMaterials,
                 UniformOffset = uniformOffset,
                 MaterialOffsets = useMaterials ? materialOffsets : emptyOffsets,
-                MaterialIds = useMaterials ? _materialIds : emptyIds
+                MaterialIds = useMaterials ? _materialIds : emptyIds,
+                MarkRoundness = HasRoundness,
+                RoundnessChangeThreshold = _roundnessChangeThreshold,
+                Roundness = HasRoundness ? _roundness : emptyRoundness
             };
             job.Schedule(rangeSize.x * rangeSize.y * rangeSize.z, 256).Complete();
 
             if (emptyOffsets.IsCreated) emptyOffsets.Dispose();
             if (emptyIds.IsCreated) emptyIds.Dispose();
+            if (emptyRoundness.IsCreated) emptyRoundness.Dispose();
+
+            SpreadRoundness(sampleMin, sampleMax);
 
             return new VoxelEditResult(sampleMin, sampleMax);
         }
@@ -533,6 +615,7 @@ namespace Kizami.EngineAdapter.Voxel
             if (_samples.IsCreated) _samples.Dispose();
             if (_temperatures.IsCreated) _temperatures.Dispose();
             if (_materialIds.IsCreated) _materialIds.Dispose();
+            if (_roundness.IsCreated) _roundness.Dispose();
         }
 
     }

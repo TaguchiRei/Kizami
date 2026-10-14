@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 着手（2026-10-11）。B-7b-1 まで完了（2026-10-14）。次は B-7b-2。「作業計画の書き直し（2026-10-14）」を最初に読む |
+| 状態 | 着手（2026-10-11）。B-7b-2 まで完了（2026-10-14）。次は B-7b-3。「作業計画の書き直し（2026-10-14）」を最初に読む |
 | 目安の時期 | 2027/03/09〜03/29（最速の推定 2026/10/19〜10/24） |
 | 前提となる区間 | 5, 4D |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -67,7 +67,8 @@
 | B-5 | 強さ P と減衰率 a の攻撃（`VoxelPiece.ApplyStrike`）。`VoxelDestructionAdapter` を置き換えた。完了条件1を確認済み | 80ee8d5 |
 | B-6 | 加熱を点ごとの融点で割る。液面のメッシュ化の不具合（B-3 で入れたもの）の修正 | 625e985（2 つが 1 つのコミットに入っている） |
 | B-7 | `VoxelBuilding`（階を積み、階ごとにマテリアルを複製して高さを書く）、確認用の階 `BuildingFloorTest`・`BuildingRoofTest` | 4ecc399 |
-| B-7b-1 | B-7a（Dual Contouring と `VoxelQualitySettings._smoothness`）を取り除いた。5 ファイルは 159ef07 の前と同じ内容 | （未コミット） |
+| B-7b-1 | B-7a（Dual Contouring と `VoxelQualitySettings._smoothness`）を取り除いた。5 ファイルは 159ef07 の前と同じ内容 | コミット済み |
+| B-7b-2 | 丸みの記録。`VoxelQualitySettings` に `_useBlockShape`・`_roundnessChangeVoxels`（0.05）・`_roundnessFalloffVoxels`（2.5）、`VoxelVolume` に点ごとの丸み（byte）。`VoxelCsgJob`・`VoxelHeatJob` で距離が閾値より変わった点を 255 にし、`VoxelRoundnessSpreadJob` が編集範囲 ＋ 広がる幅だけを最大値で広げる。`Clone`・`ExtractComponent` で引き継ぐ。`VoxelQuality_Building` で有効。確認：普通の素材を半径 1m で削ると、印 33 点（中心から 0.98m 以内）、丸みの付いた点 181（1.70m 以内）。広げる時間は範囲のサンプル数に比例（約 25ns／点、1 階分全体で約 2ms）。切り分け（`Slice`）は範囲がボリューム全体になる | （未コミット） |
 
 ### 途中のこと：角ばりの問題の対策（2026-10-14）
 
@@ -137,7 +138,7 @@ Surface Nets の頂点をセルの中心に置くと、ボクセルを積んだ�
 
 ### その次の作業
 
-「作業計画の書き直し（2026-10-14）」の B-7b-2 から進める。B-7b-2 の決定：印の閾値は試作の `ChangeThreshold` と同じ値を `VoxelQualitySettings` に置く、広げ方は試作と同じ最大値で広げる方式、丸みは品質設定の bool で角ばりにした物だけ確保する。決定 #10（追跡範囲を建物へ渡す経路）は、15-4 の前に state-centrism-architecture スキルで層の規則を確かめてから案を出す。
+「作業計画の書き直し（2026-10-14）」の B-7b-3 から進める。素材の強度ごとの丸みの倍率は、B-7b-2 では掛けずに B-7b-3 のメッシュ生成で掛ける（記録した値に掛けると、次に広げるときの足場が狂う為）。
 
 ### 作業で分かったこと（コードや計画に効くもの）
 

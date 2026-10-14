@@ -21,8 +21,23 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("1 フレームで再メッシュ化するチャンクの上限数")]
         private int _remeshChunksPerFrame = 8;
 
+        [SerializeField]
+        [Tooltip("ボクセルを積んだ角ばった形で描き、削った・融けた周りだけを滑らかにする。点ごとの丸みを持つ")]
+        private bool _useBlockShape;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("丸みの印を付ける、距離の変化の閾値（ボクセル数換算）")]
+        private float _roundnessChangeVoxels = 0.05f;
+
+        [SerializeField, Min(1f)]
+        [Tooltip("印の付いた点から丸みが 0 になるまでのセル数（6 近傍でたどった数）")]
+        private float _roundnessFalloffVoxels = 2.5f;
+
         public float VoxelSize => _voxelSize;
         public int ChunkSize => _chunkSize;
         public int RemeshChunksPerFrame => _remeshChunksPerFrame;
+        public bool UseBlockShape => _useBlockShape;
+        public float RoundnessChangeVoxels => _roundnessChangeVoxels;
+        public float RoundnessFalloffVoxels => _roundnessFalloffVoxels;
     }
 }

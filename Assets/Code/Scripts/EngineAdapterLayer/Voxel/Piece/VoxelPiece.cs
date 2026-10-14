@@ -1026,11 +1026,17 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 既存のボリュームとチャンクを破棄し、新しいボリュームに差し替える。体積と編集の待ちも初期化する。
+        /// 品質設定が角ばった描き方なら、ボリュームに丸みを持たせる。
         /// </summary>
         private void AssignVolume(VoxelVolume volume)
         {
             ReleaseVolume();
             _volume = volume;
+            if (_quality.UseBlockShape)
+            {
+                volume.EnableRoundness(_quality.RoundnessChangeVoxels, _quality.RoundnessFalloffVoxels);
+            }
+
             _chunks = new ChunkSlot[volume.Layout.ChunkTotal];
             _isDirty = new bool[volume.Layout.ChunkTotal];
 
