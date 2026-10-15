@@ -1,4 +1,4 @@
-using Kizami.BlackBoard;
+﻿using Kizami.BlackBoard;
 using Kizami.External;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
@@ -8,11 +8,14 @@ namespace Kizami.Application
     /// <summary>
     /// プレイヤーの HP を管理し、ダメージを適用するユースケース。
     /// ワープ中（PlayerMovementState.Mode が Warping）に受けたダメージには軽減率を適用する。
+    /// インゲームの流れ（StageFlowState）がある間は、プレイ中に受けたダメージだけを適用する。開始の表示中とクリア・失敗のあとに HP を変えない為。
     /// </summary>
     public sealed class PlayerHealthService
     {
         private PlayerHealthState _state;
         private IPlayerMovementState _movementState;
+        private IStageFlowState _flowState;
+        private IBlackBoard _blackBoard;
         private float _warpDamageReduction;
 
         /// <summary>
@@ -30,16 +33,18 @@ namespace Kizami.Application
 
             playerBoard.RegisterSceneState<IPlayerHealthState>(_state, sceneId);
             blackBoard.TryGetSceneState<PlayerBoard, IPlayerMovementState>(out _movementState, this);
+            _blackBoard = blackBoard;
         }
 
         /// <summary>
         /// ダメージを適用する。ワープ中は軽減率を掛け、四捨五入した値を減らす。
-        /// HP が残っていて、ダメージが正のときだけ適用する。
+        /// HP が残っていて、ダメージが正で、インゲームの流れがプレイ中か流れのないシーンのときだけ適用する。
         /// </summary>
         /// <param name="amount">ダメージ量</param>
         public void ApplyDamage(int amount)
         {
             if (_state == null || amount <= 0 || _state.Current <= 0) return;
+            if (!IsDamageablePhase()) return;
 
             var damage = amount;
             if (_movementState != null && _movementState.Mode == PlayerMoveMode.Warping)
@@ -50,6 +55,21 @@ namespace Kizami.Application
             if (damage <= 0) return;
 
             _state.SetCurrent(_state.Current - damage);
+        }
+
+        /// <summary>
+        /// インゲームの流れがプレイ中か、流れのないシーン（開発用のシーンなど）かを返す。
+        /// StageFlowState はプレイヤーより後に初期化される為、最初のダメージのときに取得する。
+        /// </summary>
+        private bool IsDamageablePhase()
+        {
+            if (_blackBoard != null)
+            {
+                _blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this);
+                _blackBoard = null;
+            }
+
+            return _flowState == null || _flowState.Phase == StagePhase.Playing;
         }
     }
 }
