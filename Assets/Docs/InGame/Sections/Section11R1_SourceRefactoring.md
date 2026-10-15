@@ -2,9 +2,9 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 実装済み（完了条件の一部が未確認。「実装結果」を参照） |
+| 状態 | 完了（2026-10-15）。完了条件の一部が未確認（「実装結果」の「確認できていないこと」） |
 | 前提となる区間 | 10、11（どちらも完了） |
-| 作業ブランチ | `feature/alpha/refactering`（ユーザーが作成） |
+| 作業ブランチ | `feature/alpha/refactoring`（ユーザーが作成。11R-2・11R-3 も同じブランチで行う） |
 | 続く区間 | 11R-2（コメントの修正）→ 11R-3（計画書の修正） |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
 | 前回のリファクタリング | [Section08R_Refactoring.md](Section08R_Refactoring.md) |

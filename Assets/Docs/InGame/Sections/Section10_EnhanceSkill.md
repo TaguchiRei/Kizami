@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 実装済み・ローカルでの確認待ち（2026-10-14）。作業ブランチ `claude/alpha/enhance-skill`（`feature/alpha/big-voxel` の a60c965 から切った） |
+| 状態 | 完了（2026-10-15）。作業ブランチ `claude/alpha/enhance-skill`（`feature/alpha/big-voxel` の a60c965 から切った） |
 | 目安の時期 | 2027/03/30〜04/12（最速の推定 2026/10/25〜10/28） |
 | 前提となる区間 | 6, 7 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |

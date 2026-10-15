@@ -2,8 +2,8 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 実装済み |
-| 前提となる区間 | 11R-1（ソースコードのリファクタリング）がマージ済みであること |
+| 状態 | 完了（2026-10-15） |
+| 前提となる区間 | 11R-1（ソースコードのリファクタリング）が終わっていること。同じブランチ `feature/alpha/refactoring` で続けて行う |
 | 続く区間 | 11R-3（計画書の修正） |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
 | 前の区間 | [Section11R1_SourceRefactoring.md](Section11R1_SourceRefactoring.md) |
