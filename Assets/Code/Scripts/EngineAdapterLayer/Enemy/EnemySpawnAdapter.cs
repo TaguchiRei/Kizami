@@ -257,6 +257,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 部隊の命令を決める関数（EnemySquadService.Step）。引数は経過時間（秒） </summary>
         private Action<float> _stepSquads;
 
+        /// <summary> 敵を倒したときに呼ぶ処理。引数は倒した数。吸収された敵は含めない </summary>
+        private Action<int> _onDefeated;
+
         private IEnemySquadCommandState _commandState;
 
         /// <summary> 置き場の位置を求めたときのプレイヤーの位置。置き場の螺旋の中心 </summary>
@@ -456,6 +459,15 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 敵を倒したときに呼ぶ処理を設定する。核を切って倒した敵と、崩落で倒した敵を通知する。フィニッシャーに吸収された敵は、プレイヤーが倒していないので通知しない。
+        /// </summary>
+        /// <param name="onDefeated">倒したときに呼ぶ処理。引数は倒した数</param>
+        public void SetOnDefeated(Action<int> onDefeated)
+        {
+            _onDefeated = onDefeated;
+        }
+
+        /// <summary>
         /// 使われているグループを、待機・追跡・帰還の状態ごとに数える。初期化の前は 0。
         /// </summary>
         public void CountGroupStates(out int waiting, out int tracking, out int returning)
@@ -466,7 +478,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 切断の結果のうち、敵の部位を元の対象とするものを、その部位を持つ体へ渡し、体の部位の状態を敵の状態へ書き戻す。
-        /// 体が倒れたら、敵をステージから消して体を空ける。
+        /// 体が倒れたら、敵をステージから消して体を空け、倒した数を通知する。
         /// </summary>
         /// <param name="results">MultiCutBlade.ExecuteCut の結果</param>
         /// <param name="plane">振ったときの切断面。法線は表のかけらの側を向く</param>
@@ -474,10 +486,13 @@ namespace Kizami.EngineAdapter
         {
             if (!Initialized || results == null) return;
 
+            var defeatedCount = 0;
             foreach (var lender in _bodyLenders)
             {
-                lender?.ReceiveCutResults(results, plane, _agents);
+                if (lender != null) defeatedCount += lender.ReceiveCutResults(results, plane, _agents);
             }
+
+            if (defeatedCount > 0) _onDefeated?.Invoke(defeatedCount);
         }
 
         private void Update()
@@ -825,10 +840,11 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 崩落で倒されたことが記録された敵を数えて体の中心からエネルギーを出し、記録を消す。倒された敵の体は、次の ReturnBodies で返す。
+        /// 崩落で倒されたことが記録された敵を数えて倒した数を通知し、体の中心からエネルギーを出して、記録を消す。倒された敵の体は、次の ReturnBodies で返す。
         /// </summary>
         private void CountCollapseDefeats()
         {
+            var defeatedCount = 0;
             for (var i = 0; i < _agents.Length; i++)
             {
                 var agent = _agents[i];
@@ -837,8 +853,11 @@ namespace Kizami.EngineAdapter
                 agent.IsDefeatedByCollapse = false;
                 _agents[i] = agent;
                 CollapseDefeatCount++;
+                defeatedCount++;
                 _emitEnergy?.Invoke((Vector3)agent.Position + Vector3.up * _crushBodyCenterHeight);
             }
+
+            if (defeatedCount > 0) _onDefeated?.Invoke(defeatedCount);
         }
 
         /// <summary>

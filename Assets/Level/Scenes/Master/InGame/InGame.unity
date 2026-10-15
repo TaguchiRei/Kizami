@@ -130,7 +130,7 @@ GameObject:
   - component: {fileID: 60550493}
   - component: {fileID: 60550492}
   m_Layer: 0
-  m_Name: PlayerHud
+  m_Name: StageHud
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -147,19 +147,15 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: efa527797db2fd54783082ed6dbf0167, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.PlayerHudAdapter
-  _widthRatio: 0.5
-  _healthHeight: 14
-  _chargeHeight: 10
-  _bottomMargin: 24
-  _gap: 6
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageHudAdapter
+  _gaugeWidthRatio: 0.5
+  _startDisplayDuration: 1
   _lineWidth: 2
-  _lineOverhang: 3
   _backgroundColor: {r: 0, g: 0, b: 0, a: 0.5}
   _healthColor: {r: 0.9, g: 0.25, b: 0.25, a: 1}
   _chargeColor: {r: 0.3, g: 0.8, b: 1, a: 1}
-  _reachedLineColor: {r: 1, g: 1, b: 1, a: 1}
-  _chargingLineColor: {r: 1, g: 1, b: 1, a: 0.35}
+  _reachedColor: {r: 1, g: 1, b: 1, a: 1}
+  _chargingColor: {r: 1, g: 1, b: 1, a: 0.35}
 --- !u!4 &60550493
 Transform:
   m_ObjectHideFlags: 0
@@ -494,8 +490,8 @@ MonoBehaviour:
   _enemyEnergyAdapter: {fileID: 1579939516}
   _enemySpawnAdapter: {fileID: 1539543158}
   _voxelDestructionAdapter: {fileID: 1734900002}
-  _hudAdapter: {fileID: 60550492}
   _fragmentThrowAdapter: {fileID: 1258148392}
+  _hudAdapter: {fileID: 60550492}
   _equippedSkills:
   - {fileID: 11400000, guid: 3c8d0496d6baf774494d30e32f8f5cda, type: 2}
   - {fileID: 11400000, guid: 992c0f9acc63fff468eee1c55f9d0a68, type: 2}
@@ -1264,6 +1260,8 @@ GameObject:
   - component: {fileID: 1452220893}
   - component: {fileID: 1452220892}
   - component: {fileID: 1452220891}
+  - component: {fileID: 1452220894}
+  - component: {fileID: 1452220895}
   m_Layer: 0
   m_Name: Stage
   m_TagString: Untagged
@@ -1284,6 +1282,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.StageInitializer
   _stageClearAdapter: {fileID: 1452220892}
+  _enemySpawnAdapter: {fileID: 1539543158}
+  _resultAdapter: {fileID: 1452220894}
+  _hudAdapter: {fileID: 60550492}
+  _pauseAdapter: {fileID: 1452220895}
+  _fragmentThrowAdapter: {fileID: 1258148392}
 --- !u!114 &1452220892
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1296,6 +1299,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3e6c206ed488ac649a8faae70d0517ec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageClearAdapter
+--- !u!114 &1452220894
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452220890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d48a0d04ff5d464da8cfc9861544fc42, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageResultAdapter
+  _backgroundColor: {r: 0, g: 0, b: 0, a: 0.6}
+  _buttonColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.9}
+--- !u!114 &1452220895
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452220890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: edbde7b06823449dbc9324772cb402ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StagePauseAdapter
+  _backgroundColor: {r: 0, g: 0, b: 0, a: 0.4}
+  _buttonColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.9}
 --- !u!4 &1452220893
 Transform:
   m_ObjectHideFlags: 0

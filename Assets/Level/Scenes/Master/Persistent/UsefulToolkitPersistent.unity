@@ -318,7 +318,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.GameSceneInitializer
   _outGameGroup: {fileID: 11400000, guid: 9e29efc0c2d64ec449d65b6914e2f856, type: 2}
-  _inGameGroup: {fileID: 11400000, guid: 9887d82077f25504f982d304dd4e9f8b, type: 2}
+  _stages:
+  - {fileID: 11400000, guid: 9a5b703bc41b47c8bdd654e9a12b5d72, type: 2}
+  _skills:
+  - {fileID: 11400000, guid: 3c8d0496d6baf774494d30e32f8f5cda, type: 2}
+  - {fileID: 11400000, guid: 992c0f9acc63fff468eee1c55f9d0a68, type: 2}
+  - {fileID: 11400000, guid: 22fd5b84f87f4aecbf46858fbb16eb64, type: 2}
+  - {fileID: 11400000, guid: e3701d25125d4ec0a768b048d76f0597, type: 2}
+  - {fileID: 11400000, guid: e1c7e17032c946fdb937afa9bc2246a7, type: 2}
+  - {fileID: 11400000, guid: 915f9661f3c042808d0ec221d6504a4b, type: 2}
+  - {fileID: 11400000, guid: f2b0a31f96fa4b778dae9d37060d5951, type: 2}
+  - {fileID: 11400000, guid: 31cc274cbb124a9f84294d6370f08646, type: 2}
+  _firstClearReward: 100
   _transitionOnStart: 1
 --- !u!1 &752471123
 GameObject:

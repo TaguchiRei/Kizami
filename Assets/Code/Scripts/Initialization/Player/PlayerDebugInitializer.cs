@@ -55,23 +55,23 @@ namespace Kizami.Initialization
                 return;
             }
 
-            DebugGUI.ObserveVariable("Player HP", () => $"{_healthState.Current} / {_healthState.Max}");
+            DebugGUI.ObserveVariable("Player HP", () => $"{_healthState.Current} / {_healthState.Max}", this);
 
             if (blackBoard.TryGetSceneState<PlayerBoard, IChargeState>(out var chargeState, this))
             {
-                DebugGUI.ObserveVariable("Charge", () => $"{chargeState.Current} / {chargeState.Max}");
+                DebugGUI.ObserveVariable("Charge", () => $"{chargeState.Current} / {chargeState.Max}", this);
             }
 
             if (blackBoard.TryGetSceneState<PlayerBoard, ISlowModeState>(out var slowModeState, this))
             {
                 DebugGUI.ObserveVariable("SlowMode",
-                    () => slowModeState.IsActive ? $"On (cuts left: {slowModeState.RemainingCuts})" : "Off");
+                    () => slowModeState.IsActive ? $"On (cuts left: {slowModeState.RemainingCuts})" : "Off", this);
             }
 
             if (_fragmentOrbAdapter != null)
             {
-                DebugGUI.ObserveVariable("Fragments", () => _fragmentOrbAdapter.FragmentCount.ToString());
-                DebugGUI.ObserveVariable("Orbs", () => _fragmentOrbAdapter.OrbCount.ToString());
+                DebugGUI.ObserveVariable("Fragments", () => _fragmentOrbAdapter.FragmentCount.ToString(), this);
+                DebugGUI.ObserveVariable("Orbs", () => _fragmentOrbAdapter.OrbCount.ToString(), this);
             }
 
             _healthSubscription = _healthState.RegisterOnHealthChanged(OnHealthChanged);

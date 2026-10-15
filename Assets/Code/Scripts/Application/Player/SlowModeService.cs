@@ -23,6 +23,7 @@ namespace Kizami.Application
         private readonly ChargeService _chargeService;
         private readonly ITimeScaleController _timeScaleController;
         private readonly IChargeState _chargeState;
+        private readonly ITimeScaleState _timeScaleState;
         private readonly List<IDisposable> _subscriptions = new();
 
         private CancellationTokenSource _drainCancellation;
@@ -41,7 +42,8 @@ namespace Kizami.Application
 
             if (!blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this) ||
                 !blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this) ||
-                !blackBoard.TryGetSceneState<PlayerBoard, IChargeState>(out _chargeState, this)) return;
+                !blackBoard.TryGetSceneState<PlayerBoard, IChargeState>(out _chargeState, this) ||
+                !blackBoard.TryGetGameState<AppBoard, ITimeScaleState>(out _timeScaleState, this)) return;
 
             playerBoard.RegisterSceneState<ISlowModeState>(_state, sceneId);
 
@@ -110,6 +112,7 @@ namespace Kizami.Application
         /// <summary>
         /// 毎フレーム、実時間の経過に毎秒の消費量を掛けて溜め、1 以上溜まった分のチャージを消費する。チャージが 0 になったら終える。
         /// 一定間隔で待つ方式だと、待ち終わるフレームの分だけ遅れが積み重なり、消費が少なくなる為、経過時間を溜める。
+        /// 時間の倍率が 0（ポーズ中）の間は溜めない。
         /// </summary>
         private async UniTaskVoid DrainAsync(CancellationToken cancellationToken)
         {
@@ -126,6 +129,9 @@ namespace Kizami.Application
                 var isCanceled = await UniTask.Yield(PlayerLoopTiming.Update, cancellationToken)
                     .SuppressCancellationThrow();
                 if (isCanceled) return;
+
+                // 時間が止まっている間（ポーズ中）は消費しない
+                if (_timeScaleState.Scale <= 0f) continue;
 
                 pending += Time.unscaledDeltaTime * _parameters.SlowModeDrainPerSecond;
                 if (pending < 1f) continue;
