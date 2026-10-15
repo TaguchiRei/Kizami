@@ -1,3 +1,4 @@
+using System;
 using Kizami.BlackBoard;
 using Kizami.External;
 using UnityEngine;
@@ -10,12 +11,12 @@ namespace Kizami.Application
     /// ワープ中（PlayerMovementState.Mode が Warping）に受けたダメージには軽減率を適用する。
     /// インゲームの流れ（StageFlowState）がある間は、プレイ中に受けたダメージだけを適用する。開始の表示中とクリア・失敗のあとに HP を変えない為。
     /// </summary>
-    public sealed class PlayerHealthService
+    public sealed class PlayerHealthService : IDisposable
     {
         private PlayerHealthState _state;
         private IPlayerMovementState _movementState;
         private IStageFlowState _flowState;
-        private IBlackBoard _blackBoard;
+        private IDisposable _flowStateWaiter;
         private float _warpDamageReduction;
 
         /// <summary>
@@ -33,7 +34,18 @@ namespace Kizami.Application
 
             playerBoard.RegisterSceneState<IPlayerHealthState>(_state, sceneId);
             blackBoard.TryGetSceneState<PlayerBoard, IPlayerMovementState>(out _movementState, this);
-            _blackBoard = blackBoard;
+
+            // StageFlowState はプレイヤーより後に登録される為、登録を待って受け取る
+            if (!blackBoard.TryGetBoard<StageBoard>(out var stageBoard, this)) return;
+
+            _flowStateWaiter = stageBoard.SubscribeStateRegister<IStageFlowState>(
+                () =>
+                {
+                    if (stageBoard.TryGetSceneState<IStageFlowState>(out var state, out _))
+                    {
+                        _flowState = state;
+                    }
+                });
         }
 
         /// <summary>
@@ -70,17 +82,15 @@ namespace Kizami.Application
 
         /// <summary>
         /// インゲームの流れがプレイ中か、流れのないシーン（開発用のシーンなど）かを返す。
-        /// StageFlowState はプレイヤーより後に初期化される為、最初のダメージのときに取得する。
         /// </summary>
         private bool IsDamageablePhase()
         {
-            if (_blackBoard != null)
-            {
-                _blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this);
-                _blackBoard = null;
-            }
-
             return _flowState == null || _flowState.Phase == StagePhase.Playing;
+        }
+
+        public void Dispose()
+        {
+            _flowStateWaiter?.Dispose();
         }
     }
 }

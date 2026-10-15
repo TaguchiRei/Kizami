@@ -168,6 +168,7 @@ namespace Kizami.Initialization
         private void OnDestroy()
         {
             _movementService.Dispose();
+            _healthService.Dispose();
             _lookService?.Dispose();
             _meleeCutService?.Dispose();
             _skillService?.Dispose();
