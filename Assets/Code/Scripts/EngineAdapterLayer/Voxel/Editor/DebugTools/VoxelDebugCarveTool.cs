@@ -137,7 +137,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
         {
             if (!VoxelDebugHud.IsVisible) return;
 
-            GUILayout.BeginArea(new Rect(10f, 10f, 560f, 190f), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(10f, 10f, 560f, 240f), GUI.skin.box);
             GUILayout.Label("左: 削る（熱: 加熱）  右: 盛る（熱: 冷却）  ホイール: 大きさ  " +
                             "中ドラッグ or Alt+左ドラッグ: 回転  F1: 表示の切り替え");
             GUILayout.Label($"1/2/3/4/5: 球/箱/刃/熱/スライス  道具: {_shape}  半径: {_radius:0.000} m  FPS: {1f / _smoothedDeltaTime:0}");
@@ -147,6 +147,12 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
                 GUILayout.Label($"三角形: {_statsTarget.TriangleCount:N0}  " +
                                 $"待ちチャンク: {_statsTarget.PendingChunkCount}  " +
                                 $"直近の再メッシュ化: {_statsTarget.LastRemeshMilliseconds:0.00} ms");
+                GUILayout.Label($"直近の CSG: {_statsTarget.LastEditMilliseconds:0.00} ms  " +
+                                $"分離の判定: {_statsTarget.LastMeasureMilliseconds:0.00} ms  " +
+                                $"切り分け: {_statsTarget.LastSliceMilliseconds:0.00} ms");
+                GUILayout.Label($"格子点: {_statsTarget.GridSampleTotal:N0}（距離 " +
+                                $"{_statsTarget.GridSampleTotal * sizeof(float) / (1024f * 1024f):0.00} MB）  " +
+                                $"表面のあるチャンク: {_statsTarget.SurfaceChunkCount}");
                 GUILayout.Label($"ピース: {_statsTarget.name}  世代: {_statsTarget.Generation}  " +
                                 $"体積: {_statsTarget.Volume:0.0000} m³（初期比 {_statsTarget.RelativeVolume:P0}）");
             }

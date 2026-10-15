@@ -19,6 +19,7 @@ namespace Kizami.Initialization
     {
         private readonly PlayerHealthService _healthService = new();
         private readonly PlayerMovementService _movementService = new();
+        private readonly PlayerEnhanceService _enhanceService = new();
 
         [SerializeField]
         [Tooltip("プレイヤーの移動・HP・近接切断・チャージのパラメータ")]
@@ -33,6 +34,7 @@ namespace Kizami.Initialization
         [SerializeField] private EnemySpawnAdapter _enemySpawnAdapter;
         [SerializeField] private VoxelDestructionAdapter _voxelDestructionAdapter;
         [SerializeField] private FragmentThrowAdapter _fragmentThrowAdapter;
+        [SerializeField] private StageHudAdapter _hudAdapter;
 
         [SerializeField]
         [Tooltip("アウトゲームを通さずに始めたとき（インゲームのシーンから直接再生したときなど）に、スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
@@ -62,6 +64,11 @@ namespace Kizami.Initialization
 
             var sceneId = gameObject.scene.buildIndex;
             _movementService.Initialize(blackBoard, _parameters, sceneId);
+
+            // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の初期化より後に初期化する。
+            // SkillService が PlayerHealthState を取得する為、SkillService の生成より前に初期化する
+            _healthService.Initialize(blackBoard, _parameters, sceneId);
+
             _lookService = new PlayerLookService(blackBoard, sceneId);
             _chargeService = new ChargeService(blackBoard, _parameters, sceneId);
 
@@ -71,19 +78,19 @@ namespace Kizami.Initialization
 
             // SlowModeService は ChargeState を取得する為、ChargeService の生成より後に生成する
             _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
-            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _meleeCutAdapter.Swing,
+            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, sceneId);
-            _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService,
-                _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, sceneId);
+            var equippedSkills = GetEquippedSkills();
+            _skillService = new SkillService(blackBoard, equippedSkills, _chargeService, _enhanceService,
+                _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
+                sceneId);
 
-            _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake);
+            _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake, _voxelDestructionAdapter.CarveExplosionAt);
 
             // FragmentThrowService は SlowModeState を取得する為、SlowModeService の生成より後に生成する
-            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _fragmentThrowAdapter.TryGrab,
-                _fragmentThrowAdapter.Throw, _fragmentThrowAdapter.TryLoad, _fragmentThrowAdapter.Fire);
-
-            // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の初期化より後に初期化する
-            _healthService.Initialize(blackBoard, _parameters, sceneId);
+            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _enhanceService,
+                _fragmentThrowAdapter.TryGrab, _fragmentThrowAdapter.TryThrow, _fragmentThrowAdapter.TryLoad,
+                _fragmentThrowAdapter.TryFire);
 
             // 以降の Adapter は Service が登録した State を取得する為、Service の生成より後に初期化する
             _movementAdapter.Initialize(blackBoard, _movementService.Step);
@@ -95,8 +102,23 @@ namespace Kizami.Initialization
             }
 
             _meleeCutPreviewAdapter.Initialize(blackBoard);
+            _hudAdapter.SetSkillIcons(GetSkillIcons(equippedSkills));
 
             base.Initialize(blackBoard);
+        }
+
+        /// <summary>
+        /// 装備枠ごとのスキルのアイコンを返す。空きの枠は null にする。
+        /// </summary>
+        private static Texture2D[] GetSkillIcons(SkillData[] equippedSkills)
+        {
+            var icons = new Texture2D[equippedSkills.Length];
+            for (var i = 0; i < icons.Length; i++)
+            {
+                icons[i] = equippedSkills[i] != null ? equippedSkills[i].Icon : null;
+            }
+
+            return icons;
         }
 
         /// <summary>
@@ -113,6 +135,7 @@ namespace Kizami.Initialization
             hasAll &= this.IsAssigned(_enemySpawnAdapter, nameof(EnemySpawnAdapter));
             hasAll &= this.IsAssigned(_voxelDestructionAdapter, nameof(VoxelDestructionAdapter));
             hasAll &= this.IsAssigned(_fragmentThrowAdapter, nameof(FragmentThrowAdapter));
+            hasAll &= this.IsAssigned(_hudAdapter, nameof(StageHudAdapter));
             return hasAll;
         }
 

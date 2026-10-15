@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Kizami.BlackBoard;
 using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
@@ -6,8 +7,9 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// MainCamera を基準にした形（狙った所の球、視線の向きへ伸びるカプセル、カメラの位置を中心にした球）の範囲にあるボクセルのピースを、同じ形でまとめて削る Adapter。
-    /// 範囲が複数のピースにまたがるときも、範囲内のすべてのピースを削る。
+    /// MainCamera を基準にした形（狙った所の球、視線の向きへ伸びるカプセル、カメラの位置を中心にした球）と、指定した点を中心にした球の範囲にあるボクセルのピースを、同じ形でまとめて削る Adapter。
+    /// 範囲が複数のピースにまたがるときも、範囲内のすべてのピースを削る。手付かずの形のメッシュのまま置いたモデル（VoxelModelLoader.LoadStatic）に当たったら、ボクセルにしてから削る。
+    /// 攻撃は強さと減衰率で当て、普通の強度の素材がちょうど指定の半径で削れる強さにする。柔い素材は深く、硬い素材は浅く削れる。
     /// 破壊タイプの攻撃として、装甲のパネルに当たったら 1 回当たったものとし、装甲の奥のピースは削らない。
     /// </summary>
     public sealed class VoxelDestructionAdapter : MonoBehaviour
@@ -28,6 +30,18 @@ namespace Kizami.EngineAdapter
         [Tooltip("削る球の半径（m）")]
         private float _radius = 1.5f;
 
+        [SerializeField, Min(0.01f)]
+        [Tooltip("狙った所を削る攻撃の、1m あたりに減る強さ。小さいほど素材の強度による削れ方の差が大きい")]
+        private float _aimFalloff = 0.5f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("ビームの、1m あたりに減る強さ")]
+        private float _beamFalloff = 0.5f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("爆発の、1m あたりに減る強さ")]
+        private float _explosionFalloff = 0.5f;
+
         [SerializeField]
         [Tooltip("狙う先と、削るピースを探すレイヤー")]
         private LayerMask _targetLayers = ~0;
@@ -35,6 +49,15 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("装甲のパネルのレイヤー。遮断の判定と、当たったパネルの収集に使う")]
         private LayerMask _armorLayers;
+
+        /// <summary>
+        /// 普通の強度の素材を radius で削る強さのとき、融点 0 の素材まで届く半径。
+        /// 強さ P は 普通の融点 + 減衰率 × radius で、届く半径は P ÷ 減衰率。
+        /// </summary>
+        private static float ReachRadius(float radius, float falloff)
+        {
+            return radius + VoxelThermalSettings.NORMAL_MELTING_POINT / falloff;
+        }
 
         /// <summary>
         /// 狙った所を球で削る。狙える距離に何もなければ削らない。
@@ -52,13 +75,14 @@ namespace Kizami.EngineAdapter
 
             if (hit.collider.TryGetComponent(out ArmorPanel armorPanel))
             {
-                armorPanel.ApplyHit();
+                armorPanel.ApplyDamage(DamageType.Destroy);
                 return;
             }
 
-            var hitCount = Physics.OverlapSphereNonAlloc(hit.point, _radius, _hitBuffer, _targetLayers,
+            var reach = ReachRadius(_radius, _aimFalloff);
+            var hitCount = Physics.OverlapSphereNonAlloc(hit.point, reach, _hitBuffer, _targetLayers,
                 QueryTriggerInteraction.Ignore);
-            Carve(new SphereShape(hit.point, _radius), hitCount);
+            Carve(new SphereShape(hit.point, reach), _aimFalloff, hitCount);
         }
 
         /// <summary>
@@ -76,7 +100,10 @@ namespace Kizami.EngineAdapter
 
             if (Physics.Raycast(start, forward, out var armorHit, length, _armorLayers, QueryTriggerInteraction.Ignore))
             {
-                if (armorHit.collider.TryGetComponent(out ArmorPanel armorPanel)) armorPanel.ApplyHit();
+                if (armorHit.collider.TryGetComponent(out ArmorPanel armorPanel))
+                {
+                    armorPanel.ApplyDamage(DamageType.Destroy);
+                }
 
                 // カプセルの端の半球が装甲を越えないよう、中心の線を半径の分だけ手前で止める
                 length = armorHit.distance - radius;
@@ -84,33 +111,44 @@ namespace Kizami.EngineAdapter
             }
 
             var end = start + forward * length;
-            var hitCount = Physics.OverlapCapsuleNonAlloc(start, end, radius, _hitBuffer, _targetLayers,
+            var reach = ReachRadius(radius, _beamFalloff);
+            var hitCount = Physics.OverlapCapsuleNonAlloc(start, end, reach, _hitBuffer, _targetLayers,
                 QueryTriggerInteraction.Ignore);
-            Carve(new CapsuleShape(start, end, radius), hitCount);
+            Carve(new CapsuleShape(start, end, reach), _beamFalloff, hitCount);
         }
 
         /// <summary>
-        /// カメラの位置を中心に球で削る。足場がボクセルなら足場も削れる。
-        /// 球に入った装甲のパネルすべてに 1 回ずつ当て、中心から見て装甲の奥にあるピースは削らない。
-        /// 遮断は中心から各ピースのバウンディングボックスの中心へのレイで判定するので、ピースの一部だけが装甲の陰にあっても、ピース全体を削るか削らないかのどちらかになる。
+        /// カメラの位置を中心に球で削る。足場がボクセルなら足場も削れる。装甲への当て方は CarveExplosionAt と同じ。
         /// </summary>
         /// <param name="radius">球の半径（m）</param>
         public void CarveExplosion(float radius)
         {
             if (!TryGetCameraTransform(out var cameraTransform)) return;
 
-            var center = cameraTransform.position;
+            CarveExplosionAt(cameraTransform.position, radius);
+        }
+
+        /// <summary>
+        /// 指定した点を中心に球で削る。
+        /// 球に入った装甲のパネルすべてに 1 回ずつ当て、中心から見て装甲の奥にあるピースは削らない。
+        /// 遮断は中心から各ピースのバウンディングボックスの中心へのレイで判定するので、ピースの一部だけが装甲の陰にあっても、ピース全体を削るか削らないかのどちらかになる。
+        /// </summary>
+        /// <param name="center">球の中心（ワールド空間）</param>
+        /// <param name="radius">球の半径（m）</param>
+        public void CarveExplosionAt(Vector3 center, float radius)
+        {
             CollectArmorPanels(center, radius);
 
-            var hitCount = Physics.OverlapSphereNonAlloc(center, radius, _hitBuffer, _targetLayers,
+            var reach = ReachRadius(radius, _explosionFalloff);
+            var hitCount = Physics.OverlapSphereNonAlloc(center, reach, _hitBuffer, _targetLayers,
                 QueryTriggerInteraction.Ignore);
 
             // 遮断の判定は、当てて壊れる前のパネルで行う
-            Carve(new SphereShape(center, radius), hitCount, _armorPanels.Count > 0, center);
+            Carve(new SphereShape(center, reach), _explosionFalloff, hitCount, _armorPanels.Count > 0, center);
 
             foreach (var armorPanel in _armorPanels)
             {
-                armorPanel.ApplyHit();
+                armorPanel.ApplyDamage(DamageType.Destroy);
             }
 
             _armorPanels.Clear();
@@ -152,13 +190,15 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 範囲の問い合わせで集めたコライダーからピースを集め、ワールド空間の形で削る。
+        /// 範囲の問い合わせで集めたコライダーからピースを集め、強さと減衰率の攻撃を当てる。
         /// </summary>
-        /// <param name="shape">削る形（ワールド空間）</param>
+        /// <param name="reach">融点 0 の素材まで届く範囲（ワールド空間）</param>
+        /// <param name="falloff">1m あたりに減る強さ</param>
         /// <param name="hitCount">_hitBuffer に集めたコライダーの数</param>
         /// <param name="checkArmor">true なら、origin から見て装甲の奥にあるピースを削らない</param>
         /// <param name="origin">装甲の遮断を判定するレイの始点</param>
-        private void Carve<TShape>(in TShape shape, int hitCount, bool checkArmor = false, Vector3 origin = default)
+        private void Carve<TShape>(in TShape reach, float falloff, int hitCount, bool checkArmor = false,
+            Vector3 origin = default)
             where TShape : struct, ITransformableVoxelShape<TShape>
         {
             if (hitCount == _hitBuffer.Length)
@@ -170,14 +210,28 @@ namespace Kizami.EngineAdapter
             for (var i = 0; i < hitCount; i++)
             {
                 var piece = _hitBuffer[i].GetComponentInParent<VoxelPiece>();
-                if (piece != null) _pieces.Add(piece);
+                if (piece != null)
+                {
+                    _pieces.Add(piece);
+                    continue;
+                }
+
+                // 手付かずの形のメッシュのまま置いたモデルは、当たったときにボクセルにしてから削る
+                var loader = _hitBuffer[i].GetComponentInParent<VoxelModelLoader>();
+                if (loader == null || !loader.IsStatic) continue;
+
+                loader.Load();
+                foreach (var part in loader.Parts)
+                {
+                    _pieces.Add(part);
+                }
             }
 
             foreach (var piece in _pieces)
             {
                 if (checkArmor && IsBehindArmor(origin, piece.WorldBounds.center)) continue;
 
-                piece.ApplyEdit(shape, VoxelCsgOperation.Subtract, Space.World);
+                piece.ApplyStrike(reach, falloff, Space.World);
             }
 
             _pieces.Clear();

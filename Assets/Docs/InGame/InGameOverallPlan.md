@@ -85,7 +85,7 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-15 時点。区間11 の完了まで）
+## 3. 現状（2026-10-15 時点。区間15・10・11 の完了まで）
 
 | 分野 | 状態 |
 |---|---|
@@ -97,7 +97,7 @@
 | 入力（PC の Player マップ） | 区間0で、切断面の回転、ワープ、スローモード、投擲、ランチャー、スキル 1〜3 のアクションを追加済み。Smartphone と VRControllers のマップは未対応 |
 | スマホの視点操作 | `TouchLookInputSource` は、タッチ領域の UI に付けて EventSystem のドラッグ通知で動く形になっている。どのシーンにも置かれておらず、InGame には EventSystem もない |
 | VR の操作系 | `VrPlayerMovementAdapter` / `VrPlayerInputRouteInitializer` はあるが、どのシーンにも置かれていない。スティックのデッドゾーンは InputActionAsset の `StickDeadzone` が受け持つ。外部入力スロット `VrMove` / `VrLook` は、Player マップのどの Action にもバインドされていない |
-| ボクセル（ベイク、削る・盛る、塊の分離、平面での切り分け、融解） | あり。敵の距離マップが形状の変化に追従する（区間4C）。プレイ中は、デバッグの破壊攻撃（G キー、`VoxelDestructionAdapter`）で壊せる（区間5）。ベイクは、大きな三角形のメッシュだと中身が空になるので、面を 0.25m 程度に分けたメッシュで、最大距離 0.6m・余白 6 にする（区間5の「見つけた問題」）。支えの判定はなく、分かれたら最も大きい塊が残り、ほかが Rigidbody で落ちる |
+| ボクセル（ベイク、削る・盛る、塊の分離、平面での切り分け、融解） | あり。敵の距離マップが形状の変化に追従する（区間4C）。プレイ中は、デバッグの破壊攻撃（G キー、`VoxelDestructionAdapter`）で壊せる（区間5）。ベイク（`VoxelModelBaker`）は、大きな三角形で内外の判定を誤る為、ベイクの前にボクセル 16 個分より長い辺を割る（区間15）。支えの判定はなく、分かれたら最も大きい塊が残り、ほかが Rigidbody で落ちる |
 | 近接切断（メッシュ切断） | あり（区間2）。左クリックで、ホイールで回した角度の刃（カメラの位置を通る）で範囲内を切る。InGame に `MeshCut System` と、切断を実行する `MeleeCutAdapter`、切れるダミーの敵がある。攻撃は `PlayerInitializer` が `MeleeCutService` から `MeleeCutAdapter.Swing` へ直接配線している（区間2の `PlayerEventBoard` / `MeleeCutEvents` は区間3で廃止）。切断の結果（元の対象とかけら）と切断面は、`PlayerInitializer.DistributeCutResults` が、敵の `EnemySpawnAdapter`、`FragmentOrbAdapter` の順に直接渡している（区間4A）。ダミーの敵は区間4A で削除した |
 | かけら・オーブ・チャージ | あり（区間3）。InGame の `FragmentOrbAdapter` が、かけらを管理し、寿命（3 秒）が来たらオーブにして、`Camera.main` へ引き寄せて吸収する。吸収した数は `ChargeService.AddFragments` で `IChargeState`（`PlayerBoard`、InGame の SceneState）に加える。スキルの発動で `ChargeService.TryConsume` が消費する（区間6）。かけらは Shard レイヤーで、Shard 同士とプレイヤーとは衝突しない。切ったかけらはぶつかってもオーブにならない（区間7。地面の近くで切ったかけらがすぐオーブになり、スロー中につかめなかった為）。テスト用のステージは `TestWalls/StageBounds` で囲ってある |
 | 画面空間の擬似破壊シェーダー（`Shader/Boolean`、`Shader/Embedded`） | コードは残してあるが、Renderer Feature は Renderer から外してある。ボクセルとメッシュ切断で足りているため使っていない |
@@ -108,11 +108,12 @@
 | インゲームの流れ・HUD・リザルト・ポーズ | あり（区間11）。InGame の `Stage`（`StageInitializer`）が `StageFlowService` を作る。流れ（Ready → Playing → Cleared / Failed）、失敗の理由、倒した数（核と崩落。吸収は数えない）、スコア（倒した数 ＋ クリアの基礎スコア）、ポーズ中かを `IStageFlowState`（`StageBoard`、InGame の SceneState）に書く。失敗条件は `StageData` の `[SerializeReference]` の一覧で、今は `PlayerDeathFailCondition`（HP 0）だけ。クリア・失敗で Player マップを止める。HUD（`StageHudAdapter`）、リザルト（`StageResultAdapter`。Retry と Back to Menu）、ポーズの画面（`StagePauseAdapter`。Esc は UI マップの `Cancel`）は uGUI で、初期化のときにコードで組み立てる（`UiBuilder`）。ポーズは時間の倍率を 0 にし、スローモードは倍率 0 の間はチャージを消費しない |
 | アウトゲームとの受け渡し | 仮（区間11）。常駐の `GameProgressState`（`AppBoard`）に、選んだステージ、装備の 3 枠、通貨、クリア済みのステージを持ち、`GameProgressService`（常駐の DI）が書く。仮のアウトゲーム（`OutGameStartInitializer`、OnGUI）で装備とステージを選ぶ。初回クリアで通貨 100（`GameSceneInitializer` の Inspector）。ゲームを終えると消える |
 | 崩落による撃破とエネルギー | あり（区間5）。足場ごと 3m 以上落ちた敵（`EnemyMoveJob`）と、落ちてくるボクセルの塊に潰された敵（`EnemyCollapseDetector`）を倒す。かけらは出さない。倒した敵の位置は `EnemyEnergyAdapter`（InGame の `EnemyEnergy`）が GraphicsBuffer で VFX Graph（`EnemyEnergy.vfx`）へ渡し、粒をカメラへ吸い込ませる。チャージは倒したときに `ChargeService.AddCollapsedEnemies` で足す。Enemy と Default のレイヤーは衝突しない（落ちてくる塊が体をすり抜ける為）。TestStage に崩す張り出し（`CrowdVoxelTerrain/Overhang`）を置いた |
+| 大きな建物のボクセル | あり（区間15）。`VoxelBuilding` が 1 階分のベイクを縦に積む。点ごとに素材（融点の 3 段階）を持ち、攻撃は強さと減衰率で壊す（`VoxelPiece.ApplyStrike`）。角ばった描き方で壊した周りだけ丸め、当たり判定はチャンクごとの BoxCollider。階の上下の面のつながりが切れたら上の階をまとめて倒し、止まったら地形として残す。階は近づくか攻撃が当たるまでメッシュで置く。傷は階ごとに記録し、追跡範囲（`EnemySpawnAdapter` が渡す）の外でメッシュに戻し、範囲に入ったら当て直す。TestStage に `VoxelBuildingTest`（6m 四方の 6 階と屋上）を置き、囲いを層 `StageBounds`（Player とだけ当たる）へ移した |
 | スローモード | あり（区間7）。F で切り替え、`SlowModeService` がチャージを消費して `ITimeScaleController`（常駐の DI）で倍率を 0.25 にする。状態は `ISlowModeState`（`PlayerBoard`）。1 回のスローで振れる回数は 5 回（`SlowModeService.TryUseCut` を `MeleeCutService` へ直接渡す） |
 | つかむ・投げる・ランチャー | あり（区間7）。`FragmentThrowService` が右クリック・R・中クリックを受け、InGame の `FragmentThrowAdapter`（`FragmentThrow`）が、かけらを `FragmentOrbAdapter.TryTake` で管理から外してカメラの前に運び、投げる・装填する・撃つ。飛ばしたかけらは最初にぶつかった時点でプールへ返り、チャージにならない |
 | 装甲 | あり（区間8）。メッシュのパネル（`ArmorPanel`、Armor レイヤー、1.3m 角）がパネルごとに耐久値 10 を持つ。剣・スキル・G キーは 1 回当たるごとに 1 減らし、投げた・撃ったかけらは当たったパネルを一撃で壊す。ビームは装甲で止まり、爆発と G キーは装甲の奥を削らない。パネルはプレイヤーを通さない。TestStage の門 A の核 2 つを殻（`ArmorCoreShell.prefab`、24 枚）で囲み、剣の確認用の壁 `ArmorTestWall` を開始位置の近くに置いた |
-| ダメージタイプと判定の窓口 | なし（区間10。区間8の決定 6。区間8では攻撃ごとに種類が 1 つに決まり、装甲への効き方も 2 通りしかない為。各攻撃の Adapter が `ArmorPanel.ApplyHit` / `Shatter` を直接呼ぶ） |
-| スキル | あり（区間6）。1 キーで前方ビーム（消費 30。カメラから視線の向きへ半径 1m・長さ 30m のカプセルで削り、壁を貫通する）、2 キーで自分中心の爆発（消費 50。カメラの位置を中心に半径 4m の球で削る）。`SkillData`（External）を、アウトゲームで選んだ装備（`GameProgressState`。アウトゲームを通さずに始めたときは `PlayerInitializer` の Inspector の 3 枠）から受け取り、`SkillService` が入力を受けてチャージを消費し、`VoxelDestructionAdapter` の `CarveBeam` / `CarveExplosion` を呼ぶ。チャージが足りなければ発動も消費もしない。クールタイムと見た目の演出はない。スキルは敵に当たらない（Enemy のレイヤーを除いて削る） |
+| ダメージタイプと判定の窓口 | あり（区間10、ローカルでの確認待ち）。`DamageType`（BlackBoard、Flags の enum：攻撃・破壊・粉砕）を攻撃が持ち、装甲への効き方は `ArmorPanel.ApplyDamage` の 1 か所で決める（粉砕を含めば一撃、攻撃か破壊を含めば耐久値を 1 減らす） |
+| スキル | あり（区間6）。1 キーで前方ビーム（消費 30。カメラから視線の向きへ半径 1m・長さ 30m のカプセルで削り、壁を貫通する）、2 キーで自分中心の爆発（消費 50。カメラの位置を中心に半径 4m の球で削る）。`SkillData`（External）を、アウトゲームで選んだ装備（`GameProgressState`。アウトゲームを通さずに始めたときは `PlayerInitializer` の Inspector の 3 枠）から受け取り、`SkillService` が入力を受けてチャージを消費し、`VoxelDestructionAdapter` の `CarveBeam` / `CarveExplosion` を呼ぶ。チャージが足りなければ発動も消費もしない。クールタイムと見た目の演出はない。スキルは敵に当たらない（Enemy のレイヤーを除いて削る）。区間10で、回復（`SkillEffect.Heal`）と強化型 5 種（ボクセル破壊・シルブレ・範囲アップ・速さアップ・かけらの爆発。`PlayerEnhanceService` が実時間か攻撃の回数で切れる効果を持つ）を足し、HUD にスキルごとのアイコンと可・不、チャージの数値を出した（ローカルでの確認待ち）。HUD の表示は、区間11の `StageHudAdapter`（uGUI）へ移した。アイコンは `PlayerInitializer` が装備したスキルから作って渡す |
 | 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブ（`Enemy/AttakkerEnemy.prefab` など。区間4A で作った `Enemy/AttackerEnemy.prefab` は除く）は旧構成のもの。旧 FBX `AttakkerEnemy.fbx` と区間4A の `AttackerEnemy.fbx` は、区間8の途中でユーザーが消した。旧構成の `AttakkerEnemy.prefab` と開発用のシーン（`ShaderTest`、`VoxelModelTest`）は、参照が切れたまま。`Assets/Art/` は区間4A から git の対象。`Test/InGame.unity` は Build Settings から外してあり、`BuildScenes.InGame` は新しい `Master/InGame` を指す |
 
 ## 4. 進め方
@@ -147,8 +148,8 @@
 | 4E | スポーン位置と編成 | スポーン位置 1 つにつき 1 グループ、区画と編成（ScriptableObject）の指定、初期生成の範囲と間隔の生成と合流をなくす、区画とスポーン位置のデバッグ表示 | 9 | 02/09〜02/15 | 10/11〜10/12 | 完了（2026-10-10） | [Section04E](Sections/Section04E_SquadSpawn.md) |
 | 4F | 部隊の意思決定 | 部隊の状態と目的地を Application が決めて State で公開し、EngineAdapter が経路と隊列を制御する。挙動は変えない | 4E | 02/16〜03/01 | 10/13〜10/16 | 完了（2026-10-11） | [Section04F](Sections/Section04F_SquadDecision.md) |
 | 4G | 撤退と補充 | 損耗で撤退して持ち場で補充、全滅後の出し直し、臨時の拠点、スポーン位置の破壊 | 4F | 03/02〜03/08 | 10/17〜10/18 | 完了（2026-10-11） | [Section04G](Sections/Section04G_SquadReinforce.md) |
-| 15 | 大きな建物のボクセル | 1 階分の計測、素材と強度（点ごとの融点）、階の積み重ねと倒壊、メッシュからの差し替えと傷の修復 | 5, 4D | 03/09〜03/29 | 10/19〜10/24 | 未着手 | [Section15](Sections/Section15_LargeVoxelBuilding.md) |
-| 10 | 強化型スキル・回復 | ダメージタイプのデータと判定の窓口（区間8から持ち越し）、各攻撃の強さと減衰率（区間15）、ダメージタイプの付与などの強化型スキル、破壊属性の切断でボクセルを平面で切り分ける、HP を回復するスキル | 6, 7 | 03/30〜04/12 | 10/25〜10/28 | 未着手 | [Section10](Sections/Section10_EnhanceSkill.md) |
+| 15 | 大きな建物のボクセル | 1 階分の計測、素材と強度（点ごとの融点）、階の積み重ねと倒壊、メッシュからの差し替えと傷の修復 | 5, 4D | 03/09〜03/29 | 10/19〜10/24 | 完了（2026-10-15） | [Section15](Sections/Section15_LargeVoxelBuilding.md) |
+| 10 | 強化型スキル・回復 | ダメージタイプのデータと判定の窓口（区間8から持ち越し）、各攻撃の強さと減衰率（区間15）、ダメージタイプの付与などの強化型スキル、破壊属性の切断でボクセルを平面で切り分ける、HP を回復するスキル | 6, 7 | 03/30〜04/12 | 10/25〜10/28 | 実装済み・ローカルでの確認待ち（2026-10-14） | [Section10](Sections/Section10_EnhanceSkill.md) |
 | 11 | ステージ制・インゲームの流れ・HUD | ステージデータ、HUD、失敗（HP 0）、リザルトとスコア、リトライ、アウトゲームとの受け渡し、ポーズ | B | 04/13〜04/26 | 10/29〜11/01 | 完了（2026-10-15） | [Section11](Sections/Section11_StageFlow.md) |
 | 14 | ステージ制作 | チュートリアル、一般戦闘、ギミック戦闘の 3 ステージ（破壊対象、マップ、大きな建物、生成システム、ギミック、チュートリアルの案内）、広いマップの格子（事前の焼き付けと配列の持ち方。区間4C・4D から持ち越し） | 9, 4G, 11, 15 | 04/27〜05/10 | 11/02〜11/05 | 未着手 | [Section14](Sections/Section14_StageContent.md) |
 | 16 | Brilliant Skill | よい行動の判定、追加スコアの口、ボクセルの文字の表示と演出 | 11, 14, 15 | 05/11〜05/17 | 11/06〜11/07 | 未着手 | [Section16](Sections/Section16_BrilliantSkill.md) |
@@ -229,6 +230,7 @@ flowchart LR
 | 破壊対象・マップ | 既存のボクセル（`VoxelModelLoader` / `VoxelPiece` / `IVoxelShape`）。重要パーツの削れた割合は、パーツの `RelativeVolume`（切り離した塊を含まない）から求める（区間5） |
 | Unity CLI Loop（uloop） | `Packages/manifest.json` で v3.13.0 のタグに固定した（区間5）。タグなしだと main の最新を取り、未公開の project runner を指すことがある為。上げるときはタグを書き換える |
 | 破壊属性の切断 | `VoxelPiece.Slice`（厚みゼロの平面で切り分ける） |
+| 大きな建物 | 区間15の `VoxelBuilding`。攻撃は `VoxelPiece.ApplyStrike`（強さと減衰率）で当てると、素材の強度と傷の記録が効く。使い方は [Section15](Sections/Section15_LargeVoxelBuilding.md) の「実装結果」 |
 | 破壊スキルの演出 | 既存のボクセルの融解（Thermal / Melt）が候補。区間6では使わず、区間13（または区間10）で決める。`VoxelMeltSystem` は InGame にも TestStage にも置かれていない |
 
 ## 7. 未確定の仕様と、決める区間
@@ -253,7 +255,7 @@ flowchart LR
 | 4F | 部隊の命令と観測の State の形、判断の頻度、目標位置の割り当てを置く層、区間9の行動の制御を命令に入れるか |
 | 4G | 撤退の割合の置き場と名前、撤退を判断する状態、補充の出し方、臨時の拠点の部隊が全滅したあと、スポーン位置が壊れたとみなす条件とモデル（2026-10-11 に決めた。答えは区間4G の計画書） |
 | 15 | 1 階の高さとボクセルの大きさ、柔い・普通・硬いの融点の値、つながりの判定で硬い点を数える倍率、修復のエフェクト、階ごとの模様のずらし方（[LargeObjectVoxel.md](../Voxel/LargeObjectVoxel.md) の「未決定」） |
-| 10 | ダメージのデータと判定の窓口（区間8から持ち越し）、各攻撃の強さと減衰率（区間15から持ち越し）、強化型スキルの一覧、平面で切り分ける範囲、切り分けた側の扱い、回復スキルの中身と分類 |
+| 10 | ダメージのデータと判定の窓口（区間8から持ち越し）、各攻撃の強さと減衰率（区間15から持ち越し）、強化型スキルの一覧、平面で切り分ける範囲、切り分けた側の扱い、回復スキルの中身と分類（2026-10-14 に決めた。答えは区間10の計画書の「詳細仕様で決めること」。各攻撃の強さと減衰率は区間15の値を使い、決め直しは区間13へ持ち越した） |
 | 11 | ステージごとの失敗条件、失敗したあとの表示、スコアの計算式と表示項目、リトライの方法（UsefulToolkit にシーンを読み直す経路を足す）、ポーズを `timeScale = 0` で実装するか、クリアを Application の Service と State に移す（区間5から持ち越し）（2026-10-14 に決定。区間11の計画書の「詳細仕様で決めること」） |
 | 14 | ギミック戦闘ステージのギミック、チュートリアルの進め方、各ステージの破壊対象・マップ・敵の配置、マップの広さと区画の大きさ（振り切れる距離）、建物以外のボクセルの支えの判定（建物は区間15の上下の面のつながり）、崩落で倒す値の調整（区間5から持ち越し） |
 | 16 | よい行動の種類と判定の条件、文字の内容・出す位置・演出、追加スコアの値（Notion の「Brilliant Skill」の「検討中」）、ボクセルの文字の作り方 |

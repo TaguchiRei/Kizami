@@ -16,6 +16,16 @@ namespace Kizami.Editor.Voxel
         /// <summary> 最大辺の解像度の上限。MeshToSDFBaker は総ボクセル数が 2^27 を超えると例外を投げる </summary>
         private const int MAX_RESOLUTION = 384;
 
+        /// <summary> 素材の番号を 1 バイトで持つ為の、素材の数の上限 </summary>
+        private const int MAX_MATERIAL_COUNT = 256;
+
+        /// <summary>
+        /// ベイクに渡す三角形の辺の長さの上限（ベイクのボクセル数）。
+        /// MeshToSDFBaker は大きな三角形を含むと内外の判定を誤り、平たく大きい箱の中身の一部を外側にする為、これより長い辺は割る。
+        /// 細かく割りすぎると、部材どうしが接する面から外側へ筋状に内側の点が漏れる（8 では出た）。
+        /// </summary>
+        private const int MAX_EDGE_VOXELS = 16;
+
         /// <summary>
         /// ベイクして VoxelModelAsset に保存する。同じパスのアセットがあれば中身を差し替える（GUID は保たれる）。
         /// </summary>
@@ -24,19 +34,19 @@ namespace Kizami.Editor.Voxel
         /// <param name="assetPath">保存先のアセットパス（Assets/～.asset）</param>
         public static VoxelModelAsset BakeAndSave(GameObject root, VoxelBakeSettings settings, string assetPath)
         {
-            var parts = Bake(root, settings);
+            var parts = Bake(root, settings, out var materials);
 
             var asset = AssetDatabase.LoadAssetAtPath<VoxelModelAsset>(assetPath);
             if (asset == null)
             {
                 EnsureFolder(assetPath.Substring(0, assetPath.LastIndexOf('/')));
                 asset = ScriptableObject.CreateInstance<VoxelModelAsset>();
-                asset.SetParts(parts);
+                asset.SetParts(parts, materials);
                 AssetDatabase.CreateAsset(asset, assetPath);
             }
             else
             {
-                asset.SetParts(parts);
+                asset.SetParts(parts, materials);
                 EditorUtility.SetDirty(asset);
             }
 
@@ -47,9 +57,10 @@ namespace Kizami.Editor.Voxel
         /// <summary>
         /// ルート以下の MeshFilter を SDF にベイクする。
         /// パーツごとにベイクする場合、各パーツはその MeshFilter のローカル空間で表す。
-        /// まとめる場合は、ルートのローカル空間で表す。
+        /// まとめる場合は、ルートのローカル空間で表し、サンプルごとに素材の番号を書く。
         /// </summary>
-        public static VoxelSdfData[] Bake(GameObject root, VoxelBakeSettings settings)
+        /// <param name="materials">素材の番号が指す素材の一覧。パーツごとにベイクする場合は空</param>
+        public static VoxelSdfData[] Bake(GameObject root, VoxelBakeSettings settings, out VoxelMaterialEntry[] materials)
         {
             var filters = new List<MeshFilter>();
             foreach (var filter in root.GetComponentsInChildren<MeshFilter>(true))
@@ -64,16 +75,36 @@ namespace Kizami.Editor.Voxel
 
             if (settings.CombineHierarchy)
             {
-                return new[] { BakeCombined(root.transform, filters, settings) };
+                var createdMeshes = new List<Mesh>();
+                try
+                {
+                    return new[] { BakeCombined(root.transform, filters, settings, createdMeshes, out materials) };
+                }
+                finally
+                {
+                    foreach (var mesh in createdMeshes)
+                    {
+                        UnityEngine.Object.DestroyImmediate(mesh);
+                    }
+                }
             }
+
+            materials = Array.Empty<VoxelMaterialEntry>();
 
             var parts = new VoxelSdfData[filters.Count];
             for (var i = 0; i < filters.Count; i++)
             {
-                var mesh = filters[i].sharedMesh;
-                parts[i] = BakeBox(GetRelativePath(root.transform, filters[i].transform), mesh.bounds, settings,
-                    (size, center, resolution) => new MeshToSDFBaker(size, center, resolution, mesh,
-                        settings.SignPassCount, settings.InOutThreshold));
+                var mesh = Subdivide(filters[i].sharedMesh, Matrix4x4.identity, settings.VoxelSize * MAX_EDGE_VOXELS);
+                try
+                {
+                    parts[i] = BakeBox(GetRelativePath(root.transform, filters[i].transform), mesh.bounds, settings,
+                        (size, center, resolution) => new MeshToSDFBaker(size, center, resolution, mesh,
+                            settings.SignPassCount, settings.InOutThreshold));
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(mesh);
+                }
             }
 
             return parts;
@@ -81,21 +112,44 @@ namespace Kizami.Editor.Voxel
 
         /// <summary>
         /// 全メッシュをルートのローカル空間へ変換し、1 パーツとしてベイクする。
+        /// パーツをマテリアルと強度の組ごとに分け、組ごとにも同じ箱と解像度でベイクする。
+        /// 各サンプルには、距離が最も小さい組（そのサンプルを含む組、どれにも含まれなければ最も近い組）の番号を書く。
         /// MeshToSDFBaker がメッシュを結合する為、各メッシュの Read/Write が有効である必要がある。
         /// </summary>
-        private static VoxelSdfData BakeCombined(Transform root, List<MeshFilter> filters, VoxelBakeSettings settings)
+        /// <param name="createdMeshes">ベイクの為に作ったメッシュを足す一覧。呼び出し側で破棄する</param>
+        private static VoxelSdfData BakeCombined(Transform root, List<MeshFilter> filters, VoxelBakeSettings settings,
+            List<Mesh> createdMeshes, out VoxelMaterialEntry[] materials)
         {
             var meshes = new List<Mesh>(filters.Count);
             var transforms = new List<Matrix4x4>(filters.Count);
+            var materialList = new List<VoxelMaterialEntry>();
+            var groupMeshes = new List<List<Mesh>>();
+            var groupTransforms = new List<List<Matrix4x4>>();
             var bounds = new Bounds();
 
             for (var i = 0; i < filters.Count; i++)
             {
+                // 引き伸ばした箱の三角形はルートの空間で長くなる為、ルートの空間へ移してから割る
                 var toRoot = root.worldToLocalMatrix * filters[i].transform.localToWorldMatrix;
-                var meshBounds = TransformBounds(filters[i].sharedMesh.bounds, toRoot);
+                var rootMesh = Subdivide(filters[i].sharedMesh, toRoot, settings.VoxelSize * MAX_EDGE_VOXELS);
+                createdMeshes.Add(rootMesh);
+                var meshBounds = rootMesh.bounds;
 
-                meshes.Add(filters[i].sharedMesh);
-                transforms.Add(toRoot);
+                meshes.Add(rootMesh);
+                transforms.Add(Matrix4x4.identity);
+
+                var entry = GetMaterialEntry(filters[i]);
+                var group = materialList.IndexOf(entry);
+                if (group < 0)
+                {
+                    group = materialList.Count;
+                    materialList.Add(entry);
+                    groupMeshes.Add(new List<Mesh>());
+                    groupTransforms.Add(new List<Matrix4x4>());
+                }
+
+                groupMeshes[group].Add(rootMesh);
+                groupTransforms[group].Add(Matrix4x4.identity);
 
                 if (i == 0)
                 {
@@ -107,9 +161,63 @@ namespace Kizami.Editor.Voxel
                 }
             }
 
-            return BakeBox(string.Empty, bounds, settings,
+            if (materialList.Count > MAX_MATERIAL_COUNT)
+            {
+                throw new ArgumentException(
+                    $"{root.name} の素材の数 {materialList.Count} が上限 {MAX_MATERIAL_COUNT} を超えています。");
+            }
+
+            var combined = BakeBox(string.Empty, bounds, settings,
                 (size, center, resolution) => new MeshToSDFBaker(size, center, resolution, meshes, transforms,
                     settings.SignPassCount, settings.InOutThreshold));
+
+            materials = materialList.ToArray();
+            var materialIds = new byte[combined.Samples.Length];
+            if (materialList.Count == 1) return WithMaterialIds(combined, materialIds);
+
+            var nearest = new short[combined.Samples.Length];
+            for (var group = 0; group < materialList.Count; group++)
+            {
+                var groupMeshList = groupMeshes[group];
+                var groupTransformList = groupTransforms[group];
+                var groupData = BakeBox(string.Empty, bounds, settings,
+                    (size, center, resolution) => new MeshToSDFBaker(size, center, resolution, groupMeshList,
+                        groupTransformList, settings.SignPassCount, settings.InOutThreshold));
+                if (!groupData.SampleCount.Equals(combined.SampleCount))
+                {
+                    throw new InvalidOperationException("素材ごとのベイクの格子が、全体の格子と一致しません。");
+                }
+
+                var groupSamples = groupData.Samples;
+                for (var i = 0; i < groupSamples.Length; i++)
+                {
+                    if (group > 0 && groupSamples[i] >= nearest[i]) continue;
+
+                    nearest[i] = groupSamples[i];
+                    materialIds[i] = (byte)group;
+                }
+            }
+
+            return WithMaterialIds(combined, materialIds);
+        }
+
+        /// <summary>
+        /// パーツの MeshRenderer のマテリアルと、VoxelBakeMaterial の強度（無ければ普通）の組。
+        /// </summary>
+        private static VoxelMaterialEntry GetMaterialEntry(MeshFilter filter)
+        {
+            var material = filter.TryGetComponent<MeshRenderer>(out var meshRenderer) ? meshRenderer.sharedMaterial : null;
+            var strength = filter.TryGetComponent<VoxelBakeMaterial>(out var bakeMaterial)
+                ? bakeMaterial.Strength
+                : VoxelStrength.Normal;
+            return new VoxelMaterialEntry(material, strength);
+        }
+
+        private static VoxelSdfData WithMaterialIds(VoxelSdfData data, byte[] materialIds)
+        {
+            var count = data.SampleCount;
+            return new VoxelSdfData(data.Path, data.Origin, new Vector3Int(count.x, count.y, count.z), data.VoxelSize,
+                data.MaxDistance, data.Samples, materialIds);
         }
 
         /// <summary>
@@ -179,17 +287,67 @@ namespace Kizami.Editor.Voxel
             return samples;
         }
 
-        private static Bounds TransformBounds(Bounds bounds, Matrix4x4 matrix)
+        /// <summary>
+        /// メッシュの頂点を matrix で移し、辺が maxEdge より長い三角形を、一番長い辺の中点で割っていった新しいメッシュを作る。
+        /// 呼び出し側で破棄する。
+        /// </summary>
+        private static Mesh Subdivide(Mesh source, Matrix4x4 matrix, float maxEdge)
         {
-            var result = new Bounds(matrix.MultiplyPoint3x4(bounds.center), Vector3.zero);
-            for (var i = 0; i < 8; i++)
+            var vertices = new List<Vector3>(source.vertexCount);
+            foreach (var vertex in source.vertices)
             {
-                var corner = bounds.center + Vector3.Scale(bounds.extents,
-                    new Vector3((i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
-                result.Encapsulate(matrix.MultiplyPoint3x4(corner));
+                vertices.Add(matrix.MultiplyPoint3x4(vertex));
             }
 
-            return result;
+            var midpoints = new Dictionary<(int, int), int>();
+            var triangles = new List<int>();
+            var sourceTriangles = source.triangles;
+            var sqrMaxEdge = maxEdge * maxEdge;
+            var stack = new Stack<(int, int, int)>();
+
+            for (var i = 0; i < sourceTriangles.Length; i += 3)
+            {
+                stack.Push((sourceTriangles[i], sourceTriangles[i + 1], sourceTriangles[i + 2]));
+                while (stack.Count > 0)
+                {
+                    var (a, b, c) = stack.Pop();
+                    var ab = (vertices[a] - vertices[b]).sqrMagnitude;
+                    var bc = (vertices[b] - vertices[c]).sqrMagnitude;
+                    var ca = (vertices[c] - vertices[a]).sqrMagnitude;
+                    if (ab <= sqrMaxEdge && bc <= sqrMaxEdge && ca <= sqrMaxEdge)
+                    {
+                        triangles.Add(a);
+                        triangles.Add(b);
+                        triangles.Add(c);
+                        continue;
+                    }
+
+                    // 一番長い辺を a-b に回してから割り、向き（巻き順）を保つ
+                    if (bc >= ab && bc >= ca) (a, b, c) = (b, c, a);
+                    else if (ca >= ab && ca >= bc) (a, b, c) = (c, a, b);
+
+                    var m = GetMidpoint(vertices, midpoints, a, b);
+                    stack.Push((a, m, c));
+                    stack.Push((m, b, c));
+                }
+            }
+
+            var mesh = new Mesh { indexFormat = IndexFormat.UInt32 };
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static int GetMidpoint(List<Vector3> vertices, Dictionary<(int, int), int> midpoints, int a, int b)
+        {
+            var key = a < b ? (a, b) : (b, a);
+            if (midpoints.TryGetValue(key, out var index)) return index;
+
+            index = vertices.Count;
+            vertices.Add((vertices[a] + vertices[b]) * 0.5f);
+            midpoints.Add(key, index);
+            return index;
         }
 
         /// <summary>

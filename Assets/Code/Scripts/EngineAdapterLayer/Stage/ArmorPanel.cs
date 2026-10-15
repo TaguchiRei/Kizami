@@ -1,3 +1,4 @@
+using Kizami.BlackBoard;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 
@@ -42,12 +43,23 @@ namespace Kizami.EngineAdapter
         public bool IsBroken => Durability <= 0;
 
         /// <summary>
-        /// 攻撃タイプか破壊タイプの攻撃が 1 回当たったとして耐久値を 1 減らし、0 になったら壊す。
-        /// 減らす量は攻撃の種類や大きさによらず 1 で、何度も当たる攻撃は当たった回数だけ呼ぶ。
+        /// 攻撃を 1 回当てる。粉砕タイプを含むなら耐久値によらず一撃で壊す。
+        /// 含まなければ、攻撃タイプか破壊タイプを含むときに耐久値を 1 減らし、0 になったら壊す。
+        /// 減らす量は攻撃の種類の数や大きさによらず 1 で、何度も当たる攻撃は当たった回数だけ呼ぶ。
         /// </summary>
-        public void ApplyHit()
+        /// <param name="damageType">当てた攻撃が持つダメージの種類</param>
+        public void ApplyDamage(DamageType damageType)
         {
             if (IsBroken) return;
+
+            if ((damageType & DamageType.Shatter) != 0)
+            {
+                Durability = 0;
+                Break();
+                return;
+            }
+
+            if ((damageType & (DamageType.Attack | DamageType.Destroy)) == 0) return;
 
             Durability--;
 
@@ -69,17 +81,6 @@ namespace Kizami.EngineAdapter
         {
             Durability = Mathf.Clamp(durability, 1, _maxDurability);
             UpdateColor();
-        }
-
-        /// <summary>
-        /// 耐久値によらず一撃で壊す。
-        /// </summary>
-        public void Shatter()
-        {
-            if (IsBroken) return;
-
-            Durability = 0;
-            Break();
         }
 
         private void Awake()

@@ -11,6 +11,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// VoxelPiece が無ければ追加する。
     /// 読み込むと、読み込み前からこの階層にあった MeshRenderer（元のモデルの見た目）を全て非表示にする。
     /// パーツと、パーツから切り離された全てのピースを、モデル単位でまとめて扱える。
+    /// LoadStatic なら、ボクセルを作らずに手付かずの形のメッシュと BoxCollider だけを置き、Load を呼んだときにボクセルへ差し替える。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelModelLoader : MonoBehaviour
@@ -21,6 +22,7 @@ namespace Kizami.EngineAdapter.Voxel
         private readonly ActionChannel<VoxelShapeChange> _pieceShapeChanged = new();
         private readonly ActionChannel<VoxelPiece[]> _pieceSplit = new();
         private readonly ActionChannel<VoxelPiece> _pieceDestroyed = new();
+        private readonly ActionChannel<(VoxelPiece Piece, VoxelStrikeRecord Record)> _pieceStruck = new();
 
         [SerializeField]
         [Tooltip("読み込む事前ベイク済みのモデル")]
@@ -46,11 +48,26 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("Start で読み込むか")]
         private bool _loadOnStart = true;
 
+        private readonly List<GameObject> _staticObjects = new();
+        private readonly List<VoxelStaticPart> _staticParts = new();
         private MeshRenderer[] _sourceRenderers;
+        private VoxelMaterialEntry[] _materialEntries;
 
         public VoxelQualitySettings Quality => _quality;
         public VoxelMeltSystem MeltSystem => _meltSystem;
         public bool IsLoaded { get; private set; }
+
+        /// <summary> LoadStatic で、手付かずの形のメッシュだけを置いているか </summary>
+        public bool IsStatic => _staticObjects.Count > 0;
+
+        /// <summary> LoadStatic で置いたパーツの、読み込み先と形 </summary>
+        internal IReadOnlyList<VoxelStaticPart> StaticParts => _staticParts;
+
+        /// <summary> モデルの素材の番号ごとの強度。SetMaterialEntries で渡されていればその強度 </summary>
+        internal VoxelStrength GetMaterialStrength(int materialIndex)
+        {
+            return _materialEntries != null ? _materialEntries[materialIndex].Strength : _model.Materials[materialIndex].Strength;
+        }
 
         /// <summary> 読み込んだパーツ（モデルのメッシュ 1 つに対応する、分離前からあるピース） </summary>
         public IReadOnlyList<VoxelPiece> Parts => _parts;
@@ -99,11 +116,35 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// 読み込むモデルを差し替える。次の Load から反映される。
+        /// </summary>
+        public void SetModel(VoxelModelAsset model)
+        {
+            _model = model;
+        }
+
+        /// <summary>
         /// 品質設定を差し替える。次の Load から反映される。
         /// </summary>
         public void SetQuality(VoxelQualitySettings quality)
         {
             _quality = quality;
+        }
+
+        /// <summary>
+        /// Start で読み込むかを切り替える。Start より前に呼ぶこと。
+        /// </summary>
+        public void SetLoadOnStart(bool loadOnStart)
+        {
+            _loadOnStart = loadOnStart;
+        }
+
+        /// <summary>
+        /// 素材の番号ごとのマテリアルと強度を、モデルの素材の一覧の代わりに使う。次の Load・LoadStatic から反映される。
+        /// </summary>
+        public void SetMaterialEntries(VoxelMaterialEntry[] entries)
+        {
+            _materialEntries = entries;
         }
 
         /// <summary>
@@ -155,6 +196,14 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// このモデルのいずれかのピースに強さと減衰率の攻撃が当たったときに呼ぶ処理を登録する。記録はそのピースのローカル空間で表す。
+        /// </summary>
+        public IDisposable RegisterOnPieceStruck(Action<(VoxelPiece Piece, VoxelStrikeRecord Record)> callback)
+        {
+            return _pieceStruck.Register(callback);
+        }
+
+        /// <summary>
         /// このモデルのいずれかのピースから塊が分離したときに呼ぶ処理を登録する。
         /// 引数の 0 番目は分離元のピース、1 番目以降は切り離された新しいピース。
         /// </summary>
@@ -185,6 +234,8 @@ namespace Kizami.EngineAdapter.Voxel
                 return;
             }
 
+            var wasStatic = IsStatic;
+            ClearStatic();
             _parts.Clear();
 
             foreach (var partData in _model.Parts)
@@ -202,11 +253,16 @@ namespace Kizami.EngineAdapter.Voxel
                 }
 
                 piece.SetQuality(_quality);
+                // 角ばった描き方の形は、中身の点をまとめた箱と一致する
+                if (_quality.UseBlockShape) piece.SetColliderMode(VoxelColliderMode.Boxes);
                 piece.SetMaterial(ResolveMaterial(target));
+                if (partData.HasMaterials) piece.SetMaterials(ResolveMaterials(target));
                 piece.SetSplittable(_splittable);
                 piece.SetMeltSystem(_meltSystem);
                 piece.BindToModel(this, partData.Path);
                 piece.LoadSdf(partData);
+                // メッシュのままの形から差し替えたときは、見た目が欠けるフレームを作らない
+                if (wasStatic) piece.FlushRemesh();
                 _parts.Add(piece);
             }
 
@@ -224,9 +280,103 @@ namespace Kizami.EngineAdapter.Voxel
             _loaded.Invoke(this);
         }
 
+        /// <summary>
+        /// ボクセルにしたパーツを消し、手付かずの形のメッシュに戻す。
+        /// 切り離されたピースのうち、自分の Rigidbody を持たない物（ほかの物にくっつけた塊）も消す。落ちているかけらは残す。
+        /// </summary>
+        public void Unload()
+        {
+            if (!IsLoaded) return;
+
+            foreach (var piece in _pieces)
+            {
+                if (piece == null) continue;
+
+                if (piece.Generation == 0) Destroy(piece);
+                else if (!piece.TryGetComponent<Rigidbody>(out _)) Destroy(piece.gameObject);
+            }
+
+            _parts.Clear();
+            _pieces.RemoveAll(piece => piece == null || piece.Generation == 0 || !piece.TryGetComponent<Rigidbody>(out _));
+            IsLoaded = false;
+            LoadStatic();
+        }
+
+        /// <summary>
+        /// ボクセルを作らずに、各パーツの手付かずの形のメッシュと BoxCollider を置く。元のモデルの MeshRenderer は非表示にする。
+        /// 形は VoxelStaticShape を使い回す。Load を呼ぶと消してボクセルへ差し替える。
+        /// </summary>
+        public void LoadStatic()
+        {
+            if (_model == null || _quality == null)
+            {
+                UsefulLogger.LogError("VoxelModelAsset または VoxelQualitySettings が設定されていません。", this);
+                return;
+            }
+
+            ClearStatic();
+
+            foreach (var partData in _model.Parts)
+            {
+                var target = string.IsNullOrEmpty(partData.Path) ? transform : transform.Find(partData.Path);
+                if (target == null)
+                {
+                    UsefulLogger.LogWarning($"パーツの読み込み先 '{partData.Path}' が見つからない為、読み込みを飛ばします。", this);
+                    continue;
+                }
+
+                var materials = partData.HasMaterials ? ResolveMaterials(target) : null;
+                var materialCount = materials?.Length ?? 1;
+                var localVoxelSize = _quality.VoxelSize / target.lossyScale.x;
+                var shape = VoxelStaticShape.GetOrCreate(partData, localVoxelSize, _quality.ChunkSize, materialCount);
+
+                var staticObject = new GameObject("VoxelStatic")
+                {
+                    layer = target.gameObject.layer
+                };
+                staticObject.transform.SetParent(target, false);
+                staticObject.AddComponent<MeshFilter>().sharedMesh = shape.Mesh;
+                var meshRenderer = staticObject.AddComponent<MeshRenderer>();
+                if (materials != null)
+                {
+                    var rendererMaterials = new Material[materials.Length];
+                    for (var i = 0; i < materials.Length; i++)
+                    {
+                        rendererMaterials[i] = materials[i].Material;
+                    }
+
+                    meshRenderer.sharedMaterials = rendererMaterials;
+                }
+                else
+                {
+                    meshRenderer.sharedMaterial = ResolveMaterial(target);
+                }
+
+                for (var i = 0; i < shape.BoxCenters.Count; i++)
+                {
+                    var box = staticObject.AddComponent<BoxCollider>();
+                    box.center = shape.BoxCenters[i];
+                    box.size = shape.BoxSizes[i];
+                }
+
+                _staticObjects.Add(staticObject);
+                _staticParts.Add(new VoxelStaticPart(target, shape));
+            }
+
+            foreach (var sourceRenderer in _sourceRenderers)
+            {
+                if (sourceRenderer != null) sourceRenderer.enabled = false;
+            }
+        }
+
         internal void NotifyShapeChanged(in VoxelShapeChange change)
         {
             _pieceShapeChanged.Invoke(change);
+        }
+
+        internal void NotifyStruck(VoxelPiece piece, in VoxelStrikeRecord record)
+        {
+            _pieceStruck.Invoke((piece, record));
         }
 
         internal void NotifySplit(VoxelPiece[] pieces)
@@ -257,6 +407,40 @@ namespace Kizami.EngineAdapter.Voxel
             if (_loadOnStart) Load();
         }
 
+        private void ClearStatic()
+        {
+            foreach (var staticObject in _staticObjects)
+            {
+                if (staticObject == null) continue;
+
+                // Destroy はフレームの終わりまで遅れる為、差し替えたボクセルと当たり判定が重ならないよう先に無効にする
+                staticObject.SetActive(false);
+                Destroy(staticObject);
+            }
+
+            _staticObjects.Clear();
+            _staticParts.Clear();
+        }
+
+        /// <summary>
+        /// 素材の番号ごとのマテリアルと強度。SetMaterialEntries で渡されていればそれを使う。上書き指定があれば全素材をそれで塗り、素材のマテリアルが空なら ResolveMaterial で補う。
+        /// </summary>
+        private VoxelMaterialEntry[] ResolveMaterials(Transform target)
+        {
+            if (_materialEntries != null) return _materialEntries;
+
+            var materials = new VoxelMaterialEntry[_model.Materials.Count];
+            for (var i = 0; i < materials.Length; i++)
+            {
+                var entry = _model.Materials[i];
+                var material = _materialOverride != null ? _materialOverride : entry.Material;
+                materials[i] = new VoxelMaterialEntry(material != null ? material : ResolveMaterial(target),
+                    entry.Strength);
+            }
+
+            return materials;
+        }
+
         /// <summary>
         /// 上書き指定 → 読み込み先の元の MeshRenderer → 階層内で最初の元の MeshRenderer の順にマテリアルを探す。
         /// </summary>
@@ -267,6 +451,21 @@ namespace Kizami.EngineAdapter.Voxel
             if (target.TryGetComponent<MeshRenderer>(out var targetRenderer)) return targetRenderer.sharedMaterial;
 
             return _sourceRenderers.Length > 0 ? _sourceRenderers[0].sharedMaterial : null;
+        }
+    }
+
+    /// <summary>
+    /// LoadStatic で置いたパーツの、読み込み先の Transform と手付かずの形。
+    /// </summary>
+    internal readonly struct VoxelStaticPart
+    {
+        public readonly Transform Target;
+        public readonly VoxelStaticShape Shape;
+
+        public VoxelStaticPart(Transform target, VoxelStaticShape shape)
+        {
+            Target = target;
+            Shape = shape;
         }
     }
 }
