@@ -14,11 +14,11 @@ namespace Kizami.EngineAdapter
     /// アタッカーが体の上のタレットから撃つ弾を扱う。EnemySpawnAdapter と同じ GameObject に置き、EnemySpawnAdapter が初期化と毎フレームの更新を呼ぶ。
     /// 撃つのは、射程の中にいて、攻撃部位が壊れておらず、銃口からプレイヤーまで壁のないアタッカー。体を貸していない敵も、敵の状態の値だけで撃つ。
     /// 弾の位置・速度・残りの寿命は NativeArray に持ち、Burst の Job で進めてプレイヤーのカプセルとの当たりを距離で調べ、前のフレームの位置からの間を SpherecastCommand で調べて壁と装甲で止める。
-    /// 飛んでいる弾の数に上限を設け、1 体が 1 発ずつ撃つので、同時に撃つ敵の数の上限にもなる。弾の位置は GraphicsBuffer で VFX Graph へ渡して描く。
+    /// 飛んでいる弾の数に上限を設け、1体が1発ずつ撃つので、同時に撃つ敵の数の上限にもなる。弾の位置は GraphicsBuffer で VFX Graph へ渡して描く。
     /// </summary>
     /// <remarks>
     /// VFX Graph で受け取るものは次のとおり（名前を変えるときは、グラフの側も合わせる）。
-    /// GraphicsBuffer の BulletStates（float4 の並び。xyz が位置、w が飛んでいれば 1・いなければ 0）、int の BulletCapacity（その数）。
+    /// GraphicsBuffer の BulletStates（float4 の並び。xyz が位置、w が飛んでいれば1・いなければ0）、int の BulletCapacity（その数）。
     /// </remarks>
     public sealed class EnemyShooter : MonoBehaviour
     {
@@ -423,8 +423,8 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 飛んでいる弾を 1 つずつ進め、進んだ間の SpherecastCommand を作り、プレイヤーのカプセルに当たった所までの距離を求める。
-        /// 飛んでいない弾は、調べる距離 0 の SpherecastCommand にする。
+        /// 飛んでいる弾を1つずつ進め、進んだ間の SpherecastCommand を作り、プレイヤーのカプセルに当たった所までの距離を求める。
+        /// 飛んでいない弾は、調べる距離0の SpherecastCommand にする。
         /// </summary>
         [BurstCompile]
         private struct MoveBulletsJob : IJobParallelFor

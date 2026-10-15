@@ -7,9 +7,9 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵のグループを 1 つずつ更新する。待機・追跡・帰還の切り替え、進む・待つの切り替え、アンカーの移動と道筋・帰りの道筋の記録、隊列の 1 列の数、包囲の置き場の割り当てを行う。
+    /// 敵のグループを1つずつ更新する。待機・追跡・帰還の切り替え、進む・待つの切り替え、アンカーの移動と道筋・帰りの道筋の記録、隊列の1列の数、包囲の置き場の割り当てを行う。
     /// 持ち場が追跡範囲（距離マップを計算した範囲）に入れば追跡に、外れれば帰還にする。範囲が変わるのは区画の切り替えのときだけなので、毎フレーム調べても切り替えのときだけ変わる。
-    /// 別のグループや別の敵の置き場を見るので、順番に依存しないよう、並列にせず 1 つの Job で回す。
+    /// 別のグループや別の敵の置き場を見るので、順番に依存しないよう、並列にせず1つの Job で回す。
     /// </summary>
     [BurstCompile]
     public struct EnemyGroupJob : IJob
@@ -20,7 +20,7 @@ namespace Kizami.EngineAdapter
         /// <summary> アンカーが向かう先として、距離マップの値が下がる列をたどる数 </summary>
         private const int LOOKAHEAD_STEPS = 6;
 
-        /// <summary> 1 列に並べる数を決めるときに、床の幅を調べる進む先の距離（m）。細い所の手前で組み替えを済ませる </summary>
+        /// <summary> 1列に並べる数を決めるときに、床の幅を調べる進む先の距離（m）。細い所の手前で組み替えを済ませる </summary>
         private const float COLUMN_LOOKAHEAD_DISTANCE = 18f;
 
         /// <summary> 進む先の床の幅を調べる間隔（m） </summary>
@@ -44,7 +44,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 置き場ごとの、立てる列へずらした位置。使えない置き場は NaN。EnemyEncircleSlotJob がこのフレームに書いたもの </summary>
         [ReadOnly] public NativeArray<float2> SlotPoints;
 
-        /// <summary> 0 番に、使える置き場のうち最も外の置き場の番号。これより外の置き場は待つ置き場。なければ -1 </summary>
+        /// <summary> 0番に、使える置き場のうち最も外の置き場の番号。これより外の置き場は待つ置き場。なければ -1 </summary>
         [ReadOnly] public NativeArray<int> LastUsableSlot;
 
         /// <summary> グループごとに EnemyGroups.PATH_CAPACITY 個の区画を持つ道筋の点 </summary>
@@ -123,7 +123,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 追跡範囲の外で待機しているグループの処理を止めるかを決める（IsDormant）。止めたグループと、そのメンバーのうち立って歩く敵は、EnemyGroupJob・EnemyMoveJob で動かさず、その場に描くだけにする。
         /// 待機を始めてから、隊列の長さを歩く時間 ＋ DORMANT_MARGIN が経つまでは止めない。持ち場に着いた直後や生成の直後は、メンバーがまだ隊列へ歩いている為。
-        /// 飛んでいる・落ちているメンバーがいる間は、数えた時間を 0 に戻す。着地してから隊列へ歩く時間を残す為。
+        /// 飛んでいる・落ちているメンバーがいる間は、数えた時間を0に戻す。着地してから隊列へ歩く時間を残す為。
         /// 止めている間は足場が壊れても落ちず、範囲に入って処理が戻ったときに落ちる。
         /// </summary>
         private void UpdateDormant(int g, ref EnemyGroup group)
@@ -242,7 +242,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 追跡中のアンカーを、Application が割り当てた目標位置（包囲の置き場。使える置き場が空いていなければ、その外に続く待つ置き場）へ歩かせる。
-        /// 割り当てられた置き場がないか、使えない（NaN）ときは、最も外の使える置き場のさらに 1 周外で待つ。
+        /// 割り当てられた置き場がないか、使えない（NaN）ときは、最も外の使える置き場のさらに1周外で待つ。
         /// プレイヤーまでの経路が「目標位置のプレイヤーまでの経路 ＋ 近づく余裕」より長い間は距離マップの値が下がる方へ、内側では目標位置へ向かう。
         /// 目標位置へまっすぐ向かうと、壁の向こうの目標位置の手前で詰まる為。経路の長さで比べるので、壁を回り込んでから目標位置へ向かう。
         /// 置き場に着いたら止まってプレイヤーを向き、メンバーはグループの中心の周りの螺旋に並ぶ。置き場が FollowDistance 動くまでは、並んだままついていく。
@@ -265,7 +265,7 @@ namespace Kizami.EngineAdapter
             }
             else
             {
-                // 置き場がすべて埋まっているときは、最も外の使える置き場のさらに 1 周外で、来た向きに待つ
+                // 置き場がすべて埋まっているときは、最も外の使える置き場のさらに1周外で、来た向きに待つ
                 var outermostRadius = lastUsableSlot >= 0 ? GetEncircleRadius(lastUsableSlot) : Formation.EncircleInnerRadius;
                 var fromPlayer = math.normalizesafe(group.AnchorPosition.xz - PlayerPosition.xz, new float2(0f, 1f));
                 target = PlayerPosition.xz + fromPlayer * (outermostRadius + Formation.EncircleLoopSpacing);
@@ -510,7 +510,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 置き場への向き toSlot へ、まっすぐ 1 マス進めればその向きを、進めなければ置き場に近づく隣の列への向きを、それもなければ距離マップの値が下がる隣の列への向きを返す。
+        /// 置き場への向き toSlot へ、まっすぐ1マス進めればその向きを、進めなければ置き場に近づく隣の列への向きを、それもなければ距離マップの値が下がる隣の列への向きを返す。
         /// </summary>
         private bool TryGetHeadingToward(float3 position, int column, float height, float distance, float2 toSlot,
             out float2 heading)
@@ -532,8 +532,8 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 距離マップを下るアンカーの向き（水平）を返す。距離マップの値が下がる列を LOOKAHEAD_STEPS 列先までたどり、その列の中心へ向ける。
-        /// 隣の列だけを見ると、向きが格子の 8 方向に限られ、隊列がまっすぐの線に並んで見える為。
-        /// その向きへ 1 マス進んだ先に乗れなければ、隣の列の中心へ向ける（壁の角に引っかからない為）。
+        /// 隣の列だけを見ると、向きが格子の8方向に限られ、隊列がまっすぐの線に並んで見える為。
+        /// その向きへ1マス進んだ先に乗れなければ、隣の列の中心へ向ける（壁の角に引っかからない為）。
         /// </summary>
         private float2 GetDownhillHeading(float3 position, int column, float height, int nextColumn)
         {
@@ -583,7 +583,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// アンカーの位置と、進む先 COLUMN_LOOKAHEAD_DISTANCE までの COLUMN_LOOKAHEAD_INTERVAL おきの点で、左右へ同じ高さの床が続く幅を調べ、
-        /// 最も狭い幅で 1 列に並べる数を決める。上限は MaxColumns。新しい数が ColumnChangeDelay の間続いたら変える。
+        /// 最も狭い幅で1列に並べる数を決める。上限は MaxColumns。新しい数が ColumnChangeDelay の間続いたら変える。
         /// 進む先を見るのは、細い所に入ってから組み替えると、列の端のメンバーが壁に詰まる為。
         /// 進む先は、距離マップを下っている間は値が下がる列をたどり、それ以外（置き場へ向かう間、帰還中）はアンカーの向きの直線をたどる。
         /// </summary>

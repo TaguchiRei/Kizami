@@ -25,7 +25,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 線分 p1-q1 と線分 p2-q2 の最も近い点どうしの距離の 2 乗と、線分 p1-q1 の上の最も近い点の割合（0〜1）を求める。
+        /// 線分 p1-q1 と線分 p2-q2 の最も近い点どうしの距離の2乗と、線分 p1-q1 の上の最も近い点の割合（0〜1）を求める。
         /// </summary>
         public static float GetSegmentDistanceSq(float3 p1, float3 q1, float3 p2, float3 q2, out float s)
         {

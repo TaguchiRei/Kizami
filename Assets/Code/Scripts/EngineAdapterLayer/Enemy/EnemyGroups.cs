@@ -8,17 +8,17 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 敵のグループ（EnemyGroup）と、その道筋・帰りの道筋・メンバーの配列を持つ。
-    /// EnemySpawnAdapter が、スポーン位置と同じ番号のグループを開いて生成した敵を入れ、毎フレーム EnemyGroupJob を回し、グループを 1 つずつ並べ替える。
+    /// EnemySpawnAdapter が、スポーン位置と同じ番号のグループを開いて生成した敵を入れ、毎フレーム EnemyGroupJob を回し、グループを1つずつ並べ替える。
     /// </summary>
     public sealed class EnemyGroups : IDisposable
     {
-        /// <summary> グループごとの道筋の点の数。1 列の縦隊の最後尾（人数 × 列の間隔）まで届く長さにする </summary>
+        /// <summary> グループごとの道筋の点の数。1列の縦隊の最後尾（人数 × 列の間隔）まで届く長さにする </summary>
         public const int PATH_CAPACITY = 128;
 
         /// <summary> 道筋に点を足す間隔（m） </summary>
         public const float PATH_SPACING = 1f;
 
-        /// <summary> グループごとの帰りの道筋の点の数。追跡範囲（100m の区画で 300m 四方）を往復できる長さにする </summary>
+        /// <summary> グループごとの帰りの道筋の点の数。追跡範囲（100m の区画で300m 四方）を往復できる長さにする </summary>
         public const int RETURN_PATH_CAPACITY = 64;
 
         /// <summary> 帰りの道筋に点を足す間隔（m） </summary>
@@ -41,7 +41,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 置き場ごとの、立てる列へずらした位置。使えない置き場は NaN。EnemyEncircleSlotJob が毎フレーム書き直す </summary>
         private NativeArray<float2> _slotPoints;
 
-        /// <summary> 0 番に、使える置き場のうち最も外の置き場の番号。なければ -1 </summary>
+        /// <summary> 0番に、使える置き場のうち最も外の置き場の番号。なければ -1 </summary>
         private NativeArray<int> _lastUsableSlot;
 
         /// <summary> 次に整えるグループを探し始める番号 </summary>
@@ -74,7 +74,7 @@ namespace Kizami.EngineAdapter
             }
         }
 
-        /// <param name="capacity">敵の状態の数。1 体ずつ出した敵がそれぞれ別のグループになっても足りるよう、グループの数の上限も同じ数にする</param>
+        /// <param name="capacity">敵の状態の数。1体ずつ出した敵がそれぞれ別のグループになっても足りるよう、グループの数の上限も同じ数にする</param>
         public EnemyGroups(int capacity)
         {
             _groups = new NativeArray<EnemyGroup>(capacity, Allocator.Persistent);
@@ -135,7 +135,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// グループ g の隊列の 0 番の敵の番号を返す。メンバーがいなければ -1。
+        /// グループ g の隊列の0番の敵の番号を返す。メンバーがいなければ -1。
         /// 倒れた敵や、その敵の状態を使って別のグループに出した敵が、次に整えるまで残っていることがあるので、呼び出し元で生きているかとグループの番号を確かめる。
         /// </summary>
         public int GetLeader(int g)
@@ -268,7 +268,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// グループを 1 つずつ更新する Job を回す。
+        /// グループを1つずつ更新する Job を回す。
         /// </summary>
         /// <param name="trackingMin">distances を計算した追跡範囲の、最小の列 (x, z)</param>
         /// <param name="trackingMax">distances を計算した追跡範囲の、最大の列 (x, z)。この列も含む</param>
@@ -297,7 +297,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 使われているグループを 1 つ順番に選んで整える。毎フレーム 1 グループずつ呼ぶ。Job が走っていない間に呼ぶ。
+        /// 使われているグループを1つ順番に選んで整える。毎フレーム1グループずつ呼ぶ。Job が走っていない間に呼ぶ。
         /// 倒れた敵を隊列から抜いて順番を詰め（穴を後ろへずらす）、動けなくなった敵を後ろへ回し、
         /// メンバーの隊列の順番を、向かう先に近い順に並べ替える（先頭の列に向かう先に近いメンバーが来て、隊列の位置へ向かうメンバーどうしが交差しにくくなる）。
         /// 向かう先に近い順は、帰還中は持ち場までの直線の距離、それ以外はプレイヤーまでの経路の長さで決める。
@@ -322,7 +322,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 倒れた敵を区画から抜き、残りを順番を保って前へ詰める。残りがいなければグループを空ける。
         /// 動けなくなった敵（壊れた移動部位が上限に達した敵）はグループに残し、隊列の後ろへ回す。歩かない敵が隊列の途中にいると、その位置が空いたまま残る為。
-        /// 動けるディフェンダーがいれば、最初の 1 体を 0 番（着いたら螺旋の中心）へ移す。戻れない敵の移し替えで後ろに入っても、ここで中心に戻る。
+        /// 動けるディフェンダーがいれば、最初の1体を0番（着いたら螺旋の中心）へ移す。戻れない敵の移し替えで後ろに入っても、ここで中心に戻る。
         /// </summary>
         public void Compact(int g, NativeArray<EnemyAgent> agents)
         {
@@ -391,7 +391,7 @@ namespace Kizami.EngineAdapter
                 keys[i] = float.MaxValue;
                 if (!agent.IsAlive || agent.GroupIndex != g || IsImmobile(agent)) continue;
 
-                // ディフェンダーは並べ替えずに先頭（0 番）に置く
+                // ディフェンダーは並べ替えずに先頭（0番）に置く
                 if (agent.Kind == EnemyKind.Defender)
                 {
                     keys[i] = float.MinValue;

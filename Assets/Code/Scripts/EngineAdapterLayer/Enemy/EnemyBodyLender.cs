@@ -9,7 +9,7 @@ using Object = UnityEngine.Object;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 切断できる体（EnemyBody）を初期化のときに作って持ち、近くの敵へ貸して使い回す。EnemySpawnAdapter が敵の種類ごとに 1 つ持ち、その種類の敵にだけ貸す。
+    /// 切断できる体（EnemyBody）を初期化のときに作って持ち、近くの敵へ貸して使い回す。EnemySpawnAdapter が敵の種類ごとに1つ持ち、その種類の敵にだけ貸す。
     /// 体はプレイヤーから貸す距離の中にいる敵へ近い順に貸し、返す距離より離れたら返す。返す距離は貸す距離より遠い。貸している体の脚は EnemyLegs で歩かせる。
     /// 体を返すときは、短くなった部位の形を EnemyShapeKeeper に預け、次に貸すときに戻す。預ける空きがなければ、その敵の体は返さない。
     /// 体に空きがないときは、切断の届きうる近さ（取り上げる距離）の敵を優先し、その敵より一定以上遠い敵のうち最も遠い敵から体を取り上げる。
@@ -40,7 +40,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 体ごとの脚。脚を持たない体では null。並びは _bodies と同じ </summary>
         private readonly EnemyLegs[] _bodyLegs;
 
-        /// <summary> 体を貸す候補の敵の、プレイヤーとの距離の 2 乗。並べ替えに使う作業用の配列 </summary>
+        /// <summary> 体を貸す候補の敵の、プレイヤーとの距離の2乗。並べ替えに使う作業用の配列 </summary>
         private readonly float[] _lendCandidateDistances;
 
         /// <summary> 体を貸す候補の敵の番号。並びは _lendCandidateDistances と同じ </summary>
@@ -278,7 +278,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 貸している体のうち、敵がプレイヤーから距離の 2 乗 minDistanceSq より遠く、最も遠いものを返す。行動中の敵の体は除く。なければ -1。
+        /// 貸している体のうち、敵がプレイヤーから距離の2乗 minDistanceSq より遠く、最も遠いものを返す。行動中の敵の体は除く。なければ -1。
         /// </summary>
         private int FindFarthestLentBody(NativeArray<EnemyAgent> agents, float3 target, float minDistanceSq)
         {

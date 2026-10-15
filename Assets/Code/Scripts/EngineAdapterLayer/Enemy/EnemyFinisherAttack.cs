@@ -10,7 +10,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// フィニッシャーの攻撃を扱う。EnemySpawnAdapter と同じ GameObject に置き、EnemySpawnAdapter が初期化と毎フレームの更新を呼ぶ。
-    /// 攻撃するのはマップ全体で 1 体まで。グループが螺旋に並んでいて（EnemyGroup.HasArrived）、プレイヤーが射程の中にいる、冷却を終えたフィニッシャーが始める。
+    /// 攻撃するのはマップ全体で1体まで。グループが螺旋に並んでいて（EnemyGroup.HasArrived）、プレイヤーが射程の中にいる、冷却を終えたフィニッシャーが始める。
     /// 同じグループの最も近いメンバーを吸収の対象に選んで止め、その上へ飛んで、畳んでいた腕を開いてから閉じてつかみ、対象をディゾルブで消しながら粒を吸い込む。
     /// つかむとき以外、腕は畳んでおく（EnemyLegs の畳んだ位置）。
     /// 吸収された敵はオーブもチャージも出さない。吸収したあとは分身してビームを撃ち（EnemyFinisherBeams）、撃ち終えたら冷却に入って、飛び立った位置へ戻る。
@@ -130,7 +130,7 @@ namespace Kizami.EngineAdapter
         /// <summary> フィニッシャーが飛び立った位置。戻るときはここへ降りる </summary>
         private float3 _homePosition;
 
-        /// <summary> つかんでいた腕を畳む進み具合（0〜1）。1 で畳みきっている </summary>
+        /// <summary> つかんでいた腕を畳む進み具合（0〜1）。1で畳みきっている </summary>
         private float _foldProgress = 1f;
 
         /// <summary> 分身とビームを使えるか </summary>
@@ -556,7 +556,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 今の段階に入ってからの時間を、duration に対する割合（0〜1）で返す。duration が 0 なら 1。
+        /// 今の段階に入ってからの時間を、duration に対する割合（0〜1）で返す。duration が0なら1。
         /// </summary>
         private float GetProgress(float duration)
         {
@@ -564,7 +564,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 吸収の対象の残っている部位の中心を _partCenters に集める。体を貸していないか部位が残っていなければ、体の中心の高さの 1 点にする。
+        /// 吸収の対象の残っている部位の中心を _partCenters に集める。体を貸していないか部位が残っていなければ、体の中心の高さの1点にする。
         /// </summary>
         private void CollectTargetCenters(in EnemyAgent target, EnemyBodyLender[] lenders)
         {
@@ -576,7 +576,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// フィニッシャーの腕の先を、畳んだ位置から開いた位置へ割合 open だけ、さらにそこから対象をつかむ位置へ割合 grab だけ動かす。
-        /// つかむ位置は、対象の体の中心（_partCenters の平均）から、各腕の付け根の側へ _graspSpread 離した位置。grab が 0 なら対象を読まない。
+        /// つかむ位置は、対象の体の中心（_partCenters の平均）から、各腕の付け根の側へ _graspSpread 離した位置。grab が0なら対象を読まない。
         /// つかむ位置へ動かした腕の位置は、吸収のあとに畳み始める位置として覚えておく。
         /// </summary>
         private void PoseArms(EnemyLegs legs, float open, float grab)

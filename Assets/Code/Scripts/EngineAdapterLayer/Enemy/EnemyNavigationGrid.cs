@@ -4,7 +4,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵の経路の格子。縦の列ごとに「立てる層」（敵が立てる床の高さ）を下から順に持ち、層 1 つを 1 つのノードとする。
+    /// 敵の経路の格子。縦の列ごとに「立てる層」（敵が立てる床の高さ）を下から順に持ち、層1つを1つのノードとする。
     /// Burst の Job へ渡して読むための値で、配列の持ち主は EnemyDistanceField。
     /// </summary>
     /// <remarks>
@@ -12,7 +12,7 @@ namespace Kizami.EngineAdapter
     /// </remarks>
     public struct EnemyNavigationGrid
     {
-        /// <summary> 1 つの列に持てる立てる層の数 </summary>
+        /// <summary> 1つの列に持てる立てる層の数 </summary>
         public const int MAX_LAYERS = 4;
 
         /// <summary> ノードごとの床の高さ </summary>
@@ -40,7 +40,7 @@ namespace Kizami.EngineAdapter
         public int Depth;
 
         /// <summary>
-        /// 隣の 8 列への向きの番号から、列のずれを返す。番号は z、x の順に -1〜1 を並べ、ずれのない中央を飛ばしたもの。
+        /// 隣の8列への向きの番号から、列のずれを返す。番号は z、x の順に -1〜1を並べ、ずれのない中央を飛ばしたもの。
         /// </summary>
         public static int2 GetNeighborOffset(int direction)
         {
@@ -104,8 +104,8 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 高さ height で列 column にいるとき、隣の 8 列のうち、進んで乗る層の距離が distance より小さく、最も小さい列を返す。
-        /// 斜めに進むときは、間の 2 つの列を通れることも確かめる（壁の角を抜けない為）。
+        /// 高さ height で列 column にいるとき、隣の8列のうち、進んで乗る層の距離が distance より小さく、最も小さい列を返す。
+        /// 斜めに進むときは、間の2つの列を通れることも確かめる（壁の角を抜けない為）。
         /// </summary>
         /// <param name="distances">ノードごとのプレイヤーまでの距離</param>
         public bool TryGetDownhillColumn(int column, float height, float distance, NativeArray<float> distances,
@@ -138,7 +138,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 高さ height で列 column にいるとき、隣の 8 列のうち、進んで乗れて、中心が水平の位置 target に今の列より近く、最も近い列を返す。
+        /// 高さ height で列 column にいるとき、隣の8列のうち、進んで乗れて、中心が水平の位置 target に今の列より近く、最も近い列を返す。
         /// 距離マップはプレイヤーへの経路しか持たないので、プレイヤー以外の点（隊列の位置や包囲の置き場）へ回り込むときに使う。
         /// </summary>
         public bool TryGetColumnToward(int column, float height, float2 target, out int nextColumn)
@@ -171,7 +171,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 高さ fromHeight から列 column へ進んだときに乗る層が、登れる高さの範囲で上下するだけか。
-        /// 斜めに進むときに、間の 2 つの列について確かめる（壁の角を抜けない為）。
+        /// 斜めに進むときに、間の2つの列について確かめる（壁の角を抜けない為）。
         /// </summary>
         public bool CanCross(int column, float fromHeight)
         {

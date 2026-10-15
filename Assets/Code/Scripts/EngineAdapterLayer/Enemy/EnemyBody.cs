@@ -8,7 +8,7 @@ using UsefulToolkit.MeshCut;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵 1 体の切断できる体。敵のプレハブの根に付け、EnemySpawnAdapter が近くの敵（EnemyAgent）に貸して使い回す。
+    /// 敵1体の切断できる体。敵のプレハブの根に付け、EnemySpawnAdapter が近くの敵（EnemyAgent）に貸して使い回す。
     /// 貸すたびに、敵の状態にある部位の状態（失った部位、壊れた部位）を反映し、残っている部位を MeshDataCache へ登録し直す。
     /// プールで非アクティブのまま待つ部位は、MeshDataCache の初期登録に含まれない為。
     /// 返すときと倒れたときは、全部位を切断前の形に戻してからプールへ戻る。
@@ -75,7 +75,7 @@ namespace Kizami.EngineAdapter
         public bool IsDissolving { get; private set; }
 
         /// <summary>
-        /// EnemySpawnAdapter が体を作ったときに 1 回だけ呼ぶ。
+        /// EnemySpawnAdapter が体を作ったときに1回だけ呼ぶ。
         /// </summary>
         /// <param name="spawnOrb">切断済みの部位をオーブにする関数。引数はオーブを出す位置</param>
         /// <param name="spawnDebris">切っていない部位を見た目用の物で散らばらせる関数。引数は部位と、散らばる中心</param>
@@ -244,7 +244,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 壊れた移動部位の数を 1 つ増やす。
+        /// 壊れた移動部位の数を1つ増やす。
         /// </summary>
         public void BreakMovePart()
         {
@@ -360,7 +360,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 今回の切断で壊れた部位（切られた部位と、失った部位）の役割へ、壊れたことを 1 回だけ伝える。体が倒れたら、そこで止める。
+        /// 今回の切断で壊れた部位（切られた部位と、失った部位）の役割へ、壊れたことを1回だけ伝える。体が倒れたら、そこで止める。
         /// </summary>
         private void NotifyBrokenParts(int cutIndex)
         {

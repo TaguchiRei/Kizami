@@ -18,7 +18,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 置き場ごとの、立てる列へずらした位置。使えない置き場は NaN </summary>
         public NativeArray<float2> SlotPoints;
 
-        /// <summary> 0 番に、使える置き場のうち最も外の置き場の番号を書く。なければ -1 </summary>
+        /// <summary> 0番に、使える置き場のうち最も外の置き場の番号を書く。なければ -1 </summary>
         public NativeArray<int> LastUsableSlot;
 
         public EnemyNavigationGrid Grid;

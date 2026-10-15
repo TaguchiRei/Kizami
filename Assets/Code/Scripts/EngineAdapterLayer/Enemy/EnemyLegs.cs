@@ -4,7 +4,7 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 体を貸した敵の脚を、足を置く位置の切り替えと 2 本の骨の IK で歩かせる。敵の体のプレハブの根に付け、EnemySpawnAdapter が毎フレーム呼ぶ。
+    /// 体を貸した敵の脚を、足を置く位置の切り替えと2本の骨の IK で歩かせる。敵の体のプレハブの根に付け、EnemySpawnAdapter が毎フレーム呼ぶ。
     /// 歩かない体（宙に浮いて移動するフィニッシャー）は足を運ばず、足先を体から見て決めた位置（畳んだ位置）に置く。
     /// </summary>
     public sealed class EnemyLegs : MonoBehaviour
@@ -93,7 +93,7 @@ namespace Kizami.EngineAdapter
         public int LegCount => _legs.Length;
 
         /// <summary>
-        /// メッシュの範囲のうち、基準点から向き axis（単位ベクトル）へ最も遠い所までの長さ。メッシュがなければ 0。
+        /// メッシュの範囲のうち、基準点から向き axis（単位ベクトル）へ最も遠い所までの長さ。メッシュがなければ0。
         /// </summary>
         private static float GetMeshLength(MeshFilter meshFilter, Vector3 axis)
         {
@@ -254,7 +254,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 運んでいる組がないとき、足と基準の位置の差が最も大きい組を選び、その差が踏み出す距離を超えていれば運び始める。
-        /// 運ぶのは 1 組ずつで、四足なら対角の 2 本ずつのトロットになる。運ぶ先は、基準の位置から体の速さで運ぶ時間の半分だけ先回りした位置。
+        /// 運ぶのは1組ずつで、四足なら対角の2本ずつのトロットになる。運ぶ先は、基準の位置から体の速さで運ぶ時間の半分だけ先回りした位置。
         /// </summary>
         private void TryStartStep(Vector3 velocity, in EnemyNavigationGrid grid)
         {

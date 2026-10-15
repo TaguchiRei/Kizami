@@ -300,7 +300,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 特大のビームを出している間、円柱を出し、プレイヤーが範囲の中にいて、撃つ所の高さから頭まで物がなければ、1 回だけダメージを与える。出し終えたら円柱とデカールを消す。
+        /// 特大のビームを出している間、円柱を出し、プレイヤーが範囲の中にいて、撃つ所の高さから頭まで物がなければ、1回だけダメージを与える。出し終えたら円柱とデカールを消す。
         /// </summary>
         private void UpdateGiantBeam(Vector3 capsuleStart, Vector3 capsuleEnd, float capsuleRadius)
         {

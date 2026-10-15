@@ -10,7 +10,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 体を貸していない敵の状態から部位ごとの行列を Job で作り、Graphics.RenderMeshInstanced で部位ごとにまとめて描画する。体から外れた部位は描かない。
-    /// 敵の種類ごとに 1 つ作り、その種類の敵だけを描く。部位のメッシュ・マテリアル・体の根から見た位置は、その種類の体のプレハブから初期化のときに読む。
+    /// 敵の種類ごとに1つ作り、その種類の敵だけを描く。部位のメッシュ・マテリアル・体の根から見た位置は、その種類の体のプレハブから初期化のときに読む。
     /// </summary>
     /// <remarks>
     /// マテリアルは GPU インスタンシングを有効にしておく必要がある。
@@ -19,7 +19,7 @@ namespace Kizami.EngineAdapter
     public sealed class EnemyCrowdRenderer : IDisposable
     {
         /// <summary>
-        /// 1 回の描画で出せるインスタンスの数。上限の 1023 は uniform scaling を仮定するシェーダーの値で、URP Lit は行列を 2 つ送るので 511 になる。
+        /// 1回の描画で出せるインスタンスの数。上限の1023は uniform scaling を仮定するシェーダーの値で、URP Lit は行列を2つ送るので511になる。
         /// Unity は自動で分けないので、これを超える分は描画を分ける。
         /// </summary>
         private const int MAX_INSTANCES_PER_DRAW = 511;
@@ -122,7 +122,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 部位 1 つにつき 1 回呼ばれ、描く敵のその部位の行列を、部位の区画に詰めて書く。
+        /// 部位1つにつき1回呼ばれ、描く敵のその部位の行列を、部位の区画に詰めて書く。
         /// </summary>
         [BurstCompile]
         private struct BuildMatricesJob : IJobParallelFor

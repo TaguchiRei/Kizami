@@ -6,7 +6,7 @@ using Random = UnityEngine.Random;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵のグループが出てくる位置。EnemySpawnSystem の子に置き、1 つにつき編成の 1 グループを出す。この位置がグループの持ち場になる。
+    /// 敵のグループが出てくる位置。EnemySpawnSystem の子に置き、1つにつき編成の1グループを出す。この位置がグループの持ち場になる。
     /// 属する区画は作者が指定する。追跡を始める判定は持ち場の位置で行い、指定した区画は置き場所の確認に使う。
     /// 建物（ボクセルのモデル）を指定すると、読み込んだ時点の体積の壊れたとみなす割合以上が削れたときに、補充と出し直しの敵を出さなくなる。
     /// 建物は EnemySpawn レイヤーに置き、敵の経路の格子に入れない。敵は建物の内側に出て、そのまま歩いて出てくる。
@@ -51,7 +51,7 @@ namespace Kizami.EngineAdapter
         [Tooltip("敵を出すか。初期化のあとに切り替えたときは、出さない方向にだけ効く")]
         private bool _isEnabled = true;
 
-        /// <summary> 建物の、読み込んだ時点の体積（m³）。読み込む前は 0 </summary>
+        /// <summary> 建物の、読み込んだ時点の体積（m³）。読み込む前は0 </summary>
         private float _initialVolume;
 
         private IDisposable _loadedSubscription;
@@ -94,7 +94,7 @@ namespace Kizami.EngineAdapter
             _isEnabled = false;
         }
 
-        /// <summary> 半径の円の中から、出す位置を 1 つ選ぶ </summary>
+        /// <summary> 半径の円の中から、出す位置を1つ選ぶ </summary>
         public Vector3 GetSpawnPosition()
         {
             var offset = Random.insideUnitCircle * _radius;

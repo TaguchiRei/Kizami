@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵のグループ 1 つの編成。メンバーの種類を隊列の順番で並べ、並びの長さをグループの人数にする。
+    /// 敵のグループ1つの編成。メンバーの種類を隊列の順番で並べ、並びの長さをグループの人数にする。
     /// EnemySpawnPoint が参照し、スポーン位置ごとにこの編成のグループを出す。
     /// </summary>
     [CreateAssetMenu(menuName = "Kizami/Enemy/Squad Composition", fileName = "EnemySquadComposition")]
