@@ -14,7 +14,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// インゲームの流れ（StageFlowService / StageFlowState）、破壊対象の数え役（StageClearAdapter）、倒した敵の通知（EnemySpawnAdapter）、HUD（StageHudAdapter）、ポーズ（StagePauseAdapter）、リザルト（StageResultAdapter）を生成して繋ぎ、プレイを始める配線役。インゲームのシーンへ置く。
+    /// インゲームの流れ（StageFlowService / StageFlowState）と、破壊対象・HUD・ポーズ・リザルトの Adapter を生成して繋ぎ、プレイを始める配線役。インゲームのシーンへ置く。
     /// 失敗条件の判定にプレイヤーの State を使う為、PlayerInitializer より後に初期化する。
     /// 流れの状態、破壊済みの破壊対象の数、重要パーツごとの削れた割合を画面に出す。表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
