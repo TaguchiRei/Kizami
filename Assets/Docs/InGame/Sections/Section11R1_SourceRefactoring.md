@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手 |
+| 状態 | 実装済み（完了条件の一部が未確認。「実装結果」を参照） |
 | 前提となる区間 | 10、11（どちらも完了） |
 | 作業ブランチ | `feature/alpha/refactering`（ユーザーが作成） |
 | 続く区間 | 11R-2（コメントの修正）→ 11R-3（計画書の修正） |
@@ -83,12 +83,49 @@
 
 ## 詳細仕様
 
-R-2 の決定をここに書く。
+R-2 の決定（2026-10-15）。
+
+| # | 対象 | 決定 |
+|---|---|---|
+| A | スキルのアイコン | 区間10 と区間11 の合流で、`StageHudAdapter` を `PlayerInitializer`（アイコンを渡す）と `StageInitializer`（初期化する）の両方が持っていた。アイコンは `SkillSlotState` に持たせ、HUD は State から読む。HUD を触る Initializer は `StageInitializer` だけにする |
+| B | `PlayerHealthService` の流れの State | 最初のダメージのときに `TryGetSceneState` で取り出していた為、流れのないシーンでエラーログが出た。後から登録される State なので、`SubscribeStateRegister` で登録を待つ |
+| D | 建物の一覧の渡し方 | 取り下げ。建物はステージのシーンにあり、InGame の Initializer から SerializeField で参照できない。`EnemySpawnSystem`・`VoxelModelLoader` と同じく、`EnemySpawnAdapter` が実行時に探す形のまま残す |
+| 大きいファイル | `EnemySpawnAdapter`・`VoxelPiece`・`EnemyDistanceField` など | 分けない（区間8R の決定を引き継ぐ） |
+| 敵の攻撃 3 クラス | `EnemyShooter`・`EnemyFinisherBeams`・`EnemyBarriers` | プレイヤーへの当たりの計算は `CapsuleGeometry` で共通化済みの為、残す |
+| 時間の倍率 | ポーズ（`StageFlowService`）とスロー（`SlowModeService`） | 役割が違う為、分けたまま残す。ポーズ中は倍率 0 でスローの計算も止まる |
 
 ## 実装結果
 
-R-4 で書く。
+| コミット | 内容 |
+|---|---|
+| 8785d7a | B。`PlayerHealthService` を `IDisposable` にし、`PlayerInitializer.OnDestroy` で登録待ちを解く |
+| ef1d8e5 | A。`ISkillSlotState.GetIcon` を足し、`StageHudAdapter.SetSkillIcons` と `PlayerInitializer` の HUD の参照を消した |
+| 2bce3c1 | メンバー順（8 ファイル）。`scan_naming.py` は作業の前から 0 件 |
+
+### 確認の結果
+
+- コンパイル：各コミットでエラー・警告 0 件。DLL の更新時刻が編集より後
+- プレイモード（PC、TestStage）：HP の処理が流れの State（Playing）を受け取り、ダメージ 5 で 65 → 60。HUD は初期化済みでスキルの 3 枠を出す。敵 959 体・80 グループ、Enemy ms（update）1.94。ログのエラー・警告 0 件
+- `scan_naming.py`・`reorder_members.py` の候補：0 件
+
+### 確認できていないこと
+
+- 流れのない開発用シーンで被弾したとき、エラーが出ないこと（B の目的）
+- アイコンのあるスキルの枠に絵が出ること。今のスキル（Beam・Explosion・Heal）はアイコンが未設定で、四角が出る
+- VoxelTest でのボクセルの削りとメッシュの作り直し（メンバー順を変えた Voxel の 5 ファイル）
+- 敵の処理時間の作業前との比較。作業前の値を測っていない
+- 完了条件のうち、上の確認以外の動作（移動・切断・スキル・敵 3 種・部隊・崩落・クリアと失敗など）は、まとめては確かめていない
+- スマホと VR はコンパイルまで
+
+### 補足
+
+- `InGame.unity` の `PlayerInitializer` に、消したフィールド `_hudAdapter` の値が残っている。次にシーンを保存したときに Unity が消す
+- 確認の手順（スキル code-refactoring の `references/projects.md`）が今の環境と合っていない。`npx uloop-cli@2.2.0` は動かず、インストール済みの `uloop` を使った。インゲームへは `GoToInGameAsync()` ではなく `IGameSceneController.GoToStageAsync(stageIndex, ct)` で入る
 
 ## 見つけた問題（今回は扱わない）
 
 作業中に見つけた、挙動が変わるもの・範囲外のものを、内容と場所だけ書く。区間8R の「見つけた問題」のうち未対応のもの（旧構成のシーンとプレハブ、体を貸していない敵の見た目など）は、11R-3 で全体計画書に整理するので、ここに書き写さない。
+
+| 内容 | 場所 |
+|---|---|
+| `_reachedColor`・`_chargingColor` の Tooltip が「線と枠の色」のまま。区間10 で枠の Image がなくなり、今は線の色だけに使う。11R-2 で直す | `EngineAdapterLayer/Stage/StageHudAdapter.cs` |
