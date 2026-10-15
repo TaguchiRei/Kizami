@@ -30,9 +30,9 @@ namespace Kizami.Initialization
                 return;
             }
 
-            DebugGUI.ObserveVariable("TimeScale (State)", () => _state.Scale.ToString("0.00"));
-            DebugGUI.ObserveVariable("Time.timeScale", () => Time.timeScale.ToString("0.00"));
-            DebugGUI.ObserveVariable("Time.fixedDeltaTime", () => Time.fixedDeltaTime.ToString("0.0000"));
+            DebugGUI.ObserveVariable("TimeScale (State)", () => _state.Scale.ToString("0.00"), this);
+            DebugGUI.ObserveVariable("Time.timeScale", () => Time.timeScale.ToString("0.00"), this);
+            DebugGUI.ObserveVariable("Time.fixedDeltaTime", () => Time.fixedDeltaTime.ToString("0.0000"), this);
 #endif
             base.Initialize(blackBoard);
         }

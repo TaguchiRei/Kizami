@@ -44,16 +44,16 @@ namespace Kizami.Initialization
                 _movementService != null ? _movementService.RequestLaunch : null, _squadService.Step);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             DebugGUI.ObserveVariable("Enemies",
-                () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity} (groups {_spawnAdapter.GroupCount})");
+                () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity} (groups {_spawnAdapter.GroupCount})", this);
             DebugGUI.ObserveVariable("Collapse Defeats",
-                () => $"{_spawnAdapter.CollapseDefeatCount} (crush {_spawnAdapter.CrushDefeatCount})");
-            DebugGUI.ObserveVariable("Spawn Points", GetSpawnPointText);
+                () => $"{_spawnAdapter.CollapseDefeatCount} (crush {_spawnAdapter.CrushDefeatCount})", this);
+            DebugGUI.ObserveVariable("Spawn Points", GetSpawnPointText, this);
             DebugGUI.ObserveVariable("Enemy ms",
-                () => $"update {_spawnAdapter.UpdateMilliseconds:F2} / move {_spawnAdapter.MoveMilliseconds:F2} / body {_spawnAdapter.BodyMilliseconds:F2} / render {_spawnAdapter.RenderMilliseconds:F2}");
-            DebugGUI.ObserveVariable("Bodies", () => $"{_spawnAdapter.LentBodyCount} / {_spawnAdapter.BodyCount} (kept shapes {_spawnAdapter.KeptShapeCount})");
-            DebugGUI.ObserveVariable("Distance Field", GetDistanceFieldText);
-            DebugGUI.ObserveVariable("Tracking", GetTrackingText);
-            DebugGUI.ObserveVariable("Group States", GetGroupStateText);
+                () => $"update {_spawnAdapter.UpdateMilliseconds:F2} / move {_spawnAdapter.MoveMilliseconds:F2} / body {_spawnAdapter.BodyMilliseconds:F2} / render {_spawnAdapter.RenderMilliseconds:F2}", this);
+            DebugGUI.ObserveVariable("Bodies", () => $"{_spawnAdapter.LentBodyCount} / {_spawnAdapter.BodyCount} (kept shapes {_spawnAdapter.KeptShapeCount})", this);
+            DebugGUI.ObserveVariable("Distance Field", GetDistanceFieldText, this);
+            DebugGUI.ObserveVariable("Tracking", GetTrackingText, this);
+            DebugGUI.ObserveVariable("Group States", GetGroupStateText, this);
 #endif
 
             base.Initialize(blackBoard);

@@ -26,6 +26,9 @@ namespace Kizami.Application
         /// <summary> 装備できるスキル。番号はこの並びの位置 </summary>
         public IReadOnlyList<SkillData> Skills => _skills;
 
+        /// <summary> 選んだステージの番号。選んでいなければ GameProgressState.NO_STAGE </summary>
+        public int SelectedStageIndex => _state.SelectedStageIndex;
+
         // TODO: スキルの購入を作るときに、装備できるスキルを購入済みのものに絞る
         /// <summary>
         /// GameProgressState を AppBoard へ登録し、装備できるスキルの先頭から順に、装備枠へ装備しておく。

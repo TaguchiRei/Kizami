@@ -9,7 +9,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// インゲームの流れ（IStageFlowState）がクリアか失敗になったら、リザルトの画面を出す Adapter。インゲームのシーンへ置く。
-    /// クリアなら倒した敵の数とスコア、失敗なら失敗した理由と倒した敵の数を出し、アウトゲームへ戻るボタンを置く。
+    /// クリアなら倒した敵の数とスコア、失敗なら失敗した理由と倒した敵の数を出し、同じステージをもう一度始めるボタンと、アウトゲームへ戻るボタンを置く。
     /// 画面は uGUI の Canvas を初期化のときに組み立てる。シーンに EventSystem がなければ、ボタンを押せるように作る。
     /// </summary>
     public sealed class StageResultAdapter : InitializableMonoBehaviour
@@ -17,6 +17,7 @@ namespace Kizami.EngineAdapter
         private const int SORTING_ORDER = 100;
         private const int TITLE_FONT_SIZE = 64;
         private const int BODY_FONT_SIZE = 32;
+        private const float BUTTON_GAP = 40f;
         private static readonly Vector2 _buttonSize = new(360f, 80f);
 
         [SerializeField]
@@ -28,6 +29,7 @@ namespace Kizami.EngineAdapter
         private Color _buttonColor = new(0.2f, 0.2f, 0.2f, 0.9f);
 
         private IStageFlowState _flowState;
+        private Action _retry;
         private Action _backToOutGame;
         private GameObject _root;
         private Text _titleText;
@@ -44,14 +46,26 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// ボタンを画面の下寄りの中央から、左（side が -1）か右（side が 1）へずらして置く。
+        /// </summary>
+        private static void PlaceButton(RectTransform buttonRect, float side)
+        {
+            buttonRect.anchorMin = buttonRect.anchorMax = new Vector2(0.5f, 0.25f);
+            buttonRect.sizeDelta = _buttonSize;
+            buttonRect.anchoredPosition = new Vector2(side * (_buttonSize.x + BUTTON_GAP) * 0.5f, 0f);
+        }
+
+        /// <summary>
         /// 流れの State を取得し、非表示のリザルトの画面を組み立てる。StageFlowState の登録より後に呼ぶ。
         /// </summary>
         /// <param name="blackBoard">IStageFlowState の取得元</param>
+        /// <param name="retry">もう一度始めるボタンを押したときに呼ぶ処理</param>
         /// <param name="backToOutGame">アウトゲームへ戻るボタンを押したときに呼ぶ処理</param>
-        public void Initialize(IBlackBoard blackBoard, Action backToOutGame)
+        public void Initialize(IBlackBoard blackBoard, Action retry, Action backToOutGame)
         {
             if (!blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this)) return;
 
+            _retry = retry;
             _backToOutGame = backToOutGame;
             BuildView();
             base.Initialize();
@@ -89,7 +103,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 画面全体を覆う Canvas に、背景、題、本文、アウトゲームへ戻るボタンを組み立てて、非表示にしておく。
+        /// 画面全体を覆う Canvas に、背景、題、本文、もう一度始めるボタンとアウトゲームへ戻るボタンを横に並べて組み立て、非表示にしておく。
         /// </summary>
         private void BuildView()
         {
@@ -105,14 +119,22 @@ namespace Kizami.EngineAdapter
             _bodyText = UiBuilder.CreateText(canvas, "Body", BODY_FONT_SIZE);
             UiBuilder.SetAnchors(_bodyText.rectTransform, new Vector2(0f, 0.4f), new Vector2(1f, 0.65f));
 
+            var retryButton = UiBuilder.CreateButton(canvas, "RetryButton", "Retry", BODY_FONT_SIZE, _buttonColor);
+            PlaceButton((RectTransform)retryButton.transform, -1f);
+            retryButton.onClick.AddListener(OnRetryClicked);
+
             var backButton = UiBuilder.CreateButton(canvas, "BackButton", "Back to Menu", BODY_FONT_SIZE, _buttonColor);
-            var buttonRect = (RectTransform)backButton.transform;
-            buttonRect.anchorMin = buttonRect.anchorMax = new Vector2(0.5f, 0.25f);
-            buttonRect.sizeDelta = _buttonSize;
+            PlaceButton((RectTransform)backButton.transform, 1f);
             backButton.onClick.AddListener(OnBackClicked);
 
             UiBuilder.EnsureEventSystem(transform);
             _root.SetActive(false);
+        }
+
+        private void OnRetryClicked()
+        {
+            _root.SetActive(false);
+            _retry?.Invoke();
         }
 
         private void OnBackClicked()

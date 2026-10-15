@@ -55,11 +55,11 @@ namespace Kizami.Initialization
             blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this);
             _stageClearAdapter.Initialize(_flowService.ReportTargets);
             _enemySpawnAdapter.SetOnDefeated(_flowService.AddDefeats);
-            _resultAdapter.Initialize(blackBoard, BackToOutGame);
+            _resultAdapter.Initialize(blackBoard, Retry, BackToOutGame);
             _hudAdapter.Initialize(blackBoard, _fragmentThrowAdapter);
             _pauseAdapter.Initialize(blackBoard, _flowService.Resume, BackToOutGame);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            DebugGUI.ObserveVariable("Stage", GetTargetText);
+            DebugGUI.ObserveVariable("Stage", GetTargetText, this);
 #endif
 
             base.Initialize(blackBoard);
@@ -78,6 +78,20 @@ namespace Kizami.Initialization
             hasAll &= this.IsAssigned(_pauseAdapter, nameof(StagePauseAdapter));
             hasAll &= this.IsAssigned(_fragmentThrowAdapter, nameof(FragmentThrowAdapter));
             return hasAll;
+        }
+
+        /// <summary>
+        /// 同じステージを読み直して、初めから始める。このオブジェクトは読み直しのアンロードで破棄される為、destroyCancellationToken は渡さない。
+        /// </summary>
+        private void Retry()
+        {
+            if (_sceneController == null)
+            {
+                UsefulLogger.LogError("IGameSceneController を受け取れなかった為、もう一度始められません。", this);
+                return;
+            }
+
+            _sceneController.RetryAsync().Forget();
         }
 
         /// <summary>

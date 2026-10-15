@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Kizami.BlackBoard;
 using Kizami.External;
 using UsefulToolkit.Application.Scene;
 using UsefulToolkit.BlackBoard.BlackBoard;
@@ -105,6 +106,20 @@ namespace Kizami.Application
 
             return LoadAsync(FIRST_STAGE_INDEX + stageIndex, cancellationToken);
         }
+
+        public UniTask<bool> RetryAsync(CancellationToken cancellationToken = default)
+        {
+            if (!TryGetService(out var service)) return UniTask.FromResult(false);
+
+            var stageIndex = _progressService.SelectedStageIndex;
+            if (stageIndex == GameProgressState.NO_STAGE)
+            {
+                UsefulLogger.LogError("ステージが選ばれていない為、読み直せません。", this);
+                return UniTask.FromResult(false);
+            }
+
+            return service.ReloadGroupAsync(FIRST_STAGE_INDEX + stageIndex, cancellationToken);
+        }
     }
 
     /// <summary>
@@ -122,5 +137,9 @@ namespace Kizami.Application
         /// <param name="stageIndex">ステージの番号（0 から）</param>
         /// <param name="cancellationToken">ロードの中断に使う</param>
         UniTask<bool> GoToStageAsync(int stageIndex, CancellationToken cancellationToken = default);
+
+        /// <summary> 選んでいるステージのインゲームを読み直し、初めから始める </summary>
+        /// <param name="cancellationToken">ロードの中断に使う</param>
+        UniTask<bool> RetryAsync(CancellationToken cancellationToken = default);
     }
 }
