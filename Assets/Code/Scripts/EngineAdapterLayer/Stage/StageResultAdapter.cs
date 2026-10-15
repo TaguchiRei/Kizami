@@ -46,7 +46,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// ボタンを画面の下寄りの中央から、左（side が -1）か右（side が 1）へずらして置く。
+        /// ボタンを画面の下寄りの中央から、左（side が -1）か右（side が1）へずらして置く。
         /// </summary>
         private static void PlaceButton(RectTransform buttonRect, float side)
         {

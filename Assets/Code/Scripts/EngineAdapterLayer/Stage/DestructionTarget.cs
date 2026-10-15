@@ -8,7 +8,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// ボクセルでできた破壊対象。VoxelModelLoader と同じ GameObject に付け、ステージシーンへ置く。
-    /// 重要パーツが 1 つずつ、読み込んだ時点の体積から必要な割合以上削れたら破壊済みとする。
+    /// 重要パーツが1つずつ、読み込んだ時点の体積から必要な割合以上削れたら破壊済みとする。
     /// 本体から分離した塊はパーツの体積に含まれない為、切り離した分も削れた分に数える。
     /// </summary>
     [RequireComponent(typeof(VoxelModelLoader))]
@@ -49,10 +49,10 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 重要パーツの、読み込んだ時点の体積のうち削れた割合を返す。パーツが破棄されていれば 1。
+        /// 重要パーツの、読み込んだ時点の体積のうち削れた割合を返す。パーツが破棄されていれば1。
         /// 読み込んだあと、まだ体積を測っていなければ false。
         /// </summary>
-        /// <param name="index">重要パーツの番号。0 から ImportantPartCount - 1</param>
+        /// <param name="index">重要パーツの番号。0から ImportantPartCount - 1</param>
         /// <param name="ratio">削れた割合（0〜1）</param>
         public bool TryGetDestroyedRatio(int index, out float ratio)
         {

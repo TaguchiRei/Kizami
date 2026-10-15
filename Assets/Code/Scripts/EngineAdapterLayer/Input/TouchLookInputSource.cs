@@ -31,7 +31,7 @@ namespace Kizami.EngineAdapter
         /// <summary> このフレームに届いたドラッグの移動量の合計（スクリーン座標） </summary>
         private Vector2 _frameDelta;
 
-        /// <summary> 直前に書き込んだ値がゼロ以外か。ゼロの書き込みを 1 回に抑えるために持つ </summary>
+        /// <summary> 直前に書き込んだ値がゼロ以外か。ゼロの書き込みを1回に抑えるために持つ </summary>
         private bool _hasWrittenInput;
 
         /// <summary>
@@ -72,7 +72,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 外部入力スロットへ値を書き込む。ゼロが続くときは最初の 1 回だけ書き込む。
+        /// 外部入力スロットへ値を書き込む。ゼロが続くときは最初の1回だけ書き込む。
         /// </summary>
         /// <param name="value">書き込む値</param>
         private void Write(Vector2 value)

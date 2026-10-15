@@ -101,12 +101,12 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 1 ステップ分の処理を次の順で行う。
+        /// 1ステップ分の処理を次の順で行う。
         /// 1. 直前の物理ステップの結果から触れている物を判定し、PlayerContactState に書き込む
         /// 2. 視線の向きと経過時間を渡して PlayerMovementService.Step を呼び、打ち出し速度を受け取る
         /// 3. 移動モードに応じて重力を切り替え、目標速度（PlayerMovementState.TargetVelocity の水平成分）へ向けて
         ///    水平速度を緩やかに補間し、Rigidbody に反映する
-        /// Step が触れている物を読むので、1 は 2 より先に行う。
+        /// Step が触れている物を読むので、1は2より先に行う。
         /// ワープ中は目標速度（Y 成分を含む）をそのまま Rigidbody に設定し、
         /// ワープが終わったステップでは水平速度をワープを始める直前の値に戻してから補間する。
         /// </summary>
@@ -202,7 +202,7 @@ namespace Kizami.EngineAdapter
         private bool IsGrounded(Vector3 bottomSphereCenter, float radius)
         {
             // SphereCast は開始時点で重なっているコライダーを検出しない。
-            // 落下中に 1 ステップで地面へめり込んでも取りこぼさないよう、球をカプセルより SKIN_WIDTH だけ小さくし、
+            // 落下中に1ステップで地面へめり込んでも取りこぼさないよう、球をカプセルより SKIN_WIDTH だけ小さくし、
             // 下側の球の中心から半径分だけ上を起点にして飛ばす（半径 + SKIN_WIDTH までのめり込みを許容する）
             const float SKIN_WIDTH = 0.05f;
             var castRadius = radius - SKIN_WIDTH;

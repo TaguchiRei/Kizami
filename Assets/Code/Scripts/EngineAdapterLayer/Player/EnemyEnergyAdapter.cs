@@ -9,8 +9,8 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 崩落で倒した敵のエネルギーを、VFX Graph の粒で MainCamera の位置へ吸い込ませ、倒した数をチャージとして渡す Adapter。インゲームのシーンへ置く。
-    /// 倒した位置はフレームごとに溜め、LateUpdate で GraphicsBuffer にまとめて VFX Graph へ渡し、イベントを 1 回だけ送る。
-    /// チャージは粒が届くのを待たずに、倒したフレームに 1 回だけまとめて渡す。VFX Graph の粒は、届いたことを CPU に返しにくい為。
+    /// 倒した位置はフレームごとに溜め、LateUpdate で GraphicsBuffer にまとめて VFX Graph へ渡し、イベントを1回だけ送る。
+    /// チャージは粒が届くのを待たずに、倒したフレームに1回だけまとめて渡す。VFX Graph の粒は、届いたことを CPU に返しにくい為。
     /// </summary>
     /// <remarks>
     /// VFX Graph で受け取るものは次のとおり（名前を変えるときは、グラフの側も合わせる）。

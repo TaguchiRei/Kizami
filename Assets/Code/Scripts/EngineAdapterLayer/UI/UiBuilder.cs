@@ -19,7 +19,7 @@ namespace Kizami.EngineAdapter
         public static Font Font => _font != null ? _font : _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
         /// <summary>
-        /// 画面に重ねる Canvas を、親の子として作る。基準の解像度は 1920x1080 で、画面の大きさに合わせて拡大縮小する。
+        /// 画面に重ねる Canvas を、親の子として作る。基準の解像度は1920x1080で、画面の大きさに合わせて拡大縮小する。
         /// </summary>
         /// <param name="parent">親</param>
         /// <param name="name">GameObject の名前</param>
@@ -85,7 +85,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 親に対する割合で範囲を決め、余白を 0 にする。
+        /// 親に対する割合で範囲を決め、余白を0にする。
         /// </summary>
         public static void SetAnchors(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
         {
