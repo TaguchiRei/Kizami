@@ -3,7 +3,7 @@ using System;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// 攻撃が持つダメージの種類。1 つの攻撃が複数の種類を同時に持つことがある。
+    /// 攻撃が持つダメージの種類。1つの攻撃が複数の種類を同時に持つことがある。
     /// </summary>
     [Flags]
     public enum DamageType

@@ -53,7 +53,7 @@ namespace Kizami.BlackBoard
         }
 
         /// <summary>
-        /// 部隊 1 つの命令を設定する。
+        /// 部隊1つの命令を設定する。
         /// </summary>
         /// <param name="index">部隊の番号</param>
         /// <param name="command">命令</param>
@@ -73,7 +73,7 @@ namespace Kizami.BlackBoard
     }
 
     /// <summary>
-    /// 敵の部隊 1 つへの命令。
+    /// 敵の部隊1つへの命令。
     /// </summary>
     public struct EnemySquadCommand
     {

@@ -33,7 +33,7 @@ namespace Kizami.BlackBoard
         /// <summary>
         /// 枠にスキルを装備した状態にする。
         /// </summary>
-        /// <param name="slot">枠の番号（0 から）</param>
+        /// <param name="slot">枠の番号（0から）</param>
         /// <param name="cost">装備したスキルの消費量</param>
         /// <param name="icon">装備したスキルのアイコン。ないときは null</param>
         public void SetSlot(int slot, int cost, Texture2D icon)
@@ -66,7 +66,7 @@ namespace Kizami.BlackBoard
         /// <summary>
         /// 枠に装備しているスキルの消費量を取得する。
         /// </summary>
-        /// <param name="slot">枠の番号（0 から）</param>
+        /// <param name="slot">枠の番号（0から）</param>
         /// <param name="cost">装備しているスキルの消費量</param>
         /// <returns>枠にスキルを装備していれば true、空きなら false</returns>
         bool TryGetCost(int slot, out int cost);
@@ -74,7 +74,7 @@ namespace Kizami.BlackBoard
         /// <summary>
         /// 枠に装備しているスキルのアイコンを取得する。
         /// </summary>
-        /// <param name="slot">枠の番号（0 から）</param>
+        /// <param name="slot">枠の番号（0から）</param>
         /// <returns>アイコン。空きの枠と、アイコンのないスキルは null</returns>
         Texture2D GetIcon(int slot);
     }

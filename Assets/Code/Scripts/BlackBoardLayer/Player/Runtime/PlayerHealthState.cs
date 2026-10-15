@@ -27,7 +27,7 @@ namespace Kizami.BlackBoard
         }
 
         /// <summary>
-        /// 現在の HP を設定する。値は 0〜最大 HP に収める。値が変わったときだけ変化の通知を流す。
+        /// 現在の HP を設定する。値は0〜最大 HP に収める。値が変わったときだけ変化の通知を流す。
         /// </summary>
         /// <param name="current">現在の HP</param>
         public void SetCurrent(int current)

@@ -5,7 +5,7 @@ namespace Kizami.BlackBoard
 {
     /// <summary>
     /// 操作に関わる設定（ダッシュ入力の受け付け方・切断面の回転角度・視点操作の感度）を保持するゲームステート。シーンを跨いで保たれる。
-    /// 感度は基準を 1.0 とする倍率で、生の視点入力の単位が経路ごとに違う（PC / スマホはスクリーン座標の delta、VR はスティックの -1〜1）ため、基準スケールは各入力経路・適用側が定数として持つ。
+    /// 感度は基準を1.0とする倍率で、生の視点入力の単位が経路ごとに違う（PC / スマホはスクリーン座標の delta、VR はスティックの -1〜1）ため、基準スケールは各入力経路・適用側が定数として持つ。
     /// </summary>
     [RegisterBoard(typeof(AppBoard))]
     public sealed class OperationSettingState : GameStateBase, IOperationSettingState
@@ -40,7 +40,7 @@ namespace Kizami.BlackBoard
         }
 
         /// <summary>
-        /// 切断面の回転入力 1 回あたりの回転角度を設定する。
+        /// 切断面の回転入力1回あたりの回転角度を設定する。
         /// </summary>
         /// <param name="angle">回転角度（度）</param>
         public void SetCutRotateStepAngle(float angle)
@@ -75,7 +75,7 @@ namespace Kizami.BlackBoard
         /// <summary> ダッシュ入力の受け付け方 </summary>
         SprintInputMode SprintInputMode { get; }
 
-        /// <summary> 切断面の回転入力（ホイール 1 段）1 回あたりの回転角度（度） </summary>
+        /// <summary> 切断面の回転入力（ホイール1段）1回あたりの回転角度（度） </summary>
         float CutRotateStepAngle { get; }
 
         /// <summary> 左右の視点操作の感度倍率 </summary>
@@ -93,7 +93,7 @@ namespace Kizami.BlackBoard
         /// <summary> 押している間だけダッシュする </summary>
         Hold,
 
-        /// <summary> 押すたびにダッシュの有無を切り替える。移動入力が 0 になると解除する </summary>
+        /// <summary> 押すたびにダッシュの有無を切り替える。移動入力が0になると解除する </summary>
         Toggle
     }
 }

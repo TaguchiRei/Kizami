@@ -41,7 +41,7 @@ namespace Kizami.BlackBoard
         /// <summary>
         /// 選んだステージの番号を設定する。
         /// </summary>
-        /// <param name="stageIndex">ステージの番号（0 から）</param>
+        /// <param name="stageIndex">ステージの番号（0から）</param>
         public void SetSelectedStageIndex(int stageIndex)
         {
             SelectedStageIndex = stageIndex;
@@ -50,7 +50,7 @@ namespace Kizami.BlackBoard
         /// <summary>
         /// 装備枠に装備するスキルの番号を設定する。
         /// </summary>
-        /// <param name="slot">枠の番号（0 から）</param>
+        /// <param name="slot">枠の番号（0から）</param>
         /// <param name="skillIndex">スキルの番号。空きにするなら NO_SKILL</param>
         public void SetEquippedSkillIndex(int slot, int skillIndex)
         {
@@ -69,7 +69,7 @@ namespace Kizami.BlackBoard
         /// <summary>
         /// ステージをクリア済みにする。
         /// </summary>
-        /// <param name="stageIndex">ステージの番号（0 から）</param>
+        /// <param name="stageIndex">ステージの番号（0から）</param>
         public void MarkStageCleared(int stageIndex)
         {
             _clearedStageIndices.Add(stageIndex);
@@ -101,11 +101,11 @@ namespace Kizami.BlackBoard
         int SlotCount { get; }
 
         /// <summary> 装備枠に装備しているスキルの番号。空きなら GameProgressState.NO_SKILL </summary>
-        /// <param name="slot">枠の番号（0 から）</param>
+        /// <param name="slot">枠の番号（0から）</param>
         int GetEquippedSkillIndex(int slot);
 
         /// <summary> ステージをクリアしたことがあるか </summary>
-        /// <param name="stageIndex">ステージの番号（0 から）</param>
+        /// <param name="stageIndex">ステージの番号（0から）</param>
         bool IsStageCleared(int stageIndex);
     }
 }

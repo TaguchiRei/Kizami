@@ -173,10 +173,10 @@ namespace Kizami.External
         /// <summary> 近接切断の攻撃間隔（秒）。スローモード中も等速で数える </summary>
         public float MeleeAttackInterval => _meleeAttackInterval;
 
-        /// <summary> かけら 1 個を吸収したときに増えるチャージ量 </summary>
+        /// <summary> かけら1個を吸収したときに増えるチャージ量 </summary>
         public int ChargePerFragment => _chargePerFragment;
 
-        /// <summary> 崩落で敵を 1 体倒したときに増えるチャージ量 </summary>
+        /// <summary> 崩落で敵を1体倒したときに増えるチャージ量 </summary>
         public int ChargePerCollapsedEnemy => _chargePerCollapsedEnemy;
 
         /// <summary> チャージ量の上限 </summary>
@@ -188,10 +188,10 @@ namespace Kizami.External
         /// <summary> スローモードの発動時に消費するチャージ量 </summary>
         public int SlowModeActivationCost => _slowModeActivationCost;
 
-        /// <summary> スローモードを続けている間に、実時間 1 秒あたりに消費するチャージ量 </summary>
+        /// <summary> スローモードを続けている間に、実時間1秒あたりに消費するチャージ量 </summary>
         public float SlowModeDrainPerSecond => _slowModeDrainPerSecond;
 
-        /// <summary> 1 回のスローモードの間に近接切断を振れる回数 </summary>
+        /// <summary> 1回のスローモードの間に近接切断を振れる回数 </summary>
         public int SlowModeCutLimit => _slowModeCutLimit;
 
         /// <summary> かけらをつかめる、カメラからの距離（m） </summary>

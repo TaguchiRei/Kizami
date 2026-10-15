@@ -65,7 +65,7 @@ namespace Kizami.BlackBoard
         }
 
         /// <summary>
-        /// 置き場 1 つを設定する。
+        /// 置き場1つを設定する。
         /// </summary>
         /// <param name="index">置き場の番号</param>
         /// <param name="slot">置き場</param>
@@ -75,7 +75,7 @@ namespace Kizami.BlackBoard
         }
 
         /// <summary>
-        /// 部隊 1 つの観測を設定する。
+        /// 部隊1つの観測を設定する。
         /// </summary>
         /// <param name="index">部隊の番号</param>
         /// <param name="observation">観測</param>
@@ -104,7 +104,7 @@ namespace Kizami.BlackBoard
     }
 
     /// <summary>
-    /// プレイヤーを囲む螺旋の上の置き場 1 つ。部隊の目標位置になる。
+    /// プレイヤーを囲む螺旋の上の置き場1つ。部隊の目標位置になる。
     /// </summary>
     public struct EnemyEncircleSlot
     {
@@ -114,7 +114,7 @@ namespace Kizami.BlackBoard
         /// <summary> 螺旋の内側から数えた周の番号 </summary>
         public int Ring;
 
-        /// <summary> ずらす前の位置の、螺旋の中心から見た角度（ラジアン）。+Z が 0 で、+X へ向かって増える </summary>
+        /// <summary> ずらす前の位置の、螺旋の中心から見た角度（ラジアン）。+Z が0で、+X へ向かって増える </summary>
         public float Angle;
 
         /// <summary> 使えるか。立てる列が周りにない置き場は使えない </summary>
@@ -122,7 +122,7 @@ namespace Kizami.BlackBoard
     }
 
     /// <summary>
-    /// 敵の部隊 1 つの観測。
+    /// 敵の部隊1つの観測。
     /// </summary>
     public struct EnemySquadObservation
     {

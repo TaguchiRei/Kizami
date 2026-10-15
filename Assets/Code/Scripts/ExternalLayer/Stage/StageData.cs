@@ -5,7 +5,7 @@ using UsefulToolkit.External.Scene;
 namespace Kizami.External
 {
     /// <summary>
-    /// ステージ 1 つの定義。アウトゲームの選択肢に出す名前、インゲームで読み込むシーングループ、クリアの基礎スコア、失敗条件を持つ。
+    /// ステージ1つの定義。アウトゲームの選択肢に出す名前、インゲームで読み込むシーングループ、クリアの基礎スコア、失敗条件を持つ。
     /// 敵の出し方と破壊対象は、ステージシーンに置いた物が持つ。
     /// </summary>
     [CreateAssetMenu(fileName = "StageData", menuName = "Kizami/Stage/StageData")]
@@ -36,7 +36,7 @@ namespace Kizami.External
         /// <summary> クリアしたときにスコアへ足す点数 </summary>
         public int ClearScore => _clearScore;
 
-        /// <summary> 失敗条件。どれか 1 つを満たしたら失敗にする </summary>
+        /// <summary> 失敗条件。どれか1つを満たしたら失敗にする </summary>
         public IReadOnlyList<StageFailCondition> FailConditions => _failConditions;
     }
 }

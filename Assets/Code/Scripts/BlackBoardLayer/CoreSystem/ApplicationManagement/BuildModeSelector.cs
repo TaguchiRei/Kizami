@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// ビルドモードごとの実体を並べて持ち、実行時のビルドモードで 1 つ引く入れ物。
+    /// ビルドモードごとの実体を並べて持ち、実行時のビルドモードで1つ引く入れ物。
     /// ビルドモードによる分岐はこの型に集め、利用側は Inspector で実体を並べるだけにする。
     /// </summary>
     /// <typeparam name="T">ビルドモードごとに差し替える実体の型</typeparam>
