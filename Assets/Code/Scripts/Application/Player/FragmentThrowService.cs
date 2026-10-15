@@ -12,31 +12,36 @@ namespace Kizami.Application
     /// 投擲とランチャーの入力を受けて、かけらをつかむ・投げる・装填する・撃つ要求を実行役へ伝えるユースケース。
     /// 投擲の入力を押したときにつかみ、離したときに投げる。
     /// つかむのと装填するのはスローモード中だけで、持ったかけらと装填したかけらはスローモードが終わっても投げる・撃つことができる。
+    /// かけらの爆発の強化中に投げた・撃ったかけらは、当たった所で爆発する。投げた・撃った回数を、回数で切れる強化の攻撃の回数に数える。
     /// </summary>
     public sealed class FragmentThrowService : IDisposable
     {
         private readonly PlayerParameterData _parameters;
         private readonly Func<float, float, bool> _tryGrab;
-        private readonly Action<float> _onThrow;
+        private readonly PlayerEnhanceService _enhanceService;
+        private readonly Func<float, bool, bool> _tryThrow;
         private readonly Func<bool> _tryLoad;
-        private readonly Action<float> _onFire;
+        private readonly Func<float, bool, bool> _tryFire;
         private readonly ISlowModeState _slowModeState;
         private readonly List<IDisposable> _subscriptions = new();
 
         /// <param name="blackBoard">入力とスローモードの状態の取得元</param>
         /// <param name="parameters">つかむ範囲と、投げる速さ・撃つ速さの取得元</param>
         /// <param name="tryGrab">かけらをつかむ関数。引数はつかむ距離（m）と半径（m）。つかめたら true</param>
-        /// <param name="onThrow">持っているかけらを投げる関数。引数は初速（m/s）</param>
+        /// <param name="enhanceService">かけらの爆発の強化の取得元</param>
+        /// <param name="tryThrow">持っているかけらを投げる関数。引数は初速（m/s）と、当たった所で爆発させるか。投げたら true</param>
         /// <param name="tryLoad">持っているかけらをランチャーに装填する関数。装填できたら true</param>
-        /// <param name="onFire">装填したかけらを撃つ関数。引数は速さ（m/s）</param>
+        /// <param name="tryFire">装填したかけらを撃つ関数。引数は速さ（m/s）と、当たった所で爆発させるか。撃ったら true</param>
         public FragmentThrowService(IBlackBoard blackBoard, PlayerParameterData parameters,
-            Func<float, float, bool> tryGrab, Action<float> onThrow, Func<bool> tryLoad, Action<float> onFire)
+            PlayerEnhanceService enhanceService, Func<float, float, bool> tryGrab, Func<float, bool, bool> tryThrow,
+            Func<bool> tryLoad, Func<float, bool, bool> tryFire)
         {
             _parameters = parameters;
+            _enhanceService = enhanceService;
             _tryGrab = tryGrab;
-            _onThrow = onThrow;
+            _tryThrow = tryThrow;
             _tryLoad = tryLoad;
-            _onFire = onFire;
+            _tryFire = tryFire;
 
             if (!blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this) ||
                 !blackBoard.TryGetSceneState<PlayerBoard, ISlowModeState>(out _slowModeState, this)) return;
@@ -56,7 +61,7 @@ namespace Kizami.Application
                     if (_slowModeState.IsActive) _tryGrab?.Invoke(_parameters.GrabRange, _parameters.GrabRadius);
                     break;
                 case InputPhase.Canceled:
-                    _onThrow?.Invoke(_parameters.ThrowSpeed);
+                    Launch(_tryThrow, _parameters.ThrowSpeed);
                     break;
             }
         }
@@ -72,7 +77,21 @@ namespace Kizami.Application
         {
             if (context.Phase != InputPhase.Performed) return;
 
-            _onFire?.Invoke(_parameters.LauncherSpeed);
+            Launch(_tryFire, _parameters.LauncherSpeed);
+        }
+
+        /// <summary>
+        /// かけらを飛ばす。かけらの爆発の強化中なら爆発させ、飛ばせたときだけ強化を 1 回分使う。
+        /// </summary>
+        private void Launch(Func<float, bool, bool> tryLaunch, float speed)
+        {
+            if (tryLaunch == null) return;
+
+            var isExplosive = _enhanceService.IsActive(SkillEffect.ExplosiveFragment, out _);
+            if (tryLaunch(speed, isExplosive) && isExplosive)
+            {
+                _enhanceService.TryUse(SkillEffect.ExplosiveFragment, out _);
+            }
         }
 
         public void Dispose()

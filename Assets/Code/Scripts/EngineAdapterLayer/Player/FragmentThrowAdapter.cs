@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kizami.BlackBoard;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
@@ -11,7 +12,7 @@ namespace Kizami.EngineAdapter
     /// 視線の先のかけらをつかんでカメラの前に持ち、視線の先へ投げる Adapter。
     /// 持っているかけらはランチャーに 1 つだけ装填でき、装填したかけらは重力なしでまっすぐ撃ち出す。
     /// 投げたかけらと撃ったかけらは、何かにぶつかるか、寿命が来るとプールへ返す。飛ばした瞬間に重なっている相手にも当たったものとする。オーブにもチャージにもならない。
-    /// 装甲のパネルにぶつかったら、粉砕タイプとしてそのパネルだけを一撃で壊す。
+    /// 装甲のパネルにぶつかったら、粉砕タイプとしてそのパネルだけを一撃で壊す。爆発させて飛ばしたかけらは、ぶつかった所で爆発する。
     /// </summary>
     /// <remarks>
     /// かけらのプールは空きがなくなると古いかけらを使い回すので、運んでいるかけらと飛んでいるかけらが回収されたら手放し、物理の設定を戻す。
@@ -31,9 +32,9 @@ namespace Kizami.EngineAdapter
         /// <summary> つかむ候補と、視線の中心からの角度（度） </summary>
         private readonly List<(float Angle, CuttableObject Fragment)> _candidates = new();
 
-        /// <summary> 投げたかけらと撃ったかけらと、飛ばした時刻（Time.time）と、飛ばす前の衝突判定の方式 </summary>
-        private readonly Dictionary<CuttableObject, (float LaunchedTime, CollisionDetectionMode CollisionMode)>
-            _flyingFragments = new();
+        /// <summary> 投げたかけらと撃ったかけらと、飛ばした時刻（Time.time）と、飛ばす前の衝突判定の方式と、当たった所で爆発するか </summary>
+        private readonly Dictionary<CuttableObject,
+            (float LaunchedTime, CollisionDetectionMode CollisionMode, bool IsExplosive)> _flyingFragments = new();
 
         /// <summary> 回収時と接触時の処理を登録済みのかけら </summary>
         private readonly HashSet<CuttableObject> _hookedFragments = new();
@@ -69,7 +70,12 @@ namespace Kizami.EngineAdapter
         [Tooltip("何にもぶつからない飛んでいるかけらを、プールへ返すまでの時間（秒）")]
         private float _flyingLifetime = 3f;
 
+        [SerializeField, Min(0.01f)]
+        [Tooltip("爆発するかけらが当たったときの爆発の半径（m）")]
+        private float _explosionRadius = 2f;
+
         private Func<CuttableObject, bool> _tryTake;
+        private Action<Vector3, float> _onExplode;
         private CarriedFragment _held;
         private CarriedFragment _loaded;
 
@@ -88,9 +94,11 @@ namespace Kizami.EngineAdapter
         }
 
         /// <param name="tryTake">かけらを、オーブにする管理から外す関数。外せたかけらだけをつかむ</param>
-        public void Initialize(Func<CuttableObject, bool> tryTake)
+        /// <param name="onExplode">爆発するかけらが当たったときに呼ぶ関数。引数は爆発の中心と半径（m）</param>
+        public void Initialize(Func<CuttableObject, bool> tryTake, Action<Vector3, float> onExplode)
         {
             _tryTake = tryTake;
+            _onExplode = onExplode;
 
             if (_fragmentPool == null)
             {
@@ -132,12 +140,15 @@ namespace Kizami.EngineAdapter
         /// 持っているかけらを、視線の先へ重力ありで投げる。
         /// </summary>
         /// <param name="speed">初速（m/s）</param>
-        public void Throw(float speed)
+        /// <param name="isExplosive">当たった所で爆発させるか</param>
+        /// <returns>投げたら true。持っていないときは false</returns>
+        public bool TryThrow(float speed, bool isExplosive)
         {
-            if (!Initialized || !IsHolding) return;
+            if (!Initialized || !IsHolding) return false;
 
-            Launch(_held, speed, true);
+            Launch(_held, speed, true, isExplosive);
             _held = default;
+            return true;
         }
 
         /// <summary>
@@ -157,12 +168,15 @@ namespace Kizami.EngineAdapter
         /// 装填したかけらを、視線の先へ重力なしでまっすぐ撃ち出す。
         /// </summary>
         /// <param name="speed">速さ（m/s）</param>
-        public void Fire(float speed)
+        /// <param name="isExplosive">当たった所で爆発させるか</param>
+        /// <returns>撃ったら true。装填していないときは false</returns>
+        public bool TryFire(float speed, bool isExplosive)
         {
-            if (!Initialized || !IsLoaded) return;
+            if (!Initialized || !IsLoaded) return false;
 
-            Launch(_loaded, speed, false);
+            Launch(_loaded, speed, false, isExplosive);
             _loaded = default;
+            return true;
         }
 
         private void Update()
@@ -256,7 +270,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 運んでいるかけらの物理を戻し、中心から視線の先の狙った点へ向けて飛ばす。
         /// </summary>
-        private void Launch(CarriedFragment carried, float speed, bool useGravity)
+        private void Launch(CarriedFragment carried, float speed, bool useGravity, bool isExplosive)
         {
             var fragment = carried.Fragment;
             var rigidbody = fragment.Rig;
@@ -273,7 +287,7 @@ namespace Kizami.EngineAdapter
             rigidbody.linearVelocity = direction * speed;
             rigidbody.angularVelocity = Vector3.zero;
 
-            _flyingFragments[fragment] = (Time.time, carried.CollisionMode);
+            _flyingFragments[fragment] = (Time.time, carried.CollisionMode, isExplosive);
         }
 
         /// <summary>
@@ -310,12 +324,14 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 飛んでいるかけらがぶつかったときにプールへ返す。ぶつかった相手が装甲のパネルなら、粉砕タイプとしてそのパネルを一撃で壊す。
+        /// 爆発するかけらなら、かけらの中心で爆発させる。
         /// </summary>
         private void OnFragmentTouched(CuttableObject fragment, Collider other)
         {
-            if (!_flyingFragments.ContainsKey(fragment)) return;
+            if (!_flyingFragments.TryGetValue(fragment, out var flying)) return;
 
-            if (other.TryGetComponent(out ArmorPanel armorPanel)) armorPanel.Shatter();
+            if (other.TryGetComponent(out ArmorPanel armorPanel)) armorPanel.ApplyDamage(DamageType.Shatter);
+            if (flying.IsExplosive) _onExplode?.Invoke(GetCenter(fragment), _explosionRadius);
 
             Release(fragment);
         }

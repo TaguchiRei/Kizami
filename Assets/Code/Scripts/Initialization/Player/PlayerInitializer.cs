@@ -19,6 +19,7 @@ namespace Kizami.Initialization
     {
         private readonly PlayerHealthService _healthService = new();
         private readonly PlayerMovementService _movementService = new();
+        private readonly PlayerEnhanceService _enhanceService = new();
 
         [SerializeField]
         [Tooltip("プレイヤーの移動・HP・近接切断・チャージのパラメータ")]
@@ -63,6 +64,11 @@ namespace Kizami.Initialization
 
             var sceneId = gameObject.scene.buildIndex;
             _movementService.Initialize(blackBoard, _parameters, sceneId);
+
+            // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の初期化より後に初期化する。
+            // SkillService が PlayerHealthState を取得する為、SkillService の生成より前に初期化する
+            _healthService.Initialize(blackBoard, _parameters, sceneId);
+
             _lookService = new PlayerLookService(blackBoard, sceneId);
             _chargeService = new ChargeService(blackBoard, _parameters, sceneId);
 
@@ -72,19 +78,18 @@ namespace Kizami.Initialization
 
             // SlowModeService は ChargeState を取得する為、ChargeService の生成より後に生成する
             _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
-            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _meleeCutAdapter.Swing,
+            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, sceneId);
-            _skillService = new SkillService(blackBoard, _equippedSkills, _chargeService,
-                _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, sceneId);
+            _skillService = new SkillService(blackBoard, _equippedSkills, _chargeService, _enhanceService,
+                _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
+                sceneId);
 
-            _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake);
+            _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake, _voxelDestructionAdapter.CarveExplosionAt);
 
             // FragmentThrowService は SlowModeState を取得する為、SlowModeService の生成より後に生成する
-            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _fragmentThrowAdapter.TryGrab,
-                _fragmentThrowAdapter.Throw, _fragmentThrowAdapter.TryLoad, _fragmentThrowAdapter.Fire);
-
-            // PlayerHealthService は PlayerMovementState を取得する為、PlayerMovementService の初期化より後に初期化する
-            _healthService.Initialize(blackBoard, _parameters, sceneId);
+            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _enhanceService,
+                _fragmentThrowAdapter.TryGrab, _fragmentThrowAdapter.TryThrow, _fragmentThrowAdapter.TryLoad,
+                _fragmentThrowAdapter.TryFire);
 
             // 以降の Adapter は Service が登録した State を取得する為、Service の生成より後に初期化する
             _movementAdapter.Initialize(blackBoard, _movementService.Step);
@@ -96,7 +101,7 @@ namespace Kizami.Initialization
             }
 
             _meleeCutPreviewAdapter.Initialize(blackBoard);
-            _hudAdapter.Initialize(blackBoard);
+            _hudAdapter.Initialize(blackBoard, GetSkillIcons());
 
             base.Initialize(blackBoard);
         }
@@ -127,6 +132,20 @@ namespace Kizami.Initialization
         {
             _enemySpawnAdapter.ReceiveCutResults(results, plane);
             _fragmentOrbAdapter.ReceiveCutResults(results);
+        }
+
+        /// <summary>
+        /// 装備枠ごとのスキルのアイコンを返す。空きの枠は null にする。
+        /// </summary>
+        private Texture2D[] GetSkillIcons()
+        {
+            var icons = new Texture2D[_equippedSkills.Length];
+            for (var i = 0; i < icons.Length; i++)
+            {
+                icons[i] = _equippedSkills[i] != null ? _equippedSkills[i].Icon : null;
+            }
+
+            return icons;
         }
 
         private void Awake()

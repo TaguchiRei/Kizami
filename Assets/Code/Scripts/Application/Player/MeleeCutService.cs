@@ -11,6 +11,8 @@ namespace Kizami.Application
 {
     /// <summary>
     /// 近接切断の入力を解釈して MeleeCutState へ書き込み、振ったことを切断の実行役へ伝えるユースケース。
+    /// 速さアップの強化は攻撃間隔に、範囲アップの強化は振ったときの範囲に倍率を掛ける。
+    /// 切断は攻撃タイプで、ボクセル破壊の強化中は破壊タイプを、シルブレの強化中は粉砕タイプを足す。
     /// </summary>
     public sealed class MeleeCutService : IDisposable
     {
@@ -20,7 +22,8 @@ namespace Kizami.Application
         private readonly MeleeCutState _state = new();
         private readonly IOperationSettingState _settingState;
         private readonly PlayerParameterData _parameters;
-        private readonly Action<float> _onSwing;
+        private readonly PlayerEnhanceService _enhanceService;
+        private readonly Action<float, float, DamageType> _onSwing;
         private readonly Func<bool> _tryUseCut;
         private readonly List<IDisposable> _subscriptions = new();
 
@@ -29,13 +32,16 @@ namespace Kizami.Application
 
         /// <param name="blackBoard">MeleeCutState の登録先と、入力・回転角度の設定の取得元</param>
         /// <param name="parameters">攻撃間隔の取得元</param>
-        /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）</param>
+        /// <param name="enhanceService">切断にかかる強化の取得元</param>
+        /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）、範囲に掛ける倍率、ダメージの種類</param>
         /// <param name="tryUseCut">振る直前に呼び、振れる回数を 1 回使う関数。false なら振らない</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
-        public MeleeCutService(IBlackBoard blackBoard, PlayerParameterData parameters, Action<float> onSwing,
-            Func<bool> tryUseCut, int sceneId)
+        public MeleeCutService(IBlackBoard blackBoard, PlayerParameterData parameters,
+            PlayerEnhanceService enhanceService, Action<float, float, DamageType> onSwing, Func<bool> tryUseCut,
+            int sceneId)
         {
             _parameters = parameters;
+            _enhanceService = enhanceService;
             _onSwing = onSwing;
             _tryUseCut = tryUseCut;
 
@@ -62,6 +68,7 @@ namespace Kizami.Application
 
         /// <summary>
         /// 前回振ってから攻撃間隔が経っていて、振れる回数が残っていれば、今の角度で振ったときの関数を呼ぶ。それ以外の入力は捨てる。
+        /// 振るときに、回数で切れる切断の強化の残りを 1 回分使う。
         /// </summary>
         private void OnAttack(InputContext<float> context)
         {
@@ -69,11 +76,19 @@ namespace Kizami.Application
 
             // スローモード中も攻撃間隔は実時間で数える
             var now = Time.unscaledTimeAsDouble;
-            if (now - _lastSwingTime < _parameters.MeleeAttackInterval) return;
+            _enhanceService.IsActive(SkillEffect.EnhanceSpeed, out var intervalScale);
+            if (now - _lastSwingTime < _parameters.MeleeAttackInterval * intervalScale) return;
             if (_tryUseCut != null && !_tryUseCut()) return;
 
+            _enhanceService.TryUse(SkillEffect.EnhanceSpeed, out _);
+            _enhanceService.TryUse(SkillEffect.EnhanceRange, out var rangeScale);
+
+            var damageType = DamageType.Attack;
+            if (_enhanceService.TryUse(SkillEffect.EnhanceDestroy, out _)) damageType |= DamageType.Destroy;
+            if (_enhanceService.TryUse(SkillEffect.EnhanceArmorBreak, out _)) damageType |= DamageType.Shatter;
+
             _lastSwingTime = now;
-            _onSwing?.Invoke(_state.Angle);
+            _onSwing?.Invoke(_state.Angle, rangeScale, damageType);
         }
 
         public void Dispose()

@@ -6,7 +6,7 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.Application
 {
     /// <summary>
-    /// プレイヤーの HP を管理し、ダメージを適用するユースケース。
+    /// プレイヤーの HP を管理し、ダメージと回復を適用するユースケース。
     /// ワープ中（PlayerMovementState.Mode が Warping）に受けたダメージには軽減率を適用する。
     /// </summary>
     public sealed class PlayerHealthService
@@ -50,6 +50,17 @@ namespace Kizami.Application
             if (damage <= 0) return;
 
             _state.SetCurrent(_state.Current - damage);
+        }
+
+        /// <summary>
+        /// HP を回復する。最大 HP を超えた分は捨てる。HP が 0 のときと、回復量が 0 以下のときは何もしない。
+        /// </summary>
+        /// <param name="amount">回復量</param>
+        public void Heal(int amount)
+        {
+            if (_state == null || amount <= 0 || _state.Current <= 0) return;
+
+            _state.SetCurrent(_state.Current + amount);
         }
     }
 }
