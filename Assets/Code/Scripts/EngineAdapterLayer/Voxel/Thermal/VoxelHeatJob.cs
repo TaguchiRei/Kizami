@@ -7,9 +7,9 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// サンプル範囲内の、形状の内側にあるサンプルを加熱し、融解させる。
-    /// 温度はサンプルの素材の融点を 1 とした値で持ち、加える温度を融点で割る。融点の高い素材ほど温まりにくい。
-    /// 距離は max(距離, (温度 - 1) × 切り詰め距離) へ引き上げる。温度が 1 以上なら外側になる。
-    /// 温度が 0 のときの引き上げ先は -切り詰め距離 で、切り詰め済みの距離はそれ以上小さくならない為、距離は変わらない。
+    /// 温度はサンプルの素材の融点を1とした値で持ち、加える温度を融点で割る。融点の高い素材ほど温まりにくい。
+    /// 距離は max(距離, (温度 - 1) × 切り詰め距離) へ引き上げる。温度が1以上なら外側になる。
+    /// 温度が0のときの引き上げ先は -切り詰め距離 で、切り詰め済みの距離はそれ以上小さくならない為、距離は変わらない。
     /// MarkRoundness なら、距離が RoundnessChangeThreshold より変わったサンプルの丸みを最大にする。
     /// 具象の形状ごとに [assembly: RegisterGenericJobType(typeof(VoxelHeatJob&lt;形状&gt;))] で登録すること。
     /// 登録が無いと Burst でコンパイルされない。
@@ -23,7 +23,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 形状の中心側で加える温度。負なら冷やす </summary>
         public float Amount;
 
-        /// <summary> 形状の境界から内側へ、加える温度を 0 から Amount まで強めていく幅。0 なら内側全体に Amount を加える </summary>
+        /// <summary> 形状の境界から内側へ、加える温度を0から Amount まで強めていく幅。0なら内側全体に Amount を加える </summary>
         public float Falloff;
 
         public int3 RangeMin;
@@ -53,7 +53,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> MarkRoundness のときに印を書く、サンプルごとの丸み </summary>
         [NativeDisableParallelForRestriction] public NativeArray<byte> Roundness;
 
-        /// <summary> 距離を書き換えたサンプルがあれば、0 番目に 1 を書く </summary>
+        /// <summary> 距離を書き換えたサンプルがあれば、0番目に1を書く </summary>
         [NativeDisableParallelForRestriction] public NativeArray<int> Changed;
 
         public void Execute(int index)

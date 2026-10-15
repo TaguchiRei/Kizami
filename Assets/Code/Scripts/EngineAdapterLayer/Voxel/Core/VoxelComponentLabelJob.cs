@@ -6,7 +6,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// 内側（距離が負）のサンプルが 6 近傍でつながった 1 つの塊。
+    /// 内側（距離が負）のサンプルが6近傍でつながった1つの塊。
     /// </summary>
     public readonly struct VoxelComponent
     {
@@ -31,7 +31,7 @@ namespace Kizami.EngineAdapter.Voxel
     }
 
     /// <summary>
-    /// 内側のサンプルを 6 近傍の連結成分（塊）に分け、サンプルごとに塊の番号を振る。
+    /// 内側のサンプルを6近傍の連結成分（塊）に分け、サンプルごとに塊の番号を振る。
     /// 外側のサンプルには OUTSIDE_LABEL を振る。塊の番号は Components の添字と一致する。
     /// </summary>
     [BurstCompile]

@@ -10,15 +10,15 @@ namespace Kizami.EngineAdapter.Voxel
     /// 格子点ごとに SDF（表面までの符号付き距離。負が内側）と温度を持つボクセルデータ。
     /// 距離は ±TruncationDistance に切り詰めて保持する。
     /// 格子の最外周のサンプルは常に正（外側）に保たれる為、生成されるメッシュは必ず閉じる。
-    /// 温度は常温を 0、融点を 1 とした値で、初めて加熱されたときに配列を確保する。
-    /// EnableRoundness を呼んだボリュームは、点ごとの丸み（0〜255）も持つ。削る・加熱で距離が変わった点を 255 にし、周りへ薄めて広げる。
+    /// 温度は常温を0、融点を1とした値で、初めて加熱されたときに配列を確保する。
+    /// EnableRoundness を呼んだボリュームは、点ごとの丸み（0〜255）も持つ。削る・加熱で距離が変わった点を255にし、周りへ薄めて広げる。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelVolume : IDisposable
     {
         /// <summary>
         /// 切り詰め距離のボクセル数換算。
-        /// 法線の計算が表面の前後 2 サンプルの距離の差を使うので、2 より大きく保つこと。
+        /// 法線の計算が表面の前後2サンプルの距離の差を使うので、2より大きく保つこと。
         /// </summary>
         public const float TRUNCATION_VOXELS = 4f;
 
@@ -41,13 +41,13 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> サンプルごとの素材の番号を持つか </summary>
         public bool HasMaterials => _materialIds.IsCreated;
 
-        /// <summary> 温度が 0 より高いサンプルを含みうるチャンクがあるか </summary>
+        /// <summary> 温度が0より高いサンプルを含みうるチャンクがあるか </summary>
         public bool HasHotChunks => _hotChunks.Count > 0;
 
         /// <summary> 点ごとの丸みを持つか </summary>
         public bool HasRoundness => _roundness.IsCreated;
 
-        /// <summary> 印を付けた点から丸みが広がるセル数。丸みを持たなければ 0 </summary>
+        /// <summary> 印を付けた点から丸みが広がるセル数。丸みを持たなければ0 </summary>
         public int RoundnessSpreadCells => HasRoundness ? (int)math.ceil(_roundnessFalloffCells) : 0;
 
         internal NativeArray<float> Samples => _samples;
@@ -55,7 +55,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> サンプルごとの、モデルの素材の一覧での番号。HasMaterials でなければ未作成 </summary>
         internal NativeArray<byte> MaterialIds => _materialIds;
 
-        /// <summary> サンプルごとの丸み。255 が削った・融けた点で、そこから離れるほど 0 に近づく。HasRoundness でなければ未作成 </summary>
+        /// <summary> サンプルごとの丸み。255が削った・融けた点で、そこから離れるほど0に近づく。HasRoundness でなければ未作成 </summary>
         internal NativeArray<byte> Roundness => _roundness;
 
         /// <summary> 格子のローカル空間での範囲（最外周のサンプルを含む） </summary>
@@ -135,10 +135,10 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 点ごとの丸みを持たせる。丸みは全点 0 から始め、以降の削る・加熱で印を付ける。既に持っていれば設定だけを差し替える。
+        /// 点ごとの丸みを持たせる。丸みは全点0から始め、以降の削る・加熱で印を付ける。既に持っていれば設定だけを差し替える。
         /// </summary>
         /// <param name="changeVoxels">印を付ける距離の変化（ボクセル数換算）</param>
-        /// <param name="falloffCells">印の付いた点から丸みが 0 になるまでのセル数</param>
+        /// <param name="falloffCells">印の付いた点から丸みが0になるまでのセル数</param>
         public void EnableRoundness(float changeVoxels, float falloffCells)
         {
             _roundnessChangeThreshold = changeVoxels * Layout.VoxelSize;
@@ -159,10 +159,10 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 強さと減衰率で削る攻撃を合成する。形状は、融点 0 の素材まで届く範囲（半径が 強さ ÷ 減衰率）を Layout と同じローカル空間で表す。
+        /// 強さと減衰率で削る攻撃を合成する。形状は、融点0の素材まで届く範囲（半径が 強さ ÷ 減衰率）を Layout と同じローカル空間で表す。
         /// 融点 s の素材は、形状の距離に s ÷ 減衰率（ローカル空間の長さ）を足した形で削れ、半径が (強さ − s) ÷ 減衰率 になる。
         /// </summary>
-        /// <param name="reach">融点 0 の素材まで届く範囲</param>
+        /// <param name="reach">融点0の素材まで届く範囲</param>
         /// <param name="materialOffsets">素材の番号ごとの 融点 ÷ 減衰率。HasMaterials でなければ使わない</param>
         /// <param name="uniformOffset">素材を持たないときの 融点 ÷ 減衰率</param>
         /// <returns>値が書き換わりうるサンプル範囲。形状がボリュームの外にあれば HasChange が false</returns>
@@ -176,13 +176,13 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 形状の内側のサンプルを加熱し、温度が融点以上になった内側のサンプルを外側にする。
-        /// 温度はサンプルの素材の融点を 1 とした値で持ち、加える温度を融点で割る。
-        /// 形状は Layout と同じローカル空間で表す。温度は 0 未満にならない。
+        /// 温度はサンプルの素材の融点を1とした値で持ち、加える温度を融点で割る。
+        /// 形状は Layout と同じローカル空間で表す。温度は0未満にならない。
         /// 温度が融点に近づくと表面近くの距離も引き上げる為、融解の境目は格子の段差にならずに進む。
         /// </summary>
         /// <param name="shape">加熱する範囲</param>
         /// <param name="amount">形状の中心側で加える温度。負なら冷やす</param>
-        /// <param name="falloff">形状の境界から内側へ、加える温度を 0 から amount まで強めていく幅。0 なら内側全体に amount を加える</param>
+        /// <param name="falloff">形状の境界から内側へ、加える温度を0から amount まで強めていく幅。0なら内側全体に amount を加える</param>
         /// <param name="meltedSamples">内側から外側になったサンプルの添字の出力先。呼ぶ前の中身は消す</param>
         /// <param name="inverseMeltingPoints">素材の番号ごとの融点の逆数。HasMaterials でなければ使わない</param>
         /// <param name="uniformInverseMeltingPoint">素材を持たないときの融点の逆数</param>
@@ -205,7 +205,7 @@ namespace Kizami.EngineAdapter.Voxel
 
             var useMaterials = HasMaterials && inverseMeltingPoints.IsCreated;
 
-            // ジョブの入力には作った配列を渡す必要がある為、使わないときは 1 要素の配列を渡す
+            // ジョブの入力には作った配列を渡す必要がある為、使わないときは1要素の配列を渡す
             var emptyInverses = useMaterials ? default : new NativeArray<float>(1, Allocator.TempJob);
             var emptyIds = useMaterials ? default : new NativeArray<byte>(1, Allocator.TempJob);
 
@@ -248,8 +248,8 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 温度が 0 より高いサンプルを含みうるチャンクの温度を amount 下げる。温度は 0 未満にならない。
-        /// 全サンプルが 0 になったチャンクは、以降の対象から外す。
+        /// 温度が0より高いサンプルを含みうるチャンクの温度を amount 下げる。温度は0未満にならない。
+        /// 全サンプルが0になったチャンクは、以降の対象から外す。
         /// </summary>
         public void Cool(float amount)
         {
@@ -301,7 +301,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// ローカル座標の温度をトリリニア補間で求める。格子の外と、加熱されたことが無いボリュームでは 0 を返す。
+        /// ローカル座標の温度をトリリニア補間で求める。格子の外と、加熱されたことが無いボリュームでは0を返す。
         /// </summary>
         public float SampleTemperature(float3 localPosition)
         {
@@ -354,7 +354,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// y のサンプル番号 sampleY の段について、内側のサンプルに素材ごとの重みを、外側のサンプルに 0 を書く。
+        /// y のサンプル番号 sampleY の段について、内側のサンプルに素材ごとの重みを、外側のサンプルに0を書く。
         /// 出力の添字は x + z × SampleCount.x。
         /// </summary>
         /// <param name="materialWeights">素材の番号ごとの重み。HasMaterials でなければ使わない</param>
@@ -366,7 +366,7 @@ namespace Kizami.EngineAdapter.Voxel
             var length = count.x * count.z;
             var useMaterials = HasMaterials && materialWeights != null && materialWeights.Length > 0;
 
-            // ジョブの入力には作った配列を渡す必要がある為、使わないときは 1 要素の配列を渡す
+            // ジョブの入力には作った配列を渡す必要がある為、使わないときは1要素の配列を渡す
             var nativeMaterialWeights = useMaterials
                 ? new NativeArray<byte>(materialWeights, Allocator.TempJob)
                 : new NativeArray<byte>(1, Allocator.TempJob);
@@ -393,7 +393,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 内側のサンプルを 6 近傍でつながった塊に分ける。
+        /// 内側のサンプルを6近傍でつながった塊に分ける。
         /// </summary>
         /// <param name="labels">サンプルごとの塊の番号の出力先。長さは Layout.SampleTotal。外側は VoxelComponentLabelJob.OUTSIDE_LABEL</param>
         /// <param name="components">塊の一覧の出力先。添字が塊の番号と一致する</param>
@@ -409,14 +409,14 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 1 つの塊だけを取り出した新しいボリュームを作る。塊を囲むサンプル範囲に 1 サンプルの余白を付ける。
+        /// 1つの塊だけを取り出した新しいボリュームを作る。塊を囲むサンプル範囲に1サンプルの余白を付ける。
         /// ボクセルの大きさ・チャンクの大きさ・ローカル空間は元と同じ。温度・素材・丸みがあれば、同じ範囲の値も写す。
         /// </summary>
         /// <param name="labels">LabelComponents が振った塊の番号</param>
         /// <param name="component">取り出す塊</param>
         public VoxelVolume ExtractComponent(NativeArray<int> labels, in VoxelComponent component)
         {
-            // 内側のサンプルは最外周に無い為、1 サンプルの余白を付けても元の格子の範囲に収まる
+            // 内側のサンプルは最外周に無い為、1サンプルの余白を付けても元の格子の範囲に収まる
             var sampleMin = component.SampleMin - 1;
             var sampleMax = component.SampleMax + 1;
             var layout = new VoxelGridLayout(Layout.ToLocalPosition(sampleMin), sampleMax - sampleMin,
@@ -486,7 +486,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 1 つの塊のサンプルを外側にする。
+        /// 1つの塊のサンプルを外側にする。
         /// </summary>
         /// <param name="labels">LabelComponents が振った塊の番号</param>
         /// <param name="component">消す塊</param>
@@ -507,7 +507,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 1 つの塊に属するサンプルの添字を集める。
+        /// 1つの塊に属するサンプルの添字を集める。
         /// </summary>
         /// <param name="labels">LabelComponents が振った塊の番号</param>
         /// <param name="component">集める塊</param>
@@ -530,7 +530,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// サンプルを、格子を各軸 coarseness 個ずつに区切った区画ごとにまとめ、位置と温度の平均を求める。
         /// </summary>
         /// <param name="sampleIndices">まとめるサンプルの添字</param>
-        /// <param name="coarseness">1 つの区画の、各軸のサンプル数</param>
+        /// <param name="coarseness">1つの区画の、各軸のサンプル数</param>
         /// <param name="groups">区画ごとの結果の出力先。呼ぶ前の中身は消す</param>
         public void GroupSamples(NativeArray<int> sampleIndices, int coarseness, NativeList<VoxelMeltGroup> groups)
         {
@@ -618,7 +618,7 @@ namespace Kizami.EngineAdapter.Voxel
 
             var useMaterials = materialOffsets.IsCreated;
 
-            // ジョブの入力には作った配列を渡す必要がある為、使わないときは 1 要素の配列を渡す
+            // ジョブの入力には作った配列を渡す必要がある為、使わないときは1要素の配列を渡す
             var emptyOffsets = useMaterials ? default : new NativeArray<float>(1, Allocator.TempJob);
             var emptyIds = useMaterials ? default : new NativeArray<byte>(1, Allocator.TempJob);
             var emptyRoundness = HasRoundness ? default : new NativeArray<byte>(1, Allocator.TempJob);

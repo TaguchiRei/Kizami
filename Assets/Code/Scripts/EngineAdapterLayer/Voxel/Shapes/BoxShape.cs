@@ -42,7 +42,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 平面の法線側を覆う箱を作る。箱の 1 面が平面に重なり、coverBounds の内側では、
+        /// 平面の法線側を覆う箱を作る。箱の1面が平面に重なり、coverBounds の内側では、
         /// 箱までの距離が法線側の半空間までの距離と一致する。
         /// </summary>
         /// <param name="planePoint">平面上の点</param>
@@ -51,7 +51,7 @@ namespace Kizami.EngineAdapter.Voxel
         public static BoxShape FromHalfSpace(float3 planePoint, float3 planeNormal, VoxelBounds coverBounds)
         {
             // 範囲内の点は、範囲の中心から coverRadius 以内にある。
-            // 平面に沿う方向へ 2 倍、法線方向へは平面から範囲の最も遠い点の先まで広げ、
+            // 平面に沿う方向へ2倍、法線方向へは平面から範囲の最も遠い点の先まで広げ、
             // 範囲内の点の最も近い面が常に平面に重なる面になるようにする
             var center = coverBounds.Center;
             var coverRadius = math.length(coverBounds.Size) * 0.5f;

@@ -183,7 +183,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
 
         /// <summary>
         /// ボタンを押している間、当たった位置を中心とする球の範囲を、左なら加熱、右なら冷却する。
-        /// 熱は球の境界で 0、境界から半径の半分だけ内側で最大になる。
+        /// 熱は球の境界で0、境界から半径の半分だけ内側で最大になる。
         /// </summary>
         private void UpdateHeat(Mouse mouse, VoxelPiece target, Vector3 worldPoint)
         {
@@ -222,7 +222,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
                     break;
 
                 case ToolShape.Blade:
-                    // 厚みがボクセル 1.5 個分より薄いと、刃の間に外側のサンプルが並ばず塊が分かれない
+                    // 厚みがボクセル1.5個分より薄いと、刃の間に外側のサンプルが並ばず塊が分かれない
                     var halfThickness = target.VoxelSize * 1.5f;
                     target.ApplyEdit(
                         new BoxShape(worldPoint, new float3(halfThickness, _radius * 4f, _radius * 4f), transform.rotation),

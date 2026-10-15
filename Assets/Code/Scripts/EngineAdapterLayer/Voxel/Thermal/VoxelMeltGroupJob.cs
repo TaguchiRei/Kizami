@@ -6,7 +6,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// 融解した粒 1 個分にまとめたサンプル。
+    /// 融解した粒1個分にまとめたサンプル。
     /// </summary>
     public struct VoxelMeltGroup
     {
@@ -28,7 +28,7 @@ namespace Kizami.EngineAdapter.Voxel
     {
         public VoxelGridLayout Layout;
 
-        /// <summary> 1 つの区画の、各軸のサンプル数 </summary>
+        /// <summary> 1つの区画の、各軸のサンプル数 </summary>
         public int Coarseness;
 
         /// <summary> 区画ごとのまとめた結果の出力先 </summary>

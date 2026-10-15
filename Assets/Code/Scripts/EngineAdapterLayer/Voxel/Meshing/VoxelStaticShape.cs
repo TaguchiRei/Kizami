@@ -8,9 +8,9 @@ using UnityEngine.Rendering;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// 手付かずのパーツの形を、ボクセルにした直後と同じ処理（角ばった描き方の SurfaceNetsJob と VoxelBoxColliderJob）で 1 枚のメッシュと箱の組にしたもの。
+    /// 手付かずのパーツの形を、ボクセルにした直後と同じ処理（角ばった描き方の SurfaceNetsJob と VoxelBoxColliderJob）で1枚のメッシュと箱の組にしたもの。
     /// VoxelModelLoader.LoadStatic が、削られるまでの間の見た目と当たり判定に使う。読み込んだ直後のボクセルと形が一致する為、差し替えても見た目が変わらない。
-    /// 同じベイク・ボクセルの大きさ・チャンクの大きさなら 1 つを使い回す。
+    /// 同じベイク・ボクセルの大きさ・チャンクの大きさなら1つを使い回す。
     /// 建物のつながりの判定で手付かずの面を読む為、格子の距離と素材の番号の写しも持つ。
     /// </summary>
     public sealed class VoxelStaticShape
@@ -48,7 +48,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="source">パーツのローカル空間でベイクした SDF</param>
         /// <param name="localVoxelSize">パーツのローカル空間でのボクセルの大きさ</param>
         /// <param name="chunkSize">品質設定のチャンクの大きさ。格子の作り方を VoxelPiece とそろえる為に使う</param>
-        /// <param name="materialCount">素材の数。1 なら素材で分けない</param>
+        /// <param name="materialCount">素材の数。1なら素材で分けない</param>
         public static VoxelStaticShape GetOrCreate(VoxelSdfData source, float localVoxelSize, int chunkSize,
             int materialCount)
         {
@@ -77,7 +77,7 @@ namespace Kizami.EngineAdapter.Voxel
             var boxMins = new NativeList<int3>(64, Allocator.TempJob);
             var boxMaxs = new NativeList<int3>(64, Allocator.TempJob);
 
-            // 手付かずの形なので丸みは全点 0、倍率はどれでも同じ
+            // 手付かずの形なので丸みは全点0、倍率はどれでも同じ
             var roundness = new NativeArray<byte>(layout.SampleTotal, Allocator.TempJob);
             var roundnessScales = new NativeArray<float>(meshMaterialCount, Allocator.TempJob);
             var emptyMaterialIds = useMaterials ? default : new NativeArray<byte>(1, Allocator.TempJob);
@@ -150,7 +150,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// VoxelVolume.ReadLayerWeights と同じく、y のサンプル番号 sampleY の段の内側のサンプルに素材ごとの重みを、外側に 0 を書く。
+        /// VoxelVolume.ReadLayerWeights と同じく、y のサンプル番号 sampleY の段の内側のサンプルに素材ごとの重みを、外側に0を書く。
         /// </summary>
         internal void ReadLayerWeights(int sampleY, byte[] materialWeights, byte uniformWeight, byte[] weights)
         {

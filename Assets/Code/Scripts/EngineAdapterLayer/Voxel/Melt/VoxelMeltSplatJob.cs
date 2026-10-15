@@ -6,10 +6,10 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// 1 つの液面チャンクの格子へ、そのチャンクに届く粒ごとの球を滑らかにつないだ距離場を書き込む。
+    /// 1つの液面チャンクの格子へ、そのチャンクに届く粒ごとの球を滑らかにつないだ距離場を書き込む。
     /// 格子を EmptyDistance で埋めた後、粒ごとに近くのサンプルへ球までの距離を smooth-min で合成する。
     /// 書き換えるのは、粒の球から Reach 以内のサンプルだけ。
-    /// 同じサンプルを複数の粒が書き換える為、1 チャンクの中は並列にせず 1 スレッドで実行する。
+    /// 同じサンプルを複数の粒が書き換える為、1チャンクの中は並列にせず1スレッドで実行する。
     /// </summary>
     [BurstCompile]
     public struct VoxelMeltSplatJob : IJob
@@ -25,7 +25,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 粒の半径（体積の等しい球の半径）に掛ける倍率 </summary>
         public float RadiusScale;
 
-        /// <summary> 粒同士を滑らかにつなぐ幅（ワールド空間, m）。0 ならつながずに最小値を取る </summary>
+        /// <summary> 粒同士を滑らかにつなぐ幅（ワールド空間, m）。0ならつながずに最小値を取る </summary>
         public float Blend;
 
         /// <summary> 粒の球の表面から、距離を書き込む範囲（ワールド空間, m） </summary>
@@ -40,7 +40,7 @@ namespace Kizami.EngineAdapter.Voxel
         [ReadOnly] public NativeParallelMultiHashMap<int3, int> ParticlesByChunk;
 
         /// <summary>
-        /// 2 つの距離の最小値を、差が blend より小さいところで滑らかにつないだ値。
+        /// 2つの距離の最小値を、差が blend より小さいところで滑らかにつないだ値。
         /// </summary>
         private static float SmoothMin(float a, float b, float blend)
         {
@@ -93,7 +93,7 @@ namespace Kizami.EngineAdapter.Voxel
     [BurstCompile]
     public struct VoxelMeltChunkKeysJob : IJob
     {
-        /// <summary> 液面チャンク 1 つの一辺の長さ（ワールド空間, m） </summary>
+        /// <summary> 液面チャンク1つの一辺の長さ（ワールド空間, m） </summary>
         public float ChunkWorldSize;
 
         /// <summary> 粒の半径（体積の等しい球の半径）に掛ける倍率 </summary>

@@ -11,7 +11,7 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// VoxelPiece が融解・蒸発した分を受け取り、融解した粒として保持・更新・表示するコンポーネント。シーンに 1 つ置く。
+    /// VoxelPiece が融解・蒸発した分を受け取り、融解した粒として保持・更新・表示するコンポーネント。シーンに1つ置く。
     /// このコンポーネントを設定した VoxelPiece を登録し、ワールド空間の範囲でまとめて加熱できる。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
@@ -123,7 +123,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         /// <param name="shape">加熱する範囲（ワールド空間）</param>
         /// <param name="amount">形状の中心側で加える温度。負なら冷やす</param>
-        /// <param name="falloff">形状の境界から内側へ、加える温度を 0 から amount まで強めていく幅（ワールド空間, m）</param>
+        /// <param name="falloff">形状の境界から内側へ、加える温度を0から amount まで強めていく幅（ワールド空間, m）</param>
         public void ApplyHeat<TShape>(in TShape shape, float amount, float falloff)
             where TShape : struct, ITransformableVoxelShape<TShape>
         {
@@ -141,7 +141,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 粒や固体の一部が蒸発したときに呼ぶ処理を登録する。
-        /// 蒸発したフレームの LateUpdate で、そのフレームに蒸発した分をまとめて 1 回呼ぶ。
+        /// 蒸発したフレームの LateUpdate で、そのフレームに蒸発した分をまとめて1回呼ぶ。
         /// 引数のリストは呼び出しの間だけ有効で、呼び出し後に中身が変わる。
         /// </summary>
         /// <returns>Dispose すると登録を解除する</returns>
@@ -261,7 +261,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 粒を 1 フレーム分進める。
+        /// 粒を1フレーム分進める。
         /// レイは進む前の位置から作り、冷却と移動の後に当たりを反映する。
         /// </summary>
         private void Simulate(float deltaTime)
@@ -304,7 +304,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 粒を 1 フレーム分進めるジョブを順に予約する。handle は予約するたびに最後のジョブへ更新する。
+        /// 粒を1フレーム分進めるジョブを順に予約する。handle は予約するたびに最後のジョブへ更新する。
         /// </summary>
         private void ScheduleSimulation(NativeArray<VoxelMeltParticle> particles,
             NativeArray<RaycastCommand> commands, NativeArray<RaycastHit> hits, NativeArray<byte> evaporated,
@@ -379,7 +379,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary>
         /// 押し広げに使う密度の格子の間隔を、粒の平均の体積と等しい球の直径として求める。
         /// </summary>
-        /// <returns>格子の間隔。粒が無い、または体積が 0 なら 0</returns>
+        /// <returns>格子の間隔。粒が無い、または体積が0なら0</returns>
         private float GetSpreadCellSize(int count)
         {
             var averageVolume = count > 0 ? FluidVolume / count : 0f;

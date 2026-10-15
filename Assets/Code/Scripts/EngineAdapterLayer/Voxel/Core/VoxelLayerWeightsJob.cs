@@ -5,7 +5,7 @@ using Unity.Jobs;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// y のサンプル番号 SampleY の段について、内側のサンプルに素材ごとの重みを、外側のサンプルに 0 を書く。
+    /// y のサンプル番号 SampleY の段について、内側のサンプルに素材ごとの重みを、外側のサンプルに0を書く。
     /// 出力の添字は x + z × SampleCount.x。
     /// </summary>
     [BurstCompile]

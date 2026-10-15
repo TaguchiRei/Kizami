@@ -7,15 +7,15 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// セル範囲 [CellMin, CellMax) の等値面（距離 0 の面）を Surface Nets で抽出する。
-    /// 表面をまたぐセルごとに頂点を 1 つ置き（セルの辺と表面の交点の平均）、
-    /// 表面をまたぐ格子の辺ごとに、その辺を囲む 4 セルの頂点を四角形で結ぶ。
+    /// セル範囲 [CellMin, CellMax) の等値面（距離0の面）を Surface Nets で抽出する。
+    /// 表面をまたぐセルごとに頂点を1つ置き（セルの辺と表面の交点の平均）、
+    /// 表面をまたぐ格子の辺ごとに、その辺を囲む4セルの頂点を四角形で結ぶ。
     /// 法線は各格子点の中心差分の勾配を、頂点位置でトリリニア補間して求める。
     /// 頂点と法線はボクセル空間（ローカル空間）で出力する。
-    /// 素材が 2 つ以上なら、四角形をその辺の内側の端のサンプルの素材で分け、インデックスを素材の順に並べる。
+    /// 素材が2つ以上なら、四角形をその辺の内側の端のサンプルの素材で分け、インデックスを素材の順に並べる。
     /// 頂点は複数の素材の四角形で共有する。
     /// UseBlockShape なら、頂点をセルの中心（ボクセルを積んだ角ばった形）に置き、法線は滑らかな形のものにする。
-    /// SmoothOffsets の xyz に「滑らかな位置 − 角ばった位置」、w にセルの 8 隅の丸みの平均（0〜1）を書き、シェーダーがこの 2 つで位置を混ぜる。
+    /// SmoothOffsets の xyz に「滑らかな位置 − 角ばった位置」、w にセルの8隅の丸みの平均（0〜1）を書き、シェーダーがこの2つで位置を混ぜる。
     /// 読むサンプル範囲は VoxelGridLayout.MESHING_READ_MARGIN と対応している。
     /// </summary>
     [BurstCompile]
@@ -38,7 +38,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 頂点ごとの滑らかな位置までの差と丸み。UseBlockShape でなければ書かない </summary>
         [NativeDisableContainerSafetyRestriction] public NativeList<float4> SmoothOffsets;
 
-        /// <summary> 素材の数。1 なら素材で分けない </summary>
+        /// <summary> 素材の数。1なら素材で分けない </summary>
         public int MaterialCount;
 
         /// <summary> 素材ごとのインデックスの数の出力先。長さは MaterialCount </summary>
@@ -46,17 +46,17 @@ namespace Kizami.EngineAdapter.Voxel
 
         [ReadOnly] public NativeArray<float> Samples;
 
-        /// <summary> サンプルごとの素材の番号。MaterialCount が 1 なら読まない </summary>
+        /// <summary> サンプルごとの素材の番号。MaterialCount が1なら読まない </summary>
         [ReadOnly] public NativeArray<byte> MaterialIds;
 
         /// <summary> サンプルごとの丸み（0〜255）。UseBlockShape でなければ読まない </summary>
         [ReadOnly, NativeDisableContainerSafetyRestriction] public NativeArray<byte> Roundness;
 
-        /// <summary> 素材の番号ごとの丸みの倍率。MaterialCount が 1 なら 0 番目を全点に使う。UseBlockShape でなければ読まない </summary>
+        /// <summary> 素材の番号ごとの丸みの倍率。MaterialCount が1なら0番目を全点に使う。UseBlockShape でなければ読まない </summary>
         [ReadOnly, NativeDisableContainerSafetyRestriction] public NativeArray<float> RoundnessScales;
 
         /// <summary>
-        /// セルの 12 辺のうち表面をまたぐものについて、表面との交点のセル内座標（0〜1）を平均する。
+        /// セルの12辺のうち表面をまたぐものについて、表面との交点のセル内座標（0〜1）を平均する。
         /// </summary>
         private static float3 AverageCrossing(float4 lower, float4 upper)
         {
@@ -145,7 +145,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// チャンクのセル範囲を基点とする辺のうち、表面をまたぐものごとに四角形を張る。
         /// 表側は距離が増える向き（外側）に向ける。
         /// </summary>
-        /// <param name="quadMaterials">四角形ごとの素材の番号の出力先。MaterialCount が 1 なら使わない</param>
+        /// <param name="quadMaterials">四角形ごとの素材の番号の出力先。MaterialCount が1なら使わない</param>
         private void GenerateQuads(int3 vertexCellMin, int3 vertexCellSize, NativeArray<int> cellToVertex,
             NativeList<byte> quadMaterials)
         {
@@ -204,7 +204,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// セルの 8 隅の、素材ごとの倍率を掛けて 0〜1 に収めた丸みを平均する。
+        /// セルの8隅の、素材ごとの倍率を掛けて0〜1に収めた丸みを平均する。
         /// </summary>
         private float AverageRoundness(int3 cell)
         {
@@ -220,8 +220,8 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// セルの 8 隅の距離を読む。隅 i の位置は CornerOffset(i)。
-        /// lower が z = 0 側の 4 隅、upper が z = 1 側の 4 隅。
+        /// セルの8隅の距離を読む。隅 i の位置は CornerOffset(i)。
+        /// lower が z = 0 側の4隅、upper が z = 1 側の4隅。
         /// </summary>
         private void ReadCorners(int3 cell, out float4 lower, out float4 upper)
         {
@@ -238,7 +238,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// セルの 8 隅の勾配を、セル内座標 inCell でトリリニア補間して正規化する。
+        /// セルの8隅の勾配を、セル内座標 inCell でトリリニア補間して正規化する。
         /// </summary>
         private float3 ComputeNormal(int3 cell, float3 inCell)
         {
@@ -316,7 +316,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         public void Execute()
         {
-            // 面は隣接する 4 セルの頂点を結ぶ為、頂点は面を作るセル範囲より最小側へ 1 セル広く作る
+            // 面は隣接する4セルの頂点を結ぶ為、頂点は面を作るセル範囲より最小側へ1セル広く作る
             var vertexCellMin = math.max(CellMin - 1, 0);
             var vertexCellSize = CellMax - vertexCellMin;
             var cellToVertex = new NativeArray<int>(vertexCellSize.x * vertexCellSize.y * vertexCellSize.z,

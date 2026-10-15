@@ -64,7 +64,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> LoadStatic で置いたパーツの、読み込み先と形 </summary>
         internal IReadOnlyList<VoxelStaticPart> StaticParts => _staticParts;
 
-        /// <summary> 読み込んだパーツ（モデルのメッシュ 1 つに対応する、分離前からあるピース） </summary>
+        /// <summary> 読み込んだパーツ（モデルのメッシュ1つに対応する、分離前からあるピース） </summary>
         public IReadOnlyList<VoxelPiece> Parts => _parts;
 
         /// <summary> パーツと、パーツから切り離された全てのピース。破棄されたものは含まない </summary>
@@ -206,7 +206,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// このモデルのいずれかのピースから塊が分離したときに呼ぶ処理を登録する。
-        /// 引数の 0 番目は分離元のピース、1 番目以降は切り離された新しいピース。
+        /// 引数の0番目は分離元のピース、1番目以降は切り離された新しいピース。
         /// </summary>
         /// <returns>Dispose すると登録を解除する</returns>
         public IDisposable RegisterOnPieceSplit(Action<VoxelPiece[]> callback)

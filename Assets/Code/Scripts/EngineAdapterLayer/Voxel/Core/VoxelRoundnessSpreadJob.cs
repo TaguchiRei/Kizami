@@ -18,7 +18,7 @@ namespace Kizami.EngineAdapter.Voxel
         public int3 RangeMin;
         public int3 RangeMax;
 
-        /// <summary> 1 セル離れるごとに減らす丸み </summary>
+        /// <summary> 1セル離れるごとに減らす丸み </summary>
         public float Step;
 
         public NativeArray<byte> Roundness;

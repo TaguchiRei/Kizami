@@ -6,7 +6,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// チャンクごとに、受け持つサンプルの温度を一定量下げる。温度は 0 未満にしない。
+    /// チャンクごとに、受け持つサンプルの温度を一定量下げる。温度は0未満にしない。
     /// </summary>
     [BurstCompile]
     public struct VoxelCoolJob : IJobParallelFor
