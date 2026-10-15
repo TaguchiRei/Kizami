@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 着手（2026-10-14） |
+| 状態 | 完了（2026-10-15） |
 | 目安の時期 | 2027/04/13〜04/26（最速の推定 2026/10/29〜11/01） |
 | 前提となる区間 | マイルストーンB（区間6まで） |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -210,6 +210,45 @@ Notion の「スコア」「失敗条件」に反映し、「Brilliant Skill」�
 ### 確認中に直したこと
 
 - クリア・失敗のあとも敵の攻撃で HP が減り続けていた。`PlayerHealthService` が `StageFlowState` を読み、プレイ中のときだけダメージを適用するようにした。開始の表示中（Ready）も適用しない。`StageFlowState` のないシーンでは今までどおり適用する
+
+## 実装結果（2026-10-15）
+
+### 決めたこと
+
+- ステージは `StageData`（表示名、SceneGroup、クリアの基礎スコア、失敗条件の一覧）で持ち、敵の出し方と破壊対象はステージシーンに置いた物が持つ（決めたこと 2）
+- 選んだステージ、装備、通貨、クリア済みのステージは常駐の `GameProgressState` に持ち、ゲームを終えると消える（決めたこと 1・3）
+- インゲームの流れは Ready → Playing → Cleared / Failed。クリアの判定、失敗条件の判定、倒した数、スコア、ポーズを `StageFlowService` が持つ（決めたこと 4・6、計画から変えたこと）
+- スコア ＝ 倒した敵の数 ＋ クリアの基礎スコア（クリアしたときだけ）。吸収された敵は数えない（決めたこと 5・11）
+- プレイヤーがダメージを受けるのはプレイ中だけ。開始の表示中と、クリア・失敗のあとは受けない（確認中に直したこと）
+- リトライは、UsefulToolkit の `SceneLoadService.ReloadGroupAsync` で、選んでいるステージのグループを読み直す。`DebugGUI` の監視は持ち主（`this`）を渡して登録し、シーンのアンロードで外れる（[Section11_SceneReloadRequirements.md](Section11_SceneReloadRequirements.md)）
+
+### 作った主なもの
+
+| 種類 | もの |
+|---|---|
+| ステージの定義 | `StageData`、`StageFailCondition`・`PlayerDeathFailCondition`、`TestStageData.asset` |
+| 進行（常駐） | `GameProgressState`・`IGameProgressState`、`GameProgressService`、`GameSceneController` のステージごとのグループ・`GoToStageAsync`・`RetryAsync` |
+| インゲームの流れ | `StageBoard`、`StageFlowState`・`IStageFlowState`、`StageFlowService`、`StageInitializer` の配線、`EnemySpawnAdapter.SetOnDefeated`、`StageClearAdapter` の報告 |
+| 画面 | `StageHudAdapter`（`PlayerHudAdapter` を置き換え）、`StageResultAdapter`（Retry と Back to Menu）、`StagePauseAdapter`、`UiBuilder` |
+| アウトゲーム（仮） | `OutGameStartInitializer` の通貨、装備の 3 枠、ステージ選択 |
+| その他 | `SlowModeService` の倍率 0 の間の消費の停止、`PlayerHealthService` のプレイ中だけのダメージ、`ObserveVariable` の持ち主 |
+
+### 完了条件の確認結果
+
+| 完了条件 | 結果 |
+|---|---|
+| アウトゲームでステージを選ぶとインゲームに入り、クリアか失敗でリザルトに進み、アウトゲームへ戻る | 確認済み（エディタ）。TestStage で、門 2 つを壊してクリア、HP 0 で失敗のリザルトが出て、Back to Menu でアウトゲームへ戻った。Retry で同じステージが初めから始まり、3 回繰り返しても警告・エラーは出なかった |
+| 装備したスキルがインゲームで使え、初回クリアで通貨が増える | 確認済み（エディタ）。アウトゲームで替えた装備がインゲームの枠に入って使えた。初回クリアで通貨が 100 増え、2 回目は増えなかった |
+| ポーズでゲームが止まる | 確認済み（エディタ）。Esc で時間と操作が止まり、Esc か Resume で戻った。スロー中のポーズでスローが解けず、ポーズから戻るとアウトゲームの時間は等速だった |
+
+確かめていないこと：`TestStageData` の失敗条件を空にしたときに HP 0 で失敗しないこと（コードで、空なら何も購読しないことを確かめた）、Retry のあとに通貨とクリア済みが保たれること（常駐の State なので、読み直しの対象ではない）。
+
+### 次の区間へ持ち越すこと
+
+- Brilliant Skill（判定とボクセルの文字の演出、追加スコアを受け取る口）。決めたこと 13 で別の区間にした。全体計画書の区間一覧には、まだ入っていない
+- 失敗条件の一覧の、型を選んで足す表示（区間14で条件を増やすときに決める）
+- HUD・リザルト・ポーズの画面のプレハブ化と見た目（`UiBuilder` の TODO。区間13）
+- アウトゲームの本物の UI、スキルの購入、セーブ（アウトゲームの作業）
 
 ## 見つけた問題（今回は扱わない）
 
