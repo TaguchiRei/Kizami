@@ -6,7 +6,7 @@ Shader "Hidden/ScreenSpaceEmbedded/Mask"
     //         Subtractee の裏側より奥まで削れていたら完全に貫通させる
     // Pass 3: ステンシルのマークをクリア（Ref 0）
     //
-    // TODO: Pass2 の比較 (<=) と完全貫通の 1.0、SSEmbedded_Composite の d >= 1.0 は生のデプスを non-reversed-Z 前提で扱っており、
+    // TODO: Pass2 の比較 (<=) と完全貫通の1.0、SSEmbedded_Composite の d >= 1.0 は生のデプスを non-reversed-Z 前提で扱っており、
     //       reversed-Z のプラットフォーム（D3D/Metal/Vulkan）では反転する
     SubShader
     {

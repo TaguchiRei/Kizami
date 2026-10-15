@@ -3,11 +3,11 @@
 
 // デプスの2つの表現
 // 1) ShaderLabの ZTest / ClearRenderTarget の depth 引数は「意味」で書く。
-//    LEqual = 手前が通る / GEqual = 奥が通る、clear depth は 1=遠クリップ。
+//    LEqual = 手前が通る / GEqual = 奥が通る、clear depth は1=遠クリップ。
 //    reversed-Z への変換はUnityが内部で行う。
 //
 // 2) SV_Depth に書く値・デプステクスチャからサンプルした値は
-//    「生のクリップ空間Z」。reversed-Z では 1 が近く 0 が遠くなる。
+//    「生のクリップ空間Z」。reversed-Z では1が近く0が遠くなる。
 //    HLSL側で大小比較するときは必ず下のヘルパーを使う。
 //
 // 生の値が要るところは SSB_NEAR_Z / SSB_FAR_Z だけを使う。
