@@ -76,8 +76,6 @@ namespace Kizami.EngineAdapter
         private ISkillSlotState _slotState;
         private IStageFlowState _flowState;
         private FragmentThrowAdapter _fragmentThrowAdapter;
-        /// <summary> 枠ごとのスキルのアイコン。アイコンがない枠と、範囲の外の枠は、四角を出す </summary>
-        private Texture2D[] _icons;
 
         private RectTransform _healthFill;
         private RectTransform _chargeFill;
@@ -100,15 +98,6 @@ namespace Kizami.EngineAdapter
         {
             var half = Mathf.Clamp01(ratio) * 0.5f;
             UiBuilder.SetAnchors(rect, new Vector2(0.5f - half, 0f), new Vector2(0.5f + half, 1f));
-        }
-
-        /// <summary>
-        /// 枠ごとのスキルのアイコンを受け取る。Initialize より前に呼ぶ。
-        /// </summary>
-        /// <param name="icons">枠ごとのスキルのアイコン。空きの枠は null</param>
-        public void SetSkillIcons(Texture2D[] icons)
-        {
-            _icons = icons;
         }
 
         /// <summary>
@@ -253,7 +242,7 @@ namespace Kizami.EngineAdapter
             UiBuilder.SetAnchors(rootRect, anchorMin, anchorMax);
             _slots[slot] = root;
 
-            var icon = _icons != null && slot < _icons.Length ? _icons[slot] : null;
+            var icon = _slotState.GetIcon(slot);
             if (icon != null)
             {
                 var iconObject = new GameObject("Icon", typeof(RectTransform), typeof(RawImage));
