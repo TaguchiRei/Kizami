@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵の種類 1 つの体の設定。EnemySpawnAdapter が種類ごとに 1 件持つ。
+    /// 敵の種類1つの体の設定。EnemySpawnAdapter が種類ごとに1件持つ。
     /// </summary>
     [Serializable]
     public sealed class EnemyKindSettings

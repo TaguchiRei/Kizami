@@ -10,7 +10,7 @@ namespace Kizami.EngineAdapter
     /// MainCamera を基準にした形（狙った所の球、視線の向きへ伸びるカプセル、カメラの位置を中心にした球）と、指定した点を中心にした球の範囲にあるボクセルのピースを、同じ形でまとめて削る Adapter。
     /// 範囲が複数のピースにまたがるときも、範囲内のすべてのピースを削る。手付かずの形のメッシュのまま置いたモデル（VoxelModelLoader.LoadStatic）に当たったら、ボクセルにしてから削る。
     /// 攻撃は強さと減衰率で当て、普通の強度の素材がちょうど指定の半径で削れる強さにする。柔い素材は深く、硬い素材は浅く削れる。
-    /// 破壊タイプの攻撃として、装甲のパネルに当たったら 1 回当たったものとし、装甲の奥のピースは削らない。
+    /// 破壊タイプの攻撃として、装甲のパネルに当たったら1回当たったものとし、装甲の奥のピースは削らない。
     /// </summary>
     public sealed class VoxelDestructionAdapter : MonoBehaviour
     {
@@ -51,7 +51,7 @@ namespace Kizami.EngineAdapter
         private LayerMask _armorLayers;
 
         /// <summary>
-        /// 普通の強度の素材を radius で削る強さのとき、融点 0 の素材まで届く半径。
+        /// 普通の強度の素材を radius で削る強さのとき、融点0の素材まで届く半径。
         /// 強さ P は 普通の融点 + 減衰率 × radius で、届く半径は P ÷ 減衰率。
         /// </summary>
         private static float ReachRadius(float radius, float falloff)
@@ -61,7 +61,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 狙った所を球で削る。狙える距離に何もなければ削らない。
-        /// レイが最初に当たったのが装甲のパネルなら、そのパネルに 1 回当てて削らない。
+        /// レイが最初に当たったのが装甲のパネルなら、そのパネルに1回当てて削らない。
         /// </summary>
         public void CarveAtAim()
         {
@@ -87,7 +87,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// カメラの位置から視線の向きへ伸びるカプセルで削る。途中の壁を貫通する。
-        /// 中心のレイが装甲のパネルに当たったら、そのパネルに 1 回当て、カプセルの先端がその点に届く所までで止める。
+        /// 中心のレイが装甲のパネルに当たったら、そのパネルに1回当て、カプセルの先端がその点に届く所までで止める。
         /// </summary>
         /// <param name="length">カプセルの長さ（m）</param>
         /// <param name="radius">カプセルの半径（m）</param>
@@ -130,7 +130,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 指定した点を中心に球で削る。
-        /// 球に入った装甲のパネルすべてに 1 回ずつ当て、中心から見て装甲の奥にあるピースは削らない。
+        /// 球に入った装甲のパネルすべてに1回ずつ当て、中心から見て装甲の奥にあるピースは削らない。
         /// 遮断は中心から各ピースのバウンディングボックスの中心へのレイで判定するので、ピースの一部だけが装甲の陰にあっても、ピース全体を削るか削らないかのどちらかになる。
         /// </summary>
         /// <param name="center">球の中心（ワールド空間）</param>
@@ -192,7 +192,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 範囲の問い合わせで集めたコライダーからピースを集め、強さと減衰率の攻撃を当てる。
         /// </summary>
-        /// <param name="reach">融点 0 の素材まで届く範囲（ワールド空間）</param>
+        /// <param name="reach">融点0の素材まで届く範囲（ワールド空間）</param>
         /// <param name="falloff">1m あたりに減る強さ</param>
         /// <param name="hitCount">_hitBuffer に集めたコライダーの数</param>
         /// <param name="checkArmor">true なら、origin から見て装甲の奥にあるピースを削らない</param>

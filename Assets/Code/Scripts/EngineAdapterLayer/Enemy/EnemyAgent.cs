@@ -3,7 +3,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵 1 体の状態。EnemySpawnAdapter が NativeArray に持ち、Burst の Job で読み書きする。
+    /// 敵1体の状態。EnemySpawnAdapter が NativeArray に持ち、Burst の Job で読み書きする。
     /// 後から ECS のコンポーネントへ移せるよう、値型のフィールドだけで持つ。
     /// 部位の状態は体を返しても持ち続け、次に体を貸すときに体へ反映する。
     /// </summary>
@@ -18,10 +18,10 @@ namespace Kizami.EngineAdapter
         /// <summary> 体の根の位置 </summary>
         public float3 Position;
 
-        /// <summary> 向き（Y 軸まわりの角度、ラジアン）。0 で +Z を向く </summary>
+        /// <summary> 向き（Y 軸まわりの角度、ラジアン）。0で +Z を向く </summary>
         public float Yaw;
 
-        /// <summary> 上向きの速さ（m/s）。立っている間は 0 </summary>
+        /// <summary> 上向きの速さ（m/s）。立っている間は0 </summary>
         public float VerticalSpeed;
 
         /// <summary> 立てる層の上に立っているか。false の間は落ちている </summary>
@@ -36,7 +36,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 貸している体の、その種類の EnemyBodyLender の体の一覧での番号。貸していなければ -1 </summary>
         public int BodyIndex;
 
-        /// <summary> 所属するグループの、EnemyGroups での番号。グループを持たなければ -1 で、距離マップを下って歩く </summary>
+        /// <summary> 所属するグループの、EnemyGroups での番号。グループを持たなければ -1で、距離マップを下って歩く </summary>
         public int GroupIndex;
 
         /// <summary> グループの隊列の中の順番。先頭の列から、列の中は左から数える </summary>
@@ -60,7 +60,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 宙に浮いているか。浮いている敵は、足場が壊れるとゆっくり落ち、落ちても倒れない。出すときに体のプレハブの値を書く </summary>
         public bool IsFloating;
 
-        /// <summary> 次に攻撃できるまでの時間（秒）。0 以下なら攻撃できる。アタッカー（弾）とフィニッシャー（吸収とビーム）が使う </summary>
+        /// <summary> 次に攻撃できるまでの時間（秒）。0以下なら攻撃できる。アタッカー（弾）とフィニッシャー（吸収とビーム）が使う </summary>
         public float AttackCooldown;
 
         /// <summary> 動き方。出したときは Walking </summary>

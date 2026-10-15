@@ -27,7 +27,7 @@ namespace Kizami.Application
         /// 強化がかかっているかを返す。回数は使わない。
         /// </summary>
         /// <param name="effect">強化の種類</param>
-        /// <param name="scale">かかっていれば強化の倍率、かかっていなければ 1</param>
+        /// <param name="scale">かかっていれば強化の倍率、かかっていなければ1</param>
         public bool IsActive(SkillEffect effect, out float scale)
         {
             scale = 1f;
@@ -44,10 +44,10 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 攻撃を 1 回行うときに呼び、強化がかかっていれば、回数で切れる強化の残りを 1 減らす。
+        /// 攻撃を1回行うときに呼び、強化がかかっていれば、回数で切れる強化の残りを1減らす。
         /// </summary>
         /// <param name="effect">強化の種類</param>
-        /// <param name="scale">かかっていれば強化の倍率、かかっていなければ 1</param>
+        /// <param name="scale">かかっていれば強化の倍率、かかっていなければ1</param>
         /// <returns>この攻撃に強化がかかるなら true</returns>
         public bool TryUse(SkillEffect effect, out float scale)
         {
@@ -70,7 +70,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// かかっている 1 つの強化。時間で切れる強化は残りの回数を負にし、回数で切れる強化は終わる時刻を無限にする。
+        /// かかっている1つの強化。時間で切れる強化は残りの回数を負にし、回数で切れる強化は終わる時刻を無限にする。
         /// </summary>
         private struct Enhancement
         {

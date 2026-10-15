@@ -18,8 +18,8 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="particle">更新する粒</param>
         /// <param name="normal">面の法線（ワールド空間, 正規化済み）</param>
         /// <param name="deltaTime">経過時間</param>
-        /// <param name="hotDamping">蒸発点での、面に沿う速度の 1 秒あたりの減り方</param>
-        /// <param name="coldDamping">凝固点での、面に沿う速度の 1 秒あたりの減り方</param>
+        /// <param name="hotDamping">蒸発点での、面に沿う速度の1秒あたりの減り方</param>
+        /// <param name="coldDamping">凝固点での、面に沿う速度の1秒あたりの減り方</param>
         /// <param name="freezeTemperature">凝固点</param>
         /// <param name="evaporationTemperature">蒸発点</param>
         public static void Apply(ref VoxelMeltParticle particle, float3 normal, float deltaTime,
@@ -49,14 +49,14 @@ namespace Kizami.EngineAdapter.Voxel
         public float DeltaTime;
         public float3 Gravity;
 
-        /// <summary> 速度の上限（m/s）。1 フレームの移動がボクセル数個分より大きくなると、面をすり抜ける </summary>
+        /// <summary> 速度の上限（m/s）。1フレームの移動がボクセル数個分より大きくなると、面をすり抜ける </summary>
         public float MaxSpeed;
 
         public float CoolingPerSecond;
         public float FreezeTemperature;
         public float EvaporationTemperature;
 
-        /// <summary> 蒸発した粒に 1 を書く </summary>
+        /// <summary> 蒸発した粒に1を書く </summary>
         [WriteOnly] public NativeArray<byte> Evaporated;
 
         public void Execute(int index)
@@ -157,7 +157,7 @@ namespace Kizami.EngineAdapter.Voxel
     }
 
     /// <summary>
-    /// 1 つの VoxelPiece の SDF と粒の当たりを取り、表面から粒の半径より内側にある粒を外へ押し出す。
+    /// 1つの VoxelPiece の SDF と粒の当たりを取り、表面から粒の半径より内側にある粒を外へ押し出す。
     /// コライダーではなく SDF を直接読む為、溶けた直後でコライダーの更新が追いついていなくても正しく当たる。
     /// </summary>
     [BurstCompile]

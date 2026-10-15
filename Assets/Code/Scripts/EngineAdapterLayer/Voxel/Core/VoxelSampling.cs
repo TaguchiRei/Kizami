@@ -9,7 +9,7 @@ namespace Kizami.EngineAdapter.Voxel
     public static class VoxelSampling
     {
         /// <summary>
-        /// ローカル座標を格子座標（サンプル間隔を 1 とした連続値）へ変換する。
+        /// ローカル座標を格子座標（サンプル間隔を1とした連続値）へ変換する。
         /// </summary>
         /// <returns>格子の範囲内なら true</returns>
         public static bool TryGetGridPosition(in VoxelGridLayout layout, float3 localPosition, out float3 grid)
@@ -41,7 +41,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 格子座標での値の勾配を、サンプル 1 つ分の中心差分で求める（ローカル空間, 正規化前）。
+        /// 格子座標での値の勾配を、サンプル1つ分の中心差分で求める（ローカル空間, 正規化前）。
         /// </summary>
         public static float3 Gradient(in NativeArray<float> values, in VoxelGridLayout layout, float3 grid)
         {

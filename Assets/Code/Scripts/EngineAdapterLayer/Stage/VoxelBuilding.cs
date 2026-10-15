@@ -9,32 +9,31 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 1 階分ずつベイクしたボクセルのモデルを、縦に積み重ねた大きな建物。ステージシーンへ置く。
+    /// 1階分ずつベイクしたボクセルのモデルを、縦に積み重ねた大きな建物。ステージシーンへ置く。
     /// 階ごとに別の VoxelModelLoader にし、削ったときの分離の判定を削った階だけで済ませる。
     /// 階は Awake で作り、Start で手付かずの形のメッシュ（VoxelModelLoader.LoadStatic）で置く。
     /// プレイヤーから差し替える距離の中にかかった階と、攻撃が当たった階（VoxelDestructionAdapter が読み込む）だけをボクセルにする。
     /// 模様が階をまたいで続くよう、階ごとにマテリアルを複製し、_PatternOffset の Y に「階の番号 × 階の高さ」を書く。
     /// MaterialPropertyBlock は SRP Batcher の対象から外れる為、使わない。
-    /// 隣り合う階の境目ごとに、下の階の上の面と上の階の下の面から半ボクセル内側の段で、両方が中身の点を数えてつながりを判定する。
-    /// 判定は階のピースの形が変わったとき（分離の処理のあと）に、その階の上下の境目について行う。1 階の下は地面で、地面側は常に中身とみなす。
+    /// 隣り合う階の境目ごとに、両側の段が共有する中身の点でつながりを判定し、階のピースの形が変わるたびにその階の上下の境目を数え直す。
     /// 階とパーツは回転させずに置く前提で、点の対応は建物のローカル空間の水平座標を格子の番号にして取る。
-    /// 境目が切れたら、その上の階をまとめて 1 つの Rigidbody の子にして落とす。当たり判定は各階のチャンクの BoxCollider をそのまま使う。
+    /// 境目が切れたら、その上の階をまとめて1つの Rigidbody の子にして落とす。当たり判定は各階のチャンクの BoxCollider をそのまま使う。
     /// 落ちた Rigidbody が眠ったらキネマティックにして止め、地形として残す。落ちた階は、以後つながりを判定しない。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/LargeObjectVoxel.md">説明ドキュメント: 巨大なオブジェクトへのボクセルの適用</seealso>
     public sealed class VoxelBuilding : MonoBehaviour
     {
-        /// <summary> 切り離された塊を隣の階にくっつけるとき、2 つの階の向きがそろっているとみなす角度の差（度） </summary>
+        /// <summary> 切り離された塊を隣の階にくっつけるとき、2つの階の向きがそろっているとみなす角度の差（度） </summary>
         private const float ALIGNED_ANGLE = 1f;
 
-        /// <summary> 1 階に記録する攻撃の数の上限。超えた階はメッシュに戻さずボクセルのまま残す </summary>
+        /// <summary> 1階に記録する攻撃の数の上限。超えた階はメッシュに戻さずボクセルのまま残す </summary>
         private const int MAX_STRIKE_RECORDS = 128;
 
         private static readonly int _patternOffsetId = Shader.PropertyToID("_PatternOffset");
 
         private readonly List<VoxelModelLoader> _floors = new();
 
-        /// <summary> 階ごとの、本体のピースに当たった攻撃の記録。上限を超えた階は上限 ＋ 1 件で止める </summary>
+        /// <summary> 階ごとの、本体のピースに当たった攻撃の記録。上限を超えた階は上限 ＋ 1件で止める </summary>
         private readonly List<List<VoxelStrikeRecord>> _strikeRecords = new();
 
         /// <summary> 階ごとの、記録を当て直したフレーム。そのフレームに切り離された塊は落とさずに扱う </summary>
@@ -123,7 +122,7 @@ namespace Kizami.EngineAdapter
 
         public float FloorHeight => _floorHeight;
 
-        /// <summary> 境目の数。境目 i は、i 階とその下（0 なら地面）の境目 </summary>
+        /// <summary> 境目の数。境目 i は、i 階とその下（0なら地面）の境目 </summary>
         public int JointCount => _connectionRatios.Length;
 
         /// <summary> 全部の階を置き、つながりの元の面積を測ったか </summary>
@@ -149,7 +148,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 境目 jointIndex の、今のつながっている面積 ÷ 元の面積。元の面積が 0 なら 0。
+        /// 境目 jointIndex の、今のつながっている面積 ÷ 元の面積。元の面積が0なら0。
         /// </summary>
         public float GetConnectionRatio(int jointIndex)
         {
@@ -165,7 +164,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// floorIndex 階のモデル。1 階・中間階・屋上の順に決まる。
+        /// floorIndex 階のモデル。1階・中間階・屋上の順に決まる。
         /// </summary>
         private VoxelModelAsset GetFloorModel(int floorIndex)
         {
@@ -231,8 +230,8 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// メッシュのままの階のうち、プレイヤーから差し替える距離の中にかかる階と、傷の記録があり傷を残す範囲にかかる階を、
-        /// 近い順に 1 フレーム 1 階ずつボクセルにする。
-        /// 1 階の差し替えに数 ms かかる為、近づいて何階も範囲に入っても 1 フレームに集めない。
+        /// 近い順に1フレーム1階ずつボクセルにする。
+        /// 1階の差し替えに数 ms かかる為、近づいて何階も範囲に入っても1フレームに集めない。
         /// </summary>
         private void SwapNearFloors(Vector3 position)
         {
@@ -255,7 +254,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// ボクセルにした倒れていない階のうち、傷を残す範囲の外にあり、プレイヤーから差し替える距離より遠い階を、1 フレーム 1 階ずつメッシュに戻す。
+        /// ボクセルにした倒れていない階のうち、傷を残す範囲の外にあり、プレイヤーから差し替える距離より遠い階を、1フレーム1階ずつメッシュに戻す。
         /// 記録が上限を超えた階は、当て直せないので戻さない。範囲を渡されていなければ戻さない。
         /// </summary>
         private void RestoreFarFloors(Vector3 position)
@@ -367,7 +366,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// firstFloor 階から上の立っている階を、1 つの Rigidbody の子にまとめて落とす。
+        /// firstFloor 階から上の立っている階を、1つの Rigidbody の子にまとめて落とす。
         /// </summary>
         private void Collapse(int firstFloor)
         {
@@ -488,7 +487,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// floorIndex 階から切り離された塊のうち、上下の階と境目の面で中身の点を共有する塊を、その階の子にして一緒に動かす。
-        /// 1 階の塊は、下の面に中身の点があれば地面にくっついているとみなし、建物の子にしてその場に残す。
+        /// 1階の塊は、下の面に中身の点があれば地面にくっついているとみなし、建物の子にしてその場に残す。
         /// 共有する点が多い方につける。くっつけた塊は飾りとして動くだけで、つながりの判定には数えない。
         /// 当たり判定は切り離したときの凸包のまま使う。同じ剛体の子どうしは当たらない為。
         /// </summary>
@@ -528,7 +527,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// ピースの floorLocalY の段と、otherFloor 階の otherLocalY の段の両方が中身の点を、重みの大きい方で数える。
-        /// 2 つの階が積んだときの位置と向きのままそろっていないときは 0。
+        /// 2つの階が積んだときの位置と向きのままそろっていないときは0。
         /// 切り離しは形の変化の通知より後に届く為、境目が切れて倒れ始めたばかりの階とも比べられるよう、親ではなく位置で判定する。
         /// </summary>
         private float CountSharedFace(VoxelPiece piece, int floorIndex, int otherFloor, float floorLocalY, float otherLocalY)
@@ -576,7 +575,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 境目 jointIndex で、上の階の下の面と下の階の上の面の両方が中身の点を、重みの大きい方で数える。境目 0 では地面側を常に中身とみなす。
+        /// 境目 jointIndex で、上の階の下の面と下の階の上の面の両方が中身の点を、重みの大きい方で数える。境目0では地面側を常に中身とみなす。
         /// </summary>
         private float MeasureJointArea(int jointIndex)
         {
@@ -659,7 +658,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// _layerBuffer に読んだ 1 段分の重みを、面の配列へ重みの大きい方で重ねる。
+        /// _layerBuffer に読んだ1段分の重みを、面の配列へ重みの大きい方で重ねる。
         /// </summary>
         private void AddLayer(Transform partTransform, VoxelGridLayout layout, int sampleY, Transform frame, byte[] face)
         {
@@ -731,7 +730,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// モデルの素材のマテリアルを複製し、模様を階の高さだけずらす。同じマテリアルは階の中で 1 つの複製を使い回す。
+        /// モデルの素材のマテリアルを複製し、模様を階の高さだけずらす。同じマテリアルは階の中で1つの複製を使い回す。
         /// </summary>
         private VoxelMaterialEntry[] CreateFloorMaterials(VoxelModelAsset model, int floorIndex)
         {

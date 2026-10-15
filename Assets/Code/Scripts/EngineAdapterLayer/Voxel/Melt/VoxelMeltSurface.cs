@@ -19,7 +19,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelMeltSurface : IDisposable
     {
-        /// <summary> 液面チャンク 1 つの、各軸のセル数 </summary>
+        /// <summary> 液面チャンク1つの、各軸のセル数 </summary>
         public const int CHUNK_CELLS = 16;
 
         /// <summary>
@@ -301,7 +301,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 1 チャンク分の距離場とメッシュ化の出力先。
+        /// 1チャンク分の距離場とメッシュ化の出力先。
         /// </summary>
         private readonly struct ChunkBuffers : IDisposable
         {
@@ -310,7 +310,7 @@ namespace Kizami.EngineAdapter.Voxel
             public readonly NativeList<float3> Normals;
             public readonly NativeList<int> Indices;
 
-            /// <summary> SurfaceNetsJob の素材ごとのインデックスの数の出力先。液面は素材が 1 つ </summary>
+            /// <summary> SurfaceNetsJob の素材ごとのインデックスの数の出力先。液面は素材が1つ </summary>
             public readonly NativeArray<int> SubMeshIndexCounts;
 
             public ChunkBuffers(int sampleTotal)
@@ -333,7 +333,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 1 つの液面チャンクのメッシュ。
+        /// 1つの液面チャンクのメッシュ。
         /// </summary>
         private sealed class SurfaceChunk
         {

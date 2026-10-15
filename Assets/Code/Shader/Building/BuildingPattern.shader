@@ -3,10 +3,10 @@ Shader "Kizami/BuildingPattern"
     // 大きな建物の階を、テクスチャと UV を使わずにオブジェクト空間の座標から塗るシェーダー。
     // メッシュのままの階とボクセルの階で同じ模様になり、落ちる建物でも模様が表面を滑らない。
     // ボクセルの格子はオブジェクト空間の原点にそろうので、ブロックの寸法をボクセルの大きさの約数にし、削れて浮き出た段差と描いた目地の位置を合わせる。
-    // 建物全体を 1 つの続いた模様にする為、階ごとに _PatternOffset の Y へ「階の番号 × 階の高さ」を書く。
-    // _JointWidth が 0 の素材は、ブロックを描かずにノイズの色むらだけで塗る。
-    // ボクセルの角ばった描き方（SurfaceNetsJob の UseBlockShape）のメッシュでは、頂点の位置は角ばった位置、UV1 の xyz は滑らかな位置までの差、w は頂点の丸み（0〜1）で、丸みで 2 つの位置を混ぜる。
-    // 丸みが 0 の所は、画面上の位置の変化から求めた面の向きで陰影を付け、角をくっきりさせる。UV1 を持たないメッシュは丸み 0 として描く。
+    // 建物全体を1つの続いた模様にする為、階ごとに _PatternOffset の Y へ「階の番号 × 階の高さ」を書く。
+    // _JointWidth が0の素材は、ノイズの色むらだけで塗る。
+    // ボクセルの角ばった描き方（SurfaceNetsJob の UseBlockShape）のメッシュでは、頂点の位置は角ばった位置、UV1 の xyz は滑らかな位置までの差、w は頂点の丸み（0〜1）で、丸みで2つの位置を混ぜる。
+    // 丸みが0の所は、画面上の位置の変化から求めた面の向きで陰影を付け、角をくっきりさせる。UV1 を持たないメッシュは丸み0として描く。
     Properties
     {
         [MainColor] _BaseColor("Block Color", Color) = (0.72, 0.42, 0.32, 1)
@@ -86,7 +86,7 @@ Shader "Kizami/BuildingPattern"
                 return frac(p.x * p.y * p.z * (p.x + p.y + p.z));
             }
 
-            // 格子点の乱数を三重線形補間した 0〜1 の値ノイズ
+            // 格子点の乱数を三重線形補間した0〜1の値ノイズ
             float ValueNoise(float3 p)
             {
                 float3 i = floor(p);
@@ -150,7 +150,7 @@ Shader "Kizami/BuildingPattern"
                 half3 blockColor = _BaseColor.rgb * (1.0 + variation);
                 half3 albedo = lerp(_JointColor.rgb, blockColor, block);
 
-                // 1 ピクセルにブロックが収まらない遠さでは、ちらつかないよう目地とブロックの平均の色へ寄せる
+                // 1ピクセルにブロックが収まらない遠さでは、ちらつかないよう目地とブロックの平均の色へ寄せる
                 half jointRatio = 1.0 - (1.0 - 2.0 * jointHalf.x) * (1.0 - 2.0 * jointHalf.y);
                 half3 average = lerp(_BaseColor.rgb, _JointColor.rgb, jointRatio);
                 half fade = saturate((max(pixel.x, pixel.y) - 0.15) / 0.35);
@@ -194,7 +194,7 @@ Shader "Kizami/BuildingPattern"
             float4 ShadowVert(Attributes input) : SV_POSITION
             {
                 float3 positionWS = TransformObjectToWorld(BlockPosition(input.positionOS.xyz, input.smoothOffset));
-                // 頂点の法線は滑らかな形のもので、角ばった所では面と向きが合わない。法線の向きにずらすと角の頂点がばらばらに動いて自分に影を落とす為、丸みの無い所ではずらさない
+                // 頂点の法線は滑らかな形のもので、角ばった所では面と向きが合わない。法線の向きにずらすと角の頂点がばらばらに動いて自分に影を落とす為、丸みのある所だけずらす
                 float normalBlend = smoothstep(0.0, BLOCK_NORMAL_BLEND_THRESHOLD, BlockRoundness(input.smoothOffset));
                 float3 normalWS = TransformObjectToWorldNormal(input.normalOS) * normalBlend;
             #if _CASTING_PUNCTUAL_LIGHT_SHADOW

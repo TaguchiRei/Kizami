@@ -6,7 +6,7 @@ namespace Kizami.Application
 {
     /// <summary>
     /// チャージ量を管理するユースケース。
-    /// 吸収したかけらの数と、崩落で倒した敵の数に、それぞれ 1 つあたりのチャージ量を掛けて加え、スキルの発動で消費する。
+    /// 吸収したかけらの数と、崩落で倒した敵の数に、それぞれ1つあたりのチャージ量を掛けて加え、スキルの発動で消費する。
     /// </summary>
     public sealed class ChargeService
     {
@@ -15,7 +15,7 @@ namespace Kizami.Application
         private readonly int _chargePerCollapsedEnemy;
 
         /// <param name="blackBoard">ChargeState の登録先</param>
-        /// <param name="parameters">チャージ量の上限と、かけら 1 個・崩落で倒した敵 1 体あたりのチャージ量の取得元</param>
+        /// <param name="parameters">チャージ量の上限と、かけら1個・崩落で倒した敵1体あたりのチャージ量の取得元</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public ChargeService(IBlackBoard blackBoard, PlayerParameterData parameters, int sceneId)
         {

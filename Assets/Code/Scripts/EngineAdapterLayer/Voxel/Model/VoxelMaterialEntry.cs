@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// ボクセルの素材 1 つ。点ごとの素材の番号は、モデルの素材の一覧でのこの要素の番号を指す。
+    /// ボクセルの素材1つ。点ごとの素材の番号は、モデルの素材の一覧でのこの要素の番号を指す。
     /// </summary>
     [Serializable]
     public struct VoxelMaterialEntry

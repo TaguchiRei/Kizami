@@ -17,15 +17,14 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 敵の状態（EnemyAgent）の配列と体のプールを持ち、ステージシーンの EnemySpawnSystem の設定に従って敵を出す Adapter。インゲームのシーンへ置く。
-    /// 開始時にスポーン位置（EnemySpawnPoint）ごとに編成の 1 グループを出す。敵の状態の数は有効なスポーン位置の編成の人数の合計、グループの数は有効なスポーン位置の数（グループの番号はスポーン位置の番号）で、出ている敵は敵の種類ごとの EnemyCrowdRenderer でまとめて描画する。
+    /// 開始時にスポーン位置（EnemySpawnPoint）ごとに編成の1グループを出す。敵の状態の数は有効なスポーン位置の編成の人数の合計、グループの数は有効なスポーン位置の数（グループの番号はスポーン位置の番号）で、出ている敵は敵の種類ごとの EnemyCrowdRenderer でまとめて描画する。
     /// 経路の格子は初期化のときに EnemySpawnSystem の範囲で作り、ステージのボクセルのモデルの形が変わったら、その範囲を調べ直す。
     /// 距離マップは、プレイヤーの近く（追跡範囲。区画の大きさは EnemySpawnSystem の設定）だけを、プレイヤーのいるノードか追跡範囲が変わるか、格子を調べ直すたびに計算し直す。
     /// 追跡範囲の中でプレイヤーへたどり着けない状態が続いた敵は、カメラに映っていなければ自分のグループの持ち場へ戻す。
     /// 足場ごと一定の高さ以上落ちた敵と、ボクセルから切り離されて落ちてくる塊に潰された敵は、崩落で倒す。体を貸していれば返し、かけらは出さない。
     /// 毎フレーム、前のフレームのグループごとの結果を EnemySquadObservationState に書き、部隊の命令を決める関数を呼んで、EnemySquadCommandState の状態と持ち場をグループに写す。
     /// そのあと EnemyGroupJob でグループのアンカーを、EnemyMoveJob で敵を隊列の位置へ動かす。
-    /// 切断できる体（EnemyBody）の貸し借りと近接切断の結果の受け渡しは敵の種類ごとの EnemyBodyLender が、体から外れた切っていない部位の見た目用の物は EnemyDebrisSpawner が行う。
-    /// アタッカーの弾は同じ GameObject の EnemyShooter が、ディフェンダーのバリアは EnemyBarriers が扱う。
+    /// 体の貸し借り（EnemyBodyLender）、見た目用の物（EnemyDebrisSpawner）、弾（EnemyShooter）、バリア（EnemyBarriers）は、それぞれの担当に任せる。
     /// 敵の状態、体、見た目用の物は初期化のときに作り、実行中は作らない。敵の状態に空きがなければ出さない。
     /// </summary>
     /// <remarks>
@@ -39,7 +38,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 戻れない敵がカメラに映っているかを調べる箱の、体の根からの中心の高さ（m） </summary>
         private const float VISIBILITY_HEIGHT = 2f;
 
-        /// <summary> 戻れない敵がカメラに映っているかを調べる箱の一辺（m）。体の前後の長さ（約 10.5m）を囲む </summary>
+        /// <summary> 戻れない敵がカメラに映っているかを調べる箱の一辺（m）。体の前後の長さ（約10.5m）を囲む </summary>
         private const float VISIBILITY_SIZE = 11f;
 
         /// <summary> 生成する位置が立てる所に来るまで、選び直す回数の上限 </summary>
@@ -60,7 +59,7 @@ namespace Kizami.EngineAdapter
 
         private readonly List<EnemySpawnPoint> _spawnPoints = new();
 
-        /// <summary> 初期化のときに有効で、編成を持つスポーン位置。1 つにつき 1 グループを出す。位置の区画は互いに重ならない </summary>
+        /// <summary> 初期化のときに有効で、編成を持つスポーン位置。1つにつき1グループを出す。位置の区画は互いに重ならない </summary>
         private readonly List<EnemySpawnPoint> _activeSpawnPoints = new();
 
         /// <summary> カメラの視錐台の面。戻れない敵がカメラに映っているかを調べる作業用の配列 </summary>
@@ -468,7 +467,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 使われているグループを、待機・追跡・帰還の状態ごとに数える。初期化の前は 0。
+        /// 使われているグループを、待機・追跡・帰還の状態ごとに数える。初期化の前は0。
         /// </summary>
         public void CountGroupStates(out int waiting, out int tracking, out int returning)
         {
@@ -621,7 +620,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 種類ごとの体の設定を、EnemyKind の値を番号にした体のプレハブの配列にまとめる。
-        /// 空の設定、プレハブのない設定、同じ種類の設定が 2 件以上あるとき、設定が 1 件もないときは、すべてエラーログに出して false を返す。
+        /// 空の設定、プレハブのない設定、同じ種類の設定が2件以上あるとき、設定が1件もないときは、すべてエラーログに出して false を返す。
         /// </summary>
         private bool TryCollectBodyPrefabs()
         {
@@ -653,7 +652,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 種類ごとの体の貸し借りの値を合計する。初期化の前は 0。
+        /// 種類ごとの体の貸し借りの値を合計する。初期化の前は0。
         /// </summary>
         private int SumOverLenders(Func<EnemyBodyLender, int> select)
         {
@@ -669,7 +668,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 置き場の位置を求め、部隊の命令を決めてグループに写し、グループを更新してから、敵を動かす。動かしたあと、グループを 1 つ整える（穴詰め・並べ替え）。
+        /// 置き場の位置を求め、部隊の命令を決めてグループに写し、グループを更新してから、敵を動かす。動かしたあと、グループを1つ整える（穴詰め・並べ替え）。
         /// </summary>
         private void MoveAgents()
         {
@@ -792,7 +791,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// グループ g に、スポーン位置の編成のうち欠けた種類を、編成の順にスポーン位置の半径の中へ出して隊列に入れる。動けなくなったメンバーは欠けた数に入れない。
-        /// 入れたあとすぐにグループを整えて、動けないメンバーを隊列の後ろへ回し、バリアに当たった数を 0 に戻す。
+        /// 入れたあとすぐにグループを整えて、動けないメンバーを隊列の後ろへ回し、バリアに当たった数を0に戻す。
         /// </summary>
         private void Refill(int g)
         {
@@ -903,7 +902,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 有効なスポーン位置ごとに、同じ番号のグループで編成の 1 グループを出す。
+        /// 有効なスポーン位置ごとに、同じ番号のグループで編成の1グループを出す。
         /// </summary>
         private void SpawnSquads()
         {
@@ -981,7 +980,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 有効なスポーン位置を集め、出す敵の数（編成の人数の合計）を返す。
-        /// 1 つの区画に置けるスポーン位置は 1 つで、位置の区画にすでに有効なスポーン位置があれば、Hierarchy で後ろのものは出さない。
+        /// 1つの区画に置けるスポーン位置は1つで、位置の区画にすでに有効なスポーン位置があれば、Hierarchy で後ろのものは出さない。
         /// 編成のないスポーン位置、編成に体の設定のない種類があるスポーン位置、区画の番号が位置と食い違うスポーン位置、区画が重なったスポーン位置は、名前つきで警告する。
         /// </summary>
         private int CollectSpawnPoints()

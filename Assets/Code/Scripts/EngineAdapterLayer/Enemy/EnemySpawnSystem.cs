@@ -12,7 +12,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 区画の色分けの面の不透明度 </summary>
         private const float SECTION_FILL_ALPHA = 0.15f;
 
-        /// <summary> 区画の色。隣どうしが同じ色にならないよう、番号の x と z の偶奇で 4 色から選ぶ </summary>
+        /// <summary> 区画の色。隣どうしが同じ色にならないよう、番号の x と z の偶奇で4色から選ぶ </summary>
         private static readonly Color[] _sectionColors =
         {
             new(0.95f, 0.55f, 0.2f),

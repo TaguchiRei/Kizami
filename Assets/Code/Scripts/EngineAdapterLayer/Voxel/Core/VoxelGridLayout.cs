@@ -4,8 +4,8 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// SDF 格子の寸法・位置・チャンク分割。
-    /// 格子点（サンプル）は各軸 CellCount + 1 個並び、サンプル s のローカル座標は Origin + s * VoxelSize。
-    /// セル c はサンプル c と c + 1 に挟まれた立方体。
+    /// 格子点（サンプル）は各軸 CellCount + 1個並び、サンプル s のローカル座標は Origin + s * VoxelSize。
+    /// セル c はサンプル c と c + 1に挟まれた立方体。
     /// チャンクはセルを各軸 ChunkSize 個ずつ区切ったもので、メッシュとコライダーの生成単位。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
@@ -13,7 +13,7 @@ namespace Kizami.EngineAdapter.Voxel
     {
         /// <summary>
         /// チャンクのメッシュ生成が読むサンプル範囲の、チャンクのセル範囲 [min, max) からのはみ出し量。
-        /// SurfaceNetsJob はサンプル [min - 2, max + 2) を読む（隣接セルの頂点に 1、中心差分の法線に 1）。
+        /// SurfaceNetsJob はサンプル [min - 2, max + 2) を読む（隣接セルの頂点に1、中心差分の法線に1）。
         /// SurfaceNetsJob の読み取り範囲を変えたらこの値も合わせること。ずれると、編集後に再メッシュ化されず継ぎ目が開くチャンクが出る。
         /// </summary>
         public const int MESHING_READ_MARGIN = 2;
@@ -42,7 +42,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 境界ボックスを覆う格子を作る。境界の外側に 1 ボクセルの余白を付ける。
+        /// 境界ボックスを覆う格子を作る。境界の外側に1ボクセルの余白を付ける。
         /// サンプルは、ローカル空間でボクセルの大きさの倍数に半ボクセルを足した位置に置く。
         /// ボクセルの大きさの倍数で作った面がサンプルとサンプルのちょうど中間に来て、内外が決まり、削れた段差も倍数の位置に出る。
         /// </summary>
@@ -76,7 +76,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// ローカル座標を格子座標（サンプル間隔を 1 とした連続値）に変換する。
+        /// ローカル座標を格子座標（サンプル間隔を1とした連続値）に変換する。
         /// </summary>
         public float3 ToGridPosition(float3 localPosition)
         {
@@ -141,7 +141,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// チャンクが頂点を生成するセル範囲 [cellMin, cellMax) を返す。
-        /// 面は隣接する 4 セルの頂点を結ぶ為、面を生成するセル範囲より最小側へ 1 セル広い。
+        /// 面は隣接する4セルの頂点を結ぶ為、面を生成するセル範囲より最小側へ1セル広い。
         /// </summary>
         public void GetChunkVertexCellRange(int3 chunk, out int3 cellMin, out int3 cellMax)
         {

@@ -15,8 +15,8 @@ namespace Kizami.EngineAdapter
     /// </summary>
     /// <remarks>
     /// 頭上の判定をレイでなく箱の重なりで行うのは、レイが始まった位置のコライダーを検出せず、壁の中の地面を立てると判定してしまう為。
-    /// 計算は 2 つの配列を入れ替えて行い、Job が終わるまで前の結果を読めるようにする。Job は複数のフレームにまたがってよい。
-    /// 追跡範囲は、格子を区画に分けたうちの、プレイヤーのいる区画とその周りの 3×3。範囲の外のノードは距離を持たない（正の無限大）。
+    /// 計算は2つの配列を入れ替えて行い、Job が終わるまで前の結果を読めるようにする。Job は複数のフレームにまたがってよい。
+    /// 追跡範囲は、格子を区画に分けたうちの、プレイヤーのいる区画とその周りの3×3。範囲の外のノードは距離を持たない（正の無限大）。
     /// 区画は、格子の範囲の中心が区画の中心に来るように並べる。プレイヤーが区画の境目を SECTION_SWITCH_MARGIN 越えてから範囲を変え、境目を行き来するたびに範囲が切り替わらないようにする。
     /// プレイヤーの足元から敵がたどり着けないとき（敵が上れない台地や箱の上、屋上）は、周りの立てる層から数え直し、敵がプレイヤーの下に集まるようにする。
     /// </remarks>
@@ -56,13 +56,13 @@ namespace Kizami.EngineAdapter
         private const int DIAGONAL_COST = 14;
         private const int BUCKET_COUNT = DIAGONAL_COST + 1;
 
-        /// <summary> 下向きのレイ 1 本で集める床の数。重なった床と、その下の地面を拾えるよう、層の数より多くする </summary>
+        /// <summary> 下向きのレイ1本で集める床の数。重なった床と、その下の地面を拾えるよう、層の数より多くする </summary>
         private const int MAX_RAY_HITS = 8;
 
-        /// <summary> 頭上の判定の箱 1 つで集めるコライダーの数。動いている Rigidbody のコライダーを飛ばして、その奥の物を見る為に 1 より多くする </summary>
+        /// <summary> 頭上の判定の箱1つで集めるコライダーの数。動いている Rigidbody のコライダーを飛ばして、その奥の物を見る為に1より多くする </summary>
         private const int MAX_BOX_HITS = 4;
 
-        /// <summary> 立てる床とみなす、法線の上向きの成分の下限（約 45 度） </summary>
+        /// <summary> 立てる床とみなす、法線の上向きの成分の下限（約45度） </summary>
         private const float MIN_FLOOR_NORMAL_Y = 0.7f;
 
         /// <summary> 頭上の判定の箱を、床の上面から浮かせる高さ（m）。床そのものとの重なりを避ける </summary>
@@ -119,7 +119,7 @@ namespace Kizami.EngineAdapter
         /// <summary> Job が書き込む側の距離の配列 </summary>
         private NativeArray<float> _workingDistances;
 
-        /// <summary> ノードごとの、そこへ進めるノード。ビット（向きの番号 × MAX_LAYERS ＋ 隣の列の層の番号）で表し、8 向き × 4 層が uint に収まる </summary>
+        /// <summary> ノードごとの、そこへ進めるノード。ビット（向きの番号 × MAX_LAYERS ＋ 隣の列の層の番号）で表し、8向き × 4層が uint に収まる </summary>
         private NativeArray<uint> _incomingEdges;
 
         /// <summary> 距離の Job の作業用の、ノードごとの整数のコスト </summary>
@@ -177,7 +177,7 @@ namespace Kizami.EngineAdapter
         /// <summary> Distances を計算した追跡範囲の、最大の列 (x, z)。この列も含む。まだ計算していなければ TrackingMin より小さい </summary>
         public int2 TrackingMax => _distancesMax;
 
-        /// <summary> Distances を計算した追跡範囲（ワールド座標の x・z、m）。まだ計算していなければ大きさ 0 </summary>
+        /// <summary> Distances を計算した追跡範囲（ワールド座標の x・z、m）。まだ計算していなければ大きさ0 </summary>
         public Rect TrackingArea
         {
             get
@@ -199,13 +199,13 @@ namespace Kizami.EngineAdapter
         /// <summary> 立てる層の総数 </summary>
         public int NodeCount { get; private set; }
 
-        /// <summary> 1 つの列に MAX_LAYERS を超える立てる層があり、上の層を捨てた列の数 </summary>
+        /// <summary> 1つの列に MAX_LAYERS を超える立てる層があり、上の層を捨てた列の数 </summary>
         public int OverflowColumnCount { get; private set; }
 
         /// <summary> 格子を作るのにかかった時間（ms） </summary>
         public double BakeMilliseconds { get; private set; }
 
-        /// <summary> 最後に行った距離の計算 1 回にかかった時間（ms）。計算はプレイヤーのいるノードか追跡範囲が変わったときだけ行うので、最後の値を残す </summary>
+        /// <summary> 最後に行った距離の計算1回にかかった時間（ms）。計算はプレイヤーのいるノードか追跡範囲が変わったときだけ行うので、最後の値を残す </summary>
         public double ComputeMilliseconds { get; private set; }
 
         /// <summary> 最後に形が変わった範囲の列を調べ直したフレームで、調べ直しにかかった時間（ms） </summary>
@@ -275,7 +275,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// ローカル空間の範囲を Transform でワールド空間へ移し、8 つの角を囲む範囲を返す。
+        /// ローカル空間の範囲を Transform でワールド空間へ移し、8つの角を囲む範囲を返す。
         /// </summary>
         private static Bounds TransformBounds(Transform transform, Bounds localBounds)
         {
@@ -465,7 +465,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 範囲の列を調べ直す。列ごとに下向きのレイで床の上面を集め、頭上が空いているものを、下から順に立てる層として残す。
         /// 動いている Rigidbody に付いたコライダー（落ちているボクセルの塊など）は、床にも障害物にも数えない。
-        /// 調べ直した列と、その周りの 1 列のノードの辺を求め直す。
+        /// 調べ直した列と、その周りの1列のノードの辺を求め直す。
         /// </summary>
         /// <param name="min">調べ直す列の範囲の、最小の (x, z)</param>
         /// <param name="max">調べ直す列の範囲の、最大の (x, z)。この列も含む</param>
@@ -577,7 +577,7 @@ namespace Kizami.EngineAdapter
             boxes.Dispose();
             boxHits.Dispose();
 
-            // 隣の列の層が変わると、その列へ進む辺も変わるので、周りの 1 列まで求め直す
+            // 隣の列の層が変わると、その列へ進む辺も変わるので、周りの1列まで求め直す
             var edgeMin = math.max(min - 1, 0);
             var edgeMax = math.min(max + 1, new int2(_grid.Width - 1, _grid.Depth - 1));
             var edgeRectWidth = edgeMax.x - edgeMin.x + 1;
@@ -628,7 +628,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 追跡範囲（中心の区画とその周りの 3×3）に中心が入る列の範囲を、格子の範囲に収めて返す。
+        /// 追跡範囲（中心の区画とその周りの3×3）に中心が入る列の範囲を、格子の範囲に収めて返す。
         /// </summary>
         /// <param name="min">最小の列 (x, z)</param>
         /// <param name="max">最大の列 (x, z)。この列も含む</param>
@@ -811,9 +811,9 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 追跡範囲の中で、始点のノードから辺を逆向きにたどり、各ノードがそこへたどり着くまでの距離を求める。範囲の外のノードはたどらない。
         /// コストは縦横 STRAIGHT_COST・斜め DIAGONAL_COST の整数にし、コストの値ごとのバケットに分けて小さい順に確定させる（Dial 法）。
-        /// 未確定のノードは、コストを BUCKET_COUNT で割った余りのバケット（双方向の連結リスト）に 1 つだけ入れ、コストが下がったら入れ替える。
+        /// 未確定のノードは、コストを BUCKET_COUNT で割った余りのバケット（双方向の連結リスト）に1つだけ入れ、コストが下がったら入れ替える。
         /// たどれた層が範囲の立てる層の IsolatedNodeRate より少なければ（始点がないときも）、プレイヤーの周りでたどれなかった最も近い層から、もう一度たどる。
-        /// 2 回目の始点は 1 つにする。バケットは今のコストから DIAGONAL_COST までしか持てず、離れたコストの始点を並べて入れられない為。
+        /// 2回目の始点は1つにする。バケットは今のコストから DIAGONAL_COST までしか持てず、離れたコストの始点を並べて入れられない為。
         /// </summary>
         [BurstCompile]
         private struct DistanceJob : IJob
@@ -821,7 +821,7 @@ namespace Kizami.EngineAdapter
             public EnemyNavigationGrid Grid;
             [ReadOnly] public NativeArray<uint> IncomingEdges;
 
-            /// <summary> 整数のコスト 1 あたりの距離（m） </summary>
+            /// <summary> 整数のコスト1あたりの距離（m） </summary>
             public float MetersPerCost;
 
             public NativeArray<float> Distances;
@@ -847,13 +847,13 @@ namespace Kizami.EngineAdapter
             /// <summary> プレイヤーのいる列 </summary>
             public int PlayerColumn;
 
-            /// <summary> 2 回目の始点にする層の高さの上限（m） </summary>
+            /// <summary> 2回目の始点にする層の高さの上限（m） </summary>
             public float MaxStartHeight;
 
-            /// <summary> 2 回目の始点を探す、プレイヤーの列の周りの列の数 </summary>
+            /// <summary> 2回目の始点を探す、プレイヤーの列の周りの列の数 </summary>
             public int NearbyRadius;
 
-            /// <summary> たどれた層がこの割合より少なければ、2 回目をたどる </summary>
+            /// <summary> たどれた層がこの割合より少なければ、2回目をたどる </summary>
             public float IsolatedNodeRate;
 
             /// <summary> 起点の種類と、追跡範囲の立てる層の数を書く </summary>
@@ -1004,7 +1004,7 @@ namespace Kizami.EngineAdapter
 
             /// <summary>
             /// 確定したノードへ進める、追跡範囲の中の隣のノードのコストを、cost ＋ 辺のコストまで下げる。
-            /// 辺のコストは 10 以上なので、確定したノードのコストが下がることはない。
+            /// 辺のコストは10以上なので、確定したノードのコストが下がることはない。
             /// </summary>
             private void Relax(ref NativeArray<int> heads, int node, int cost, ref int queuedCount)
             {

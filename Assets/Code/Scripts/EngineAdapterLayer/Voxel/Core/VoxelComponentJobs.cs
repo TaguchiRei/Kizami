@@ -6,7 +6,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// 元のボリュームのサンプル範囲を、1 つの塊だけを残して新しい格子へ写す。
+    /// 元のボリュームのサンプル範囲を、1つの塊だけを残して新しい格子へ写す。
     /// 範囲内にある別の塊の内側サンプルは、符号を反転して外側にする。
     /// </summary>
     [BurstCompile]
@@ -14,7 +14,7 @@ namespace Kizami.EngineAdapter.Voxel
     {
         public VoxelGridLayout SourceLayout;
 
-        /// <summary> 新しい格子のサンプル 0 に対応する、元の格子のサンプル </summary>
+        /// <summary> 新しい格子のサンプル0に対応する、元の格子のサンプル </summary>
         public int3 SourceSampleMin;
 
         public int Label;
@@ -46,7 +46,7 @@ namespace Kizami.EngineAdapter.Voxel
     {
         public VoxelGridLayout SourceLayout;
 
-        /// <summary> 新しい格子のサンプル 0 に対応する、元の格子のサンプル </summary>
+        /// <summary> 新しい格子のサンプル0に対応する、元の格子のサンプル </summary>
         public int3 SourceSampleMin;
 
         public VoxelGridLayout Layout;
@@ -96,7 +96,7 @@ namespace Kizami.EngineAdapter.Voxel
     {
         [ReadOnly] public NativeArray<float> Samples;
 
-        /// <summary> 数えた結果の出力先。長さ 1 </summary>
+        /// <summary> 数えた結果の出力先。長さ1 </summary>
         [WriteOnly] public NativeArray<int> Count;
 
         public void Execute()

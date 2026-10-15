@@ -11,7 +11,7 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// 滑らかなボクセル（SDF）で表した、かけら 1 つ分のコンポーネント。
+    /// 滑らかなボクセル（SDF）で表した、かけら1つ分のコンポーネント。
     /// ボリュームを保持して編集・加熱・切り分けで変わったチャンクのメッシュとコライダーを作り直し、
     /// 内側が複数の塊に分かれたら最も大きい塊を残して、他の塊を Rigidbody 付きの新しい VoxelPiece として切り離す。
     /// </summary>
@@ -101,7 +101,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 素材の番号ごとの強度 </summary>
         internal IReadOnlyList<VoxelStrength> Strengths => _strengths;
 
-        /// <summary> ボクセル 1 つの一辺の長さ（ワールド空間, m）。ボリュームが無ければ 0 </summary>
+        /// <summary> ボクセル1つの一辺の長さ（ワールド空間, m）。ボリュームが無ければ0 </summary>
         public float VoxelSize => _volume != null ? _volume.Layout.VoxelSize * transform.lossyScale.x : 0f;
 
         /// <summary> 内側（距離が負）のサンプル数 </summary>
@@ -110,7 +110,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> このピースができた時点の内側サンプル数 </summary>
         public int InitialSampleCount { get; private set; }
 
-        /// <summary> 体積（ワールド空間, m³）。内側サンプル数 × ボクセル 1 つの体積 </summary>
+        /// <summary> 体積（ワールド空間, m³）。内側サンプル数 × ボクセル1つの体積 </summary>
         public float Volume => SampleCount * VoxelCubicVolume;
 
         /// <summary> このピースができた時点の体積（ワールド空間, m³） </summary>
@@ -125,7 +125,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 分離をさかのぼった最初のピース。分離で生まれたピースでなければ自分自身 </summary>
         public VoxelPiece Root { get; private set; }
 
-        /// <summary> 何回目の分離で生まれたか。最初のピースは 0 </summary>
+        /// <summary> 何回目の分離で生まれたか。最初のピースは0 </summary>
         public int Generation { get; private set; }
 
         /// <summary> 元をたどると属する VoxelModelLoader。モデルから読み込んだものでなければ null </summary>
@@ -134,7 +134,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 元をたどると属するモデルのパーツの、VoxelModelLoader からの相対パス。モデルと無関係なら null </summary>
         public string PartPath { get; private set; }
 
-        /// <summary> 表示中の表面を囲むワールド空間の範囲。面が無ければ位置だけを持つ大きさ 0 の範囲 </summary>
+        /// <summary> 表示中の表面を囲むワールド空間の範囲。面が無ければ位置だけを持つ大きさ0の範囲 </summary>
         public Bounds WorldBounds
         {
             get
@@ -183,7 +183,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 直近の平面での切り分けにかかった時間。再メッシュ化は含まない </summary>
         public double LastSliceMilliseconds { get; private set; }
 
-        /// <summary> ボリュームの格子点の総数。ボリュームが無ければ 0 </summary>
+        /// <summary> ボリュームの格子点の総数。ボリュームが無ければ0 </summary>
         public int GridSampleTotal => _volume != null ? _volume.Layout.SampleTotal : 0;
 
         /// <summary> 表面を持つチャンクの数 </summary>
@@ -369,10 +369,10 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 強さと減衰率で削る攻撃を当てる。中心から距離 d の点に届く強さは「強さ − 減衰率 × d」で、その点の素材の融点以上なら壊れる。
-        /// 形状は、融点 0 の素材まで届く範囲（半径が 強さ ÷ 減衰率 の球やカプセル）を space で表す。
+        /// 形状は、融点0の素材まで届く範囲（半径が 強さ ÷ 減衰率 の球やカプセル）を space で表す。
         /// 素材を持たない物や、VoxelThermalSettings が無い物は、普通の強度として扱う。
         /// </summary>
-        /// <param name="reach">space で表した、融点 0 の素材まで届く範囲</param>
+        /// <param name="reach">space で表した、融点0の素材まで届く範囲</param>
         /// <param name="falloff">1m（space の長さ）あたりに減る強さ</param>
         /// <param name="space">reach と falloff を表している空間</param>
         /// <remarks>モデルに属していれば、当てた攻撃を VoxelStrikeRecord にしてモデルへ通知する。</remarks>
@@ -420,7 +420,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// ワールド空間の平面でピースを、体積を保ったまま 2 つに切り分ける。平面は無限に広いものとして扱う。
+        /// ワールド空間の平面でピースを、体積を保ったまま2つに切り分ける。平面は無限に広いものとして扱う。
         /// 平面の両側のうち内側のサンプルが多い側をこのピースに残し、もう一方の側は、つながった塊ごとに新しいピースとして切り離す。
         /// 残した側の中で塊が分かれていれば、LateUpdate の分離の判定で切り離す。
         /// 切り離した直後に両方のメッシュを作り直す。形状変化と分離の通知は、ApplyEdit と同じく LateUpdate で行う。
@@ -486,15 +486,15 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// ローカル空間で表した形状の内側を加熱する。
-        /// 温度は点ごとの素材の融点を 1 とした値で持ち、加える温度を融点で割る。融点の高い素材ほど温まりにくい。
-        /// 温度が 1 以上になった部分は固体から取り除き、同じ体積を融解した粒として VoxelMeltSystem へ渡す。
+        /// 温度は点ごとの素材の融点を1とした値で持ち、加える温度を融点で割る。融点の高い素材ほど温まりにくい。
+        /// 温度が1以上になった部分は固体から取り除き、同じ体積を融解した粒として VoxelMeltSystem へ渡す。
         /// 取り除いた時点の温度が蒸発点（融点に対する倍率）以上なら、粒にせず蒸発させる。
         /// 融解で分かれた塊は削ったときと同じく切り離し、切り離すには小さすぎる塊は粒にする。
         /// VoxelMeltSystem か、その VoxelThermalSettings が未設定なら何もしない。
         /// </summary>
         /// <param name="localShape">このピースのローカル空間で表した、加熱する範囲</param>
-        /// <param name="amount">形状の中心側で加える温度。負なら冷やす。温度は 0 未満にならない</param>
-        /// <param name="falloff">形状の境界から内側へ、加える温度を 0 から amount まで強めていく幅（ローカル空間）。0 なら内側全体に amount を加える</param>
+        /// <param name="amount">形状の中心側で加える温度。負なら冷やす。温度は0未満にならない</param>
+        /// <param name="falloff">形状の境界から内側へ、加える温度を0から amount まで強めていく幅（ローカル空間）。0なら内側全体に amount を加える</param>
         public void ApplyHeat<TShape>(in TShape localShape, float amount, float falloff)
             where TShape : struct, IVoxelShape
         {
@@ -553,7 +553,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         /// <param name="shape">space で表した、加熱する範囲</param>
         /// <param name="amount">形状の中心側で加える温度。負なら冷やす</param>
-        /// <param name="falloff">形状の境界から内側へ、加える温度を 0 から amount まで強めていく幅（space の長さ）</param>
+        /// <param name="falloff">形状の境界から内側へ、加える温度を0から amount まで強めていく幅（space の長さ）</param>
         /// <param name="space">shape と falloff を表している空間</param>
         public void ApplyHeat<TShape>(in TShape shape, float amount, float falloff, Space space)
             where TShape : struct, ITransformableVoxelShape<TShape>
@@ -568,7 +568,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 再メッシュ化を待っている全チャンクを、1 フレームあたりの上限を無視して今すぐ作り直す。
+        /// 再メッシュ化を待っている全チャンクを、1フレームあたりの上限を無視して今すぐ作り直す。
         /// </summary>
         public void FlushRemesh()
         {
@@ -599,7 +599,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// ワールド空間の位置の温度をトリリニア補間で求める。格子の外と、加熱されたことが無いピースでは 0。
+        /// ワールド空間の位置の温度をトリリニア補間で求める。格子の外と、加熱されたことが無いピースでは0。
         /// </summary>
         public float SampleTemperature(Vector3 worldPosition)
         {
@@ -607,7 +607,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 全チャンクのメッシュを 1 つにまとめて mesh へ書き込む。頂点はこのピースのローカル空間。
+        /// 全チャンクのメッシュを1つにまとめて mesh へ書き込む。頂点はこのピースのローカル空間。
         /// 反映待ちの編集があれば、先に反映する。
         /// </summary>
         /// <param name="mesh">書き込み先。中身は置き換える</param>
@@ -635,7 +635,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 削る・盛る編集や、加熱による融解で形状が変わったときに呼ぶ処理を登録する。
-        /// 編集したフレームの LateUpdate で、ApplyEdit・ApplyHeat 1 回につき 1 回呼ぶ。呼ばれた時点で体積は編集後の値になっている。
+        /// 編集したフレームの LateUpdate で、ApplyEdit・ApplyHeat 1回につき1回呼ぶ。呼ばれた時点で体積は編集後の値になっている。
         /// 分離で塊が取り除かれた変化は含まない（RegisterOnSplit で通知する）。
         /// </summary>
         /// <returns>Dispose すると登録を解除する</returns>
@@ -646,7 +646,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 削られた結果、塊が分離したとき、または Slice で切り分けたときに呼ぶ処理を登録する。
-        /// 引数の 0 番目はこのピース、1 番目以降は切り離された新しいピース。
+        /// 引数の0番目はこのピース、1番目以降は切り離された新しいピース。
         /// 呼ばれた時点で、新しいピースのメッシュとコライダーはできている。
         /// </summary>
         /// <returns>Dispose すると登録を解除する</returns>
@@ -778,7 +778,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// 内側のサンプルを塊に分けて体積を測る。allowSplit なら、最も大きい塊以外を切り離す。
         /// 小さすぎる塊は、切り離さずに消す。前回の計測から融解していれば、消す塊は粒として VoxelMeltSystem へ渡す。
         /// </summary>
-        /// <returns>分離したピース（0 番目が自分）。新しいピースが無ければ null</returns>
+        /// <returns>分離したピース（0番目が自分）。新しいピースが無ければ null</returns>
         private VoxelPiece[] Measure(bool allowSplit)
         {
             var labels = new NativeArray<int>(_volume.Layout.SampleTotal, Allocator.TempJob,
@@ -873,8 +873,8 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary>
         /// Slice で切り離したピースを、Measure で分離したピースの一覧へ加える。破棄済みのピースは除く。
         /// </summary>
-        /// <param name="splitPieces">Measure が返した一覧（0 番目が自分）。分離が無ければ null</param>
-        /// <returns>0 番目が自分の一覧。新しいピースが無ければ null</returns>
+        /// <param name="splitPieces">Measure が返した一覧（0番目が自分）。分離が無ければ null</param>
+        /// <returns>0番目が自分の一覧。新しいピースが無ければ null</returns>
         private VoxelPiece[] MergeSlicePieces(VoxelPiece[] splitPieces)
         {
             var merged = new List<VoxelPiece> { this };
@@ -976,7 +976,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// サンプルを粒 1 個分ずつにまとめ、ワールド空間の位置・温度・体積を VoxelMeltSystem へ渡す。
+        /// サンプルを粒1個分ずつにまとめ、ワールド空間の位置・温度・体積を VoxelMeltSystem へ渡す。
         /// </summary>
         private void EmitMelted(NativeArray<int> sampleIndices)
         {
@@ -996,7 +996,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 1 つの塊の全サンプルを、融解した粒として VoxelMeltSystem へ渡す。塊はボリュームに残る。
+        /// 1つの塊の全サンプルを、融解した粒として VoxelMeltSystem へ渡す。塊はボリュームに残る。
         /// </summary>
         private void EmitComponentAsMelted(NativeArray<int> labels, in VoxelComponent component)
         {
@@ -1208,7 +1208,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 素材の番号ごとの丸みの倍率を、素材の強度から作る。素材を持たなければ普通の素材の倍率を 1 つ持つ。
+        /// 素材の番号ごとの丸みの倍率を、素材の強度から作る。素材を持たなければ普通の素材の倍率を1つ持つ。
         /// </summary>
         private NativeArray<float> CreateRoundnessScales(int materialCount)
         {
@@ -1267,7 +1267,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// 全チャンクの極点から、方向ごとに最も外側の点を選び直し、その点群の凸包をこの GameObject の MeshCollider にする。
-        /// 点が 4 つ未満なら当たり判定を無効にする。
+        /// 点が4つ未満なら当たり判定を無効にする。
         /// </summary>
         private void RebuildHullCollider()
         {
@@ -1408,7 +1408,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 1 チャンク分のメッシュ化の出力先。
+        /// 1チャンク分のメッシュ化の出力先。
         /// </summary>
         private struct MeshBuffers : IDisposable
         {
@@ -1457,7 +1457,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 1 チャンク分の GameObject・Mesh・コンポーネント。
+        /// 1チャンク分の GameObject・Mesh・コンポーネント。
         /// </summary>
         private sealed class ChunkSlot
         {

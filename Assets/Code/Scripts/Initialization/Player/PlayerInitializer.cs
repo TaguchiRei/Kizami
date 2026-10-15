@@ -34,7 +34,6 @@ namespace Kizami.Initialization
         [SerializeField] private EnemySpawnAdapter _enemySpawnAdapter;
         [SerializeField] private VoxelDestructionAdapter _voxelDestructionAdapter;
         [SerializeField] private FragmentThrowAdapter _fragmentThrowAdapter;
-        [SerializeField] private StageHudAdapter _hudAdapter;
 
         [SerializeField]
         [Tooltip("アウトゲームを通さずに始めたとき（インゲームのシーンから直接再生したときなど）に、スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
@@ -80,8 +79,7 @@ namespace Kizami.Initialization
             _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, sceneId);
-            var equippedSkills = GetEquippedSkills();
-            _skillService = new SkillService(blackBoard, equippedSkills, _chargeService, _enhanceService,
+            _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService, _enhanceService,
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
                 sceneId);
 
@@ -102,23 +100,8 @@ namespace Kizami.Initialization
             }
 
             _meleeCutPreviewAdapter.Initialize(blackBoard);
-            _hudAdapter.SetSkillIcons(GetSkillIcons(equippedSkills));
 
             base.Initialize(blackBoard);
-        }
-
-        /// <summary>
-        /// 装備枠ごとのスキルのアイコンを返す。空きの枠は null にする。
-        /// </summary>
-        private static Texture2D[] GetSkillIcons(SkillData[] equippedSkills)
-        {
-            var icons = new Texture2D[equippedSkills.Length];
-            for (var i = 0; i < icons.Length; i++)
-            {
-                icons[i] = equippedSkills[i] != null ? equippedSkills[i].Icon : null;
-            }
-
-            return icons;
         }
 
         /// <summary>
@@ -135,7 +118,6 @@ namespace Kizami.Initialization
             hasAll &= this.IsAssigned(_enemySpawnAdapter, nameof(EnemySpawnAdapter));
             hasAll &= this.IsAssigned(_voxelDestructionAdapter, nameof(VoxelDestructionAdapter));
             hasAll &= this.IsAssigned(_fragmentThrowAdapter, nameof(FragmentThrowAdapter));
-            hasAll &= this.IsAssigned(_hudAdapter, nameof(StageHudAdapter));
             return hasAll;
         }
 
@@ -168,6 +150,7 @@ namespace Kizami.Initialization
         private void OnDestroy()
         {
             _movementService.Dispose();
+            _healthService.Dispose();
             _lookService?.Dispose();
             _meleeCutService?.Dispose();
             _skillService?.Dispose();

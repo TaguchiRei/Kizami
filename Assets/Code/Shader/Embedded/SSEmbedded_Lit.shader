@@ -1,6 +1,6 @@
 Shader "ScreenSpaceEmbedded/Lit"
 {
-    // Subtractee / Subtractor 本体の"見た目"を描くシェーダー。
+    // Subtractee / Subtractor 本体の見た目を描くシェーダー。
     // Renderer Feature が確定させたデプスに対して ZTest Equal で色だけを乗せる。
     //
     // Subtractee用マテリアル : Cull = Back（通常通り）

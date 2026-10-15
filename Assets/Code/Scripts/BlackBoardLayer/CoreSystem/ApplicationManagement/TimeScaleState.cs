@@ -50,7 +50,7 @@ namespace Kizami.BlackBoard
     /// </summary>
     public interface ITimeScaleState : IStateGetter
     {
-        /// <summary> 時間の倍率。1 が等速、0 が停止 </summary>
+        /// <summary> 時間の倍率。1が等速、0が停止 </summary>
         float Scale { get; }
 
         /// <summary>

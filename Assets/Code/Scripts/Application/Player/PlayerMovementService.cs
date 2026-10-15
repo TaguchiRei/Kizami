@@ -24,7 +24,7 @@ namespace Kizami.Application
         private IDisposable _contactStateWaiter;
         private IPlayerContactState _contactState;
 
-        /// <summary> 移動入力。x が右、y が前を正とし、長さは 1 以下 </summary>
+        /// <summary> 移動入力。x が右、y が前を正とし、長さは1以下 </summary>
         private Vector2 _moveInput;
 
         private bool _isSprintHeld;
@@ -45,7 +45,7 @@ namespace Kizami.Application
         /// <summary> 壁ジャンプ後、壁との接触が一度切れるまで true になり、その間は壁走りへの再突入を止める </summary>
         private bool _isWaitingWallRelease;
 
-        /// <summary> 次の Step で処理する打ち上げの上向きの打ち出し速度（m/s）。要求がなければ 0 </summary>
+        /// <summary> 次の Step で処理する打ち上げの上向きの打ち出し速度（m/s）。要求がなければ0 </summary>
         private float _launchSpeed;
 
         /// <summary> 次の Step で処理するワープ入力があるか </summary>
@@ -116,7 +116,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// EngineAdapterLayer の FixedUpdate から物理の 1 ステップごとに呼ばれ、記録済みの入力と視線の向き、
+        /// EngineAdapterLayer の FixedUpdate から物理の1ステップごとに呼ばれ、記録済みの入力と視線の向き、
         /// 触れている物から移動モードと目標速度を決めて State に書き込む。
         /// ジャンプ入力・ワープ入力・打ち上げの要求はこのステップで処理し、行えなければ捨てる。
         /// ワープ中はジャンプ入力も打ち上げも壁走りに入る判定も無視する。打ち上げは壁走りとジャンプより優先する。
@@ -227,7 +227,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 入力が壁から離れる向き（壁の法線とのなす角が WallDetachAngle 以下）かどうか。入力が 0 のときは false。
+        /// 入力が壁から離れる向き（壁の法線とのなす角が WallDetachAngle 以下）かどうか。入力が0のときは false。
         /// </summary>
         private bool IsPullingAwayFromWall(Vector3 worldInput)
         {
@@ -265,7 +265,7 @@ namespace Kizami.Application
         /// <summary>
         /// 壁ジャンプの打ち出し速度を求める。
         /// 水平方向は、入力から壁へ押し込む成分を取り除いた向きと、壁の法線とを WallJumpInputInfluence の割合で混ぜた向き。
-        /// 入力が 0 のときは法線の向き。上向きの速度はジャンプと同じ。
+        /// 入力が0のときは法線の向き。上向きの速度はジャンプと同じ。
         /// </summary>
         private Vector3 CalculateWallJumpVelocity(Vector3 worldInput)
         {
@@ -284,7 +284,7 @@ namespace Kizami.Application
         /// <summary>
         /// ワープを始める。移動モードを Warping にし、向きと速度、所要時間を決める。
         /// 向きは、視線の向き ＋ ワールド空間の入力 × WarpInputInfluence を正規化したもの。
-        /// 視線の向きがほぼ 0 のときは、水平な視線の向きを使う。
+        /// 視線の向きがほぼ0のときは、水平な視線の向きを使う。
         /// </summary>
         private void StartWarp(Vector3 viewDirection, Vector3 worldInput)
         {
@@ -301,7 +301,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// ワープを 1 ステップ分進める。目標速度にワープの速度を書き込み、残りの所要時間を減らす。
+        /// ワープを1ステップ分進める。目標速度にワープの速度を書き込み、残りの所要時間を減らす。
         /// 残りの所要時間がステップの経過時間より短いときは、進む距離が WarpDistance に揃うよう速度をその割合だけ落とす。
         /// </summary>
         private void AdvanceWarp(float deltaTime)

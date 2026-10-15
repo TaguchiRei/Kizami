@@ -10,7 +10,7 @@ namespace Kizami.EngineAdapter
     [Serializable]
     public struct EnemyFormationSettings
     {
-        /// <summary> 1 グループの人数の上限。グループのメンバーの配列は、グループごとにこの数の区画を持つ。グループの人数は編成（EnemySquadComposition）の長さで決まる </summary>
+        /// <summary> 1グループの人数の上限。グループのメンバーの配列は、グループごとにこの数の区画を持つ。グループの人数は編成（EnemySquadComposition）の長さで決まる </summary>
         public const int MAX_GROUP_SIZE = 16;
 
         [SerializeField, Min(0f)]
@@ -88,10 +88,10 @@ namespace Kizami.EngineAdapter
         /// <summary> 隊列の横の間隔（m） </summary>
         public float LateralSpacing => _lateralSpacing;
 
-        /// <summary> 1 列に並べる数の上限 </summary>
+        /// <summary> 1列に並べる数の上限 </summary>
         public int MaxColumns => _maxColumns;
 
-        /// <summary> 1 列に並べる数を変えるまでに、新しい数が続く必要がある時間（秒） </summary>
+        /// <summary> 1列に並べる数を変えるまでに、新しい数が続く必要がある時間（秒） </summary>
         public float ColumnChangeDelay => _columnChangeDelay;
 
         /// <summary> 追跡中のアンカーが距離マップを下るのをやめ、置き場へまっすぐ向かい始める、置き場のプレイヤーまでの経路の長さからの余裕（m） </summary>
@@ -100,13 +100,13 @@ namespace Kizami.EngineAdapter
         /// <summary> グループの置き場の螺旋の、内側の半径（m） </summary>
         public float EncircleInnerRadius => _encircleInnerRadius;
 
-        /// <summary> グループの置き場の螺旋の、1 周ごとに広がる半径（m） </summary>
+        /// <summary> グループの置き場の螺旋の、1周ごとに広がる半径（m） </summary>
         public float EncircleLoopSpacing => _encircleLoopSpacing;
 
         /// <summary> グループの置き場の、螺旋に沿った間隔（m） </summary>
         public float EncircleSlotSpacing => _encircleSlotSpacing;
 
-        /// <summary> 置き場に着いたグループのメンバーを並べる螺旋の、1 周ごとに広がる半径（m） </summary>
+        /// <summary> 置き場に着いたグループのメンバーを並べる螺旋の、1周ごとに広がる半径（m） </summary>
         public float MemberLoopSpacing => _memberLoopSpacing;
 
         /// <summary> 置き場に着いたグループのメンバーの、螺旋に沿った間隔（m） </summary>
@@ -139,8 +139,8 @@ namespace Kizami.EngineAdapter
         };
 
         /// <summary>
-        /// 中心から見た、アルキメデスの螺旋（半径 = 内側の半径 ＋ 1 周ごとの広がり × 角度 / 2π）の上の slot 番目の置き場の位置（水平）。
-        /// 置き場は螺旋に沿って slotSpacing ずつ並ぶ。0 番目は +Z の向きの内側の端で、番号が大きいほど外側になる。
+        /// 中心から見た、アルキメデスの螺旋（半径 = 内側の半径 ＋ 1周ごとの広がり × 角度 / 2π）の上の slot 番目の置き場の位置（水平）。
+        /// 置き場は螺旋に沿って slotSpacing ずつ並ぶ。0番目は +Z の向きの内側の端で、番号が大きいほど外側になる。
         /// </summary>
         public static float2 GetSpiralOffset(int slot, float innerRadius, float loopSpacing, float slotSpacing)
         {

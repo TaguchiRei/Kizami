@@ -33,13 +33,13 @@ flowchart TD
 
 ### 直感的なイメージ
 
-1. [表面が通過している小さな立方体（セル）の中に、点を1つずつ打つ](../../../Code/Scripts/EngineAdapterLayer/Voxel/Meshing/SurfaceNetsJob.cs)<sup>[L84](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Meshing/SurfaceNetsJob.cs#L84)</sup>
-2. [隣り合う点同士を網（ネット）のように結ぶと、それが表面になる](../../../Code/Scripts/EngineAdapterLayer/Voxel/Meshing/SurfaceNetsJob.cs)<sup>[L113](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Meshing/SurfaceNetsJob.cs#L113)</sup>
+1. [表面が通過している小さな立方体（セル）の中に、点を1つずつ打つ](../../../Code/Scripts/EngineAdapterLayer/Voxel/Meshing/SurfaceNetsJob.cs)<sup>[L109](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Meshing/SurfaceNetsJob.cs#L109)</sup>
+2. [隣り合う点同士を網（ネット）のように結ぶと、それが表面になる](../../../Code/Scripts/EngineAdapterLayer/Voxel/Meshing/SurfaceNetsJob.cs)<sup>[L149](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Meshing/SurfaceNetsJob.cs#L149)</sup>
 
 点の位置を「セルの辺と表面が交わる点の平均」にしているので、格子の段差ではなく滑らかな面になる。
 面の向き（表裏）は、内側から外側へ向かう側が表になるように揃えている。
 
-> この処理は [`SurfaceNetsJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Meshing/SurfaceNetsJob.cs)<sup>[L17](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Meshing/SurfaceNetsJob.cs#L17)</sup> で行っている。
+> この処理は [`SurfaceNetsJob`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Meshing/SurfaceNetsJob.cs)<sup>[L22](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Meshing/SurfaceNetsJob.cs#L22)</sup> で行っている。
 
 ## 3. チャンク境界の継ぎ目対策
 
@@ -47,7 +47,7 @@ flowchart TD
 そのため頂点は、面を作るセル範囲より最小側へ 1 セル広く作っている。
 
 また法線計算のため、実際にはチャンクの範囲より **2 サンプル外側** まで距離を読んでいる。
-これの裏返しとして、あるサンプルが書き換わったときは、**[その周囲 2 サンプル以内にかかる隣のチャンクも作り直す](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs)<sup>[L162](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs#L162)</sup>** 必要がある。
+これの裏返しとして、あるサンプルが書き換わったときは、**[その周囲 2 サンプル以内にかかる隣のチャンクも作り直す](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs)<sup>[L165](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs#L165)</sup>** 必要がある。
 
 ```mermaid
 flowchart LR
@@ -57,7 +57,7 @@ flowchart LR
 
 この「2」はメッシュ生成が読む範囲と対応しており、**片方だけ変えると、編集後に継ぎ目が開くチャンクが出る**。
 
-> この「2」は [`VoxelGridLayout.MESHING_READ_MARGIN`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs)<sup>[L19](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs#L19)</sup> 定数、影響チャンクの計算は [`VoxelGridLayout.GetChunksAffectedBySamples`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs)<sup>[L162](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs#L162)</sup> メソッドで行っている。
+> この「2」は [`VoxelGridLayout.MESHING_READ_MARGIN`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs)<sup>[L19](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs#L19)</sup> 定数、影響チャンクの計算は [`VoxelGridLayout.GetChunksAffectedBySamples`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs)<sup>[L165](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Core/VoxelGridLayout.cs#L165)</sup> メソッドで行っている。
 
 ## 4. 当たり判定の3つのモード
 
@@ -128,4 +128,4 @@ sequenceDiagram
 - 1フレームに作り直すチャンク数には上限がある（既定 8）。大きく削っても 1 フレームに負荷が集中せず、数フレームかけて反映される
 - すぐに全部反映したいときは上限を無視して一括で作り直すこともできる（分離直後などで使用）
 
-> この一連の処理は [`VoxelPiece`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L23](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L23)</sup> の再メッシュ化処理（[`RemeshPending`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L955](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L955)</sup> / [`FlushRemesh`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L452](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L452)</sup> メソッド）で行っている。上限は [`VoxelQualitySettings`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelQualitySettings.cs)<sup>[L10](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelQualitySettings.cs#L10)</sup> で設定する。
+> この一連の処理は [`VoxelPiece`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L23](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L23)</sup> の再メッシュ化処理（[`RemeshPending`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L1113](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L1113)</sup> / [`FlushRemesh`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs)<sup>[L573](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelPiece.cs#L573)</sup> メソッド）で行っている。上限は [`VoxelQualitySettings`](../../../Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelQualitySettings.cs)<sup>[L10](https://github.com/TaguchiRei/Kizami/blob/main/Assets/Code/Scripts/EngineAdapterLayer/Voxel/Piece/VoxelQualitySettings.cs#L10)</sup> で設定する。

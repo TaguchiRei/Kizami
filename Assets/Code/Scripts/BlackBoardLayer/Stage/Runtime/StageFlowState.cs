@@ -101,7 +101,7 @@ namespace Kizami.BlackBoard
         /// <summary> プレイ中に倒した敵の数 </summary>
         int DefeatCount { get; }
 
-        /// <summary> スコア。倒した敵 1 体につき 1 点と、クリアしたときの基礎スコアの合計 </summary>
+        /// <summary> スコア。倒した敵1体につき1点と、クリアしたときの基礎スコアの合計 </summary>
         int Score { get; }
     }
 
@@ -124,14 +124,14 @@ namespace Kizami.BlackBoard
     }
 
     /// <summary>
-    /// 失敗した理由。失敗条件の型ごとに 1 つ持つ。
+    /// 失敗した理由。失敗条件の型ごとに1つ持つ。
     /// </summary>
     public enum StageFailReason
     {
         /// <summary> 失敗していない </summary>
         None,
 
-        /// <summary> プレイヤーの HP が 0 になった </summary>
+        /// <summary> プレイヤーの HP が0になった </summary>
         PlayerDeath,
     }
 }

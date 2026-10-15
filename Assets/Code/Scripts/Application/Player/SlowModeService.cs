@@ -13,7 +13,7 @@ namespace Kizami.Application
 {
     /// <summary>
     /// スローモードの入力を受けて、チャージを消費して時間の倍率を下げ、続けている間もチャージを消費するユースケース。
-    /// 入力でもう一度切り替えるか、チャージが 0 になると終わる。
+    /// 入力でもう一度切り替えるか、チャージが0になると終わる。
     /// スローモード中に近接切断を振れる回数を数え、上限に達したらスローモードが終わるまで振らせない。
     /// </summary>
     public sealed class SlowModeService : IDisposable
@@ -51,7 +51,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 近接切断を 1 回振ってよいかを判定し、スローモード中なら残りの回数を 1 減らす。
+        /// 近接切断を1回振ってよいかを判定し、スローモード中なら残りの回数を1減らす。
         /// </summary>
         /// <returns>スローモード外か、スローモード中で残りの回数があれば true</returns>
         public bool TryUseCut()
@@ -110,9 +110,9 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 毎フレーム、実時間の経過に毎秒の消費量を掛けて溜め、1 以上溜まった分のチャージを消費する。チャージが 0 になったら終える。
+        /// 毎フレーム、実時間の経過に毎秒の消費量を掛けて溜め、1以上溜まった分のチャージを消費する。チャージが0になったら終える。
         /// 一定間隔で待つ方式だと、待ち終わるフレームの分だけ遅れが積み重なり、消費が少なくなる為、経過時間を溜める。
-        /// 時間の倍率が 0（ポーズ中）の間は溜めない。
+        /// 時間の倍率が0（ポーズ中）の間は溜めない。
         /// </summary>
         private async UniTaskVoid DrainAsync(CancellationToken cancellationToken)
         {

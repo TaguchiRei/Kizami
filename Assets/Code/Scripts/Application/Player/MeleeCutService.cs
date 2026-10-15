@@ -16,7 +16,7 @@ namespace Kizami.Application
     /// </summary>
     public sealed class MeleeCutService : IDisposable
     {
-        /// <summary> 切断面の角度の範囲（度）。180 度回すと同じ面になる </summary>
+        /// <summary> 切断面の角度の範囲（度）。180度回すと同じ面になる </summary>
         private const float ANGLE_RANGE = 180f;
 
         private readonly MeleeCutState _state = new();
@@ -34,7 +34,7 @@ namespace Kizami.Application
         /// <param name="parameters">攻撃間隔の取得元</param>
         /// <param name="enhanceService">切断にかかる強化の取得元</param>
         /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）、範囲に掛ける倍率、ダメージの種類</param>
-        /// <param name="tryUseCut">振る直前に呼び、振れる回数を 1 回使う関数。false なら振らない</param>
+        /// <param name="tryUseCut">振る直前に呼び、振れる回数を1回使う関数。false なら振らない</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public MeleeCutService(IBlackBoard blackBoard, PlayerParameterData parameters,
             PlayerEnhanceService enhanceService, Action<float, float, DamageType> onSwing, Func<bool> tryUseCut,
@@ -56,7 +56,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 回転入力の符号の向きへ、1 回分の角度だけ切断面を回す。正の入力（ホイールを上へ回す）で角度が増える。
+        /// 回転入力の符号の向きへ、1回分の角度だけ切断面を回す。正の入力（ホイールを上へ回す）で角度が増える。
         /// </summary>
         private void OnCutRotate(InputContext<float> context)
         {
@@ -68,7 +68,7 @@ namespace Kizami.Application
 
         /// <summary>
         /// 前回振ってから攻撃間隔が経っていて、振れる回数が残っていれば、今の角度で振ったときの関数を呼ぶ。それ以外の入力は捨てる。
-        /// 振るときに、回数で切れる切断の強化の残りを 1 回分使う。
+        /// 振るときに、回数で切れる切断の強化の残りを1回分使う。
         /// </summary>
         private void OnAttack(InputContext<float> context)
         {

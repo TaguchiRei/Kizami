@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// 融解した粒 1 個。
+    /// 融解した粒1個。
     /// </summary>
     public struct VoxelMeltParticle
     {
@@ -35,7 +35,7 @@ namespace Kizami.EngineAdapter.Voxel
 
     /// <summary>
     /// 粒ごとに、体積の等しい球として描く為の行列を作り、全ての粒を囲む範囲を求める。
-    /// 表示するメッシュは直径 1 の球である前提。
+    /// 表示するメッシュは直径1の球である前提。
     /// </summary>
     [BurstCompile]
     public struct VoxelMeltParticleMatrixJob : IJob
@@ -43,7 +43,7 @@ namespace Kizami.EngineAdapter.Voxel
         [ReadOnly] public NativeArray<VoxelMeltParticle> Particles;
         [WriteOnly] public NativeArray<Matrix4x4> Matrices;
 
-        /// <summary> 0 番目に範囲の最小、1 番目に最大を書く </summary>
+        /// <summary> 0番目に範囲の最小、1番目に最大を書く </summary>
         [WriteOnly] public NativeArray<float3> Bounds;
 
         public void Execute()

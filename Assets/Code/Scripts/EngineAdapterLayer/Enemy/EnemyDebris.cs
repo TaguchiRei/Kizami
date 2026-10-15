@@ -5,7 +5,7 @@ using UsefulToolkit.Utility;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 体から外れた、切っていない部位の見た目用の物 1 つ。コライダーを持たず、初速と重力で飛びながら、ディゾルブで消える。
+    /// 体から外れた、切っていない部位の見た目用の物1つ。コライダーを持たず、初速と重力で飛びながら、ディゾルブで消える。
     /// EnemySpawnAdapter が初期化のときに作り、RecycleBuffer で使い回す。
     /// マテリアルのシェーダーは、消えた割合（0〜1）を float のプロパティ _DissolveAmount で受け取る。
     /// </summary>
@@ -33,7 +33,7 @@ namespace Kizami.EngineAdapter
         /// <summary> 出ているか </summary>
         public bool IsActive => _gameObject.activeSelf;
 
-        /// <param name="parent">親。拡大率を 1 に保つこと（部位の拡大率をそのまま写す為）</param>
+        /// <param name="parent">親。拡大率を1に保つこと（部位の拡大率をそのまま写す為）</param>
         /// <param name="material">ディゾルブのマテリアル</param>
         public EnemyDebris(Transform parent, Material material)
         {

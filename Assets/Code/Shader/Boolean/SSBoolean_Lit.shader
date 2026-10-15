@@ -12,7 +12,7 @@ Shader "ScreenSpaceBoolean/Lit"
     //     書き込んでいるのもこの背面なので、ZTest Equal がそこだけ通る。
     //     （Fragでの法線は裏面基準になるので IS_FRONT_VFACE で反転している）
     //
-    // TODO: ShadowCasterは通常描画のままなので、影が「削る前の形」で落ちる
+    // TODO: 影が削る前の形で落ちる（ShadowCasterは通常描画のまま）
     Properties
     {
         _BaseMap("Base Map", 2D) = "white" {}

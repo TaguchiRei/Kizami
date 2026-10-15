@@ -5,7 +5,7 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 装甲の 1 枚のパネル。攻撃タイプと破壊タイプの攻撃が 1 回当たるごとに耐久値が 1 減り、0 になるか粉砕タイプが当たると壊れる。
+    /// 装甲の1枚のパネル。攻撃タイプと破壊タイプの攻撃が1回当たるごとに耐久値が1減り、0になるか粉砕タイプが当たると壊れる。
     /// 壊れたパネルは非アクティブにする。残りの耐久値の割合で色を変える。
     /// </summary>
     /// <remarks>
@@ -43,9 +43,9 @@ namespace Kizami.EngineAdapter
         public bool IsBroken => Durability <= 0;
 
         /// <summary>
-        /// 攻撃を 1 回当てる。粉砕タイプを含むなら耐久値によらず一撃で壊す。
-        /// 含まなければ、攻撃タイプか破壊タイプを含むときに耐久値を 1 減らし、0 になったら壊す。
-        /// 減らす量は攻撃の種類の数や大きさによらず 1 で、何度も当たる攻撃は当たった回数だけ呼ぶ。
+        /// 攻撃を1回当てる。粉砕タイプを含むなら耐久値によらず一撃で壊す。
+        /// 含まなければ、攻撃タイプか破壊タイプを含むときに耐久値を1減らし、0になったら壊す。
+        /// 減らす量は攻撃の種類の数や大きさによらず1で、何度も当たる攻撃は当たった回数だけ呼ぶ。
         /// </summary>
         /// <param name="damageType">当てた攻撃が持つダメージの種類</param>
         public void ApplyDamage(DamageType damageType)
@@ -76,7 +76,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 耐久値を設定し直して色を合わせる。プールから使い直すパネルに、持ち主の残りの耐久値を戻すときに呼ぶ。アクティブにしてから呼ぶ。
         /// </summary>
-        /// <param name="durability">残りの耐久値。1 から最大までに収める</param>
+        /// <param name="durability">残りの耐久値。1から最大までに収める</param>
         public void SetDurability(int durability)
         {
             Durability = Mathf.Clamp(durability, 1, _maxDurability);

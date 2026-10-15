@@ -23,7 +23,7 @@ namespace Kizami.EngineAdapter
         private Enum _destinationMap;
         private Enum _destinationSlot;
 
-        /// <summary> 直前のフレームでゼロ以外の値を書き込んでいたか。ゼロを 1 度だけ書き込む為に持つ </summary>
+        /// <summary> 直前のフレームでゼロ以外の値を書き込んでいたか。ゼロを1度だけ書き込む為に持つ </summary>
         private bool _isInputActive;
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// ゼロ以外の値を書き込んでいた場合に限り、ゼロを 1 度だけ書き込む。
+        /// ゼロ以外の値を書き込んでいた場合に限り、ゼロを1度だけ書き込む。
         /// </summary>
         private void ReleaseIfActive()
         {

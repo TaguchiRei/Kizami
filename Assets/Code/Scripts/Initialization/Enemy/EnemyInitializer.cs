@@ -9,7 +9,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// 部隊の意思決定（EnemySquadService）を作り、敵の生成と体のプール（EnemySpawnAdapter）を、部隊の命令を決める関数（EnemySquadService.Step）と、プレイヤーへのダメージの関数（PlayerHealthService.ApplyDamage）と打ち上げの要求の関数（PlayerMovementService.RequestLaunch）を渡して初期化し、出ている敵とグループの数、崩落で倒した敵の数、生成位置の有効・無効、敵の処理にかかった時間を画面に出す配線役。インゲームのシーンへ置く。
+    /// 部隊の意思決定（EnemySquadService）と、敵の生成と体のプール（EnemySpawnAdapter）を生成して繋ぎ、敵の数や処理時間を画面に出す配線役。インゲームのシーンへ置く。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
     public sealed class EnemyInitializer : InitializerBase, IInjectable<PlayerHealthService>,
@@ -76,7 +76,7 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 距離マップの立てる層の数と、格子を作る時間・距離の計算 1 回の時間・形が変わった範囲を調べ直す時間（ms）を並べる。
+        /// 距離マップの立てる層の数と、格子を作る時間・距離の計算1回の時間・形が変わった範囲を調べ直す時間（ms）を並べる。
         /// </summary>
         private string GetDistanceFieldText()
         {

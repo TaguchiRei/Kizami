@@ -12,7 +12,7 @@ namespace Kizami.BlackBoard
         public int Current { get; private set; }
         public int Max { get; }
 
-        /// <param name="max">チャージ量の上限。現在のチャージ量は 0 から始まる</param>
+        /// <param name="max">チャージ量の上限。現在のチャージ量は0から始まる</param>
         public ChargeState(int max)
         {
             Max = max;
@@ -24,7 +24,7 @@ namespace Kizami.BlackBoard
         }
 
         /// <summary>
-        /// 現在のチャージ量を設定する。値は 0〜上限に収める。
+        /// 現在のチャージ量を設定する。値は0〜上限に収める。
         /// </summary>
         /// <param name="current">現在のチャージ量</param>
         public void SetCurrent(int current)

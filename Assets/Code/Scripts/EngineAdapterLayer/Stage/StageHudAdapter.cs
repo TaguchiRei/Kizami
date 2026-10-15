@@ -7,10 +7,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// インゲームの HUD を出す Adapter。インゲームのシーンへ置く。
-    /// 画面の下に HP とチャージのゲージ（量が減ると両端から中央へ縮む。チャージは中央に量の数値を出す）、チャージのゲージの上にスキルの 3 枠、
-    /// 上に破壊の進み具合と倒した敵の数、右下にランチャーの装填状態、プレイを始めたときに中央へ開始の文字を出す。
-    /// スキルの枠は、アイコンの右に発動できるかを「可」「不」で出す。不のときは文字を灰色にし、その上に必要なチャージ量を出す。
+    /// インゲームの HUD（HP とチャージのゲージ、スキルの枠、破壊の進み具合と倒した敵の数、ランチャーの装填状態、開始の文字）を出す Adapter。インゲームのシーンへ置く。
     /// 画面は uGUI の Canvas を初期化のときに組み立てる。値は State から読み、ランチャーの装填状態だけは State がない為、FragmentThrowAdapter から読む。
     /// </summary>
     public sealed class StageHudAdapter : InitializableMonoBehaviour
@@ -76,12 +73,10 @@ namespace Kizami.EngineAdapter
         private ISkillSlotState _slotState;
         private IStageFlowState _flowState;
         private FragmentThrowAdapter _fragmentThrowAdapter;
-        /// <summary> 枠ごとのスキルのアイコン。アイコンがない枠と、範囲の外の枠は、四角を出す </summary>
-        private Texture2D[] _icons;
 
         private RectTransform _healthFill;
         private RectTransform _chargeFill;
-        /// <summary> 装備枠ごとの左右の線。枠の番号 × 2 ＋ 左右（0 が左） </summary>
+        /// <summary> 装備枠ごとの左右の線。枠の番号 × 2 ＋ 左右（0が左） </summary>
         private Image[] _skillLines;
         private GameObject[] _slots;
         private Text[] _slotCostTexts;
@@ -100,15 +95,6 @@ namespace Kizami.EngineAdapter
         {
             var half = Mathf.Clamp01(ratio) * 0.5f;
             UiBuilder.SetAnchors(rect, new Vector2(0.5f - half, 0f), new Vector2(0.5f + half, 1f));
-        }
-
-        /// <summary>
-        /// 枠ごとのスキルのアイコンを受け取る。Initialize より前に呼ぶ。
-        /// </summary>
-        /// <param name="icons">枠ごとのスキルのアイコン。空きの枠は null</param>
-        public void SetSkillIcons(Texture2D[] icons)
-        {
-            _icons = icons;
         }
 
         /// <summary>
@@ -253,7 +239,7 @@ namespace Kizami.EngineAdapter
             UiBuilder.SetAnchors(rootRect, anchorMin, anchorMax);
             _slots[slot] = root;
 
-            var icon = _icons != null && slot < _icons.Length ? _icons[slot] : null;
+            var icon = _slotState.GetIcon(slot);
             if (icon != null)
             {
                 var iconObject = new GameObject("Icon", typeof(RectTransform), typeof(RawImage));

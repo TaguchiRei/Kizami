@@ -13,16 +13,16 @@ namespace Kizami.Editor.Voxel
     /// </summary>
     public static class VoxelModelBaker
     {
-        /// <summary> 最大辺の解像度の上限。MeshToSDFBaker は総ボクセル数が 2^27 を超えると例外を投げる </summary>
+        /// <summary> 最大辺の解像度の上限。MeshToSDFBaker は総ボクセル数が2^27を超えると例外を投げる </summary>
         private const int MAX_RESOLUTION = 384;
 
-        /// <summary> 素材の番号を 1 バイトで持つ為の、素材の数の上限 </summary>
+        /// <summary> 素材の番号を1バイトで持つ為の、素材の数の上限 </summary>
         private const int MAX_MATERIAL_COUNT = 256;
 
         /// <summary>
         /// ベイクに渡す三角形の辺の長さの上限（ベイクのボクセル数）。
         /// MeshToSDFBaker は大きな三角形を含むと内外の判定を誤り、平たく大きい箱の中身の一部を外側にする為、これより長い辺は割る。
-        /// 細かく割りすぎると、部材どうしが接する面から外側へ筋状に内側の点が漏れる（8 では出た）。
+        /// 細かく割りすぎると、部材どうしが接する面から外側へ筋状に内側の点が漏れる（上限を8にすると漏れる）。
         /// </summary>
         private const int MAX_EDGE_VOXELS = 16;
 
@@ -111,7 +111,7 @@ namespace Kizami.Editor.Voxel
         }
 
         /// <summary>
-        /// 全メッシュをルートのローカル空間へ変換し、1 パーツとしてベイクする。
+        /// 全メッシュをルートのローカル空間へ変換し、1パーツとしてベイクする。
         /// パーツをマテリアルと強度の組ごとに分け、組ごとにも同じ箱と解像度でベイクする。
         /// 各サンプルには、距離が最も小さい組（そのサンプルを含む組、どれにも含まれなければ最も近い組）の番号を書く。
         /// MeshToSDFBaker がメッシュを結合する為、各メッシュの Read/Write が有効である必要がある。
@@ -243,7 +243,7 @@ namespace Kizami.Editor.Voxel
                 var boxSize = baker.GetActualBoxSize();
                 var voxelSize = boxSize.x / gridSize.x;
 
-                // MeshToSDFBaker の距離は、箱の最大辺の長さを 1 とした値
+                // MeshToSDFBaker の距離は、箱の最大辺の長さを1とした値
                 var distanceScale = voxelSize * Mathf.Max(gridSize.x, Mathf.Max(gridSize.y, gridSize.z));
                 var samples = ReadDistances(baker.SdfTexture, gridSize, distanceScale, settings.MaxDistance);
 

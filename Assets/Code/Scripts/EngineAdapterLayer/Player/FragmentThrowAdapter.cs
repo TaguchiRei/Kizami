@@ -10,21 +10,21 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 視線の先のかけらをつかんでカメラの前に持ち、視線の先へ投げる Adapter。
-    /// 持っているかけらはランチャーに 1 つだけ装填でき、装填したかけらは重力なしでまっすぐ撃ち出す。
+    /// 持っているかけらはランチャーに1つだけ装填でき、装填したかけらは重力なしでまっすぐ撃ち出す。
     /// 投げたかけらと撃ったかけらは、何かにぶつかるか、寿命が来るとプールへ返す。飛ばした瞬間に重なっている相手にも当たったものとする。オーブにもチャージにもならない。
     /// 装甲のパネルにぶつかったら、粉砕タイプとしてそのパネルだけを一撃で壊す。爆発させて飛ばしたかけらは、ぶつかった所で爆発する。
     /// </summary>
     /// <remarks>
     /// かけらのプールは空きがなくなると古いかけらを使い回すので、運んでいるかけらと飛んでいるかけらが回収されたら手放し、物理の設定を戻す。
-    /// 飛んでいるかけらは連続の衝突判定にする。薄い装甲のパネルを 1 ステップで越えると奥の物にも同時に触れ、奥の物への接触が先に届くとパネルを壊さずにプールへ返る為。
+    /// 飛んでいるかけらは連続の衝突判定にする。薄い装甲のパネルを1ステップで越えると奥の物にも同時に触れ、奥の物への接触が先に届くとパネルを壊さずにプールへ返る為。
     /// </remarks>
     [DefaultExecutionOrder(EXECUTION_ORDER)]
     public sealed class FragmentThrowAdapter : InitializableMonoBehaviour
     {
-        /// <summary> 実行順。CinemachineBrain（既定の 0）より後 </summary>
+        /// <summary> 実行順。CinemachineBrain（既定の0）より後 </summary>
         private const int EXECUTION_ORDER = 100;
 
-        /// <summary> つかむ範囲から一度に集めるコライダーの最大数。かけら 1 つが球のコライダーを 10 個持つので、かけら約 25 個ぶん </summary>
+        /// <summary> つかむ範囲から一度に集めるコライダーの最大数。かけら1つが球のコライダーを10個持つので、かけら約25個ぶん </summary>
         private const int MAX_HIT_COUNT = 256;
 
         private readonly RaycastHit[] _hitBuffer = new RaycastHit[MAX_HIT_COUNT];
@@ -152,7 +152,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 持っているかけらをランチャーに装填する。装填できるのは 1 つだけ。
+        /// 持っているかけらをランチャーに装填する。装填できるのは1つだけ。
         /// </summary>
         /// <returns>装填できたら true。持っていないか、既に装填しているときは false</returns>
         public bool TryLoad()

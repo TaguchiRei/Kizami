@@ -5,7 +5,7 @@ using UnityEngine.Rendering.Universal;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// フィニッシャーのビーム 1 本の見た目。ビームの円柱と、攻撃の範囲を地面に示すデカールを持つ。
+    /// フィニッシャーのビーム1本の見た目。ビームの円柱と、攻撃の範囲を地面に示すデカールを持つ。
     /// EnemyFinisherAttack が初期化のときに作って使い回す。当たりの判定は持たない。
     /// </summary>
     /// <remarks>
@@ -17,7 +17,7 @@ namespace Kizami.EngineAdapter
         private readonly Transform _cylinderTransform;
         private readonly DecalProjector _decal;
 
-        /// <param name="parent">円柱とデカールを置く親。拡大率を 1 に保つこと</param>
+        /// <param name="parent">円柱とデカールを置く親。拡大率を1に保つこと</param>
         /// <param name="beamMaterial">円柱のマテリアル</param>
         /// <param name="decalPrefab">デカールのプレハブ。投影の向きと奥行き（size の z）はプレハブのものを使い、幅だけを半径に合わせる</param>
         public EnemyBeam(Transform parent, Material beamMaterial, DecalProjector decalPrefab)
@@ -71,7 +71,7 @@ namespace Kizami.EngineAdapter
                 return;
             }
 
-            // Unity の円柱は高さ 2・半径 0.5 で、Y 軸に沿って立つ
+            // Unity の円柱は高さ2・半径0.5で、Y 軸に沿って立つ
             _cylinderTransform.SetPositionAndRotation((from + to) * 0.5f, Quaternion.FromToRotation(Vector3.up, axis));
             _cylinderTransform.localScale = new Vector3(radius * 2f, length * 0.5f, radius * 2f);
             _cylinder.SetActive(true);

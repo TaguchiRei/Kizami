@@ -10,7 +10,7 @@ namespace Kizami.EngineAdapter
     public abstract class EnemyPartRole
     {
         /// <summary>
-        /// 部位が初めて壊れたときに 1 回だけ呼ばれる。体を倒すと、同じ切断の中で残りの部位の処理は呼ばれない。
+        /// 部位が初めて壊れたときに1回だけ呼ばれる。体を倒すと、同じ切断の中で残りの部位の処理は呼ばれない。
         /// </summary>
         /// <param name="body">部位を持つ体</param>
         public abstract void OnBroken(EnemyBody body);

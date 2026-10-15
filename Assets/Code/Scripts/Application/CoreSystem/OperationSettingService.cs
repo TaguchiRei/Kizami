@@ -12,7 +12,7 @@ namespace Kizami.Application
 
         /// <param name="blackBoard">OperationSettingState の登録先</param>
         /// <param name="sprintInputMode">ダッシュ入力の受け付け方の初期値</param>
-        /// <param name="cutRotateStepAngle">切断面の回転入力 1 回あたりの回転角度（度）の初期値</param>
+        /// <param name="cutRotateStepAngle">切断面の回転入力1回あたりの回転角度（度）の初期値</param>
         public OperationSettingService(IBlackBoard blackBoard, SprintInputMode sprintInputMode,
             float cutRotateStepAngle)
         {

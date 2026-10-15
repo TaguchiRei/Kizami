@@ -11,7 +11,7 @@ namespace Kizami.Initialization
     /// <summary>
     /// (Player, Move) / (Player, Look) チャンネルへ繋ぐ入力ソースを決める配線役の基底。
     /// インゲームのシーンへ置き、操作系に合った派生を使う。
-    /// チャンネルは 3 ビルド共通で固定し、差し替えるのは入力ソースだけにする。
+    /// チャンネルは3ビルド共通で固定し、差し替えるのは入力ソースだけにする。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.Initializer)]
     public abstract class PlayerInputRouteInitializerBase : InitializerBase, IInjectable<IInputController>

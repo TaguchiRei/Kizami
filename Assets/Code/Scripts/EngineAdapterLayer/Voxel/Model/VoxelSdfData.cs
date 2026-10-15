@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// 事前ベイクした 1 パーツ分の SDF。
+    /// 事前ベイクした1パーツ分の SDF。
     /// サンプル s のローカル座標は Origin + s * VoxelSize。距離は VoxelSdfEncoding で量子化して持つ。
     /// </summary>
     [Serializable]

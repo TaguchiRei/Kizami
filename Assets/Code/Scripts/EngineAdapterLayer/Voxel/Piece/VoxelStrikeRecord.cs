@@ -3,7 +3,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
-    /// 強さと減衰率の攻撃 1 回分。ピースのローカル空間で、融点 0 の素材まで届く範囲と減衰率を持ち、同じ攻撃を当て直せる。
+    /// 強さと減衰率の攻撃1回分。ピースのローカル空間で、融点0の素材まで届く範囲と減衰率を持ち、同じ攻撃を当て直せる。
     /// 範囲はカプセルで持ち、球は両端が同じ点のカプセルにする。
     /// </summary>
     public readonly struct VoxelStrikeRecord
@@ -12,7 +12,7 @@ namespace Kizami.EngineAdapter.Voxel
         public readonly float3 PointB;
         public readonly float Radius;
 
-        /// <summary> ローカル空間の 1 あたりに減る強さ </summary>
+        /// <summary> ローカル空間の1あたりに減る強さ </summary>
         public readonly float Falloff;
 
         public CapsuleShape Reach => new(PointA, PointB, Radius);

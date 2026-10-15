@@ -6,7 +6,7 @@ using UsefulToolkit.MeshCut;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 敵の体を作る部位 1 つの設定。
+    /// 敵の体を作る部位1つの設定。
     /// </summary>
     [Serializable]
     public sealed class EnemyPart

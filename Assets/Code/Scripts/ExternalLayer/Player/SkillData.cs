@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Kizami.External
 {
     /// <summary>
-    /// チャージを消費して発動するスキル 1 つの定義。効果の種類と、消費量、削る形の大きさ、回復量、強化の続き方と倍率を持つ。
+    /// チャージを消費して発動するスキル1つの定義。効果の種類と、消費量、削る形の大きさ、回復量、強化の続き方と倍率を持つ。
     /// </summary>
     [CreateAssetMenu(fileName = "SkillData", menuName = "Kizami/Player/SkillData")]
     public sealed class SkillData : ScriptableObject

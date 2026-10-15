@@ -7,12 +7,12 @@ namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
     /// 粒の密度を読む為の、ワールド空間に揃えた疎な格子の計算。
-    /// 格子点 c の位置は (c + 0.5) × CellSize で、粒の体積を周りの 8 格子点へ距離に応じて配る（Cloud-in-Cell）。
+    /// 格子点 c の位置は (c + 0.5) × CellSize で、粒の体積を周りの8格子点へ距離に応じて配る（Cloud-in-Cell）。
     /// </summary>
     public static class VoxelParticleDensity
     {
         /// <summary>
-        /// 位置を囲む 8 格子点のうち最小側の格子点と、その格子点からの割合（0〜1）を求める。
+        /// 位置を囲む8格子点のうち最小側の格子点と、その格子点からの割合（0〜1）を求める。
         /// </summary>
         public static void GetCorner(float3 position, float cellSize, out int3 corner, out float3 fraction)
         {
@@ -44,8 +44,8 @@ namespace Kizami.EngineAdapter.Voxel
     }
 
     /// <summary>
-    /// 全ての粒の体積を、周りの 8 格子点へ距離に応じて配る。
-    /// 同じ格子点へ複数の粒が足し込む為、並列にせず 1 スレッドで実行する。
+    /// 全ての粒の体積を、周りの8格子点へ距離に応じて配る。
+    /// 同じ格子点へ複数の粒が足し込む為、並列にせず1スレッドで実行する。
     /// </summary>
     [BurstCompile]
     public struct VoxelParticleDensityJob : IJob
@@ -95,7 +95,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 押し出しを始める充填率（格子のセルの体積に対する、配られた体積の割合） </summary>
         public float RestFill;
 
-        /// <summary> 充填率が基準を 1 上回ったときに、押し出す向きへ与える速さ（m/s） </summary>
+        /// <summary> 充填率が基準を1上回ったときに、押し出す向きへ与える速さ（m/s） </summary>
         public float SpreadSpeed;
 
         /// <summary> 同じ位置に重なった粒を散らす向きを決める乱数の種 </summary>

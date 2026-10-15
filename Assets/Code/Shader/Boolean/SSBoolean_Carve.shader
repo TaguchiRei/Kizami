@@ -19,7 +19,7 @@ Shader "Hidden/ScreenSpaceBoolean/Carve"
     //     区間の外                                  → discard（無関係）
     //
     // カメラが A の内部に入った場合
-    //   A の前面は近クリップ面で切られ、_SubtractorHasFront が 0 のままになる。
+    //   A の前面は近クリップ面で切られ、_SubtractorHasFront が0のままになる。
     //   このときは「入口＝カメラ位置(nearZ)」とみなす。
     //   これにより区間が [カメラ, srBack] になり、削れた穴の中に入っても穴の内壁が可視面として残る。
     //

@@ -9,7 +9,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// ディフェンダーが張る球のバリアを扱う。EnemySpawnAdapter と同じ GameObject に置き、EnemySpawnAdapter が初期化と毎フレームの更新を呼ぶ。
-    /// グループが目的地に着いて螺旋に並び（EnemyGroup.HasArrived）、隊列の 0 番（螺旋の中心）に生きているディフェンダーがいる間、そのディフェンダーを中心にバリアを張る。
+    /// グループが目的地に着いて螺旋に並び（EnemyGroup.HasArrived）、隊列の0番（螺旋の中心）に生きているディフェンダーがいる間、そのディフェンダーを中心にバリアを張る。
     /// バリアの物（当たり判定と ArmorPanel を持つ球）は初期化のときにプールに作り、張っているグループにだけ貸すので、体を貸していない遠くのグループにも当たり判定がある。
     /// 当たった攻撃の数はグループの状態（EnemyGroup.BarrierHitCount）に持ち、物を返しても続く。壊れたバリアは張り直さない。崩落は防がない。
     /// 張っている間、体を貸しているディフェンダーは前脚の足を体の前で合わせる。
@@ -143,7 +143,7 @@ namespace Kizami.EngineAdapter
                     var panel = _barriers[barrier];
                     if (panel.IsBroken)
                     {
-                        // TODO: バリアが割れた音を鳴らす（音の基盤ができてから）。割れる演出の作り込みは区間13
+                        // TODO: バリアが割れた音を鳴らし、割れる演出を作り込む
                         group.BarrierHitCount = _maxDurability;
                     }
                     else
@@ -194,7 +194,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 空いているバリアの物をグループ g に貸し、中心に置いて残りの耐久値を戻す。空きがなければ貸さずに -1 を返す。
+        /// 空いているバリアの物をグループ g に貸し、中心に置いて残りの耐久値を戻す。空きがなければ貸さずに -1を返す。
         /// </summary>
         private int Lend(int g, Vector3 center, int hitCount)
         {
@@ -221,7 +221,7 @@ namespace Kizami.EngineAdapter
             var height = center.y + _radius + _launchMargin - (bottomSphereCenter.y - radius);
             if (height <= 0f) return;
 
-            // 高さ h まで上がる初速は v = √(2gh)。打ち上げたあとは上がるほど要る速度も同じだけ減るので、要る速度の 9 割を保つ間は要求し直さない
+            // 高さ h まで上がる初速は v = √(2gh)。打ち上げたあとは上がるほど要る速度も同じだけ減るので、要る速度の9割を保つ間は要求し直さない
             var speed = Mathf.Sqrt(2f * Mathf.Abs(Physics.gravity.y) * height);
             if (_targetBody.linearVelocity.y >= speed * 0.9f) return;
 

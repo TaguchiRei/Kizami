@@ -98,7 +98,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 切断の結果を受け取り、管理中のかけらを更新する。
         /// 元の対象を先にすべて外してから表と裏を登録する。
-        /// プールが 1 回の切断の中で一周すると、元の対象が同じ切断の別の組の表や裏として使い回される為。
+        /// プールが1回の切断の中で一周すると、元の対象が同じ切断の別の組の表や裏として使い回される為。
         /// </summary>
         /// <param name="results">MultiCutBlade.ExecuteCut の結果</param>
         public void ReceiveCutResults(MultiCutResult[] results)
@@ -118,7 +118,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 位置を指定してオーブを 1 つ出す。かけら 1 個と同じく、吸収されるとチャージが 1 増える。
+        /// 位置を指定してオーブを1つ出す。かけら1個と同じく、吸収されるとチャージが1増える。
         /// オーブが上限の数だけあるときは、その場で吸収したものとして渡す。
         /// </summary>
         public void SpawnOrb(Vector3 position)

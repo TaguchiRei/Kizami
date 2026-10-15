@@ -18,18 +18,10 @@ namespace Kizami.EngineAdapter.Voxel
         public int3 RangeMin;
         public int3 RangeMax;
 
-        /// <summary> 1 セル離れるごとに減らす丸み </summary>
+        /// <summary> 1セル離れるごとに減らす丸み </summary>
         public float Step;
 
         public NativeArray<byte> Roundness;
-
-        public void Execute()
-        {
-            for (var axis = 0; axis < 3; axis++)
-            {
-                Spread(axis);
-            }
-        }
 
         private void Spread(int axis)
         {
@@ -64,6 +56,14 @@ namespace Kizami.EngineAdapter.Voxel
             carried = math.max(Roundness[index], carried - Step);
             Roundness[index] = (byte)carried;
             return carried;
+        }
+
+        public void Execute()
+        {
+            for (var axis = 0; axis < 3; axis++)
+            {
+                Spread(axis);
+            }
         }
     }
 }

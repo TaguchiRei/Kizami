@@ -19,7 +19,7 @@ namespace Kizami.EngineAdapter
         private readonly float _upwardSpeed;
         private readonly float _angularSpeed;
 
-        /// <param name="parent">見た目用の物を置く親。拡大率を 1 に保つこと</param>
+        /// <param name="parent">見た目用の物を置く親。拡大率を1に保つこと</param>
         /// <param name="material">ディゾルブのマテリアル</param>
         /// <param name="capacity">同時に出せる見た目用の物の数</param>
         /// <param name="lifetime">出てから消え終わるまでの時間（秒）</param>

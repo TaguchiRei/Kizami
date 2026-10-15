@@ -81,7 +81,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// かけらを飛ばす。かけらの爆発の強化中なら爆発させ、飛ばせたときだけ強化を 1 回分使う。
+        /// かけらを飛ばす。かけらの爆発の強化中なら爆発させ、飛ばせたときだけ強化を1回分使う。
         /// </summary>
         private void Launch(Func<float, bool, bool> tryLaunch, float speed)
         {

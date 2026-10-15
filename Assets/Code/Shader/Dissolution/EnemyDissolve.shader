@@ -59,7 +59,7 @@ Shader "Kizami/EnemyDissolve"
                 return frac(p.x * p.y * p.z * (p.x + p.y + p.z));
             }
 
-            // 格子点の乱数を三重線形補間した 0〜1 の値ノイズ
+            // 格子点の乱数を三重線形補間した0〜1の値ノイズ
             float ValueNoise(float3 p)
             {
                 float3 i = floor(p);
@@ -87,7 +87,7 @@ Shader "Kizami/EnemyDissolve"
             {
                 float noise = ValueNoise(input.positionOS * _NoiseScale);
 
-                // _DissolveAmount が 0 のときは全面を残し、1 のときは全面を消す
+                // _DissolveAmount が0のときは全面を残し、1のときは全面を消す
                 float threshold = _DissolveAmount * (1.0 + _EdgeWidth);
                 clip(noise - threshold);
 
