@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手 |
+| 状態 | 実装済み |
 | 前提となる区間 | 11R-1（ソースコードのリファクタリング）がマージ済みであること |
 | 続く区間 | 11R-3（計画書の修正） |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -49,8 +49,39 @@
 
 ## 実装結果
 
-C-5 で書く。
+2026-10-15 に実装した。区切りごとに 1 コミットで、Shader〜Initialization はユーザー、EngineAdapter（Enemy）以降は Claude がコミットした（ユーザーの指示）。
+
+| コミット | 内容 |
+|---|---|
+| `5a314dd` | Shader |
+| `76c3712` | BlackBoard と External |
+| `d857390` | Application |
+| `b0a955e` | Initialization |
+| `5f63afc` | EngineAdapter（CoreSystem・Input・Player・Stage・UI） |
+| `8b02ff0` | EngineAdapter（Enemy） |
+| `edb80b9` | EngineAdapter（Voxel） |
+| `c46d97d` | `Assets/Docs/Voxel/` の行リンク（C-4） |
+
+- 基準に、ユーザーの指示で「コメントの中の日本語と数字の間にスペースを入れない」を足した（例：`1 つ` → `1つ`）。識別子や英語の語・演算子に続く数字（`UV1 の`、`Pass 0 と`、`d >= 1.0 は`、`× 2 ＋ 左右`）と、箇条書きの番号は対象外。スクラッチパッドのスクリプトで当て、拾えない数か所は手で直した
+- 何をどこへ繋ぐか・置くかを列挙していたクラスサマリーを縮めた：`EnemyInitializer`、`StageInitializer`、`StageHudAdapter`、`EnemySpawnAdapter`。アルゴリズムの説明が重なっていた `VoxelBuilding` のクラスサマリーも 2 行を 1 行にした
+- 経緯や計画が混ざっていたもの：`EnemyBarriers` の TODO の区間番号、`VoxelModelBaker.MAX_EDGE_VOXELS` の「8 では出た」を、今の事実に直した
+- 否定形は、`BuildingPattern.shader` の 2 か所（「ブロックを描かずに」「丸みの無い所ではずらさない」）を直した。残した否定形は、どれも禁止事項・制約（「.w で割ってはいけない」「destroyCancellationToken は渡さない」）か、仕様・設計判断の説明（「クリアタイムと被ダメージは使わない」「壊れたバリアは張り直さない」）
+- `// TODO:` は 12 件（Shader の 5 件を含む）。区間10・11 で済んだもの（`StageClearAdapter`）はすでに消えていた。`SSBoolean_Lit.shader` の TODO の「」を外して `ScreenSpaceBooleanFeature.cs` と同じ書き方にした
+- 自動生成の Compositor 3 ファイルは対象外にした
+
+完了条件の確認
+
+| 条件 | 結果 |
+|---|---|
+| 各区切りの差分がコメントだけ | 確認済み。`check_comment_only_diff.py` の出力は、すべての区切りで「差分はコメント行と空行だけ」 |
+| 装飾と複数行の変数のサマリーが 0 件（残すものは理由を書く） | 装飾 1 件は区間8R と同じ `ScreenSpaceBooleanFeature.cs` の視線のアスキー図。複数行 6 件は、区間8R の 5 件（`MAX_INSTANCES_PER_DRAW`・`MESHING_READ_MARGIN`・`TRUNCATION_VOXELS`・`PADDING_CELLS`・`VoxelHullDirections.COUNT`）と `VoxelModelBaker.MAX_EDGE_VOXELS`。後者は、割らないと中身が欠け、割りすぎると点が漏れるという両側の制約で、1 行に収まらない |
+| 残した否定形が制約か仕様の説明 | 確認済み（上記） |
+| コンパイルのエラーと警告が 0 件 | 確認済み。区切りごとに Refresh してからコンパイルし、DLL がソースより新しいことを見た。Refresh で始まったコンパイルと重なると「Compilation is already in progress」がエラー 1 件として返るので、そのときはコンパイルし直した |
+| `Assets/Docs/Voxel/` の行リンクが意図した行を指す | 確認済み。`fix_doc_line_links.py` で 55 件を付け直し、決まらなかった 1 件（`SurfaceNetsJob.GenerateQuads`、引数の折り返しが変わった）は手で L149 にした。全 118 件の語句と指す行を並べて見比べた |
 
 ## 見つけた問題（今回は扱わない）
 
 作業中に見つけたコードの問題を、内容と場所だけ書く。
+
+- コードの問題は見つからなかった
+- `SSEmbedded_Mask.shader` の TODO（reversed-Z で比較が反転する）は前からあるもので、今回は書き方だけを確かめた
