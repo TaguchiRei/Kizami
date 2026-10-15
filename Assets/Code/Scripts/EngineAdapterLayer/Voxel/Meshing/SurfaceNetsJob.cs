@@ -277,34 +277,6 @@ namespace Kizami.EngineAdapter.Voxel
             return Samples[Layout.ToSampleIndex(sample)];
         }
 
-        public void Execute()
-        {
-            // 面は隣接する 4 セルの頂点を結ぶ為、頂点は面を作るセル範囲より最小側へ 1 セル広く作る
-            var vertexCellMin = math.max(CellMin - 1, 0);
-            var vertexCellSize = CellMax - vertexCellMin;
-            var cellToVertex = new NativeArray<int>(vertexCellSize.x * vertexCellSize.y * vertexCellSize.z,
-                Allocator.Temp, NativeArrayOptions.UninitializedMemory);
-
-            GenerateVertices(vertexCellMin, vertexCellSize, cellToVertex);
-
-            var quadMaterials = MaterialCount > 1
-                ? new NativeList<byte>(Indices.Capacity / 6, Allocator.Temp)
-                : default;
-            GenerateQuads(vertexCellMin, vertexCellSize, cellToVertex, quadMaterials);
-
-            if (MaterialCount > 1)
-            {
-                SortQuadsByMaterial(quadMaterials);
-                quadMaterials.Dispose();
-            }
-            else
-            {
-                SubMeshIndexCounts[0] = Indices.Length;
-            }
-
-            cellToVertex.Dispose();
-        }
-
         /// <summary>
         /// 四角形のインデックスを素材の順に並べ替え、素材ごとのインデックスの数を数える。
         /// </summary>
@@ -340,6 +312,34 @@ namespace Kizami.EngineAdapter.Voxel
             Indices.AsArray().CopyFrom(sorted);
             sorted.Dispose();
             starts.Dispose();
+        }
+
+        public void Execute()
+        {
+            // 面は隣接する 4 セルの頂点を結ぶ為、頂点は面を作るセル範囲より最小側へ 1 セル広く作る
+            var vertexCellMin = math.max(CellMin - 1, 0);
+            var vertexCellSize = CellMax - vertexCellMin;
+            var cellToVertex = new NativeArray<int>(vertexCellSize.x * vertexCellSize.y * vertexCellSize.z,
+                Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+
+            GenerateVertices(vertexCellMin, vertexCellSize, cellToVertex);
+
+            var quadMaterials = MaterialCount > 1
+                ? new NativeList<byte>(Indices.Capacity / 6, Allocator.Temp)
+                : default;
+            GenerateQuads(vertexCellMin, vertexCellSize, cellToVertex, quadMaterials);
+
+            if (MaterialCount > 1)
+            {
+                SortQuadsByMaterial(quadMaterials);
+                quadMaterials.Dispose();
+            }
+            else
+            {
+                SubMeshIndexCounts[0] = Indices.Length;
+            }
+
+            cellToVertex.Dispose();
         }
     }
 }

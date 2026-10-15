@@ -23,14 +23,6 @@ namespace Kizami.EngineAdapter.Voxel
 
         public NativeArray<byte> Roundness;
 
-        public void Execute()
-        {
-            for (var axis = 0; axis < 3; axis++)
-            {
-                Spread(axis);
-            }
-        }
-
         private void Spread(int axis)
         {
             var axis1 = (axis + 1) % 3;
@@ -64,6 +56,14 @@ namespace Kizami.EngineAdapter.Voxel
             carried = math.max(Roundness[index], carried - Step);
             Roundness[index] = (byte)carried;
             return carried;
+        }
+
+        public void Execute()
+        {
+            for (var axis = 0; axis < 3; axis++)
+            {
+                Spread(axis);
+            }
         }
     }
 }

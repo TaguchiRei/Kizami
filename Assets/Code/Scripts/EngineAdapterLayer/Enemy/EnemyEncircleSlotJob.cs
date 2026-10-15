@@ -36,42 +36,6 @@ namespace Kizami.EngineAdapter
         public float3 PlayerPosition;
 
         /// <summary>
-        /// 置き場ごとに、プレイヤーを中心にした螺旋の上の位置を、プレイヤーへたどり着ける立てる層のある列へずらして SlotPoints に書き、
-        /// 使える置き場のうち最も外の置き場の番号を LastUsableSlot に書く（なければ -1）。
-        /// それより内側で、周り SLOT_SHIFT_RADIUS に立てる列がない置き場（建物の中や穴の上）は NaN にする。
-        /// それより外の置き場は、置き場を持てない部隊が待つ置き場にする。追跡範囲の外に出る位置は範囲の中へ寄せてから、立てる列へずらす
-        /// （ずらせなければ寄せた位置のまま）。待つグループどうしも、置き場と同じ間隔をあける為。
-        /// </summary>
-        public void Execute()
-        {
-            var slotPoints = SlotPoints;
-            var lastUsableSlot = -1;
-            var searchRadius = (int)math.ceil(SLOT_SHIFT_RADIUS / Grid.CellSize);
-            for (var slot = 0; slot < slotPoints.Length; slot++)
-            {
-                var point = GetSpiralPoint(slot);
-                if (!TryShiftToReachableColumn(point, searchRadius, out var shifted))
-                {
-                    slotPoints[slot] = new float2(float.NaN);
-                    continue;
-                }
-
-                slotPoints[slot] = shifted;
-                lastUsableSlot = slot;
-            }
-
-            var areaMin = Grid.Origin.xz + ((float2)TrackingMin + 0.5f) * Grid.CellSize;
-            var areaMax = Grid.Origin.xz + ((float2)TrackingMax + 0.5f) * Grid.CellSize;
-            for (var slot = lastUsableSlot + 1; slot < slotPoints.Length; slot++)
-            {
-                var point = math.clamp(GetSpiralPoint(slot), areaMin, areaMax);
-                slotPoints[slot] = TryShiftToReachableColumn(point, searchRadius, out var shifted) ? shifted : point;
-            }
-
-            LastUsableSlot[0] = lastUsableSlot;
-        }
-
-        /// <summary>
         /// プレイヤーを中心にした螺旋の上の、置き場の位置（水平）。
         /// </summary>
         private float2 GetSpiralPoint(int slot)
@@ -130,6 +94,42 @@ namespace Kizami.EngineAdapter
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// 置き場ごとに、プレイヤーを中心にした螺旋の上の位置を、プレイヤーへたどり着ける立てる層のある列へずらして SlotPoints に書き、
+        /// 使える置き場のうち最も外の置き場の番号を LastUsableSlot に書く（なければ -1）。
+        /// それより内側で、周り SLOT_SHIFT_RADIUS に立てる列がない置き場（建物の中や穴の上）は NaN にする。
+        /// それより外の置き場は、置き場を持てない部隊が待つ置き場にする。追跡範囲の外に出る位置は範囲の中へ寄せてから、立てる列へずらす
+        /// （ずらせなければ寄せた位置のまま）。待つグループどうしも、置き場と同じ間隔をあける為。
+        /// </summary>
+        public void Execute()
+        {
+            var slotPoints = SlotPoints;
+            var lastUsableSlot = -1;
+            var searchRadius = (int)math.ceil(SLOT_SHIFT_RADIUS / Grid.CellSize);
+            for (var slot = 0; slot < slotPoints.Length; slot++)
+            {
+                var point = GetSpiralPoint(slot);
+                if (!TryShiftToReachableColumn(point, searchRadius, out var shifted))
+                {
+                    slotPoints[slot] = new float2(float.NaN);
+                    continue;
+                }
+
+                slotPoints[slot] = shifted;
+                lastUsableSlot = slot;
+            }
+
+            var areaMin = Grid.Origin.xz + ((float2)TrackingMin + 0.5f) * Grid.CellSize;
+            var areaMax = Grid.Origin.xz + ((float2)TrackingMax + 0.5f) * Grid.CellSize;
+            for (var slot = lastUsableSlot + 1; slot < slotPoints.Length; slot++)
+            {
+                var point = math.clamp(GetSpiralPoint(slot), areaMin, areaMax);
+                slotPoints[slot] = TryShiftToReachableColumn(point, searchRadius, out var shifted) ? shifted : point;
+            }
+
+            LastUsableSlot[0] = lastUsableSlot;
         }
     }
 }

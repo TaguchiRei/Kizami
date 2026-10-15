@@ -35,6 +35,34 @@ namespace Kizami.EngineAdapter.Voxel
             return local.x + size.x * (local.y + size.y * local.z);
         }
 
+        /// <summary>
+        /// 中身の点で、まだ箱に入っていないか。
+        /// </summary>
+        private bool IsFree(int3 local, int3 size, NativeArray<bool> used)
+        {
+            return !used[ToLocalIndex(local, size)] && Samples[Layout.ToSampleIndex(SampleMin + local)] < 0f;
+        }
+
+        private bool IsRowFree(int xMin, int xMax, int y, int z, int3 size, NativeArray<bool> used)
+        {
+            for (var x = xMin; x <= xMax; x++)
+            {
+                if (!IsFree(new int3(x, y, z), size, used)) return false;
+            }
+
+            return true;
+        }
+
+        private bool IsSlabFree(int3 start, int3 end, int z, int3 size, NativeArray<bool> used)
+        {
+            for (var y = start.y; y <= end.y; y++)
+            {
+                if (!IsRowFree(start.x, end.x, y, z, size, used)) return false;
+            }
+
+            return true;
+        }
+
         public void Execute()
         {
             var size = SampleMax - SampleMin;
@@ -66,34 +94,6 @@ namespace Kizami.EngineAdapter.Voxel
             }
 
             used.Dispose();
-        }
-
-        /// <summary>
-        /// 中身の点で、まだ箱に入っていないか。
-        /// </summary>
-        private bool IsFree(int3 local, int3 size, NativeArray<bool> used)
-        {
-            return !used[ToLocalIndex(local, size)] && Samples[Layout.ToSampleIndex(SampleMin + local)] < 0f;
-        }
-
-        private bool IsRowFree(int xMin, int xMax, int y, int z, int3 size, NativeArray<bool> used)
-        {
-            for (var x = xMin; x <= xMax; x++)
-            {
-                if (!IsFree(new int3(x, y, z), size, used)) return false;
-            }
-
-            return true;
-        }
-
-        private bool IsSlabFree(int3 start, int3 end, int z, int3 size, NativeArray<bool> used)
-        {
-            for (var y = start.y; y <= end.y; y++)
-            {
-                if (!IsRowFree(start.x, end.x, y, z, size, used)) return false;
-            }
-
-            return true;
         }
     }
 }

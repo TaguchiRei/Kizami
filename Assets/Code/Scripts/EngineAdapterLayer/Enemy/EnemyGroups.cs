@@ -127,6 +127,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 壊れた移動部位が上限に達して、歩けなくなった敵か。
+        /// </summary>
+        private static bool IsImmobile(in EnemyAgent agent)
+        {
+            return agent.BrokenMovePartCount >= agent.BrokenMovePartLimit;
+        }
+
+        /// <summary>
         /// グループ g の隊列の 0 番の敵の番号を返す。メンバーがいなければ -1。
         /// 倒れた敵や、その敵の状態を使って別のグループに出した敵が、次に整えるまで残っていることがあるので、呼び出し元で生きているかとグループの番号を確かめる。
         /// </summary>
@@ -367,14 +375,6 @@ namespace Kizami.EngineAdapter
             group.MobileMemberCount = count;
             group.IsActive = group.MemberCount > 0;
             _groups[g] = group;
-        }
-
-        /// <summary>
-        /// 壊れた移動部位が上限に達して、歩けなくなった敵か。
-        /// </summary>
-        private static bool IsImmobile(in EnemyAgent agent)
-        {
-            return agent.BrokenMovePartCount >= agent.BrokenMovePartLimit;
         }
 
         private void Reorder(int g, NativeArray<EnemyAgent> agents, EnemyNavigationGrid grid, NativeArray<float> distances)

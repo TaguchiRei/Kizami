@@ -43,25 +43,6 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// VoxelVolume.ReadLayerWeights と同じく、y のサンプル番号 sampleY の段の内側のサンプルに素材ごとの重みを、外側に 0 を書く。
-        /// </summary>
-        internal void ReadLayerWeights(int sampleY, byte[] materialWeights, byte uniformWeight, byte[] weights)
-        {
-            var count = Layout.SampleCount;
-            var useMaterials = _materialIds != null && materialWeights != null && materialWeights.Length > 0;
-
-            for (var z = 0; z < count.z; z++)
-            for (var x = 0; x < count.x; x++)
-            {
-                var index = Layout.ToSampleIndex(new int3(x, sampleY, z));
-                byte weight = 0;
-                if (_samples[index] < 0f) weight = useMaterials ? materialWeights[_materialIds[index]] : uniformWeight;
-
-                weights[x + z * count.x] = weight;
-            }
-        }
-
-        /// <summary>
         /// ベイクとボクセルの大きさから形を作る。作ったことがあれば同じものを返す。
         /// </summary>
         /// <param name="source">パーツのローカル空間でベイクした SDF</param>
@@ -166,6 +147,25 @@ namespace Kizami.EngineAdapter.Voxel
             if (emptyMaterialIds.IsCreated) emptyMaterialIds.Dispose();
 
             return new VoxelStaticShape(volume, mesh, boxCenters, boxSizes);
+        }
+
+        /// <summary>
+        /// VoxelVolume.ReadLayerWeights と同じく、y のサンプル番号 sampleY の段の内側のサンプルに素材ごとの重みを、外側に 0 を書く。
+        /// </summary>
+        internal void ReadLayerWeights(int sampleY, byte[] materialWeights, byte uniformWeight, byte[] weights)
+        {
+            var count = Layout.SampleCount;
+            var useMaterials = _materialIds != null && materialWeights != null && materialWeights.Length > 0;
+
+            for (var z = 0; z < count.z; z++)
+            for (var x = 0; x < count.x; x++)
+            {
+                var index = Layout.ToSampleIndex(new int3(x, sampleY, z));
+                byte weight = 0;
+                if (_samples[index] < 0f) weight = useMaterials ? materialWeights[_materialIds[index]] : uniformWeight;
+
+                weights[x + z * count.x] = weight;
+            }
         }
     }
 }

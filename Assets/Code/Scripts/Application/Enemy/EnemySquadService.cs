@@ -116,11 +116,6 @@ namespace Kizami.Application
             }
         }
 
-        public void Dispose()
-        {
-            _observationStateWaiter?.Dispose();
-        }
-
         /// <summary>
         /// 部隊 1 つの状態と持ち場を決める。
         /// 帰還を終えた（着いた、または進めずに持ち場を変えた）ときは、追跡範囲の判定を次の Step に回す。観測の追跡範囲の判定は、変える前の持ち場で行ったものである為。
@@ -298,6 +293,11 @@ namespace Kizami.Application
 
             if (command.EncircleSlot < _usedSlots.Length) _usedSlots[command.EncircleSlot] = false;
             command.EncircleSlot = -1;
+        }
+
+        public void Dispose()
+        {
+            _observationStateWaiter?.Dispose();
         }
     }
 }

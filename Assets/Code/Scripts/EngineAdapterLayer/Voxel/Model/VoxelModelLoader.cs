@@ -24,6 +24,9 @@ namespace Kizami.EngineAdapter.Voxel
         private readonly ActionChannel<VoxelPiece> _pieceDestroyed = new();
         private readonly ActionChannel<(VoxelPiece Piece, VoxelStrikeRecord Record)> _pieceStruck = new();
 
+        private readonly List<GameObject> _staticObjects = new();
+        private readonly List<VoxelStaticPart> _staticParts = new();
+
         [SerializeField]
         [Tooltip("読み込む事前ベイク済みのモデル")]
         private VoxelModelAsset _model;
@@ -48,8 +51,6 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("Start で読み込むか")]
         private bool _loadOnStart = true;
 
-        private readonly List<GameObject> _staticObjects = new();
-        private readonly List<VoxelStaticPart> _staticParts = new();
         private MeshRenderer[] _sourceRenderers;
         private VoxelMaterialEntry[] _materialEntries;
 
@@ -62,12 +63,6 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> LoadStatic で置いたパーツの、読み込み先と形 </summary>
         internal IReadOnlyList<VoxelStaticPart> StaticParts => _staticParts;
-
-        /// <summary> モデルの素材の番号ごとの強度。SetMaterialEntries で渡されていればその強度 </summary>
-        internal VoxelStrength GetMaterialStrength(int materialIndex)
-        {
-            return _materialEntries != null ? _materialEntries[materialIndex].Strength : _model.Materials[materialIndex].Strength;
-        }
 
         /// <summary> 読み込んだパーツ（モデルのメッシュ 1 つに対応する、分離前からあるピース） </summary>
         public IReadOnlyList<VoxelPiece> Parts => _parts;
@@ -113,6 +108,12 @@ namespace Kizami.EngineAdapter.Voxel
                 var initialVolume = InitialVolume;
                 return initialVolume > 0f ? Volume / initialVolume : 0f;
             }
+        }
+
+        /// <summary> モデルの素材の番号ごとの強度。SetMaterialEntries で渡されていればその強度 </summary>
+        internal VoxelStrength GetMaterialStrength(int materialIndex)
+        {
+            return _materialEntries != null ? _materialEntries[materialIndex].Strength : _model.Materials[materialIndex].Strength;
         }
 
         /// <summary>
