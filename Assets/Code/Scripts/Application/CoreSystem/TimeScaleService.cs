@@ -35,7 +35,7 @@ namespace Kizami.Application
         /// <param name="scale">倍率</param>
         void SetScale(float scale);
 
-        /// <summary> 倍率を 1（等速）に戻す </summary>
+        /// <summary> 倍率を1（等速）に戻す </summary>
         void ResetScale();
     }
 }

@@ -9,7 +9,7 @@ using UsefulToolkit.BlackBoard.Input;
 namespace Kizami.Application
 {
     /// <summary>
-    /// スキル 1〜3 の入力を受けて、その枠に装備しているスキルの分のチャージを消費し、効果の実行役を呼ぶユースケース。強化型スキルは PlayerEnhanceService にかける。
+    /// スキル1〜3の入力を受けて、その枠に装備しているスキルの分のチャージを消費し、効果の実行役を呼ぶユースケース。強化型スキルは PlayerEnhanceService にかける。
     /// </summary>
     public sealed class SkillService : IDisposable
     {
@@ -67,7 +67,7 @@ namespace Kizami.Application
 
         /// <summary>
         /// 枠にスキルがあり、その消費量だけチャージを消費できたら、スキルの効果を出す。
-        /// 回復は、HP が 0 のときと最大のときは発動せず、チャージも消費しない。
+        /// 回復は、HP が0のときと最大のときは発動せず、チャージも消費しない。
         /// </summary>
         private void OnSkill(InputContext<float> context, int slot)
         {

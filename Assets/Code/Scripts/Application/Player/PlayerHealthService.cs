@@ -70,7 +70,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// HP を回復する。最大 HP を超えた分は捨てる。HP が 0 のときと、回復量が 0 以下のときは何もしない。
+        /// HP を回復する。最大 HP を超えた分は捨てる。HP が0のときと、回復量が0以下のときは何もしない。
         /// </summary>
         /// <param name="amount">回復量</param>
         public void Heal(int amount)

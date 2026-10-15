@@ -56,7 +56,7 @@ namespace Kizami.Application
         /// <summary>
         /// ステージを選ぶ。範囲外の番号は無視する。
         /// </summary>
-        /// <param name="stageIndex">ステージの番号（0 から）</param>
+        /// <param name="stageIndex">ステージの番号（0から）</param>
         /// <returns>選べたか</returns>
         public bool SelectStage(int stageIndex)
         {
@@ -85,7 +85,7 @@ namespace Kizami.Application
         /// <summary>
         /// 装備枠のスキルを、装備できるスキルの次のものに替える。最後のスキルの次は空きにし、空きの次は最初のスキルにする。
         /// </summary>
-        /// <param name="slot">枠の番号（0 から）</param>
+        /// <param name="slot">枠の番号（0から）</param>
         public void CycleEquippedSkill(int slot)
         {
             if (slot < 0 || slot >= _state.SlotCount) return;

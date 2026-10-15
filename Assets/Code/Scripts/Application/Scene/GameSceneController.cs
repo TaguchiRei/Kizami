@@ -12,7 +12,7 @@ namespace Kizami.Application
 {
     /// <summary>
     /// ゲームの場面（アウトゲーム / ステージごとのインゲーム）の単位でシーン遷移を要求するユースケース。
-    /// アウトゲームに 1 つ、ステージごとに 1 つのシーングループを持ち、3 ビルドで共通に使う。
+    /// アウトゲームに1つ、ステージごとに1つのシーングループを持ち、3ビルドで共通に使う。
     /// </summary>
     public sealed class GameSceneController : IGameSceneController
     {
@@ -134,7 +134,7 @@ namespace Kizami.Application
         UniTask<bool> GoToOutGameAsync(CancellationToken cancellationToken = default);
 
         /// <summary> ステージを選び、そのステージのインゲームへ遷移する </summary>
-        /// <param name="stageIndex">ステージの番号（0 から）</param>
+        /// <param name="stageIndex">ステージの番号（0から）</param>
         /// <param name="cancellationToken">ロードの中断に使う</param>
         UniTask<bool> GoToStageAsync(int stageIndex, CancellationToken cancellationToken = default);
 
