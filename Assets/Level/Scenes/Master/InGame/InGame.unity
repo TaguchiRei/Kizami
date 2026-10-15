@@ -1345,6 +1345,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 43f920e2d39730949abc4f7aed0466d5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.EnemyInitializer
+  _retreatLossRatio: 0.6
   _spawnAdapter: {fileID: 1539543158}
   _fragmentOrbAdapter: {fileID: 1946405260}
   _energyAdapter: {fileID: 1579939516}
@@ -1386,7 +1387,7 @@ MonoBehaviour:
   _dropHeight: 2
   _groundLayers:
     serializedVersion: 2
-    m_Bits: 513
+    m_Bits: 8705
   _drawDistanceField: 0
   _distanceGizmoRadius: 25
   _moveSpeed: 3
@@ -1462,7 +1463,7 @@ MonoBehaviour:
   _maxBullets: 4
   _blockLayers:
     serializedVersion: 2
-    m_Bits: 3585
+    m_Bits: 11777
 --- !u!114 &1539543161
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1485,7 +1486,7 @@ MonoBehaviour:
   _launchMargin: 2
   _ceilingLayers:
     serializedVersion: 2
-    m_Bits: 3585
+    m_Bits: 11777
 --- !u!114 &1539543162
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1548,7 +1549,7 @@ MonoBehaviour:
   _trackingSpeed: 4
   _blockLayers:
     serializedVersion: 2
-    m_Bits: 3585
+    m_Bits: 11777
 --- !u!1 &1579939515
 GameObject:
   m_ObjectHideFlags: 0
@@ -1884,6 +1885,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelDestructionAdapter
   _maxDistance: 50
   _radius: 1.5
+  _aimFalloff: 0.5
+  _beamFalloff: 0.5
+  _explosionFalloff: 0.5
   _targetLayers:
     serializedVersion: 2
     m_Bits: 4294966835

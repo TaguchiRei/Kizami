@@ -74,6 +74,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 建物が倒れたことの通知の登録 </summary>
         private readonly List<IDisposable> _buildingSubscriptions = new();
+        private readonly List<VoxelBuilding> _buildings = new();
 
         private readonly EnemySquadObservationState _observationState = new();
 
@@ -244,6 +245,9 @@ namespace Kizami.EngineAdapter
 
         private EnemyCollapseDetector _collapseDetector;
 
+        /// <summary> 最後に建物へ渡した追跡範囲 </summary>
+        private Rect _passedTrackingArea;
+
         /// <summary> 体から外れた部位の見た目用の物。ディゾルブのマテリアルが未設定なら null </summary>
         private EnemyDebrisSpawner _debrisSpawner;
 
@@ -394,6 +398,7 @@ namespace Kizami.EngineAdapter
             foreach (var building in FindObjectsByType<VoxelBuilding>(FindObjectsSortMode.None))
             {
                 _buildingSubscriptions.Add(building.RegisterOnCollapsed(OnBuildingCollapsed));
+                _buildings.Add(building);
             }
 
             _groups = new EnemyGroups(_activeSpawnPoints.Count);
@@ -489,6 +494,7 @@ namespace Kizami.EngineAdapter
                 }
 
                 if (_target != null) _distanceField.Update(_target.position);
+                PassTrackingAreaToBuildings();
 
                 using (_moveMarker.Auto())
                 {
@@ -535,6 +541,21 @@ namespace Kizami.EngineAdapter
                 }
 
                 _debrisSpawner?.Tick(Time.deltaTime);
+            }
+        }
+
+        /// <summary>
+        /// 追跡範囲が変わったら、建物に傷を残す範囲として渡す。
+        /// </summary>
+        private void PassTrackingAreaToBuildings()
+        {
+            var area = _distanceField.TrackingArea;
+            if (area.width <= 0f || area == _passedTrackingArea) return;
+
+            _passedTrackingArea = area;
+            foreach (var building in _buildings)
+            {
+                if (building != null) building.SetRetainArea(area);
             }
         }
 

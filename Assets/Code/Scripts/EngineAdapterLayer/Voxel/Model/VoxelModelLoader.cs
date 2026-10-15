@@ -22,6 +22,7 @@ namespace Kizami.EngineAdapter.Voxel
         private readonly ActionChannel<VoxelShapeChange> _pieceShapeChanged = new();
         private readonly ActionChannel<VoxelPiece[]> _pieceSplit = new();
         private readonly ActionChannel<VoxelPiece> _pieceDestroyed = new();
+        private readonly ActionChannel<(VoxelPiece Piece, VoxelStrikeRecord Record)> _pieceStruck = new();
 
         [SerializeField]
         [Tooltip("読み込む事前ベイク済みのモデル")]
@@ -195,6 +196,14 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// このモデルのいずれかのピースに強さと減衰率の攻撃が当たったときに呼ぶ処理を登録する。記録はそのピースのローカル空間で表す。
+        /// </summary>
+        public IDisposable RegisterOnPieceStruck(Action<(VoxelPiece Piece, VoxelStrikeRecord Record)> callback)
+        {
+            return _pieceStruck.Register(callback);
+        }
+
+        /// <summary>
         /// このモデルのいずれかのピースから塊が分離したときに呼ぶ処理を登録する。
         /// 引数の 0 番目は分離元のピース、1 番目以降は切り離された新しいピース。
         /// </summary>
@@ -272,6 +281,28 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// ボクセルにしたパーツを消し、手付かずの形のメッシュに戻す。
+        /// 切り離されたピースのうち、自分の Rigidbody を持たない物（ほかの物にくっつけた塊）も消す。落ちているかけらは残す。
+        /// </summary>
+        public void Unload()
+        {
+            if (!IsLoaded) return;
+
+            foreach (var piece in _pieces)
+            {
+                if (piece == null) continue;
+
+                if (piece.Generation == 0) Destroy(piece);
+                else if (!piece.TryGetComponent<Rigidbody>(out _)) Destroy(piece.gameObject);
+            }
+
+            _parts.Clear();
+            _pieces.RemoveAll(piece => piece == null || piece.Generation == 0 || !piece.TryGetComponent<Rigidbody>(out _));
+            IsLoaded = false;
+            LoadStatic();
+        }
+
+        /// <summary>
         /// ボクセルを作らずに、各パーツの手付かずの形のメッシュと BoxCollider を置く。元のモデルの MeshRenderer は非表示にする。
         /// 形は VoxelStaticShape を使い回す。Load を呼ぶと消してボクセルへ差し替える。
         /// </summary>
@@ -341,6 +372,11 @@ namespace Kizami.EngineAdapter.Voxel
         internal void NotifyShapeChanged(in VoxelShapeChange change)
         {
             _pieceShapeChanged.Invoke(change);
+        }
+
+        internal void NotifyStruck(VoxelPiece piece, in VoxelStrikeRecord record)
+        {
+            _pieceStruck.Invoke((piece, record));
         }
 
         internal void NotifySplit(VoxelPiece[] pieces)
