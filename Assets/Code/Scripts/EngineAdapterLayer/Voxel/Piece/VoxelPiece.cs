@@ -425,6 +425,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// 残した側の中で塊が分かれていれば、LateUpdate の分離の判定で切り離す。
         /// 切り離した直後に両方のメッシュを作り直す。形状変化と分離の通知は、ApplyEdit と同じく LateUpdate で行う。
         /// 分離しない設定のピースでは何もしない。
+        /// モデルに属していれば、切った平面を VoxelSliceRecord にしてモデルへ通知する。
         /// </summary>
         /// <param name="worldPoint">平面上の点（ワールド空間）</param>
         /// <param name="worldNormal">平面の法線（ワールド空間）。長さは問わない</param>
@@ -481,6 +482,12 @@ namespace Kizami.EngineAdapter.Voxel
             LastSliceMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
             FlushRemesh();
             _pendingSlicePieces.AddRange(pieces);
+
+            if (Model != null && (keepResult.HasChange || pieces.Length > 0))
+            {
+                Model.NotifySliced(this, new VoxelSliceRecord(localPoint, localNormal));
+            }
+
             return pieces;
         }
 
