@@ -123,7 +123,8 @@ namespace Kizami.EngineAdapter
             switch (condition.Kind)
             {
                 case GuideConditionKind.TargetDestroyed:
-                    return condition.Target != null && condition.Target.IsDestroyed;
+                    var target = condition.Target;
+                    return target != null && target.IsDestroyed;
                 case GuideConditionKind.DefeatCount:
                     return _flowState.DefeatCount - _defeatBaseline >= Mathf.Max(1, condition.Count);
                 case GuideConditionKind.PlayerAction:
@@ -160,7 +161,7 @@ namespace Kizami.EngineAdapter
                 var condition = _steps[i].Condition;
                 if (condition.Kind == GuideConditionKind.TargetDestroyed && condition.Target == null)
                 {
-                    UsefulLogger.LogWarning($"台本の段階 {i} は破壊済みを待つ条件ですが、破壊対象が設定されていない為、進みません。", this);
+                    UsefulLogger.LogWarning($"台本の段階 {i} は破壊済みを待つ条件ですが、破壊対象が設定されていないか IDestructionTarget ではない為、進みません。", this);
                 }
             }
         }
@@ -216,8 +217,8 @@ namespace Kizami.EngineAdapter
         private GuideConditionKind _kind;
 
         [SerializeField]
-        [Tooltip("破壊済みを待つ破壊対象。種類が TargetDestroyed のときに使う")]
-        private DestructionTarget _target;
+        [Tooltip("破壊済みを待つ破壊対象（IDestructionTarget を実装したコンポーネント）。種類が TargetDestroyed のときに使う")]
+        private MonoBehaviour _target;
 
         [SerializeField, Min(1)]
         [Tooltip("倒す敵の数。種類が DefeatCount のときに使う")]
@@ -231,7 +232,7 @@ namespace Kizami.EngineAdapter
         public GuideConditionKind Kind => _kind;
 
         /// <summary> 破壊済みを待つ破壊対象 </summary>
-        public DestructionTarget Target => _target;
+        public IDestructionTarget Target => _target as IDestructionTarget;
 
         /// <summary> 倒す敵の数 </summary>
         public int Count => _count;

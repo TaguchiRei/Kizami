@@ -16,7 +16,7 @@ namespace Kizami.Initialization
     /// <summary>
     /// インゲームの流れ（StageFlowService / StageFlowState）と、ステージの案内（StageGuideService / StageGuideState）、破壊対象・HUD・案内・ポーズ・リザルトの Adapter、ステージシーンにある台本（StageGuideScript）と開始位置の目印（PlayerStartPoint）を繋いで、プレイを始める配線役。インゲームのシーンへ置く。
     /// 失敗条件の判定と、案内のログにプレイヤーの State と出来事の通知を使う為、PlayerInitializer より後に初期化する。
-    /// 流れの状態、破壊済みの破壊対象の数、重要パーツごとの削れた割合を画面に出す。表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
+    /// 流れの状態、破壊済みの破壊対象の数、破壊対象ごとの壊れ具合（ボクセルは重要パーツごとの削れた割合、コアは分離した部位の数）を画面に出す。表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
     public sealed class StageInitializer : InitializerBase, IInjectable<GameProgressService>, IInjectable<IGameSceneController>,
         IInjectable<ITimeScaleController>, IInjectable<IInputController>
@@ -171,7 +171,7 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 流れの状態と「破壊済みの数 / 破壊対象の数」のあとに、破壊対象ごとの重要パーツの削れた割合と必要な割合を並べる。
+        /// 流れの状態と「破壊済みの数 / 破壊対象の数」のあとに、破壊対象ごとの壊れ具合を並べる。
         /// </summary>
         private string GetTargetText()
         {
@@ -185,16 +185,10 @@ namespace Kizami.Initialization
 
             foreach (var target in _stageClearAdapter.Targets)
             {
-                if (target == null) continue;
+                if (target is Object unityObject && unityObject == null) continue;
 
-                _targetText.Append(" | ").Append(target.name).Append(':');
-                for (var i = 0; i < target.ImportantPartCount; i++)
-                {
-                    _targetText.Append(' ');
-                    _targetText.Append(target.TryGetDestroyedRatio(i, out var ratio) ? ratio.ToString("F2") : "-");
-                }
-
-                _targetText.Append(" / ").Append(target.RequiredRatio.ToString("F2"));
+                _targetText.Append(" | ");
+                target.AppendStatus(_targetText);
             }
 
             return _targetText.ToString();
