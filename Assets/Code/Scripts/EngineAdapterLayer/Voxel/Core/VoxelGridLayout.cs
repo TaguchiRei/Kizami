@@ -3,6 +3,7 @@ using Unity.Mathematics;
 namespace Kizami.EngineAdapter.Voxel
 {
     /// <summary>
+    /// ボクセルオブジェクトを構築するために必要な寸法を保存するデータおよびそれにまつわる計算を担当するクラス。
     /// SDF 格子の寸法・位置・チャンク分割。
     /// 格子点（サンプル）は各軸 CellCount + 1個並び、サンプル s のローカル座標は Origin + s * VoxelSize。
     /// セル c はサンプル c と c + 1に挟まれた立方体。
