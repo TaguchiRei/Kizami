@@ -14,7 +14,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// インゲームの流れ（StageFlowService / StageFlowState）と、ステージの案内（StageGuideService / StageGuideState）、破壊対象・HUD・案内・ポーズ・リザルトの Adapter を生成して繋ぎ、プレイを始める配線役。インゲームのシーンへ置く。
+    /// インゲームの流れ（StageFlowService / StageFlowState）と、ステージの案内（StageGuideService / StageGuideState）、破壊対象・HUD・案内・ポーズ・リザルトの Adapter、ステージシーンにある台本（StageGuideScript）を生成して繋ぎ、プレイを始める配線役。インゲームのシーンへ置く。
     /// 失敗条件の判定と、案内のログにプレイヤーの State と出来事の通知を使う為、PlayerInitializer より後に初期化する。
     /// 流れの状態、破壊済みの破壊対象の数、重要パーツごとの削れた割合を画面に出す。表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
@@ -67,6 +67,15 @@ namespace Kizami.Initialization
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
                 gameObject.scene.buildIndex);
             _enemySpawnAdapter.SetOnDefeated(OnDefeated);
+
+            // 台本はステージシーンにあり、置いていないステージでは案内の文とログだけを出す
+            var guideScript = FindFirstObjectByType<StageGuideScript>();
+            if (guideScript != null)
+            {
+                guideScript.Initialize(blackBoard, _guideService.SetObjective, _guideService.SetSubObjective,
+                    _guideService.SetDialogue);
+            }
+
             _resultAdapter.Initialize(blackBoard, Retry, BackToOutGame);
             _hudAdapter.Initialize(blackBoard, _fragmentThrowAdapter);
             _guideAdapter.Initialize(blackBoard);

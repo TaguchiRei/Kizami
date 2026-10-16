@@ -1,0 +1,243 @@
+using System;
+using Kizami.BlackBoard;
+using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
+using UsefulToolkit.BlackBoard.Logger;
+using UsefulToolkit.Initialization;
+
+namespace Kizami.EngineAdapter
+{
+    /// <summary>
+    /// ステージの進行の台本。ステージシーンへ置く。段階を順に進め、段階に入るたびに小目標と会話を出して、敵のスポーン位置の保留を解く。
+    /// 段階の条件を満たしたら次の段階へ進む。1回の Update で進むのは1段階まで。プレイ中のときだけ進める。
+    /// 画面に出す文は、初期化で受け取った関数で Application へ渡す。
+    /// </summary>
+    public sealed class StageGuideScript : InitializableMonoBehaviour
+    {
+        /// <summary> プレイヤーが動いているとみなす目標速度の大きさの2乗（m²/s²） </summary>
+        private const float MOVED_SQUARE_SPEED = 0.01f;
+
+        [SerializeField]
+        [Tooltip("ステージ全体の目標。プレイを始めたときに出す")]
+        private string _objective;
+
+        [SerializeField]
+        [Tooltip("進行の段階。上から順に進む。最後の段階の条件を満たすと、小目標と会話を消す")]
+        private GuideStep[] _steps = Array.Empty<GuideStep>();
+
+        private IDisposable _actionSubscription;
+        private IStageFlowState _flowState;
+        private IPlayerMovementState _movementState;
+        private Action<string> _setObjective;
+        private Action<string> _setSubObjective;
+        private Action<string> _setDialogue;
+
+        /// <summary> 今の段階の番号。まだ始めていなければ -1、全部終えたら段階の数 </summary>
+        private int _stepIndex = -1;
+
+        /// <summary> 今の段階に入ってから起きたプレイヤーの出来事。種類の番号のビットで持つ </summary>
+        private int _seenActions;
+
+        /// <summary> 今の段階に入ったときの、倒した敵の数 </summary>
+        private int _defeatBaseline;
+
+        /// <summary>
+        /// 必要な State を取得し、プレイヤーの出来事を購読する。流れ・プレイヤーの State と、プレイヤーの出来事の通知の登録より後に呼ぶ。
+        /// </summary>
+        /// <param name="blackBoard">流れ・プレイヤーの State と、プレイヤーの出来事の通知の取得元</param>
+        /// <param name="setObjective">大目標を画面に出す関数</param>
+        /// <param name="setSubObjective">小目標を画面に出す関数</param>
+        /// <param name="setDialogue">会話を画面に出す関数</param>
+        public void Initialize(IBlackBoard blackBoard, Action<string> setObjective, Action<string> setSubObjective,
+            Action<string> setDialogue)
+        {
+            if (!blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this) ||
+                !blackBoard.TryGetSceneState<PlayerBoard, IPlayerMovementState>(out _movementState, this) ||
+                !blackBoard.TryGetEventBoard<PlayerEventBoard>(out var eventBoard, this)) return;
+
+            if (!eventBoard.TryGetSceneEvent<IPlayerActionEvents>(out var actionEvents, out _))
+            {
+                UsefulLogger.LogError("IPlayerActionEvents が未登録です。PlayerInitializer の初期化順を確認してください。", this);
+                return;
+            }
+
+            _setObjective = setObjective;
+            _setSubObjective = setSubObjective;
+            _setDialogue = setDialogue;
+            _actionSubscription = actionEvents.OnAction.Register(OnAction);
+            WarnInvalidSteps();
+            base.Initialize();
+        }
+
+        private void Update()
+        {
+            if (!Initialized || _flowState.Phase != StagePhase.Playing) return;
+
+            if (_stepIndex < 0)
+            {
+                _setObjective?.Invoke(_objective);
+                EnterStep(0);
+                return;
+            }
+
+            if (_stepIndex >= _steps.Length || !IsMet(_steps[_stepIndex].Condition)) return;
+
+            EnterStep(_stepIndex + 1);
+        }
+
+        private void OnDestroy()
+        {
+            _actionSubscription?.Dispose();
+        }
+
+        /// <summary>
+        /// 指定した段階に入る。小目標と会話を出し、スポーン位置の保留を解いて、条件の基準を取り直す。段階がなければ、小目標と会話を消す。
+        /// </summary>
+        private void EnterStep(int index)
+        {
+            _stepIndex = index;
+            _seenActions = 0;
+            _defeatBaseline = _flowState.DefeatCount;
+
+            if (index >= _steps.Length)
+            {
+                _setSubObjective?.Invoke(string.Empty);
+                _setDialogue?.Invoke(string.Empty);
+                return;
+            }
+
+            var step = _steps[index];
+            _setSubObjective?.Invoke(step.SubObjective);
+            _setDialogue?.Invoke(step.Dialogue);
+            foreach (var spawnPoint in step.ReleaseSpawnPoints)
+            {
+                if (spawnPoint != null) spawnPoint.Release();
+            }
+        }
+
+        private bool IsMet(in GuideCondition condition)
+        {
+            switch (condition.Kind)
+            {
+                case GuideConditionKind.TargetDestroyed:
+                    return condition.Target != null && condition.Target.IsDestroyed;
+                case GuideConditionKind.DefeatCount:
+                    return _flowState.DefeatCount - _defeatBaseline >= Mathf.Max(1, condition.Count);
+                case GuideConditionKind.PlayerAction:
+                    return (_seenActions & (1 << (int)condition.Action)) != 0;
+                case GuideConditionKind.PlayerMoved:
+                    return _movementState.TargetVelocity.sqrMagnitude > MOVED_SQUARE_SPEED;
+                default:
+                    return false;
+            }
+        }
+
+        private void OnAction(PlayerActionNotice notice)
+        {
+            _seenActions |= 1 << (int)notice.Kind;
+        }
+
+        /// <summary>
+        /// 条件に必要な参照がない段階を、名前つきで警告する。その段階は進まない。
+        /// </summary>
+        private void WarnInvalidSteps()
+        {
+            for (var i = 0; i < _steps.Length; i++)
+            {
+                var condition = _steps[i].Condition;
+                if (condition.Kind == GuideConditionKind.TargetDestroyed && condition.Target == null)
+                {
+                    UsefulLogger.LogWarning($"台本の段階 {i} は破壊済みを待つ条件ですが、破壊対象が設定されていない為、進みません。", this);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 台本の段階1つ。小目標と会話を出し、条件を満たしたら次の段階へ進む。
+    /// </summary>
+    [Serializable]
+    public sealed class GuideStep
+    {
+        [SerializeField]
+        [Tooltip("この段階の小目標。空なら小目標を消す")]
+        private string _subObjective;
+
+        [SerializeField, TextArea]
+        [Tooltip("この段階に入ったときに出す会話。空なら会話を消す")]
+        private string _dialogue;
+
+        [SerializeField]
+        [Tooltip("この段階を終える条件")]
+        private GuideCondition _condition;
+
+        [SerializeField]
+        [Tooltip("この段階に入ったときに、出現の保留を解くスポーン位置")]
+        private EnemySpawnPoint[] _releaseSpawnPoints = Array.Empty<EnemySpawnPoint>();
+
+        /// <summary> この段階の小目標 </summary>
+        public string SubObjective => _subObjective;
+
+        /// <summary> この段階に入ったときに出す会話 </summary>
+        public string Dialogue => _dialogue;
+
+        /// <summary> この段階を終える条件 </summary>
+        public GuideCondition Condition => _condition;
+
+        /// <summary> この段階に入ったときに、出現の保留を解くスポーン位置 </summary>
+        public EnemySpawnPoint[] ReleaseSpawnPoints => _releaseSpawnPoints;
+    }
+
+    /// <summary>
+    /// 段階を終える条件の種類。
+    /// </summary>
+    public enum GuideConditionKind
+    {
+        /// <summary> 指定した破壊対象が破壊済みになった </summary>
+        TargetDestroyed,
+
+        /// <summary> この段階に入ってから、指定した数の敵を倒した </summary>
+        DefeatCount,
+
+        /// <summary> この段階に入ってから、指定したプレイヤーの出来事が起きた </summary>
+        PlayerAction,
+
+        /// <summary> プレイヤーが移動の入力をしている </summary>
+        PlayerMoved
+    }
+
+    /// <summary>
+    /// 段階を終える条件。種類に応じた項目だけを使う。
+    /// </summary>
+    [Serializable]
+    public struct GuideCondition
+    {
+        [SerializeField]
+        [Tooltip("条件の種類")]
+        private GuideConditionKind _kind;
+
+        [SerializeField]
+        [Tooltip("破壊済みを待つ破壊対象。種類が TargetDestroyed のときに使う")]
+        private DestructionTarget _target;
+
+        [SerializeField, Min(1)]
+        [Tooltip("倒す敵の数。種類が DefeatCount のときに使う")]
+        private int _count;
+
+        [SerializeField]
+        [Tooltip("待つプレイヤーの出来事。種類が PlayerAction のときに使う")]
+        private PlayerActionKind _action;
+
+        /// <summary> 条件の種類 </summary>
+        public GuideConditionKind Kind => _kind;
+
+        /// <summary> 破壊済みを待つ破壊対象 </summary>
+        public DestructionTarget Target => _target;
+
+        /// <summary> 倒す敵の数 </summary>
+        public int Count => _count;
+
+        /// <summary> 待つプレイヤーの出来事 </summary>
+        public PlayerActionKind Action => _action;
+    }
+}

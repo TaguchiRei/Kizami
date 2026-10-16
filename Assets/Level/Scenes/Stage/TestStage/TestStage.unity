@@ -171,6 +171,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &27731429
 GameObject:
   m_ObjectHideFlags: 0
@@ -223,6 +224,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &42729756
 GameObject:
   m_ObjectHideFlags: 0
@@ -275,6 +277,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &88357286
 GameObject:
   m_ObjectHideFlags: 0
@@ -327,6 +330,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &96707248
 GameObject:
   m_ObjectHideFlags: 0
@@ -379,6 +383,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &108746196
 GameObject:
   m_ObjectHideFlags: 0
@@ -484,6 +489,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &129797226
 GameObject:
   m_ObjectHideFlags: 0
@@ -626,6 +632,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &149908211
 GameObject:
   m_ObjectHideFlags: 0
@@ -678,6 +685,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &154201511
 GameObject:
   m_ObjectHideFlags: 0
@@ -763,6 +771,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &176159869
 GameObject:
   m_ObjectHideFlags: 0
@@ -815,6 +824,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &203351563
 GameObject:
   m_ObjectHideFlags: 0
@@ -920,6 +930,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &226138356
 GameObject:
   m_ObjectHideFlags: 0
@@ -972,6 +983,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &239190706
 GameObject:
   m_ObjectHideFlags: 0
@@ -1151,6 +1163,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &267078036
 GameObject:
   m_ObjectHideFlags: 0
@@ -1203,6 +1216,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &280300602
 GameObject:
   m_ObjectHideFlags: 0
@@ -1255,6 +1269,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &326985039
 GameObject:
   m_ObjectHideFlags: 0
@@ -1546,6 +1561,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &342306230
 GameObject:
   m_ObjectHideFlags: 0
@@ -1598,6 +1614,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &355972050
 GameObject:
   m_ObjectHideFlags: 0
@@ -1650,6 +1667,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &370354015
 GameObject:
   m_ObjectHideFlags: 0
@@ -1702,6 +1720,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &373959058
 GameObject:
   m_ObjectHideFlags: 0
@@ -1754,6 +1773,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &398615235
 GameObject:
   m_ObjectHideFlags: 0
@@ -2092,6 +2112,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &447241565
 GameObject:
   m_ObjectHideFlags: 0
@@ -2145,6 +2166,7 @@ MonoBehaviour:
   _structure: {fileID: 1294464704}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &451295049
 GameObject:
   m_ObjectHideFlags: 0
@@ -2197,6 +2219,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &507653299
 GameObject:
   m_ObjectHideFlags: 0
@@ -2302,6 +2325,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &563650493
 GameObject:
   m_ObjectHideFlags: 0
@@ -2354,6 +2378,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 1
 --- !u!1 &581503576
 GameObject:
   m_ObjectHideFlags: 0
@@ -2406,6 +2431,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &594073935
 GameObject:
   m_ObjectHideFlags: 0
@@ -2632,6 +2658,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1001 &660273029
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2858,6 +2885,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &736042286
 GameObject:
   m_ObjectHideFlags: 0
@@ -3006,6 +3034,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &776404568
 GameObject:
   m_ObjectHideFlags: 0
@@ -3058,6 +3087,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &781306669
 GameObject:
   m_ObjectHideFlags: 0
@@ -3110,6 +3140,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &805554667
 GameObject:
   m_ObjectHideFlags: 0
@@ -3162,6 +3193,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &809001411
 GameObject:
   m_ObjectHideFlags: 0
@@ -3214,6 +3246,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &814657259
 GameObject:
   m_ObjectHideFlags: 0
@@ -3395,6 +3428,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1001 &825379916
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3520,6 +3554,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &884964609
 GameObject:
   m_ObjectHideFlags: 0
@@ -3572,6 +3607,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &894800289
 GameObject:
   m_ObjectHideFlags: 0
@@ -3624,6 +3660,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1001 &911829869
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3738,6 +3775,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &927238638
 GameObject:
   m_ObjectHideFlags: 0
@@ -3841,6 +3879,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &940559793
 GameObject:
   m_ObjectHideFlags: 0
@@ -3928,6 +3967,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &970655781
 GameObject:
   m_ObjectHideFlags: 0
@@ -4017,6 +4057,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &994165661
 GameObject:
   m_ObjectHideFlags: 0
@@ -4181,6 +4222,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1032514471
 GameObject:
   m_ObjectHideFlags: 0
@@ -4233,6 +4275,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1034922734
 GameObject:
   m_ObjectHideFlags: 0
@@ -4285,6 +4328,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1053533370
 GameObject:
   m_ObjectHideFlags: 0
@@ -4337,6 +4381,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1066494678
 GameObject:
   m_ObjectHideFlags: 0
@@ -4501,6 +4546,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1077334591
 GameObject:
   m_ObjectHideFlags: 0
@@ -4665,6 +4711,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1088837104
 GameObject:
   m_ObjectHideFlags: 0
@@ -4818,6 +4865,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1172982079
 GameObject:
   m_ObjectHideFlags: 0
@@ -4870,6 +4918,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1189794085
 GameObject:
   m_ObjectHideFlags: 0
@@ -4922,6 +4971,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1198423626
 GameObject:
   m_ObjectHideFlags: 0
@@ -4974,6 +5024,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1204803205
 GameObject:
   m_ObjectHideFlags: 0
@@ -5176,6 +5227,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1001 &1294464702
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5301,6 +5353,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1329723882
 GameObject:
   m_ObjectHideFlags: 0
@@ -5353,6 +5406,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1379963599
 GameObject:
   m_ObjectHideFlags: 0
@@ -5405,6 +5459,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1432259152
 GameObject:
   m_ObjectHideFlags: 0
@@ -5457,6 +5512,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1432562365
 GameObject:
   m_ObjectHideFlags: 0
@@ -5509,6 +5565,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1483189703
 GameObject:
   m_ObjectHideFlags: 0
@@ -5561,6 +5618,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1493669677
 GameObject:
   m_ObjectHideFlags: 0
@@ -5613,6 +5671,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1511765203
 GameObject:
   m_ObjectHideFlags: 0
@@ -5867,6 +5926,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1566998499
 GameObject:
   m_ObjectHideFlags: 0
@@ -5919,6 +5979,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1571066437
 GameObject:
   m_ObjectHideFlags: 0
@@ -6232,6 +6293,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1605430473
 GameObject:
   m_ObjectHideFlags: 0
@@ -6284,6 +6346,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1641460932
 GameObject:
   m_ObjectHideFlags: 0
@@ -6336,6 +6399,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1641900950
 GameObject:
   m_ObjectHideFlags: 0
@@ -6388,6 +6452,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1661811788
 GameObject:
   m_ObjectHideFlags: 0
@@ -6493,6 +6558,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1698786992
 GameObject:
   m_ObjectHideFlags: 0
@@ -6545,6 +6611,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1700198049
 GameObject:
   m_ObjectHideFlags: 0
@@ -6597,6 +6664,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1714268970
 GameObject:
   m_ObjectHideFlags: 0
@@ -6649,6 +6717,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1739822256
 GameObject:
   m_ObjectHideFlags: 0
@@ -6701,6 +6770,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1744604255
 GameObject:
   m_ObjectHideFlags: 0
@@ -6816,6 +6886,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8876161085125154754, guid: ce036867f3d933541a11ad412aa2e139, type: 3}
   m_PrefabInstance: {fileID: 1745750672}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1745750674 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 303574812973985068, guid: ce036867f3d933541a11ad412aa2e139, type: 3}
+  m_PrefabInstance: {fileID: 1745750672}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54b06e106ad64a94888557ee9cb50f90, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.DestructionTarget
 --- !u!1 &1747747215
 GameObject:
   m_ObjectHideFlags: 0
@@ -6868,6 +6949,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1750749508
 GameObject:
   m_ObjectHideFlags: 0
@@ -6920,6 +7002,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1772759939
 GameObject:
   m_ObjectHideFlags: 0
@@ -6972,6 +7055,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1791619468
 GameObject:
   m_ObjectHideFlags: 0
@@ -7024,6 +7108,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1802336080
 GameObject:
   m_ObjectHideFlags: 0
@@ -7076,6 +7161,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1823541755
 GameObject:
   m_ObjectHideFlags: 0
@@ -7128,6 +7214,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1001 &1832828170
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7242,6 +7329,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &1878981620
 GameObject:
   m_ObjectHideFlags: 0
@@ -7347,6 +7435,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1001 &1893951026
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7524,6 +7613,94 @@ MonoBehaviour:
   _structure: {fileID: 825379918}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
+--- !u!1 &1962389455
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1962389457}
+  - component: {fileID: 1962389456}
+  m_Layer: 0
+  m_Name: StageGuideScript
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1962389456
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1962389455}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5122c3aefbdc8b64eb493134f66aaa1c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageGuideScript
+  _objective: "\u30C6\u30B9\u30C8\u30B9\u30C6\u30FC\u30B8\uFF1A\u30B2\u30FC\u30C8\u3092\u58CA\u305B"
+  _steps:
+  - _subObjective: "\u30B8\u30E3\u30F3\u30D7\u3057\u3088\u3046"
+    _dialogue: "\u53F0\u672C\u306E\u30C6\u30B9\u30C8\u3067\u3059\u3002\u30B9\u30DA\u30FC\u30B9\u30AD\u30FC\u3067\u30B8\u30E3\u30F3\u30D7\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+    _condition:
+      _kind: 2
+      _target: {fileID: 0}
+      _count: 1
+      _action: 3
+    _releaseSpawnPoints: []
+  - _subObjective: "\u901A\u5E38\u653B\u6483\u3092\u632F\u308D\u3046"
+    _dialogue: "\u6B21\u306F\u5DE6\u30AF\u30EA\u30C3\u30AF\u3067\u901A\u5E38\u653B\u6483\u3067\u3059\u3002"
+    _condition:
+      _kind: 2
+      _target: {fileID: 0}
+      _count: 1
+      _action: 2
+    _releaseSpawnPoints: []
+  - _subObjective: "\u30B9\u30AD\u30EB1\u3092\u4F7F\u304A\u3046"
+    _dialogue: "1\u30AD\u30FC\u3067\u30B9\u30AD\u30EB1\u3092\u767A\u52D5\u3067\u304D\u307E\u3059\u3002\u30C1\u30E3\u30FC\u30B8\u304C\u8DB3\u308A\u306A\u3044\u3068\u304D\u306F\u3001\u6575\u3092\u5012\u3057\u3066\u8CAF\u3081\u307E\u3059\u3002"
+    _condition:
+      _kind: 2
+      _target: {fileID: 0}
+      _count: 1
+      _action: 0
+    _releaseSpawnPoints: []
+  - _subObjective: "\u6575\u30923\u4F53\u5012\u305D\u3046"
+    _dialogue: "\u6575\u306E\u65B0\u3057\u3044\u30B0\u30EB\u30FC\u30D7\u304C\u73FE\u308C\u307E\u3057\u305F\u3002"
+    _condition:
+      _kind: 1
+      _target: {fileID: 0}
+      _count: 3
+      _action: 3
+    _releaseSpawnPoints:
+    - {fileID: 563650495}
+  - _subObjective: "\u30B2\u30FC\u30C8\u3092\u58CA\u305D\u3046"
+    _dialogue: "\u6700\u5F8C\u306F\u7834\u58CA\u5BFE\u8C61\u306E\u30B2\u30FC\u30C8\u3067\u3059\u3002"
+    _condition:
+      _kind: 0
+      _target: {fileID: 1745750674}
+      _count: 1
+      _action: 3
+    _releaseSpawnPoints: []
+--- !u!4 &1962389457
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1962389455}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2007742710
 GameObject:
   m_ObjectHideFlags: 0
@@ -7576,6 +7753,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1001 &2019215424
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7690,6 +7868,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1 &2049247148
 GameObject:
   m_ObjectHideFlags: 0
@@ -7742,6 +7921,7 @@ MonoBehaviour:
   _structure: {fileID: 0}
   _brokenLossRatio: 0.05
   _isEnabled: 1
+  _isHeld: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -7755,3 +7935,4 @@ SceneRoots:
   - {fileID: 736042287}
   - {fileID: 940559794}
   - {fileID: 1088837106}
+  - {fileID: 1962389457}
