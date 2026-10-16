@@ -51,7 +51,7 @@ namespace Kizami.Application
             for (var i = 0; i < count; i++)
             {
                 _slots[i] = equippedSkills[i];
-                if (_slots[i] != null) _slotState.SetSlot(i, _slots[i].Cost, _slots[i].Icon);
+                if (_slots[i] != null) _slotState.SetSlot(i, _slots[i].Cost, _slots[i].Icon, _slots[i].DisplayName);
             }
 
             if (!blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this) ||
