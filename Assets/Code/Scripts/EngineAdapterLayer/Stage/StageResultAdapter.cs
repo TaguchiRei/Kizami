@@ -41,6 +41,7 @@ namespace Kizami.EngineAdapter
             return reason switch
             {
                 StageFailReason.PlayerDeath => "HP reached 0",
+                StageFailReason.TimeUp => "Time is up",
                 _ => reason.ToString(),
             };
         }

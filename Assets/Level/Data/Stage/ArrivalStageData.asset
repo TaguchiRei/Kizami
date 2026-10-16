@@ -18,10 +18,15 @@ MonoBehaviour:
   _initialCharge: 100
   _fixedSkills: []
   _failConditions:
-  - rid: 8226038394822328404
+  - rid: 8226038394822328408
+  - rid: 8226038394822328409
   references:
     version: 2
     RefIds:
-    - rid: 8226038394822328404
+    - rid: 8226038394822328408
       type: {class: PlayerDeathFailCondition, ns: Kizami.External, asm: Kizami.External.Runtime}
       data: 
+    - rid: 8226038394822328409
+      type: {class: TimeLimitFailCondition, ns: Kizami.External, asm: Kizami.External.Runtime}
+      data:
+        _seconds: 300

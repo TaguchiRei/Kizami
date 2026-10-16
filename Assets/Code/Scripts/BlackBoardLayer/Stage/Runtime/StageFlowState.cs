@@ -15,10 +15,20 @@ namespace Kizami.BlackBoard
         public int DestroyedTargetCount { get; private set; }
         public int DefeatCount { get; private set; }
         public int Score { get; private set; }
+        public float RemainingTime { get; private set; } = -1f;
 
         public override string GetLog()
         {
-            return $"Phase: {Phase}  \nIsPaused: {IsPaused}  \nFailReason: {FailReason}  \nTargets: {DestroyedTargetCount} / {TargetCount}  \nDefeats: {DefeatCount}  \nScore: {Score}";
+            return $"Phase: {Phase}  \nIsPaused: {IsPaused}  \nFailReason: {FailReason}  \nTargets: {DestroyedTargetCount} / {TargetCount}  \nDefeats: {DefeatCount}  \nScore: {Score}  \nRemainingTime: {RemainingTime}";
+        }
+
+        /// <summary>
+        /// 制限時間の残りを設定する。
+        /// </summary>
+        /// <param name="remainingTime">残りの時間（秒）</param>
+        public void SetRemainingTime(float remainingTime)
+        {
+            RemainingTime = remainingTime;
         }
 
         /// <summary>
@@ -103,6 +113,9 @@ namespace Kizami.BlackBoard
 
         /// <summary> スコア。倒した敵1体につき1点と、クリアしたときの基礎スコアの合計 </summary>
         int Score { get; }
+
+        /// <summary> 制限時間の残り（秒）。制限時間がないステージでは負の値 </summary>
+        float RemainingTime { get; }
     }
 
     /// <summary>
@@ -133,5 +146,8 @@ namespace Kizami.BlackBoard
 
         /// <summary> プレイヤーの HP が0になった </summary>
         PlayerDeath,
+
+        /// <summary> 制限時間が切れた </summary>
+        TimeUp,
     }
 }

@@ -15,6 +15,7 @@ namespace Kizami.Application
     /// スコアは、倒した敵1体につき1点と、クリアしたときの基礎スコアの合計。クリアタイムと被ダメージは、時間をかけて準備して壊す遊び方を損なわない為、使わない。
     /// プレイ中は UI マップの Cancel（Esc）でポーズを切り替える。ポーズは時間の倍率を0にして Player マップを止め、解くとポーズ前の倍率に戻す。
     /// クリアか失敗になったら Player マップを止める。
+    /// 制限時間の失敗条件があるステージでは、外から渡された実時間（Tick）で残り時間を減らし、ポーズ中は減らさない。
     /// </summary>
     public sealed class StageFlowService : IDisposable
     {
@@ -28,6 +29,9 @@ namespace Kizami.Application
 
         /// <summary> ポーズを解いたときに戻す時間の倍率 </summary>
         private float _resumeScale = 1f;
+
+        /// <summary> 制限時間の失敗条件があるか </summary>
+        private bool _hasTimeLimit;
 
         /// <summary>
         /// StageFlowState を StageBoard へ登録し、失敗条件の判定に使う State の変化と、ポーズの入力を購読する。
@@ -96,6 +100,19 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// 制限時間を進める。プレイ中でポーズしていないときだけ進め、残りが0になったら失敗にする。
+        /// </summary>
+        /// <param name="deltaSeconds">前回から経った実時間（秒）</param>
+        public void Tick(float deltaSeconds)
+        {
+            if (!_hasTimeLimit || _state.Phase != StagePhase.Playing || _state.IsPaused) return;
+
+            var remaining = Math.Max(0f, _state.RemainingTime - deltaSeconds);
+            _state.SetRemainingTime(remaining);
+            if (remaining <= 0f) Fail(StageFailReason.TimeUp);
+        }
+
+        /// <summary>
         /// プレイ中でポーズしていなければ、ポーズする。
         /// </summary>
         public void Pause()
@@ -149,6 +166,10 @@ namespace Kizami.Application
                     {
                         if (current <= 0) Fail(StageFailReason.PlayerDeath);
                     }));
+                    break;
+                case TimeLimitFailCondition timeLimit:
+                    _hasTimeLimit = true;
+                    _state.SetRemainingTime(timeLimit.Seconds);
                     break;
                 case null:
                     break;
