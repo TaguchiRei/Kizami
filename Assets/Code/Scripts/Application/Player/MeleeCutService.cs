@@ -25,6 +25,7 @@ namespace Kizami.Application
         private readonly PlayerEnhanceService _enhanceService;
         private readonly Action<float, float, DamageType> _onSwing;
         private readonly Func<bool> _tryUseCut;
+        private readonly PlayerActionEvents _actionEvents;
         private readonly List<IDisposable> _subscriptions = new();
 
         /// <summary> 前回振った時刻（unscaled の秒） </summary>
@@ -35,11 +36,13 @@ namespace Kizami.Application
         /// <param name="enhanceService">切断にかかる強化の取得元</param>
         /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）、範囲に掛ける倍率、ダメージの種類</param>
         /// <param name="tryUseCut">振る直前に呼び、振れる回数を1回使う関数。false なら振らない</param>
+        /// <param name="actionEvents">振ったことを流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public MeleeCutService(IBlackBoard blackBoard, PlayerParameterData parameters,
             PlayerEnhanceService enhanceService, Action<float, float, DamageType> onSwing, Func<bool> tryUseCut,
-            int sceneId)
+            PlayerActionEvents actionEvents, int sceneId)
         {
+            _actionEvents = actionEvents;
             _parameters = parameters;
             _enhanceService = enhanceService;
             _onSwing = onSwing;
@@ -89,6 +92,7 @@ namespace Kizami.Application
 
             _lastSwingTime = now;
             _onSwing?.Invoke(_state.Angle, rangeScale, damageType);
+            _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.MeleeSwung));
         }
 
         public void Dispose()
