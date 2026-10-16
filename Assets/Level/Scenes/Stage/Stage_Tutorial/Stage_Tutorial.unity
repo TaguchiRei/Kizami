@@ -119,6 +119,84 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &651635353
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 651635355}
+  - component: {fileID: 651635354}
+  m_Layer: 0
+  m_Name: StageGuideScript
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &651635354
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 651635353}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5122c3aefbdc8b64eb493134f66aaa1c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageGuideScript
+  _objective: "\u888B\u5C0F\u8DEF\u304B\u3089\u8131\u51FA\u3057\u308D"
+  _steps:
+  - _subObjective: "\u79FB\u52D5\u3057\u3066\u307F\u3088\u3046"
+    _dialogue: "WASD\u30AD\u30FC\u3067\u79FB\u52D5\u3067\u304D\u307E\u3059\u3002Shift\u30AD\u30FC\u3092\u62BC\u3057\u3066\u3044\u308B\u9593\u306F\u3001\u8D70\u308C\u307E\u3059\u3002"
+    _condition:
+      _kind: 3
+      _target: {fileID: 0}
+      _count: 1
+      _action: 3
+    _releaseSpawnPoints: []
+  - _subObjective: "\u6BB5\u5DEE\u3092\u98DB\u3073\u8D8A\u3048\u3088\u3046"
+    _dialogue: "\u30B9\u30DA\u30FC\u30B9\u30AD\u30FC\u3067\u30B8\u30E3\u30F3\u30D7\u3057\u307E\u3059\u3002\u76EE\u306E\u524D\u306E\u6BB5\u5DEE\u3092\u98DB\u3073\u8D8A\u3048\u307E\u3057\u3087\u3046\u3002"
+    _condition:
+      _kind: 2
+      _target: {fileID: 0}
+      _count: 1
+      _action: 3
+    _releaseSpawnPoints: []
+  - _subObjective: "\u58C1\u3092\u8D70\u308D\u3046"
+    _dialogue: "\u7A7A\u4E2D\u3067\u58C1\u306B\u89E6\u308C\u306A\u304C\u3089\u524D\u3078\u9032\u3080\u3068\u3001\u58C1\u3092\u8D70\u308C\u307E\u3059\u3002\u30B8\u30E3\u30F3\u30D7\u3057\u3066\u3001\u58C1\u3078\u5411\u304B\u3063\u3066\u9032\u307F\u307E\u3057\u3087\u3046\u3002"
+    _condition:
+      _kind: 2
+      _target: {fileID: 0}
+      _count: 1
+      _action: 4
+    _releaseSpawnPoints: []
+  - _subObjective: "\u58C1\u30AD\u30C3\u30AF\u3067\u9AD8\u3044\u8DB3\u5834\u3078\u767B\u308D\u3046"
+    _dialogue: "\u58C1\u3092\u8D70\u3063\u3066\u3044\u308B\u9593\u306B\u30B8\u30E3\u30F3\u30D7\u3059\u308B\u3068\u3001\u58C1\u3092\u8E74\u3063\u3066\u53CD\u5BFE\u5074\u306E\u58C1\u3078\u8DF3\u3079\u307E\u3059\u3002\u58C1\u30AD\u30C3\u30AF\u3092\u7E70\u308A\u8FD4\u3057\u3066\u3001\u5965\u306E\u9AD8\u3044\u8DB3\u5834\u3078\u767B\u308A\u307E\u3057\u3087\u3046\u3002"
+    _condition:
+      _kind: 2
+      _target: {fileID: 0}
+      _count: 1
+      _action: 5
+    _releaseSpawnPoints: []
+--- !u!4 &651635355
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 651635353}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &782276183
 GameObject:
   m_ObjectHideFlags: 0
@@ -173,3 +251,4 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 782276185}
+  - {fileID: 651635355}
