@@ -6,7 +6,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
 {
     /// <summary>
     /// マウスでボクセルを削る・盛る・加熱する検証用ツール。カメラに付ける。
-    /// 左ボタン: 削る（熱: 加熱、スライス: 切り分け） / 右ボタン: 盛る（熱: 冷却） / ホイール: 道具の大きさ
+    /// 左ボタン: 削る（熱: 加熱、スライス: 切り分け、ガラスの板: 割る） / 右ボタン: 盛る（熱: 冷却） / ホイール: 道具の大きさ
     /// 1・2・3・4・5: 球・箱・刃・熱・スライス
     /// 中ボタンドラッグ または Alt + 左ドラッグ: 注視点の周りを回る / F1: 検証用の画面表示を切り替える
     /// 熱の道具は、シーンに VoxelMeltSystem があればそれを通して範囲内の全ピースを、無ければ当たったピースだけを加熱する。
@@ -102,6 +102,12 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
             }
 
             var target = RaycastPiece(mouse, out var hit);
+            if (target == null && mouse.leftButton.wasPressedThisFrame && hit.collider != null)
+            {
+                var glass = hit.collider.GetComponentInParent<GlassPane>();
+                if (glass != null) glass.Shatter(hit.point);
+            }
+
             _hasCursorTemperature = target != null;
             if (target == null) return;
 
