@@ -1,0 +1,139 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &1893162280580076732
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -7469986652323022456, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 08bcfe2615c62b9448c8278f583defbc, type: 2}
+    - target: {fileID: -7414784626451596951, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: aca465ef318173b4697fba78c6fd357d, type: 2}
+    - target: {fileID: 919132149155446097, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: m_Name
+      value: Stage_Wall_Block_01
+      objectReference: {fileID: 0}
+    - target: {fileID: 8746507085551923265, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: f4599d9451978f644ba9d31b4f61fcf0, type: 2}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 813727516565121068}
+    - targetCorrespondingSourceObject: {fileID: 5057806491378652794, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5647317623691005092}
+    - targetCorrespondingSourceObject: {fileID: 2068036157835662007, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 943502854063249380}
+  m_SourcePrefab: {fileID: 100100000, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+--- !u!1 &501868775076890123 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2068036157835662007, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+  m_PrefabInstance: {fileID: 1893162280580076732}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &943502854063249380
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 501868775076890123}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e2c3ba4fa1661c45959eadc1d3aa420, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelBakeMaterial
+  _strength: 2
+--- !u!1 &1622620509737445869 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+  m_PrefabInstance: {fileID: 1893162280580076732}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &813727516565121068
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1622620509737445869}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f46df2ea00bddd4394ce7b4e0beeade, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelModelLoader
+  _model: {fileID: 11400000, guid: d06c9cf4be839bb44b802293445c108a, type: 2}
+  _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
+  _materialOverride: {fileID: 0}
+  _splittable: 1
+  _meltSystem: {fileID: 0}
+  _loadOnStart: 1
+--- !u!1 &6662280858712326854 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5057806491378652794, guid: bacfa46cead87274bb8766260f397d7d, type: 3}
+  m_PrefabInstance: {fileID: 1893162280580076732}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &5647317623691005092
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6662280858712326854}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e2c3ba4fa1661c45959eadc1d3aa420, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelBakeMaterial
+  _strength: 0
