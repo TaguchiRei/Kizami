@@ -150,6 +150,9 @@ namespace Kizami.BlackBoard
         /// <summary> スポーン位置から補充と出し直しの敵を出せるか </summary>
         public bool CanSpawn;
 
+        /// <summary> 動かない部隊か。追跡範囲に入っても追わない </summary>
+        public bool IsStationary;
+
         /// <summary> 持ち場が追跡範囲（距離マップを計算した範囲）の中にあるか </summary>
         public bool IsHomeTracked;
 

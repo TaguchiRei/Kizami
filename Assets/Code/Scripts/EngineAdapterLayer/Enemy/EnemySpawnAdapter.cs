@@ -730,6 +730,7 @@ namespace Kizami.EngineAdapter
                     SpawnPosition = point != null ? point.transform.position : group.HomePosition,
                     RespawnInterval = point != null ? point.RespawnInterval : 0f,
                     CanSpawn = point != null && point.CanSpawn,
+                    IsStationary = point != null && point.IsStationary,
                     IsHomeTracked = IsTracked(group.HomePosition),
                     HasArrived = group.HasArrived,
                     HasReachedHome = group.HasReachedHome,

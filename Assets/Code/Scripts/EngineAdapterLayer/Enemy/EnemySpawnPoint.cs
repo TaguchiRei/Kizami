@@ -11,6 +11,7 @@ namespace Kizami.EngineAdapter
     /// 建物（ボクセルのモデル）を指定すると、読み込んだ時点の体積の壊れたとみなす割合以上が削れたときに、補充と出し直しの敵を出さなくなる。
     /// 建物は EnemySpawn レイヤーに置き、敵の経路の格子に入れない。敵は建物の内側に出て、そのまま歩いて出てくる。
     /// 出現を保留すると、初期化では置き場所だけを確保して敵を出さず、解放したあとに出す。
+    /// 動かない設定にすると、部隊は追跡範囲に入ってもプレイヤーを追わず、持ち場で待機したまま攻撃する。
     /// </summary>
     public sealed class EnemySpawnPoint : MonoBehaviour
     {
@@ -53,6 +54,10 @@ namespace Kizami.EngineAdapter
         private bool _isEnabled = true;
 
         [SerializeField]
+        [Tooltip("動かないか。追跡範囲に入っても追わず、持ち場で待機したまま攻撃する")]
+        private bool _isStationary;
+
+        [SerializeField]
         [Tooltip("出現を保留するか。初期化では置き場所だけ確保して敵を出さず、Release のあとに出す。解放から出るまでは、出し直しの間隔の残りを待つ")]
         private bool _isHeld;
 
@@ -83,6 +88,9 @@ namespace Kizami.EngineAdapter
                 return _structure.Volume <= _initialVolume * (1f - _brokenLossRatio);
             }
         }
+
+        /// <summary> 動かないか </summary>
+        public bool IsStationary => _isStationary;
 
         /// <summary> 出現を保留しているか </summary>
         public bool IsHeld => _isHeld;

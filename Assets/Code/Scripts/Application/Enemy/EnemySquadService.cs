@@ -9,7 +9,7 @@ namespace Kizami.Application
     /// <summary>
     /// 敵の部隊（グループ）ごとに、待機・追跡・帰還の状態と持ち場を決めるユースケース。
     /// Engine 側の観測（EnemySquadObservationState）を読んで判断し、命令（EnemySquadCommandState）に書く。Step は EnemySpawnAdapter がグループを動かす前に毎フレーム呼ぶ。
-    /// 持ち場が追跡範囲に入ったら追跡、外れたら帰還にし、帰還で持ち場に着いたら待機にする。
+    /// 持ち場が追跡範囲に入ったら追跡、外れたら帰還にし、帰還で持ち場に着いたら待機にする。動かない部隊は、追跡範囲に入っても追跡にせず、待機のままにする。
     /// 帰還の途中で進めない状態が RETURN_BLOCKED_DURATION 続いたら、アンカーの位置を新しい持ち場（臨時の拠点）にして待機にする。元の持ち場へ移さないのは、持ち場が埋まっていることがあり、プレイヤーが敵を分断する遊び（橋を切るなど）を残す為。
     /// 追跡中に満員の人数の撤退する損耗の割合以上を失った部隊は、撤退してスポーン位置へ帰る。撤退中は、持ち場が追跡範囲にあっても追跡に戻らない。
     /// 撤退した部隊がスポーン位置に帰り着いたら、補充（Refill）を命じて撤退を終える。補充は命じた Step の次の Step で下ろすので、Engine 側は1回だけ受け取る。
@@ -162,7 +162,8 @@ namespace Kizami.Application
                 return;
             }
 
-            if (command.State != EnemyGroupState.Tracking && !command.IsRetreating && observation.IsHomeTracked)
+            if (command.State != EnemyGroupState.Tracking && !command.IsRetreating && !observation.IsStationary &&
+                observation.IsHomeTracked)
             {
                 command.State = EnemyGroupState.Tracking;
                 _blockedTimes[index] = 0f;
