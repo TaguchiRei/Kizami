@@ -79,6 +79,10 @@ namespace Kizami.Initialization
 
             _lookService = new PlayerLookService(blackBoard, sceneId);
             _chargeService = new ChargeService(blackBoard, _parameters, sceneId);
+            if (_progressService != null && _progressService.TryGetSelectedStage(out var selectedStage))
+            {
+                _chargeService.AddAmount(selectedStage.InitialCharge);
+            }
 
             _fragmentOrbAdapter.Initialize(_chargeService.AddFragments);
             _enemyEnergyAdapter.Initialize(_chargeService.AddCollapsedEnemies);
