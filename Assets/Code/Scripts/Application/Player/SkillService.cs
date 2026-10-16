@@ -24,6 +24,7 @@ namespace Kizami.Application
         private readonly Action<float> _onExplosion;
         private readonly Action<int> _onHeal;
         private readonly List<IDisposable> _subscriptions = new();
+        private readonly PlayerActionEvents _actionEvents;
         private readonly IPlayerHealthState _healthState;
 
         /// <param name="blackBoard">SkillSlotState の登録先と、入力・HP の取得元</param>
@@ -33,11 +34,13 @@ namespace Kizami.Application
         /// <param name="onBeam">ビームを出す関数。引数は長さ（m）と半径（m）</param>
         /// <param name="onExplosion">爆発を出す関数。引数は半径（m）</param>
         /// <param name="onHeal">HP を回復する関数。引数は回復量</param>
+        /// <param name="actionEvents">スキルの発動とチャージの消費を流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
             ChargeService chargeService, PlayerEnhanceService enhanceService, Action<float, float> onBeam,
-            Action<float> onExplosion, Action<int> onHeal, int sceneId)
+            Action<float> onExplosion, Action<int> onHeal, PlayerActionEvents actionEvents, int sceneId)
         {
+            _actionEvents = actionEvents;
             _chargeService = chargeService;
             _enhanceService = enhanceService;
             _onBeam = onBeam;
@@ -48,7 +51,7 @@ namespace Kizami.Application
             for (var i = 0; i < count; i++)
             {
                 _slots[i] = equippedSkills[i];
-                if (_slots[i] != null) _slotState.SetSlot(i, _slots[i].Cost, _slots[i].Icon);
+                if (_slots[i] != null) _slotState.SetSlot(i, _slots[i].Cost, _slots[i].Icon, _slots[i].DisplayName);
             }
 
             if (!blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this) ||
@@ -66,7 +69,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 枠にスキルがあり、その消費量だけチャージを消費できたら、スキルの効果を出す。
+        /// 枠にスキルがあり、その消費量だけチャージを消費できたら、スキルの発動とチャージの消費を通知して、効果を出す。
         /// 回復は、HP が0のときと最大のときは発動せず、チャージも消費しない。
         /// </summary>
         private void OnSkill(InputContext<float> context, int slot)
@@ -77,6 +80,9 @@ namespace Kizami.Application
             if (skill == null) return;
             if (skill.Effect == SkillEffect.Heal && !CanHeal()) return;
             if (!_chargeService.TryConsume(skill.Cost)) return;
+
+            _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.SkillUsed, skill.DisplayName));
+            _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.ChargeSpent, amount: skill.Cost));
 
             if (skill.IsEnhancement)
             {

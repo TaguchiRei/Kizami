@@ -96,10 +96,24 @@ namespace Kizami.Application
 
         /// <summary>
         /// 装備枠ごとに、装備しているスキルの定義を返す。空きの枠は null。
+        /// 選んだステージがスキルを固定しているときは、装備に関わらず、固定したスキルを先頭の枠から順に返す。
         /// </summary>
         public SkillData[] GetEquippedSkills()
         {
             var equipped = new SkillData[_state.SlotCount];
+            var stageIndex = _state.SelectedStageIndex;
+            if (stageIndex >= 0 && stageIndex < _stages.Length && _stages[stageIndex] != null &&
+                _stages[stageIndex].FixedSkills.Count > 0)
+            {
+                var fixedSkills = _stages[stageIndex].FixedSkills;
+                for (var slot = 0; slot < equipped.Length && slot < fixedSkills.Count; slot++)
+                {
+                    equipped[slot] = fixedSkills[slot];
+                }
+
+                return equipped;
+            }
+
             for (var slot = 0; slot < equipped.Length; slot++)
             {
                 var index = _state.GetEquippedSkillIndex(slot);

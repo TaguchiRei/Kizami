@@ -104,7 +104,7 @@
 | ステージシーン | あり（区間4A）。`Assets/Level/Scenes/Stage/TestStage/TestStage.unity` にライト・地面・`TestWalls`（`StageBounds`）・`EnemySpawnSystem` を置き、`InGameGroup` は `[TestStage（アクティブ）, InGame]`。TestStage の格子の範囲は 500m 四方（区画 50m）で、段差・壁・橋（`CrowdTerrain`）と、ボクセルの壁とスロープ付きの橋（`CrowdVoxelTerrain`）を置く（区間4B・4C）。敵の出し方は 2 つあり、有効な方が使われる：`EnemySpawnSystem_Few`（10 体、北と南のスポーン位置に 5 体ずつ。テストプレイ用）と `EnemySpawnSystem_Crowd`（80 区画に 12 体ずつ、計 960 体。群衆の挙動や負荷を見るとき。既定）（区間4E） |
 | 敵の体と切断 | あり（区間4A・4B）。InGame の `Enemy`（`EnemyInitializer`、`EnemySpawnAdapter`）が、敵の状態（`EnemyAgent` の NativeArray。有効なスポーン位置の編成の人数の合計）と生成を持つ。ステージシーンの `EnemySpawnSystem` の子のスポーン位置（`EnemySpawnPoint`）1 つにつき、編成（`EnemySquadComposition`）の 1 グループを開始時に出す。1 つの区画に置けるスポーン位置は 1 つ（区間4E）。体のプール（Inspector の数、既定 32）、近くの敵への体の貸し出しと返却、切断の受け取りは `EnemyBodyLender`、見た目用の部位（`EnemyDebris`、ディゾルブ `Kizami/EnemyDissolve`）は `EnemyDebrisSpawner` が受け持ち、どちらも `EnemySpawnAdapter` が持つ（区間8R）。`EnemyBody` は、接続部側を残す、子の部位を失う、役割（核で倒れる・移動部位 4 つで止まる）、倒れたら切断済みはオーブ・切っていない部位は見た目用の物、を行う。部位の状態は体を返しても `EnemyAgent` に持ち続け、短くなった部位の形は `EnemyShapeKeeper` が預かる。敵は 3 種（`EnemyKind`。区間9）で、種類ごとに体のプールとまとめて描画を持つ。アタッカーは弾（`EnemyShooter`）、ディフェンダーはグループを覆う球のバリア（`EnemyBarriers`。中のプレイヤーは `PlayerMovementService.RequestLaunch` で打ち上げる）、フィニッシャーは宙に浮いて移動し、仲間の吸収・分身・デカールの予兆・ビーム（`EnemyFinisherAttack`・`EnemyFinisherBeams`）を行う |
 | 敵の群衆 | あり（区間4B・4C・4D・4E・4F・4G）。約 1000 体を `EnemyCrowdRenderer`（`RenderMeshInstanced`）でまとめて描画する。経路は格子と距離マップ（`EnemyDistanceField`。初期化のときに物理のクエリで作り、ボクセルの形が変わったら作り直しのあとで変わった列だけ調べ直す。距離は Dial 法の Job で、プレイヤーのいる区画とその周りの 3×3（追跡範囲。区画の大きさは `EnemySpawnSystem`、TestStage は 50m）だけを計算する）。敵はスポーン位置ごとのグループ（`EnemyGroups`、`EnemyGroupJob`。人数は編成の長さで 16 まで）で、待機・追跡・帰還の状態（`EnemyGroupState`）を持ち、持ち場が追跡範囲の外なら待ち、外れたら来た道を戻る。部隊ごとの状態・持ち場・置き場は Application の `EnemySquadService` が決め、`EnemyBoard` の命令（`EnemySquadCommandState`）と観測（`EnemySquadObservationState`）でやり取りする。Engine は置き場の位置（`EnemyEncircleSlotJob`）を求め、命令に従って動かす。追跡範囲の外で待機する部隊は、並び終えたらグループとメンバーの処理を止める（区間4F）。追跡中はプレイヤーを中心にした螺旋の置き場（グループの目標位置。来た向きで割り当て、持てなければ外の待つ置き場）へ、アンカーの道筋に沿って 1〜4 列の隊列で進み（1 列の数は進む先 18m の最も狭い幅で決める）、着いたらグループの中心の周りの螺旋に並んでプレイヤーを向く（`EnemyMoveJob`）。交戦（隊列を外れてプレイヤーを囲む動き）はない。撃破の穴詰め、動けない敵（グループから抜けてその場に残る）、戻れない敵（グループのまま持ち場の周りへ移す）の扱いもある。ほかのグループとの合流と、交互の前進はない（区間4E で消した）。体を貸した敵は `EnemyLegs`（脚の IK）で歩く。体を貸していない敵は休みの姿勢のまま描く。設定は `EnemySpawnAdapter` の Inspector の「Formation」。追跡中に満員の人数の 60%（`EnemyInitializer` の設定）を失った部隊は撤退してスポーン位置へ帰り、帰り着くと欠けた種類を出して満員に戻る。全滅した部隊は、スポーン位置ごとの間隔（既定 30 秒）のあとに満員で出直す。動けなくなった敵はグループに残り、補充されない。動けるメンバーのいない部隊は止まる。スポーン位置にボクセルの建物（`EnemySpawnCube`、`EnemySpawn` レイヤー）を指定でき、体積の 5% 以上を削られたら補充も出し直しもしない（区間4G） |
-| 破壊対象とクリア | あり（区間5）。ステージシーンの `DestructionTarget`（`VoxelModelLoader` と同じ GameObject）が、重要パーツ（`PartPath`）が 1 つずつ必要な割合まで削れたら破壊済みにする。`StageClearAdapter` が破壊済みの数を `StageFlowService` へ報告し、すべて破壊済みになったらクリアにする（区間11）。TestStage に門の形の破壊対象を 2 つ置いた |
+| 破壊対象とクリア | あり（区間5）。ステージシーンの `DestructionTarget`（`VoxelModelLoader` と同じ GameObject）が、重要パーツ（`PartPath`）が 1 つずつ必要な割合まで削れたら破壊済みにする。`StageClearAdapter` が破壊済みの数を `StageFlowService` へ報告し、すべて破壊済みになったらクリアにする（区間11）。TestStage に門の形の破壊対象を 2 つ置いた。破壊対象は `IDestructionTarget` で、ボクセルの `DestructionTarget` と、普通のオブジェクトの `CoreSystem`（子の `CorePart` にボクセルの塊が当たって分離した割合で壊れる）がある（区間14B） |
 | インゲームの流れ・HUD・リザルト・ポーズ | あり（区間11）。InGame の `Stage`（`StageInitializer`）が `StageFlowService` を作る。流れ（Ready → Playing → Cleared / Failed）、失敗の理由、倒した数（核と崩落。吸収は数えない）、スコア（倒した数 ＋ クリアの基礎スコア）、ポーズ中かを `IStageFlowState`（`StageBoard`、InGame の SceneState）に書く。失敗条件は `StageData` の `[SerializeReference]` の一覧で、今は `PlayerDeathFailCondition`（HP 0）だけ。クリア・失敗で Player マップを止める。HUD（`StageHudAdapter`）、リザルト（`StageResultAdapter`。Retry と Back to Menu）、ポーズの画面（`StagePauseAdapter`。Esc は UI マップの `Cancel`）は uGUI で、初期化のときにコードで組み立てる（`UiBuilder`）。ポーズは時間の倍率を 0 にし、スローモードは倍率 0 の間はチャージを消費しない |
 | アウトゲームとの受け渡し | 仮（区間11）。常駐の `GameProgressState`（`AppBoard`）に、選んだステージ、装備の 3 枠、通貨、クリア済みのステージを持ち、`GameProgressService`（常駐の DI）が書く。仮のアウトゲーム（`OutGameStartInitializer`、OnGUI）で装備とステージを選ぶ。初回クリアで通貨 100（`GameSceneInitializer` の Inspector）。ゲームを終えると消える |
 | 崩落による撃破とエネルギー | あり（区間5）。足場ごと 3m 以上落ちた敵（`EnemyMoveJob`）と、落ちてくるボクセルの塊に潰された敵（`EnemyCollapseDetector`）を倒す。かけらは出さない。倒した敵の位置は `EnemyEnergyAdapter`（InGame の `EnemyEnergy`）が GraphicsBuffer で VFX Graph（`EnemyEnergy.vfx`）へ渡し、粒をカメラへ吸い込ませる。チャージは倒したときに `ChargeService.AddCollapsedEnemies` で足す。Enemy と Default のレイヤーは衝突しない（落ちてくる塊が体をすり抜ける為）。TestStage に崩す張り出し（`CrowdVoxelTerrain/Overhang`）を置いた |
@@ -152,9 +152,10 @@
 | 10 | 強化型スキル・回復 | ダメージタイプのデータと判定の窓口（区間8から持ち越し）、各攻撃の強さと減衰率（区間15）、ダメージタイプの付与などの強化型スキル、破壊属性の切断でボクセルを平面で切り分ける、HP を回復するスキル | 6, 7 | 03/30〜04/12 | 10/25〜10/28 | 完了（2026-10-15） | [Section10](Sections/Section10_EnhanceSkill.md) |
 | 11 | ステージ制・インゲームの流れ・HUD | ステージデータ、HUD、失敗（HP 0）、リザルトとスコア、リトライ、アウトゲームとの受け渡し、ポーズ | B | 04/13〜04/26 | 10/29〜11/01 | 完了（2026-10-15） | [Section11](Sections/Section11_StageFlow.md) |
 | 11R | リファクタリング | ソースコードの整備（11R-1、スキル `code-refactoring`）、コメントの整備（11R-2、スキル `comment-refactoring`）、計画書の修正（11R-3）。挙動は変えない | 10, 11 | 2026/10/15 | ― | 完了（2026-10-15） | [11R1](Sections/Section11R1_SourceRefactoring.md)・[11R2](Sections/Section11R2_CommentRefactoring.md)・[11R3](Sections/Section11R3_PlanRevision.md) |
-| 14A | 広いマップの格子 | 格子と距離マップの配列の持ち方、壊れない部分の格子の事前の焼き付け（区間4C・4D から持ち越し） | 4D, 11R | 2026/10/16〜10/22 | 10/16 | 未着手 | [Section14A](Sections/Section14A_WideMapGrid.md) |
-| 14B | ステージ制作 | チュートリアル、一般戦闘、ギミック戦闘の 3 ステージ（破壊対象、マップ、大きな建物、スポーン位置と編成、ギミック、チュートリアルの案内）、建物の傷の記録、失敗条件を足す表示、敵の設定の値 | 9, 4G, 11, 15, 14A | 10/23〜11/05 | 10/17〜10/20 | 未着手 | [Section14B](Sections/Section14_StageContent.md) |
-| 16 | Brilliant Skill | よい行動の判定、追加スコアの口、ボクセルの文字の表示と演出 | 11, 14B, 15 | 11/06〜11/12 | 10/21 | 未着手 | [Section16](Sections/Section16_BrilliantSkill.md) |
+| 14A | 広いマップの格子 | 格子と距離マップの配列の持ち方、壊れない部分の格子の事前の焼き付け（区間4C・4D から持ち越し） | 4D, 11R | 2026/10/16〜10/22 | 10/16 | 保留（2026-10-16。問題が出たら着手） | [Section14A](Sections/Section14A_WideMapGrid.md) |
+| 14B | ステージ制作 | チュートリアル、殲滅、崩壊、到達の 4 ステージ（ボス戦は区間12。破壊対象、マップ、大きな建物、スポーン位置と編成、ギミック、チュートリアルの案内）、案内の台本と文、コアシステム、制限時間の失敗条件、建物の傷の記録、失敗条件を足す表示、敵の設定の値 | 9, 4G, 11, 15, 14A | 10/23〜11/05 | 10/17〜10/20 | 実装完了（レビュー待ち。14-8 は持ち越し） | [Section14B](Sections/Section14_StageContent.md) |
+| 16 | Brilliant Skill | よい行動の判定（左上のログの種類と対応）、追加スコアの口、つかんで投げられる物理のボクセルの文字（つかみ中は無敵・静止・狙い）、演出 | 11, 14B, 15 | 11/06〜11/12 | 10/21 | 未着手 | [Section16](Sections/Section16_BrilliantSkill.md) |
+| 17 | 近接スキルと破壊の重心 | 初期スキルの頑拳（消費 10）と突撃（消費 15）、ボロノイ状の破砕、すべての破壊に共通する重心の偏り、通常攻撃とスキルで共有する発動の制約、初期装備を頑拳 1 つにする | 6, 10, 11, 15, 16 | 未定 | 未定 | 未着手 | [Section17](Sections/Section17_CloseRangeSkill.md) |
 | 12 | ボス | ボクセルのパーツをパーツ単位で動かすボス、ボス戦のステージ | 5, 8, 11 | 11/13〜12/03 | 10/22〜10/27 | 未着手 | [Section12](Sections/Section12_Boss.md) |
 | 13 | 仕上げ | 負荷調整、エフェクト、SE、パラメータ調整 | 全部 | 12/04〜12/17 | 10/28〜10/31 | 未着手 | [Section13](Sections/Section13_Polish.md) |
 
@@ -203,6 +204,9 @@ flowchart LR
     S11 --> S16[16 Brilliant Skill]
     S14 --> S16
     S15 --> S16
+    S16 --> S17[17 近接スキルと破壊の重心]
+    S10 --> S17
+    S17 --> S13
     S16 --> S13
     S14 --> S13[13 仕上げ]
     S12 --> S13
@@ -236,6 +240,7 @@ flowchart LR
 | 破壊対象・マップ | 既存のボクセル（`VoxelModelLoader` / `VoxelPiece` / `IVoxelShape`）。重要パーツの削れた割合は、パーツの `RelativeVolume`（切り離した塊を含まない）から求める（区間5） |
 | Unity CLI Loop（uloop） | `Packages/manifest.json` で v3.13.0 のタグに固定した（区間5）。タグなしだと main の最新を取り、未公開の project runner を指すことがある為。上げるときはタグを書き換える |
 | 破壊属性の切断 | `VoxelPiece.Slice`（厚みゼロの平面で切り分ける） |
+| 破壊後の重心の偏り | Unity 標準の `Rigidbody.centerOfMass` と `ResetCenterOfMass()`（区間17の予定。独自の物理は作らない） |
 | 大きな建物 | 区間15の `VoxelBuilding`。攻撃は `VoxelPiece.ApplyStrike`（強さと減衰率）で当てると、素材の強度と傷の記録が効く。使い方は [Section15](Sections/Section15_LargeVoxelBuilding.md) の「実装結果」 |
 | 破壊スキルの演出 | 既存のボクセルの融解（Thermal / Melt）が候補。区間6では使わず、区間13（または区間10）で決める。`VoxelMeltSystem` は InGame にも TestStage にも置かれていない |
 
@@ -266,7 +271,8 @@ flowchart LR
 | 11R | 確認項目（過剰な分割、重複、既存機能の再実装、仕様との一致、命名、メンバー順、参照の渡し方）ごとの、直すか残すか（2026-10-15 に決めた。答えは区間11R-1 の計画書の「詳細仕様」） |
 | 14A | 本番のマップの広さの上限と区画の大きさ、メモリと初期化の時間の上限、焼き付けた格子の置き場所 |
 | 14B | ギミック戦闘ステージのギミック、チュートリアルの進め方、各ステージの破壊対象・マップ・敵の配置、マップの広さと区画の大きさ（振り切れる距離）、建物以外のボクセルの支えの判定（建物は区間15の上下の面のつながり）、崩落で倒す値の調整（区間5から持ち越し） |
-| 16 | よい行動の種類と判定の条件、文字の内容・出す位置・演出、追加スコアの値（Notion の「Brilliant Skill」の「検討中」）、ボクセルの文字の作り方 |
+| 16 | よい行動の種類と判定の条件（左上のログの種類と対応させる）、「敵を倒した」の通知に同時の数と原因を載せるか、文字の内容・出す位置・演出、追加スコアの値（Notion の「Brilliant Skill」の「検討中」）、ボクセルの文字の作り方、投げた文字がどうなるか、つかみ中の無敵を置く層 |
+| 17 | 区間の番号と時期、ボロノイの方式、破砕の結果（破片として残すか）、頑拳と突撃の範囲と強さ、突撃の移動、発動の共有と通常攻撃の後隙のキャンセル、重心の対象と値、初期スキルとほかのスキルの入手（答えは区間17の計画書の「詳細仕様で決めること」） |
 | 12 | ボスの形、行動、重要パーツ |
 | 13 | 目標のフレームレートと、対象の PC スペック |
 
@@ -282,7 +288,7 @@ flowchart LR
 | 敵の出現 | ステージシーンの生成システム（実行中の生成位置、初期生成情報、生成情報）から出す。「基本的に無限に出現する」はやめた |
 | プレイヤーの HP | 回復は基本的にスキルで行い、自然回復はない。ステージは HP 満タンで始まる |
 | スコア | 倒した敵の数、クリアタイム、合計被ダメージなどから計算して表示する。報酬には関わらない |
-| ステージ構成 | 4 ステージ（チュートリアル、一般戦闘、ギミック戦闘、ボス戦） |
+| ステージ構成 | 5 ステージ（チュートリアル、殲滅、崩壊、ボス戦、到達。2026-10-16 に、一般戦闘・ギミック戦闘を殲滅・崩壊に決め、最終ステージ「到達」を足した） |
 
 ## 8. 仮定として置いている事項（未確認）
 
@@ -299,4 +305,6 @@ flowchart LR
   - `ScreenSpaceEmbeddedFeature` のパス名の重複（区間8R。Embedded は使っていない）
   - スキル `code-refactoring` の `scan_naming.py` が `Un〜` の否定形を検出しない（区間8R。スキル側の直し）
   - 旧構成のシーンとプレハブ、`Assets/GEMINI.md`（区間8R。3章の「旧構成」。今は残す）
+- 2026-10-16 に区間17（近接スキルと破壊の重心）を区間16のあとへ足した。スキル発動と縁が深い区間16を先に済ませる為。区間17 の長さと時期は未定で、区間16に物理の文字・つかみ・無敵が増えたので、区間16の時期（1 週）も引き直していない。完了の目安と最速の推定は、このあと引き直す
+- 初期スキルは頑拳 1 つで、ほかのスキルは入手して装備する（ビームはゲームの終盤）。入手と購入の仕組みはアウトゲームの領域で、この計画には含めていない（区間17の計画書の「詳細仕様で決めること」#11）
 - アウトゲーム（スキルの購入、本物の UI、セーブ）を作る作業は、この計画に含めていない。区間11で、受け渡しの相手として仮のアウトゲーム（装備とステージの選択、通貨の表示）を作った

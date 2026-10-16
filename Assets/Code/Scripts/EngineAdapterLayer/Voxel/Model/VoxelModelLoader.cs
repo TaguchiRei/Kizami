@@ -23,6 +23,7 @@ namespace Kizami.EngineAdapter.Voxel
         private readonly ActionChannel<VoxelPiece[]> _pieceSplit = new();
         private readonly ActionChannel<VoxelPiece> _pieceDestroyed = new();
         private readonly ActionChannel<(VoxelPiece Piece, VoxelStrikeRecord Record)> _pieceStruck = new();
+        private readonly ActionChannel<(VoxelPiece Piece, VoxelSliceRecord Record)> _pieceSliced = new();
 
         private readonly List<GameObject> _staticObjects = new();
         private readonly List<VoxelStaticPart> _staticParts = new();
@@ -205,6 +206,15 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// このモデルのいずれかのピースが平面で切られたときに呼ぶ処理を登録する。記録はそのピースのローカル空間で表す。
+        /// </summary>
+        /// <returns>Dispose すると登録を解除する</returns>
+        public IDisposable RegisterOnPieceSliced(Action<(VoxelPiece Piece, VoxelSliceRecord Record)> callback)
+        {
+            return _pieceSliced.Register(callback);
+        }
+
+        /// <summary>
         /// このモデルのいずれかのピースから塊が分離したときに呼ぶ処理を登録する。
         /// 引数の0番目は分離元のピース、1番目以降は切り離された新しいピース。
         /// </summary>
@@ -378,6 +388,11 @@ namespace Kizami.EngineAdapter.Voxel
         internal void NotifyStruck(VoxelPiece piece, in VoxelStrikeRecord record)
         {
             _pieceStruck.Invoke((piece, record));
+        }
+
+        internal void NotifySliced(VoxelPiece piece, in VoxelSliceRecord record)
+        {
+            _pieceSliced.Invoke((piece, record));
         }
 
         internal void NotifySplit(VoxelPiece[] pieces)

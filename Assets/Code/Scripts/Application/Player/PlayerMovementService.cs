@@ -20,6 +20,7 @@ namespace Kizami.Application
         private readonly List<IDisposable> _subscriptions = new();
 
         private IOperationSettingState _settingState;
+        private PlayerActionEvents _actionEvents;
         private PlayerParameterData _parameters;
         private IDisposable _contactStateWaiter;
         private IPlayerContactState _contactState;
@@ -77,9 +78,12 @@ namespace Kizami.Application
         /// </summary>
         /// <param name="blackBoard">PlayerMovementState の登録先と、入力・ダッシュ入力の受け付け方・触れている物の取得元</param>
         /// <param name="parameters">移動のパラメータ</param>
+        /// <param name="actionEvents">ジャンプ・壁走り・壁キックを流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
-        public void Initialize(IBlackBoard blackBoard, PlayerParameterData parameters, int sceneId)
+        public void Initialize(IBlackBoard blackBoard, PlayerParameterData parameters, PlayerActionEvents actionEvents,
+            int sceneId)
         {
+            _actionEvents = actionEvents;
             _parameters = parameters;
             _wallRunTimeRemaining = parameters.WallRunDuration;
 
@@ -189,6 +193,7 @@ namespace Kizami.Application
                     _state.SetMode(PlayerMoveMode.Normal);
                     _isWaitingWallRelease = true;
                     _state.SetTargetVelocity(Vector3.zero);
+                    _actionEvents?.Raise(new PlayerActionNotice(PlayerActionKind.WallKicked));
                     return CalculateWallJumpVelocity(worldInput);
                 }
 
@@ -201,6 +206,7 @@ namespace Kizami.Application
             {
                 _state.SetMode(PlayerMoveMode.WallRunning);
                 _wallDetachInputTime = 0f;
+                _actionEvents?.Raise(new PlayerActionNotice(PlayerActionKind.WallRunStarted));
             }
 
             if (_state.Mode == PlayerMoveMode.WallRunning)
@@ -213,6 +219,7 @@ namespace Kizami.Application
 
             if (!isJumpRequested || !IsGrounded) return null;
 
+            _actionEvents?.Raise(new PlayerActionNotice(PlayerActionKind.Jumped));
             return Vector3.up * CalculateJumpSpeed();
         }
 

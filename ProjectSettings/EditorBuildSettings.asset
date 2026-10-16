@@ -17,6 +17,21 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Level/Scenes/Stage/TestStage/TestStage.unity
     guid: 2b0523fa01c08bf439e000c32904c665
+  - enabled: 1
+    path: Assets/Level/Scenes/Town/Town.unity
+    guid: 7c620340d9b6b7545bec4972c4ef863c
+  - enabled: 1
+    path: Assets/Level/Scenes/Stage/Stage_Tutorial/Stage_Tutorial.unity
+    guid: 40f3ea0e360d4cc4984a360e340c6b1e
+  - enabled: 1
+    path: Assets/Level/Scenes/Stage/Stage_Annihilation/Stage_Annihilation.unity
+    guid: d199a9b365bbc1d41a5bec2e9689ab1c
+  - enabled: 1
+    path: Assets/Level/Scenes/Stage/Stage_Collapse/Stage_Collapse.unity
+    guid: aaef4f024ffc0c84fba831a4a203e797
+  - enabled: 1
+    path: Assets/Level/Scenes/Stage/Stage_Arrival/Stage_Arrival.unity
+    guid: ad19f68680bd15e4e8c61acc448b1c41
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: edfbb3cacf0b2034987abf17624ed979, type: 2}

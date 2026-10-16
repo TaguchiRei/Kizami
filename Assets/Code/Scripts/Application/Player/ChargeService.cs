@@ -29,6 +29,17 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// チャージ量をそのまま加える。上限を超えた分は捨てる。ステージを始めるときのチャージに使う。
+        /// </summary>
+        /// <param name="amount">加えるチャージ量</param>
+        public void AddAmount(int amount)
+        {
+            if (amount <= 0) return;
+
+            _state.SetCurrent(_state.Current + amount);
+        }
+
+        /// <summary>
         /// 吸収したかけらの数だけチャージ量を加える。上限を超えた分は捨てる。
         /// </summary>
         /// <param name="count">吸収したかけらの数</param>

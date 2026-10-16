@@ -919,7 +919,8 @@ namespace Kizami.EngineAdapter
 
             /// <summary>
             /// start から辺を逆向きにたどって距離を確定させ、確定させたノードの数を返す。
-            /// 前にたどって確定したノードは、コストが下がらないので、そのまま残る。
+            /// 前にたどって確定したノードは、そのまま残す（2回目の始点から届くコストの方が小さくても、書き換えない）。
+            /// 確定させた数がノードの総数を超えたら、バケットの連結リストが壊れているので、途中でやめる。
             /// </summary>
             private int Solve(ref NativeArray<int> heads, int start)
             {
@@ -927,12 +928,25 @@ namespace Kizami.EngineAdapter
                 Insert(ref heads, start, 0);
                 var queuedCount = 1;
                 var settledCount = 0;
+                var maxCost = Costs.Length * DIAGONAL_COST;
 
                 for (var cost = 0; queuedCount > 0; cost++)
                 {
+                    if (cost > maxCost)
+                    {
+                        Debug.LogError("距離マップの計算が終わらない為、途中でやめました。");
+                        break;
+                    }
+
                     var bucket = cost % BUCKET_COUNT;
                     while (heads[bucket] >= 0)
                     {
+                        if (settledCount > Costs.Length)
+                        {
+                            Debug.LogError("距離マップのバケットの連結リストが壊れている為、途中でやめました。");
+                            return settledCount;
+                        }
+
                         var node = heads[bucket];
                         Remove(ref heads, node, bucket);
                         queuedCount--;
@@ -1004,7 +1018,7 @@ namespace Kizami.EngineAdapter
 
             /// <summary>
             /// 確定したノードへ進める、追跡範囲の中の隣のノードのコストを、cost ＋ 辺のコストまで下げる。
-            /// 辺のコストは10以上なので、確定したノードのコストが下がることはない。
+            /// すでに確定したノード（距離が書かれたもの）は飛ばす。確定したノードはバケットになく、Remove で連結リストを壊す為。
             /// </summary>
             private void Relax(ref NativeArray<int> heads, int node, int cost, ref int queuedCount)
             {
@@ -1024,6 +1038,8 @@ namespace Kizami.EngineAdapter
                     if (fromX < RectMin.x || fromX > RectMax.x || fromZ < RectMin.y || fromZ > RectMax.y) continue;
 
                     var from = (fromZ * Grid.Width + fromX) * MAX_LAYERS + bit % MAX_LAYERS;
+                    if (!float.IsPositiveInfinity(Distances[from])) continue;
+
                     var newCost = cost + (offset.x != 0 && offset.y != 0 ? DIAGONAL_COST : STRAIGHT_COST);
                     if (newCost >= Costs[from]) continue;
 

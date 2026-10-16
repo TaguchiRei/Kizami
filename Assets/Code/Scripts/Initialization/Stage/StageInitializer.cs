@@ -14,9 +14,9 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// インゲームの流れ（StageFlowService / StageFlowState）と、破壊対象・HUD・ポーズ・リザルトの Adapter を生成して繋ぎ、プレイを始める配線役。インゲームのシーンへ置く。
-    /// 失敗条件の判定にプレイヤーの State を使う為、PlayerInitializer より後に初期化する。
-    /// 流れの状態、破壊済みの破壊対象の数、重要パーツごとの削れた割合を画面に出す。表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
+    /// インゲームの流れ（StageFlowService / StageFlowState）と、ステージの案内（StageGuideService / StageGuideState）、破壊対象・制限時間・HUD・案内・ポーズ・リザルトの Adapter、ステージシーンにある台本（StageGuideScript）と開始位置の目印（PlayerStartPoint）を繋いで、プレイを始める配線役。インゲームのシーンへ置く。
+    /// 失敗条件の判定と、案内のログにプレイヤーの State と出来事の通知を使う為、PlayerInitializer より後に初期化する。
+    /// 流れの状態、破壊済みの破壊対象の数、破壊対象ごとの壊れ具合（ボクセルは重要パーツごとの削れた割合、コアは分離した部位の数）を画面に出す。表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
     public sealed class StageInitializer : InitializerBase, IInjectable<GameProgressService>, IInjectable<IGameSceneController>,
         IInjectable<ITimeScaleController>, IInjectable<IInputController>
@@ -27,14 +27,25 @@ namespace Kizami.Initialization
         [SerializeField] private EnemySpawnAdapter _enemySpawnAdapter;
         [SerializeField] private StageResultAdapter _resultAdapter;
         [SerializeField] private StageHudAdapter _hudAdapter;
+        [SerializeField] private StageGuideAdapter _guideAdapter;
         [SerializeField] private StagePauseAdapter _pauseAdapter;
         [SerializeField] private FragmentThrowAdapter _fragmentThrowAdapter;
+        [SerializeField] private StageTimerAdapter _timerAdapter;
+
+        [SerializeField, Min(1)]
+        [Tooltip("案内のログを持つ件数の上限。超えたら古いものから消える")]
+        private int _guideLogMaxCount = 8;
+
+        [SerializeField, Min(1f)]
+        [Tooltip("案内のログを出しておく時間（秒）")]
+        private float _guideLogLifetime = 5f;
 
         private GameProgressService _progressService;
         private IGameSceneController _sceneController;
         private ITimeScaleController _timeScaleController;
         private IInputController _inputController;
         private StageFlowService _flowService;
+        private StageGuideService _guideService;
         private IStageFlowState _flowState;
 
         public override void Initialize(IBlackBoard blackBoard)
@@ -54,9 +65,23 @@ namespace Kizami.Initialization
                 _progressService != null ? _progressService.CompleteSelectedStage : null, gameObject.scene.buildIndex);
             blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this);
             _stageClearAdapter.Initialize(_flowService.ReportTargets);
-            _enemySpawnAdapter.SetOnDefeated(_flowService.AddDefeats);
+            _timerAdapter.Initialize(_flowService.Tick);
+            _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
+                gameObject.scene.buildIndex);
+            _enemySpawnAdapter.SetOnDefeated(OnDefeated);
+            PlacePlayerAtStartPoint();
+
+            // 台本はステージシーンにあり、置いていないステージでは案内の文とログだけを出す
+            var guideScript = FindFirstObjectByType<StageGuideScript>();
+            if (guideScript != null)
+            {
+                guideScript.Initialize(blackBoard, _guideService.SetObjective, _guideService.SetSubObjective,
+                    _guideService.SetDialogue);
+            }
+
             _resultAdapter.Initialize(blackBoard, Retry, BackToOutGame);
             _hudAdapter.Initialize(blackBoard, _fragmentThrowAdapter);
+            _guideAdapter.Initialize(blackBoard);
             _pauseAdapter.Initialize(blackBoard, _flowService.Resume, BackToOutGame);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             DebugGUI.ObserveVariable("Stage", GetTargetText, this);
@@ -64,6 +89,24 @@ namespace Kizami.Initialization
 
             base.Initialize(blackBoard);
             _flowService.Begin();
+        }
+
+        /// <summary>
+        /// ステージシーンに開始位置の目印があれば、プレイヤーをその位置へ置く。置いていないステージでは動かさない。
+        /// </summary>
+        private void PlacePlayerAtStartPoint()
+        {
+            var startPoint = FindFirstObjectByType<PlayerStartPoint>();
+            if (startPoint == null) return;
+
+            var movementAdapter = FindFirstObjectByType<PlayerMovementAdapterBase>();
+            if (movementAdapter == null)
+            {
+                UsefulLogger.LogError("PlayerMovementAdapterBase が見つからない為、開始位置へ置けません。", this);
+                return;
+            }
+
+            movementAdapter.PlaceAt(startPoint.transform.position);
         }
 
         /// <summary>
@@ -75,9 +118,20 @@ namespace Kizami.Initialization
             hasAll &= this.IsAssigned(_enemySpawnAdapter, nameof(EnemySpawnAdapter));
             hasAll &= this.IsAssigned(_resultAdapter, nameof(StageResultAdapter));
             hasAll &= this.IsAssigned(_hudAdapter, nameof(StageHudAdapter));
+            hasAll &= this.IsAssigned(_guideAdapter, nameof(StageGuideAdapter));
             hasAll &= this.IsAssigned(_pauseAdapter, nameof(StagePauseAdapter));
             hasAll &= this.IsAssigned(_fragmentThrowAdapter, nameof(FragmentThrowAdapter));
+            hasAll &= this.IsAssigned(_timerAdapter, nameof(StageTimerAdapter));
             return hasAll;
+        }
+
+        /// <summary>
+        /// 倒した敵の数を、流れの State と案内のログへ渡す。
+        /// </summary>
+        private void OnDefeated(int count)
+        {
+            _flowService.AddDefeats(count);
+            _guideService.AddDefeats(count);
         }
 
         /// <summary>
@@ -120,7 +174,7 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 流れの状態と「破壊済みの数 / 破壊対象の数」のあとに、破壊対象ごとの重要パーツの削れた割合と必要な割合を並べる。
+        /// 流れの状態と「破壊済みの数 / 破壊対象の数」のあとに、破壊対象ごとの壊れ具合を並べる。
         /// </summary>
         private string GetTargetText()
         {
@@ -134,16 +188,10 @@ namespace Kizami.Initialization
 
             foreach (var target in _stageClearAdapter.Targets)
             {
-                if (target == null) continue;
+                if (target is Object unityObject && unityObject == null) continue;
 
-                _targetText.Append(" | ").Append(target.name).Append(':');
-                for (var i = 0; i < target.ImportantPartCount; i++)
-                {
-                    _targetText.Append(' ');
-                    _targetText.Append(target.TryGetDestroyedRatio(i, out var ratio) ? ratio.ToString("F2") : "-");
-                }
-
-                _targetText.Append(" / ").Append(target.RequiredRatio.ToString("F2"));
+                _targetText.Append(" | ");
+                target.AppendStatus(_targetText);
             }
 
             return _targetText.ToString();
@@ -152,6 +200,7 @@ namespace Kizami.Initialization
         private void OnDestroy()
         {
             _flowService?.Dispose();
+            _guideService?.Dispose();
         }
 
         public void Inject(GameProgressService instance)

@@ -7,18 +7,18 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// ステージシーンの破壊対象（DestructionTarget）を集め、破壊済みの数が変わるたびに、破壊対象の数と破壊済みの数を通知する Adapter。インゲームのシーンへ置く。
+    /// ステージシーンの破壊対象（DestructionTarget・CoreSystem）を集め、破壊済みの数が変わるたびに、破壊対象の数と破壊済みの数を通知する Adapter。インゲームのシーンへ置く。
     /// クリアの判定は通知を受ける Application 側が行う。
     /// </summary>
     public sealed class StageClearAdapter : InitializableMonoBehaviour
     {
-        private readonly List<DestructionTarget> _targets = new();
+        private readonly List<IDestructionTarget> _targets = new();
 
         private Action<int, int> _onTargetsChanged;
         private int _destroyedCount = -1;
 
         /// <summary> ステージシーンにある破壊対象 </summary>
-        public IReadOnlyList<DestructionTarget> Targets => _targets;
+        public IReadOnlyList<IDestructionTarget> Targets => _targets;
 
         /// <summary>
         /// ステージシーンの破壊対象を集め、最初の数を通知する。ステージシーンを読み込んだあとに呼ぶ。
@@ -29,6 +29,7 @@ namespace Kizami.EngineAdapter
             _onTargetsChanged = onTargetsChanged;
             _targets.Clear();
             _targets.AddRange(FindObjectsByType<DestructionTarget>(FindObjectsSortMode.None));
+            _targets.AddRange(FindObjectsByType<CoreSystem>(FindObjectsSortMode.None));
 
             if (_targets.Count == 0)
             {
@@ -55,7 +56,8 @@ namespace Kizami.EngineAdapter
             var destroyedCount = 0;
             foreach (var target in _targets)
             {
-                if (target == null || target.IsDestroyed) destroyedCount++;
+                // 破棄された Unity のオブジェクトは、インターフェース越しでは == null で見分けられない
+                if (target is UnityEngine.Object unityObject && unityObject == null || target.IsDestroyed) destroyedCount++;
             }
 
             if (destroyedCount == _destroyedCount) return;

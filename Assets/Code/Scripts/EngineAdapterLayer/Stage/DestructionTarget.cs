@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
@@ -12,7 +13,7 @@ namespace Kizami.EngineAdapter
     /// 本体から分離した塊はパーツの体積に含まれない為、切り離した分も削れた分に数える。
     /// </summary>
     [RequireComponent(typeof(VoxelModelLoader))]
-    public sealed class DestructionTarget : MonoBehaviour
+    public sealed class DestructionTarget : MonoBehaviour, IDestructionTarget
     {
         private readonly List<VoxelPiece> _importantParts = new();
 
@@ -65,6 +66,21 @@ namespace Kizami.EngineAdapter
 
             ratio = 1f - part.RelativeVolume;
             return part.InitialSampleCount > 0;
+        }
+
+        /// <summary>
+        /// 名前と、重要パーツごとの削れた割合、必要な割合を書き足す。
+        /// </summary>
+        public void AppendStatus(StringBuilder builder)
+        {
+            builder.Append(name).Append(':');
+            for (var i = 0; i < _importantParts.Count; i++)
+            {
+                builder.Append(' ');
+                builder.Append(TryGetDestroyedRatio(i, out var ratio) ? ratio.ToString("F2") : "-");
+            }
+
+            builder.Append(" / ").Append(_requiredRatio.ToString("F2"));
         }
 
         private void Awake()

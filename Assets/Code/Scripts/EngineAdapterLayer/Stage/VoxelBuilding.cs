@@ -26,15 +26,15 @@ namespace Kizami.EngineAdapter
         /// <summary> 切り離された塊を隣の階にくっつけるとき、2つの階の向きがそろっているとみなす角度の差（度） </summary>
         private const float ALIGNED_ANGLE = 1f;
 
-        /// <summary> 1階に記録する攻撃の数の上限。超えた階はメッシュに戻さずボクセルのまま残す </summary>
-        private const int MAX_STRIKE_RECORDS = 128;
+        /// <summary> 1階に記録する攻撃と切断の数の上限。超えた階はメッシュに戻さずボクセルのまま残す </summary>
+        private const int MAX_EDIT_RECORDS = 128;
 
         private static readonly int _patternOffsetId = Shader.PropertyToID("_PatternOffset");
 
         private readonly List<VoxelModelLoader> _floors = new();
 
-        /// <summary> 階ごとの、本体のピースに当たった攻撃の記録。上限を超えた階は上限 ＋ 1件で止める </summary>
-        private readonly List<List<VoxelStrikeRecord>> _strikeRecords = new();
+        /// <summary> 階ごとの、本体のピースに当たった攻撃と切断の記録を、起きた順に持つ。上限を超えた階は上限 ＋ 1件で止める </summary>
+        private readonly List<List<FloorEdit>> _editRecords = new();
 
         /// <summary> 階ごとの、記録を当て直したフレーム。そのフレームに切り離された塊は落とさずに扱う </summary>
         private readonly List<int> _replayFrames = new();
@@ -193,9 +193,10 @@ namespace Kizami.EngineAdapter
             loader.SetMaterialEntries(CreateFloorMaterials(model, floorIndex));
             _subscriptions.Add(loader.RegisterOnPieceShapeChanged(_ => OnFloorShapeChanged(floorIndex)));
             _subscriptions.Add(loader.RegisterOnPieceSplit(pieces => AttachSeparatedPieces(floorIndex, pieces)));
-            _subscriptions.Add(loader.RegisterOnPieceStruck(struck => RecordStrike(floorIndex, struck.Piece, struck.Record)));
-            _subscriptions.Add(loader.RegisterOnLoaded(_ => ReplayStrikes(floorIndex)));
-            _strikeRecords.Add(new List<VoxelStrikeRecord>());
+            _subscriptions.Add(loader.RegisterOnPieceStruck(struck => Record(floorIndex, struck.Piece, FloorEdit.Strike(struck.Record))));
+            _subscriptions.Add(loader.RegisterOnPieceSliced(sliced => Record(floorIndex, sliced.Piece, FloorEdit.Slice(sliced.Record))));
+            _subscriptions.Add(loader.RegisterOnLoaded(_ => ReplayEdits(floorIndex)));
+            _editRecords.Add(new List<FloorEdit>());
             _replayFrames.Add(-1);
 
             _floors.Add(loader);
@@ -243,7 +244,7 @@ namespace Kizami.EngineAdapter
                 if (!_floors[i].IsStatic) continue;
 
                 var sqrDistance = _floorBounds[i].SqrDistance(position);
-                var isNeeded = sqrDistance <= swapSqrDistance || (_strikeRecords[i].Count > 0 && IsInRetainArea(i));
+                var isNeeded = sqrDistance <= swapSqrDistance || (_editRecords[i].Count > 0 && IsInRetainArea(i));
                 if (!isNeeded || sqrDistance >= nearestSqrDistance) continue;
 
                 nearest = i;
@@ -264,7 +265,7 @@ namespace Kizami.EngineAdapter
             var swapSqrDistance = _swapDistance * _swapDistance;
             for (var i = 0; i < _standingFloorCount; i++)
             {
-                if (!_floors[i].IsLoaded || _strikeRecords[i].Count > MAX_STRIKE_RECORDS) continue;
+                if (!_floors[i].IsLoaded || _editRecords[i].Count > MAX_EDIT_RECORDS) continue;
                 if (IsInRetainArea(i) || _floorBounds[i].SqrDistance(position) <= swapSqrDistance) continue;
 
                 _floors[i].Unload();
@@ -279,25 +280,35 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// floorIndex 階を読み込んだら、記録した攻撃を順に当て直す。当て直す間は記録しない。
+        /// floorIndex 階を読み込んだら、記録した攻撃と切断を起きた順に当て直す。当て直す間は記録しない。
         /// 当て直しで切り離された塊は、元のプレイ中に落ちたかけらにあたるので、上下の階にくっつかなければ消す（AttachSeparatedPieces）。
         /// </summary>
-        private void ReplayStrikes(int floorIndex)
+        private void ReplayEdits(int floorIndex)
         {
-            var records = _strikeRecords[floorIndex];
+            var records = _editRecords[floorIndex];
             if (records.Count == 0) return;
 
             var parts = _floors[floorIndex].Parts;
             if (parts.Count == 0 || parts[0] == null) return;
 
-            // 当て直す攻撃も ApplyStrike を通る為、記録を一度外して二重に記録しないようにする
-            _strikeRecords[floorIndex] = new List<VoxelStrikeRecord>();
+            // 当て直す攻撃と切断も ApplyStrike・Slice を通る為、記録を一度外して二重に記録しないようにする
+            _editRecords[floorIndex] = new List<FloorEdit>();
+            var part = parts[0];
             foreach (var record in records)
             {
-                parts[0].ApplyStrike(record.Reach, record.Falloff, Space.Self);
+                if (record.IsSlice)
+                {
+                    var plane = record.SliceRecord;
+                    part.Slice(part.transform.TransformPoint(plane.PlanePoint),
+                        part.transform.TransformDirection(plane.PlaneNormal));
+                }
+                else
+                {
+                    part.ApplyStrike(record.StrikeRecord.Reach, record.StrikeRecord.Falloff, Space.Self);
+                }
             }
 
-            _strikeRecords[floorIndex] = records;
+            _editRecords[floorIndex] = records;
             _replayFrames[floorIndex] = Time.frameCount;
         }
 
@@ -474,13 +485,13 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// floorIndex 階の本体のピースに当たった攻撃を記録する。本体はその階の GameObject にあるので、記録は階のローカル空間になる。
+        /// floorIndex 階の本体のピースに当たった攻撃か切断を記録する。本体はその階の GameObject にあるので、記録は階のローカル空間になる。
         /// 切り離された塊に当たった分は記録しない。
         /// </summary>
-        private void RecordStrike(int floorIndex, VoxelPiece piece, in VoxelStrikeRecord record)
+        private void Record(int floorIndex, VoxelPiece piece, in FloorEdit record)
         {
-            var records = _strikeRecords[floorIndex];
-            if (piece.Generation > 0 || records.Count > MAX_STRIKE_RECORDS) return;
+            var records = _editRecords[floorIndex];
+            if (piece.Generation > 0 || records.Count > MAX_EDIT_RECORDS) return;
 
             records.Add(record);
         }
@@ -816,6 +827,33 @@ namespace Kizami.EngineAdapter
             }
 
             _floorMaterials.Clear();
+        }
+
+        /// <summary>
+        /// 階の本体のピースに起きた攻撃か切断の記録1件。
+        /// </summary>
+        private readonly struct FloorEdit
+        {
+            public readonly bool IsSlice;
+            public readonly VoxelStrikeRecord StrikeRecord;
+            public readonly VoxelSliceRecord SliceRecord;
+
+            private FloorEdit(bool isSlice, VoxelStrikeRecord strikeRecord, VoxelSliceRecord sliceRecord)
+            {
+                IsSlice = isSlice;
+                StrikeRecord = strikeRecord;
+                SliceRecord = sliceRecord;
+            }
+
+            public static FloorEdit Strike(in VoxelStrikeRecord record)
+            {
+                return new FloorEdit(false, record, default);
+            }
+
+            public static FloorEdit Slice(in VoxelSliceRecord record)
+            {
+                return new FloorEdit(true, default, record);
+            }
         }
     }
 }

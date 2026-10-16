@@ -730,6 +730,7 @@ namespace Kizami.EngineAdapter
                     SpawnPosition = point != null ? point.transform.position : group.HomePosition,
                     RespawnInterval = point != null ? point.RespawnInterval : 0f,
                     CanSpawn = point != null && point.CanSpawn,
+                    IsStationary = point != null && point.IsStationary,
                     IsHomeTracked = IsTracked(group.HomePosition),
                     HasArrived = group.HasArrived,
                     HasReachedHome = group.HasReachedHome,
@@ -902,12 +903,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 有効なスポーン位置ごとに、同じ番号のグループで編成の1グループを出す。
+        /// 有効なスポーン位置ごとに、同じ番号のグループで編成の1グループを出す。出現を保留しているスポーン位置は出さない。
         /// </summary>
         private void SpawnSquads()
         {
             for (var g = 0; g < _activeSpawnPoints.Count; g++)
             {
+                if (_activeSpawnPoints[g].IsHeld) continue;
+
                 SpawnSquad(g);
             }
         }

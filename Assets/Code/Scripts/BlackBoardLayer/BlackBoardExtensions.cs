@@ -27,6 +27,23 @@ namespace Kizami.BlackBoard
         }
 
         /// <summary>
+        /// Event 用の ChildBoard を取り出す。
+        /// </summary>
+        /// <param name="blackBoard">取り出し元</param>
+        /// <param name="board">取り出した ChildBoard</param>
+        /// <param name="logContext">取り出せなかったときのエラーログの出力元</param>
+        /// <returns>取り出せたか</returns>
+        public static bool TryGetEventBoard<TBoard>(this IBlackBoard blackBoard, out TBoard board, object logContext)
+            where TBoard : ChildEventBoardBase
+        {
+            if (blackBoard.TryGetEventBoard(out board)) return true;
+
+            UsefulLogger.LogError(
+                $"{typeof(TBoard).Name} が未登録です。常駐シーンの Compositor に登録されているか確認してください。", logContext);
+            return false;
+        }
+
+        /// <summary>
         /// ChildBoard に登録されたゲームステートを取り出す。
         /// </summary>
         /// <param name="blackBoard">取り出し元</param>

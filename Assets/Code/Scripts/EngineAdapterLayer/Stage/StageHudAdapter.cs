@@ -7,7 +7,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// インゲームの HUD（HP とチャージのゲージ、スキルの枠、破壊の進み具合と倒した敵の数、ランチャーの装填状態、開始の文字）を出す Adapter。インゲームのシーンへ置く。
+    /// インゲームの HUD（HP とチャージのゲージ、スキルの枠、破壊の進み具合と倒した敵の数、制限時間の残り、ランチャーの装填状態、開始の文字）を出す Adapter。インゲームのシーンへ置く。
     /// 画面は uGUI の Canvas を初期化のときに組み立てる。値は State から読み、ランチャーの装填状態だけは State がない為、FragmentThrowAdapter から読む。
     /// </summary>
     public sealed class StageHudAdapter : InitializableMonoBehaviour
@@ -68,6 +68,14 @@ namespace Kizami.EngineAdapter
         [Tooltip("発動できないスキルの「不」の文字の色")]
         private Color _unavailableTextColor = new(0.5f, 0.5f, 0.5f);
 
+        [SerializeField, Min(0f)]
+        [Tooltip("残り時間がこの秒数以下になったら、警告の色にする")]
+        private float _timeWarningSeconds = 30f;
+
+        [SerializeField]
+        [Tooltip("残り時間が少ないときの文字の色")]
+        private Color _timeWarningColor = new(0.95f, 0.25f, 0.25f);
+
         private IPlayerHealthState _healthState;
         private IChargeState _chargeState;
         private ISkillSlotState _slotState;
@@ -84,6 +92,7 @@ namespace Kizami.EngineAdapter
         private Text _chargeValueText;
         private Text _targetText;
         private Text _defeatText;
+        private Text _timeText;
         private Text _launcherText;
         private Text _startText;
         private float _startHideTime = -1f;
@@ -125,6 +134,7 @@ namespace Kizami.EngineAdapter
 
             _targetText.text = $"Targets {_flowState.DestroyedTargetCount} / {_flowState.TargetCount}";
             _defeatText.text = $"Defeated {_flowState.DefeatCount}";
+            UpdateTimeText();
             _launcherText.text = _fragmentThrowAdapter != null && _fragmentThrowAdapter.IsLoaded
                 ? "Launcher: LOADED"
                 : "Launcher: EMPTY";
@@ -164,6 +174,20 @@ namespace Kizami.EngineAdapter
                     SetLine(line.rectTransform, side == 0 ? 0.5f - half : 0.5f + half);
                 }
             }
+        }
+
+        /// <summary>
+        /// 制限時間の残りを「分:秒」で出す。残りが警告の秒数以下なら警告の色にする。制限時間がないステージでは隠す。
+        /// </summary>
+        private void UpdateTimeText()
+        {
+            var remaining = _flowState.RemainingTime;
+            _timeText.enabled = remaining >= 0f;
+            if (!_timeText.enabled) return;
+
+            var seconds = Mathf.CeilToInt(remaining);
+            _timeText.text = $"{seconds / 60:00}:{seconds % 60:00}";
+            _timeText.color = remaining <= _timeWarningSeconds ? _timeWarningColor : _textColor;
         }
 
         /// <summary>
@@ -218,6 +242,10 @@ namespace Kizami.EngineAdapter
 
             _defeatText = UiBuilder.CreateText(canvas, "Defeated", LABEL_FONT_SIZE, TextAnchor.MiddleRight);
             UiBuilder.SetAnchors(_defeatText.rectTransform, new Vector2(0.7f, 0.92f), new Vector2(0.98f, 0.98f));
+
+            _timeText = UiBuilder.CreateText(canvas, "Time", LABEL_FONT_SIZE);
+            UiBuilder.SetAnchors(_timeText.rectTransform, new Vector2(0.4f, 0.86f), new Vector2(0.6f, 0.92f));
+            _timeText.enabled = false;
 
             _launcherText = UiBuilder.CreateText(canvas, "Launcher", LABEL_FONT_SIZE, TextAnchor.MiddleRight);
             UiBuilder.SetAnchors(_launcherText.rectTransform, new Vector2(0.7f, 0.03f), new Vector2(0.98f, 0.09f));
