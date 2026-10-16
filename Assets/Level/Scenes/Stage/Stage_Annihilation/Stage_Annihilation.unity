@@ -254,27 +254,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5122c3aefbdc8b64eb493134f66aaa1c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageGuideScript
-  _objective: "\u6575\u306E\u751F\u7523\u65BD\u8A2D\u3092\u3059\u3079\u3066\u58CA\u305B"
+  _texts: {fileID: 11400000, guid: b2d7e75a411290f4589bc9d4d096e610, type: 2}
   _steps:
-  - _subObjective: "\u624B\u524D\u306E\u751F\u7523\u65BD\u8A2D\u3092\u58CA\u305B"
-    _dialogue: "\u6575\u306F\u3042\u306E\u65BD\u8A2D\u304B\u3089\u6B21\u3005\u306B\u51FA\u3066\u304F\u308B\u3002\u6570\u306B\u98F2\u307E\u308C\u308B\u524D\u306B\u3001\u65BD\u8A2D\u3054\u3068\u58CA\u3057\u3066\u3057\u307E\u304A\u3046\u3002\u30D3\u30FC\u30E0\u304B\u7206\u767A\u304C\u6709\u52B9\u3060\u3002"
-    _condition:
+  - _condition:
       _kind: 0
       _target: {fileID: 1278372560}
       _count: 0
       _action: 0
     _releaseSpawnPoints: []
-  - _subObjective: "\u6B21\u306E\u751F\u7523\u65BD\u8A2D\u3092\u58CA\u305B"
-    _dialogue: "\u307E\u305A1\u3064\u3002\u58CA\u3057\u305F\u65BD\u8A2D\u304B\u3089\u306F\u3001\u3082\u3046\u6575\u306F\u51FA\u3066\u3053\u306A\u3044\u3002\u65BD\u8A2D\u306F\u4ED6\u306B\u3082\u3042\u308B\u3002"
-    _condition:
+  - _condition:
       _kind: 0
       _target: {fileID: 1970230279}
       _count: 0
       _action: 0
     _releaseSpawnPoints: []
-  - _subObjective: "\u6700\u5F8C\u306E\u751F\u7523\u65BD\u8A2D\u3092\u58CA\u305B"
-    _dialogue: "\u65BD\u8A2D\u306E\u52D5\u304D\u3092\u3001\u3069\u3053\u304B\u304B\u3089\u6307\u793A\u3057\u3066\u3044\u308B\u4F55\u304B\u304C\u3042\u308B\u3088\u3046\u3060\u3002\u4ECA\u306F\u6700\u5F8C\u306E\u65BD\u8A2D\u3092\u58CA\u305D\u3046\u3002"
-    _condition:
+  - _condition:
       _kind: 0
       _target: {fileID: 1493994802}
       _count: 0

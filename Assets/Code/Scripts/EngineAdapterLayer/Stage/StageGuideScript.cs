@@ -8,7 +8,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// ステージの進行の台本。ステージシーンへ置く。段階を順に進め、段階に入るたびに小目標と会話を出して、敵のスポーン位置の保留を解く。
+    /// ステージの進行の台本。ステージシーンへ置く。段階を順に進め、段階に入るたびに小目標と会話（StageGuideTexts の文）を出して、敵のスポーン位置の保留を解く。
     /// 段階の条件を満たしたら次の段階へ進む。1回の Update で進むのは1段階まで。プレイ中のときだけ進める。
     /// 画面に出す文は、初期化で受け取った関数で Application へ渡す。
     /// </summary>
@@ -18,8 +18,8 @@ namespace Kizami.EngineAdapter
         private const float MOVED_SQUARE_SPEED = 0.01f;
 
         [SerializeField]
-        [Tooltip("ステージ全体の目標。プレイを始めたときに出す")]
-        private string _objective;
+        [Tooltip("大目標と、段階ごとの小目標・会話の文。段階は上から順に、この台本の段階と対応する")]
+        private StageGuideTexts _texts;
 
         [SerializeField]
         [Tooltip("進行の段階。上から順に進む。最後の段階の条件を満たすと、小目標と会話を消す")]
@@ -75,7 +75,7 @@ namespace Kizami.EngineAdapter
 
             if (_stepIndex < 0)
             {
-                _setObjective?.Invoke(_objective);
+                _setObjective?.Invoke(_texts != null ? _texts.Objective : string.Empty);
                 EnterStep(0);
                 return;
             }
@@ -107,8 +107,11 @@ namespace Kizami.EngineAdapter
             }
 
             var step = _steps[index];
-            _setSubObjective?.Invoke(step.SubObjective);
-            _setDialogue?.Invoke(step.Dialogue);
+            var subObjective = string.Empty;
+            var dialogue = string.Empty;
+            _texts?.TryGetStep(index, out subObjective, out dialogue);
+            _setSubObjective?.Invoke(subObjective);
+            _setDialogue?.Invoke(dialogue);
             foreach (var spawnPoint in step.ReleaseSpawnPoints)
             {
                 if (spawnPoint != null) spawnPoint.Release();
@@ -138,10 +141,20 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 条件に必要な参照がない段階を、名前つきで警告する。その段階は進まない。
+        /// 条件に必要な参照がない段階と、文の段階の数が台本と合わないことを警告する。参照がない段階は進まない。
         /// </summary>
         private void WarnInvalidSteps()
         {
+            if (_texts == null)
+            {
+                UsefulLogger.LogWarning("文（StageGuideTexts）が設定されていない為、大目標・小目標・会話を出しません。", this);
+            }
+            else if (_texts.StepCount != _steps.Length)
+            {
+                UsefulLogger.LogWarning(
+                    $"文の段階の数（{_texts.StepCount}）が台本の段階の数（{_steps.Length}）と違います。足りない段階は、小目標と会話を出しません。", this);
+            }
+
             for (var i = 0; i < _steps.Length; i++)
             {
                 var condition = _steps[i].Condition;
@@ -154,19 +167,11 @@ namespace Kizami.EngineAdapter
     }
 
     /// <summary>
-    /// 台本の段階1つ。小目標と会話を出し、条件を満たしたら次の段階へ進む。
+    /// 台本の段階1つ。条件を満たしたら次の段階へ進む。小目標と会話の文は、StageGuideTexts の同じ番号の段階にある。
     /// </summary>
     [Serializable]
     public sealed class GuideStep
     {
-        [SerializeField]
-        [Tooltip("この段階の小目標。空なら小目標を消す")]
-        private string _subObjective;
-
-        [SerializeField, TextArea]
-        [Tooltip("この段階に入ったときに出す会話。空なら会話を消す")]
-        private string _dialogue;
-
         [SerializeField]
         [Tooltip("この段階を終える条件")]
         private GuideCondition _condition;
@@ -174,12 +179,6 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("この段階に入ったときに、出現の保留を解くスポーン位置")]
         private EnemySpawnPoint[] _releaseSpawnPoints = Array.Empty<EnemySpawnPoint>();
-
-        /// <summary> この段階の小目標 </summary>
-        public string SubObjective => _subObjective;
-
-        /// <summary> この段階に入ったときに出す会話 </summary>
-        public string Dialogue => _dialogue;
 
         /// <summary> この段階を終える条件 </summary>
         public GuideCondition Condition => _condition;

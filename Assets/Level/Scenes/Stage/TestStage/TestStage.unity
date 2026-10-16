@@ -7722,44 +7722,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5122c3aefbdc8b64eb493134f66aaa1c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageGuideScript
-  _objective: "\u30C6\u30B9\u30C8\u30B9\u30C6\u30FC\u30B8\uFF1A\u30B2\u30FC\u30C8\u3092\u58CA\u305B"
+  _texts: {fileID: 11400000, guid: 9305b8be29b82db4dbf76f79ec0ad666, type: 2}
   _steps:
-  - _subObjective: "\u30B8\u30E3\u30F3\u30D7\u3057\u3088\u3046"
-    _dialogue: "\u53F0\u672C\u306E\u30C6\u30B9\u30C8\u3067\u3059\u3002\u30B9\u30DA\u30FC\u30B9\u30AD\u30FC\u3067\u30B8\u30E3\u30F3\u30D7\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
-    _condition:
+  - _condition:
       _kind: 2
       _target: {fileID: 0}
       _count: 1
       _action: 3
     _releaseSpawnPoints: []
-  - _subObjective: "\u901A\u5E38\u653B\u6483\u3092\u632F\u308D\u3046"
-    _dialogue: "\u6B21\u306F\u5DE6\u30AF\u30EA\u30C3\u30AF\u3067\u901A\u5E38\u653B\u6483\u3067\u3059\u3002"
-    _condition:
+  - _condition:
       _kind: 2
       _target: {fileID: 0}
       _count: 1
       _action: 2
     _releaseSpawnPoints: []
-  - _subObjective: "\u30B9\u30AD\u30EB1\u3092\u4F7F\u304A\u3046"
-    _dialogue: "1\u30AD\u30FC\u3067\u30B9\u30AD\u30EB1\u3092\u767A\u52D5\u3067\u304D\u307E\u3059\u3002\u30C1\u30E3\u30FC\u30B8\u304C\u8DB3\u308A\u306A\u3044\u3068\u304D\u306F\u3001\u6575\u3092\u5012\u3057\u3066\u8CAF\u3081\u307E\u3059\u3002"
-    _condition:
+  - _condition:
       _kind: 2
       _target: {fileID: 0}
       _count: 1
       _action: 0
     _releaseSpawnPoints: []
-  - _subObjective: "\u6575\u30923\u4F53\u5012\u305D\u3046"
-    _dialogue: "\u6575\u306E\u65B0\u3057\u3044\u30B0\u30EB\u30FC\u30D7\u304C\u73FE\u308C\u307E\u3057\u305F\u3002"
-    _condition:
+  - _condition:
       _kind: 1
       _target: {fileID: 0}
       _count: 3
       _action: 3
     _releaseSpawnPoints:
     - {fileID: 563650495}
-  - _subObjective: "\u30B2\u30FC\u30C8\u3092\u58CA\u305D\u3046"
-    _dialogue: "\u6700\u5F8C\u306F\u7834\u58CA\u5BFE\u8C61\u306E\u30B2\u30FC\u30C8\u3067\u3059\u3002"
-    _condition:
+  - _condition:
       _kind: 0
       _target: {fileID: 1745750674}
       _count: 1
