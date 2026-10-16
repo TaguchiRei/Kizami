@@ -14,7 +14,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// インゲームの流れ（StageFlowService / StageFlowState）と、ステージの案内（StageGuideService / StageGuideState）、破壊対象・HUD・案内・ポーズ・リザルトの Adapter、ステージシーンにある台本（StageGuideScript）を生成して繋ぎ、プレイを始める配線役。インゲームのシーンへ置く。
+    /// インゲームの流れ（StageFlowService / StageFlowState）と、ステージの案内（StageGuideService / StageGuideState）、破壊対象・HUD・案内・ポーズ・リザルトの Adapter、ステージシーンにある台本（StageGuideScript）と開始位置の目印（PlayerStartPoint）を繋いで、プレイを始める配線役。インゲームのシーンへ置く。
     /// 失敗条件の判定と、案内のログにプレイヤーの State と出来事の通知を使う為、PlayerInitializer より後に初期化する。
     /// 流れの状態、破壊済みの破壊対象の数、重要パーツごとの削れた割合を画面に出す。表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
@@ -67,6 +67,7 @@ namespace Kizami.Initialization
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
                 gameObject.scene.buildIndex);
             _enemySpawnAdapter.SetOnDefeated(OnDefeated);
+            PlacePlayerAtStartPoint();
 
             // 台本はステージシーンにあり、置いていないステージでは案内の文とログだけを出す
             var guideScript = FindFirstObjectByType<StageGuideScript>();
@@ -86,6 +87,24 @@ namespace Kizami.Initialization
 
             base.Initialize(blackBoard);
             _flowService.Begin();
+        }
+
+        /// <summary>
+        /// ステージシーンに開始位置の目印があれば、プレイヤーをその位置へ置く。置いていないステージでは動かさない。
+        /// </summary>
+        private void PlacePlayerAtStartPoint()
+        {
+            var startPoint = FindFirstObjectByType<PlayerStartPoint>();
+            if (startPoint == null) return;
+
+            var movementAdapter = FindFirstObjectByType<PlayerMovementAdapterBase>();
+            if (movementAdapter == null)
+            {
+                UsefulLogger.LogError("PlayerMovementAdapterBase が見つからない為、開始位置へ置けません。", this);
+                return;
+            }
+
+            movementAdapter.PlaceAt(startPoint.transform.position);
         }
 
         /// <summary>

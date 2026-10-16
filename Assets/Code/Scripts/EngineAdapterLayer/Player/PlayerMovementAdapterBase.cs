@@ -83,6 +83,21 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// プレイヤーを指定の位置へ置き、速度を止める。補間を有効にした Rigidbody が前の位置から滑らないよう、Transform と Rigidbody の両方を書く。
+        /// </summary>
+        /// <param name="position">プレイヤーの Transform を置くワールド位置</param>
+        public void PlaceAt(Vector3 position)
+        {
+            if (_rigidbody == null) return;
+
+            _rigidbody.transform.position = position;
+            _rigidbody.position = position;
+            _rigidbody.linearVelocity = Vector3.zero;
+            _horizontalVelocity = Vector3.zero;
+            Physics.SyncTransforms();
+        }
+
+        /// <summary>
         /// 視点操作の入力値が変化した際に呼ばれる。視点の回転をカメラ側で反映する操作系では何もしない。
         /// </summary>
         /// <param name="lookInput">感度適用済みの入力値。x が右向き、y が上向きを正とする</param>
