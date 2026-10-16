@@ -10,6 +10,8 @@ CELL = 0.4
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BLEND_DIR = os.path.join(ROOT_DIR, "Blender~")
+# マップ用モデルの FBX の置き場所
+STAGE_DIR = os.path.join(os.path.dirname(ROOT_DIR), "Stage")
 
 # 面の向きと、その面の 4 頂点（セルの最小の隅からのオフセット、外から見て反時計回り）
 _FACES = [
@@ -83,7 +85,50 @@ MATERIAL_PREVIEW_COLORS = {
     "Rebar": (0.15, 0.25, 0.6, 1),
     "Metal": (0.3, 0.3, 0.35, 1),
     "Wood": (0.6, 0.45, 0.25, 1),
+    "Glass": (0.55, 0.75, 0.85, 1),
 }
+
+
+def build_model_from_boxes(model_name, boxes, size):
+    """boxes は [(素材名, (x0, y0, z0), (x1, y1, z1))]（セル単位、終端は含まない）。大きい建物用。
+
+    箱ごとに閉じた直方体にして、素材ごとに 1 つのメッシュにまとめる。セルごとに面を張るとポリゴンが多すぎるため。
+    """
+    for i, (_, lo_a, hi_a) in enumerate(boxes):
+        for _, lo_b, hi_b in boxes[i + 1:]:
+            if all(lo_a[k] < hi_b[k] and lo_b[k] < hi_a[k] for k in range(3)):
+                raise ValueError(f"箱が重なっている: {lo_a}-{hi_a} と {lo_b}-{hi_b}")
+
+    root = bpy.data.objects.new(model_name, None)
+    bpy.context.collection.objects.link(root)
+    offset = (-size[0] * CELL / 2, -size[1] * CELL / 2, 0.0)
+
+    by_material = {}
+    for mat_name, lo_c, hi_c in boxes:
+        by_material.setdefault(mat_name, []).append((lo_c, hi_c))
+
+    for mat_name in sorted(by_material):
+        verts, faces = [], []
+        for lo_c, hi_c in by_material[mat_name]:
+            base = len(verts)
+            for cz in (lo_c[2], hi_c[2]):
+                for cy in (lo_c[1], hi_c[1]):
+                    for cx in (lo_c[0], hi_c[0]):
+                        verts.append(tuple(round(c * CELL + o, 4) for c, o in zip((cx, cy, cz), offset)))
+            # 頂点の番号は x + 2y + 4z
+            for quad in ((0, 2, 3, 1), (4, 5, 7, 6), (0, 1, 5, 4), (2, 6, 7, 3), (0, 4, 6, 2), (1, 3, 7, 5)):
+                faces.append([base + q for q in quad])
+        name = f"{model_name}_{mat_name}"
+        mesh = bpy.data.meshes.new(name)
+        mesh.from_pydata(verts, [], faces)
+        mesh.update()
+        obj = bpy.data.objects.new(name, mesh)
+        bpy.context.collection.objects.link(obj)
+        mat = bpy.data.materials.get(mat_name) or bpy.data.materials.new(mat_name)
+        mat.diffuse_color = MATERIAL_PREVIEW_COLORS.get(mat_name, (0.5, 0.5, 0.5, 1))
+        obj.data.materials.append(mat)
+        obj.parent = root
+    return root
 
 
 def report(root):
@@ -147,12 +192,12 @@ def render_ortho(path, center=(0, 0, 2), dist=40.0, rot_x=70, rot_z=-35, ortho_s
     bpy.data.cameras.remove(cam_data)
 
 
-def save_and_export(root):
-    """`.blend` を Blender~ に保存し、FBX をこのフォルダの直下に書き出す。"""
+def save_and_export(root, fbx_dir=ROOT_DIR):
+    """`.blend` を Blender~ に保存し、FBX を fbx_dir に書き出す。"""
     os.makedirs(BLEND_DIR, exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(BLEND_DIR, root.name + ".blend"), copy=True)
     bpy.ops.export_scene.fbx(
-        filepath=os.path.join(ROOT_DIR, root.name + ".fbx"),
+        filepath=os.path.join(fbx_dir, root.name + ".fbx"),
         use_selection=False,
         object_types={'EMPTY', 'MESH'},
         apply_scale_options='FBX_SCALE_ALL',
