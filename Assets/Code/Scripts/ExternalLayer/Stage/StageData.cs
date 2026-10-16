@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UsefulToolkit.Attributes;
 using UsefulToolkit.External.Scene;
 
 namespace Kizami.External
@@ -31,7 +32,7 @@ namespace Kizami.External
         [Tooltip("このステージで使うスキルを固定する。空でなければ、アウトゲームでの装備を無視して、先頭から順に装備枠へ入れる。空なら装備したスキルを使う")]
         private SkillData[] _fixedSkills = System.Array.Empty<SkillData>();
 
-        [SerializeReference]
+        [SerializeReference, SubclassSelector]
         [Tooltip("失敗条件。どれか 1 つを満たしたら失敗にする。空ならこのステージでは失敗しない")]
         private StageFailCondition[] _failConditions = { new PlayerDeathFailCondition() };
 
