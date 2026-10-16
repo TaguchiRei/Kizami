@@ -10,6 +10,7 @@ namespace Kizami.EngineAdapter
     /// 属する区画は作者が指定する。追跡を始める判定は持ち場の位置で行い、指定した区画は置き場所の確認に使う。
     /// 建物（ボクセルのモデル）を指定すると、読み込んだ時点の体積の壊れたとみなす割合以上が削れたときに、補充と出し直しの敵を出さなくなる。
     /// 建物は EnemySpawn レイヤーに置き、敵の経路の格子に入れない。敵は建物の内側に出て、そのまま歩いて出てくる。
+    /// 出現を保留すると、初期化では置き場所だけを確保して敵を出さず、解放したあとに出す。
     /// </summary>
     public sealed class EnemySpawnPoint : MonoBehaviour
     {
@@ -51,6 +52,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("敵を出すか。初期化のあとに切り替えたときは、出さない方向にだけ効く")]
         private bool _isEnabled = true;
 
+        [SerializeField]
+        [Tooltip("出現を保留するか。初期化では置き場所だけ確保して敵を出さず、Release のあとに出す。解放から出るまでは、出し直しの間隔の残りを待つ")]
+        private bool _isHeld;
+
         /// <summary> 建物の、読み込んだ時点の体積（m³）。読み込む前は0 </summary>
         private float _initialVolume;
 
@@ -79,8 +84,11 @@ namespace Kizami.EngineAdapter
             }
         }
 
-        /// <summary> 補充と出し直しで敵を出せるか </summary>
-        public bool CanSpawn => IsEnabled && !IsBroken;
+        /// <summary> 出現を保留しているか </summary>
+        public bool IsHeld => _isHeld;
+
+        /// <summary> 初期の出現と、補充と出し直しで敵を出せるか </summary>
+        public bool CanSpawn => IsEnabled && !_isHeld && !IsBroken;
 
         /// <summary> 敵を出せる状態にする </summary>
         public void Enable()
@@ -92,6 +100,12 @@ namespace Kizami.EngineAdapter
         public void Disable()
         {
             _isEnabled = false;
+        }
+
+        /// <summary> 出現の保留を解く </summary>
+        public void Release()
+        {
+            _isHeld = false;
         }
 
         /// <summary> 半径の円の中から、出す位置を1つ選ぶ </summary>
@@ -139,7 +153,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 区画の色でアイコンと半径の円を描く。区画の番号が位置と食い違うか、位置の区画に Hierarchy で前の有効なスポーン位置があれば赤、敵を出さない状態か建物が壊れていれば灰色にする。
+        /// 区画の色でアイコンと半径の円を描く。区画の番号が位置と食い違うか、位置の区画に Hierarchy で前の有効なスポーン位置があれば赤、敵を出さない状態か出現を保留しているか建物が壊れていれば灰色にする。
         /// アイコンは距離によらず同じ大きさで描かれ、クリックするとこのスポーン位置を選べる。
         /// </summary>
         private void OnDrawGizmos()
@@ -152,7 +166,7 @@ namespace Kizami.EngineAdapter
 
         private Color GetGizmoColor()
         {
-            if (!_isEnabled || IsBroken) return Color.gray;
+            if (!_isEnabled || _isHeld || IsBroken) return Color.gray;
 
             var system = GetComponentInParent<EnemySpawnSystem>();
             if (system == null) return EnemySpawnSystem.GetSectionColor(_section);

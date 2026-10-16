@@ -902,12 +902,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 有効なスポーン位置ごとに、同じ番号のグループで編成の1グループを出す。
+        /// 有効なスポーン位置ごとに、同じ番号のグループで編成の1グループを出す。出現を保留しているスポーン位置は出さない。
         /// </summary>
         private void SpawnSquads()
         {
             for (var g = 0; g < _activeSpawnPoints.Count; g++)
             {
+                if (_activeSpawnPoints[g].IsHeld) continue;
+
                 SpawnSquad(g);
             }
         }
