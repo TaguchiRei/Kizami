@@ -167,6 +167,132 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1490049947}
+  - {fileID: 1094173660}
+  - {fileID: 2087668877}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1094173659
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1094173660}
+  - component: {fileID: 1094173661}
+  m_Layer: 0
+  m_Name: SpawnPoint_Facility_2
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1094173660
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1094173659}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 120, y: -1, z: 90}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 452604523}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1094173661
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1094173659}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63f87835b593cdd4d8ad752869ed88ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemySpawnPoint
+  _composition: {fileID: 11400000, guid: f978dca655ed3ee41a7e3aefb876c3a7, type: 2}
+  _section: {x: -1, y: 1}
+  _hasSection: 1
+  _radius: 2
+  _respawnInterval: 30
+  _structure: {fileID: 1970230278}
+  _brokenLossRatio: 0.05
+  _isEnabled: 1
+  _isStationary: 0
+  _isHeld: 0
+--- !u!1 &1242569022
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1242569024}
+  - component: {fileID: 1242569023}
+  m_Layer: 0
+  m_Name: StageGuideScript
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1242569023
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1242569022}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5122c3aefbdc8b64eb493134f66aaa1c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageGuideScript
+  _objective: "\u6575\u306E\u751F\u7523\u65BD\u8A2D\u3092\u3059\u3079\u3066\u58CA\u305B"
+  _steps:
+  - _subObjective: "\u624B\u524D\u306E\u751F\u7523\u65BD\u8A2D\u3092\u58CA\u305B"
+    _dialogue: "\u6575\u306F\u3042\u306E\u65BD\u8A2D\u304B\u3089\u6B21\u3005\u306B\u51FA\u3066\u304F\u308B\u3002\u6570\u306B\u98F2\u307E\u308C\u308B\u524D\u306B\u3001\u65BD\u8A2D\u3054\u3068\u58CA\u3057\u3066\u3057\u307E\u304A\u3046\u3002\u30D3\u30FC\u30E0\u304B\u7206\u767A\u304C\u6709\u52B9\u3060\u3002"
+    _condition:
+      _kind: 0
+      _target: {fileID: 1278372560}
+      _count: 0
+      _action: 0
+    _releaseSpawnPoints: []
+  - _subObjective: "\u6B21\u306E\u751F\u7523\u65BD\u8A2D\u3092\u58CA\u305B"
+    _dialogue: "\u307E\u305A1\u3064\u3002\u58CA\u3057\u305F\u65BD\u8A2D\u304B\u3089\u306F\u3001\u3082\u3046\u6575\u306F\u51FA\u3066\u3053\u306A\u3044\u3002\u65BD\u8A2D\u306F\u4ED6\u306B\u3082\u3042\u308B\u3002"
+    _condition:
+      _kind: 0
+      _target: {fileID: 1970230279}
+      _count: 0
+      _action: 0
+    _releaseSpawnPoints: []
+  - _subObjective: "\u6700\u5F8C\u306E\u751F\u7523\u65BD\u8A2D\u3092\u58CA\u305B"
+    _dialogue: "\u65BD\u8A2D\u306E\u52D5\u304D\u3092\u3001\u3069\u3053\u304B\u304B\u3089\u6307\u793A\u3057\u3066\u3044\u308B\u4F55\u304B\u304C\u3042\u308B\u3088\u3046\u3060\u3002\u4ECA\u306F\u6700\u5F8C\u306E\u65BD\u8A2D\u3092\u58CA\u305D\u3046\u3002"
+    _condition:
+      _kind: 0
+      _target: {fileID: 1493994802}
+      _count: 0
+      _action: 0
+    _releaseSpawnPoints: []
+--- !u!4 &1242569024
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1242569022}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1278372557
@@ -187,7 +313,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 60
+      value: 50
       objectReference: {fileID: 0}
     - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
       propertyPath: m_LocalRotation.w
@@ -330,7 +456,7 @@ Transform:
   m_GameObject: {fileID: 1490049946}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 150, y: -1, z: 60}
+  m_LocalPosition: {x: 150, y: -1, z: 50}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -358,6 +484,242 @@ MonoBehaviour:
   _isEnabled: 1
   _isStationary: 0
   _isHeld: 0
+--- !u!1001 &1493994799
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 180
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 90
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1517778624028407869, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_Name
+      value: Facility_3
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1517778624028407869, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1493994802}
+  m_SourcePrefab: {fileID: 100100000, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+--- !u!1 &1493994800 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1517778624028407869, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+  m_PrefabInstance: {fileID: 1493994799}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1493994801 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1824909050301994779, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+  m_PrefabInstance: {fileID: 1493994799}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1493994800}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f46df2ea00bddd4394ce7b4e0beeade, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelModelLoader
+--- !u!114 &1493994802
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1493994800}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54b06e106ad64a94888557ee9cb50f90, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.DestructionTarget
+  _importantPartPaths:
+  - Cube
+  _requiredRatio: 0.3
+--- !u!1001 &1970230276
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 120
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 90
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151713109334519795, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1517778624028407869, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      propertyPath: m_Name
+      value: Facility_2
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1517778624028407869, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1970230279}
+  m_SourcePrefab: {fileID: 100100000, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+--- !u!1 &1970230277 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1517778624028407869, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+  m_PrefabInstance: {fileID: 1970230276}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1970230278 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1824909050301994779, guid: adda17fb33ff1fc45849f329d8609a8a, type: 3}
+  m_PrefabInstance: {fileID: 1970230276}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1970230277}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f46df2ea00bddd4394ce7b4e0beeade, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelModelLoader
+--- !u!114 &1970230279
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1970230277}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54b06e106ad64a94888557ee9cb50f90, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.DestructionTarget
+  _importantPartPaths:
+  - Cube
+  _requiredRatio: 0.3
+--- !u!1 &2087668876
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2087668877}
+  - component: {fileID: 2087668878}
+  m_Layer: 0
+  m_Name: SpawnPoint_Facility_3
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2087668877
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2087668876}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 180, y: -1, z: 90}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 452604523}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2087668878
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2087668876}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63f87835b593cdd4d8ad752869ed88ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemySpawnPoint
+  _composition: {fileID: 11400000, guid: ef163e8a43df4ea4a8432b2c3788feb8, type: 2}
+  _section: {x: 1, y: 1}
+  _hasSection: 1
+  _radius: 2
+  _respawnInterval: 30
+  _structure: {fileID: 1493994801}
+  _brokenLossRatio: 0.05
+  _isEnabled: 1
+  _isStationary: 0
+  _isHeld: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -365,3 +727,6 @@ SceneRoots:
   - {fileID: 452604523}
   - {fileID: 1278372557}
   - {fileID: 1446225439}
+  - {fileID: 1970230276}
+  - {fileID: 1493994799}
+  - {fileID: 1242569024}

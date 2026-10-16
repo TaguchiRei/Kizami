@@ -15,7 +15,7 @@ MonoBehaviour:
   _displayName: Annihilation
   _sceneGroup: {fileID: 11400000, guid: ed02e6f189a99474d990e5b1bdf3fb4f, type: 2}
   _clearScore: 1000
-  _initialCharge: 0
+  _initialCharge: 100
   _fixedSkills: []
   _failConditions:
   - rid: 8226038394822328400
