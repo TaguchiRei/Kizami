@@ -140,7 +140,7 @@ def extract_glass(boxes, size):
     """boxes から Glass の箱を抜き、残りの箱と、ガラスの板の配置を返す。
 
     ガラスはボクセルにせず、Unity で GlassPane の板を置く。配置は Unity の座標（FBX の書き出しで (-x, z, -y) になる）で、
-    板の底面の中心 `position`、幅と高さ `size`、Y 軸まわりの回転 `yaw`（度）を持つ。板は厚さの向きが Z のときに yaw 0。
+    板の底面の中心 `Position`、幅と高さ `Size`、Y 軸まわりの回転 `Yaw`（度）を持つ。板は厚さの向きが Z のときに yaw 0。
     """
     rest, panes = [], []
     offset = (-size[0] * CELL / 2, -size[1] * CELL / 2, 0.0)
@@ -162,9 +162,9 @@ def extract_glass(boxes, size):
             center[along] = lo[along] + pane_width * (i + 0.5)
             center[across] = middle
             panes.append({
-                "position": [round(-center[0], 4), round(lo[2], 4), round(-center[1], 4)],
-                "size": [round(pane_width, 4), round(height, 4)],
-                "yaw": 0 if along == 0 else 90,
+                "Position": [round(-center[0], 4), round(lo[2], 4), round(-center[1], 4)],
+                "Size": [round(pane_width, 4), round(height, 4)],
+                "Yaw": 0 if along == 0 else 90,
             })
     return rest, panes
 
@@ -172,7 +172,7 @@ def extract_glass(boxes, size):
 def save_glass(model_name, panes, fbx_dir):
     """ガラスの板の配置を、FBX の隣に `<モデル名>_Glass.json` で書き出す。"""
     with open(os.path.join(fbx_dir, model_name + "_Glass.json"), "w", encoding="utf-8") as f:
-        json.dump({"panes": panes}, f, ensure_ascii=False, indent=1)
+        json.dump({"Panes": panes}, f, ensure_ascii=False, indent=1)
 
 
 def report(root):

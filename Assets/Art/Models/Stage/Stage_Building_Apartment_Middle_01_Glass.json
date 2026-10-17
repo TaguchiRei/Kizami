@@ -1,76 +1,76 @@
 {
- "panes": [
+ "Panes": [
   {
-   "position": [
+   "Position": [
     3.2,
     1.2,
     2.4
    ],
-   "size": [
+   "Size": [
     1.6,
     1.2
    ],
-   "yaw": 0
+   "Yaw": 0
   },
   {
-   "position": [
+   "Position": [
     4.9,
     0.8,
     -4.8
    ],
-   "size": [
+   "Size": [
     1.4,
     2.0
    ],
-   "yaw": 0
+   "Yaw": 0
   },
   {
-   "position": [
+   "Position": [
     3.5,
     0.8,
     -4.8
    ],
-   "size": [
+   "Size": [
     1.4,
     2.0
    ],
-   "yaw": 0
+   "Yaw": 0
   },
   {
-   "position": [
+   "Position": [
     -2.8,
     1.2,
     2.4
    ],
-   "size": [
+   "Size": [
     1.6,
     1.2
    ],
-   "yaw": 0
+   "Yaw": 0
   },
   {
-   "position": [
+   "Position": [
     -1.1,
     0.8,
     -4.8
    ],
-   "size": [
+   "Size": [
     1.4,
     2.0
    ],
-   "yaw": 0
+   "Yaw": 0
   },
   {
-   "position": [
+   "Position": [
     -2.5,
     0.8,
     -4.8
    ],
-   "size": [
+   "Size": [
     1.4,
     2.0
    ],
-   "yaw": 0
+   "Yaw": 0
   }
  ]
 }
