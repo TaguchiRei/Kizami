@@ -61,6 +61,12 @@ namespace Kizami.Application
         /// <summary> 次のワープができるまでの残り時間（秒） </summary>
         private float _warpCooldownRemaining;
 
+        /// <summary> 言葉をつかんでいる間は true になり、その間は移動モードを Aiming にして静止する </summary>
+        private bool _isHoldingWord;
+
+        /// <summary> 言葉をつかんでいるか </summary>
+        public bool IsHoldingWord => _isHoldingWord;
+
         /// <summary> ダッシュ入力の受け付け方に応じて、押下中またはトグルの状態を返す </summary>
         private bool IsSprinting => _settingState.SprintInputMode == SprintInputMode.Hold
             ? _isSprintHeld
@@ -111,6 +117,15 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// 言葉をつかんでいるかを設定する。つかんでいる間は、次の Step から移動モードを Aiming にして、移動・ジャンプ・ワープ・打ち上げの要求を捨てる。
+        /// </summary>
+        /// <param name="isHolding">言葉をつかんでいるか</param>
+        public void SetHoldingWord(bool isHolding)
+        {
+            _isHoldingWord = isHolding;
+        }
+
+        /// <summary>
         /// 次の Step でプレイヤーを真上へ打ち上げるよう要求する。同じステップに複数の要求があれば、最も速いものを使う。
         /// </summary>
         /// <param name="speed">上向きの打ち出し速度（m/s）</param>
@@ -133,6 +148,14 @@ namespace Kizami.Application
             if (_settingState == null) return null;
 
             UpdateViewForward(viewDirection);
+
+            if (_isHoldingWord)
+            {
+                HoldStill();
+                return null;
+            }
+
+            if (_state.Mode == PlayerMoveMode.Aiming) _state.SetMode(PlayerMoveMode.Normal);
 
             var worldInput = ToWorldDirection(_moveInput);
             var isJumpRequested = _isJumpRequested;
@@ -221,6 +244,19 @@ namespace Kizami.Application
 
             _actionEvents?.Raise(new PlayerActionNotice(PlayerActionKind.Jumped));
             return Vector3.up * CalculateJumpSpeed();
+        }
+
+        /// <summary>
+        /// 言葉をつかんでいる間の Step。進行中のワープは打ち切り、受け付けた要求を捨てて、移動モードを Aiming にして目標速度を0にする。
+        /// </summary>
+        private void HoldStill()
+        {
+            _isJumpRequested = false;
+            _isWarpRequested = false;
+            _launchSpeed = 0f;
+            _warpTimeRemaining = 0f;
+            _state.SetMode(PlayerMoveMode.Aiming);
+            _state.SetTargetVelocity(Vector3.zero);
         }
 
         /// <summary>

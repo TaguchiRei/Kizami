@@ -165,7 +165,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="reach">融点0の素材まで届く範囲</param>
         /// <param name="materialOffsets">素材の番号ごとの 融点 ÷ 減衰率。HasMaterials でなければ使わない</param>
         /// <param name="uniformOffset">素材を持たないときの 融点 ÷ 減衰率</param>
-        /// <returns>値が書き換わりうるサンプル範囲。形状がボリュームの外にあれば HasChange が false</returns>
+        /// <returns>値が書き換わりうるサンプル範囲と、壊したサンプルの数。形状がボリュームの外にあれば HasChange が false</returns>
         public VoxelEditResult ApplyStrike<TShape>(in TShape reach, NativeArray<float> materialOffsets,
             float uniformOffset)
             where TShape : struct, IVoxelShape
@@ -623,6 +623,7 @@ namespace Kizami.EngineAdapter.Voxel
             var emptyIds = useMaterials ? default : new NativeArray<byte>(1, Allocator.TempJob);
             var emptyRoundness = HasRoundness ? default : new NativeArray<byte>(1, Allocator.TempJob);
 
+            var removedSamples = new NativeQueue<byte>(Allocator.TempJob);
             var rangeSize = sampleMax - sampleMin + 1;
             var job = new VoxelCsgJob<TShape>
             {
@@ -639,9 +640,13 @@ namespace Kizami.EngineAdapter.Voxel
                 MaterialIds = useMaterials ? _materialIds : emptyIds,
                 MarkRoundness = HasRoundness,
                 RoundnessChangeThreshold = _roundnessChangeThreshold,
-                Roundness = HasRoundness ? _roundness : emptyRoundness
+                Roundness = HasRoundness ? _roundness : emptyRoundness,
+                RemovedSamples = removedSamples.AsParallelWriter()
             };
             job.Schedule(rangeSize.x * rangeSize.y * rangeSize.z, 256).Complete();
+
+            var removedCount = removedSamples.Count;
+            removedSamples.Dispose();
 
             if (emptyOffsets.IsCreated) emptyOffsets.Dispose();
             if (emptyIds.IsCreated) emptyIds.Dispose();
@@ -649,7 +654,7 @@ namespace Kizami.EngineAdapter.Voxel
 
             SpreadRoundness(sampleMin, sampleMax);
 
-            return new VoxelEditResult(sampleMin, sampleMax);
+            return new VoxelEditResult(sampleMin, sampleMax, removedCount);
         }
 
         public void Dispose()
@@ -671,11 +676,15 @@ namespace Kizami.EngineAdapter.Voxel
         public readonly int3 SampleMin;
         public readonly int3 SampleMax;
 
-        public VoxelEditResult(int3 sampleMin, int3 sampleMax)
+        /// <summary> 内側から外側になったサンプルの数。CSG の合成でだけ数え、それ以外の編集では0 </summary>
+        public readonly int RemovedSampleCount;
+
+        public VoxelEditResult(int3 sampleMin, int3 sampleMax, int removedSampleCount = 0)
         {
             HasChange = true;
             SampleMin = sampleMin;
             SampleMax = sampleMax;
+            RemovedSampleCount = removedSampleCount;
         }
     }
 }

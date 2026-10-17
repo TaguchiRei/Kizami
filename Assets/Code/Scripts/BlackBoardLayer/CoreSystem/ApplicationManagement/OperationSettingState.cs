@@ -4,7 +4,7 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// 操作に関わる設定（ダッシュ入力の受け付け方・切断面の回転角度・視点操作の感度）を保持するゲームステート。シーンを跨いで保たれる。
+    /// 操作に関わる設定（ダッシュ入力の受け付け方・つかむ入力の受け付け方・切断面の回転角度・視点操作の感度）を保持するゲームステート。シーンを跨いで保たれる。
     /// 感度は基準を1.0とする倍率で、生の視点入力の単位が経路ごとに違う（PC / スマホはスクリーン座標の delta、VR はスティックの -1〜1）ため、基準スケールは各入力経路・適用側が定数として持つ。
     /// </summary>
     [RegisterBoard(typeof(AppBoard))]
@@ -18,6 +18,8 @@ namespace Kizami.BlackBoard
 
         public SprintInputMode SprintInputMode { get; private set; } = SprintInputMode.Hold;
 
+        public GrabInputMode GrabInputMode { get; private set; } = GrabInputMode.Toggle;
+
         public float CutRotateStepAngle { get; private set; } = 15f;
 
         public float HorizontalSensitivity { get; private set; } = 1f;
@@ -26,7 +28,8 @@ namespace Kizami.BlackBoard
 
         public override string GetLog()
         {
-            return $"SprintInputMode: {SprintInputMode}  \nCutRotateStepAngle: {CutRotateStepAngle}  \n" +
+            return $"SprintInputMode: {SprintInputMode}  \nGrabInputMode: {GrabInputMode}  \n" +
+                   $"CutRotateStepAngle: {CutRotateStepAngle}  \n" +
                    $"HorizontalSensitivity: {HorizontalSensitivity}  \nVerticalSensitivity: {VerticalSensitivity}";
         }
 
@@ -37,6 +40,15 @@ namespace Kizami.BlackBoard
         public void SetSprintInputMode(SprintInputMode mode)
         {
             SprintInputMode = mode;
+        }
+
+        /// <summary>
+        /// つかむ入力の受け付け方を設定する。
+        /// </summary>
+        /// <param name="mode">つかむ入力の受け付け方</param>
+        public void SetGrabInputMode(GrabInputMode mode)
+        {
+            GrabInputMode = mode;
         }
 
         /// <summary>
@@ -75,6 +87,9 @@ namespace Kizami.BlackBoard
         /// <summary> ダッシュ入力の受け付け方 </summary>
         SprintInputMode SprintInputMode { get; }
 
+        /// <summary> つかむ入力の受け付け方 </summary>
+        GrabInputMode GrabInputMode { get; }
+
         /// <summary> 切断面の回転入力（ホイール1段）1回あたりの回転角度（度） </summary>
         float CutRotateStepAngle { get; }
 
@@ -94,6 +109,18 @@ namespace Kizami.BlackBoard
         Hold,
 
         /// <summary> 押すたびにダッシュの有無を切り替える。移動入力が0になると解除する </summary>
+        Toggle
+    }
+
+    /// <summary>
+    /// かけらと文字をつかんで投げる入力の受け付け方。
+    /// </summary>
+    public enum GrabInputMode
+    {
+        /// <summary> 押している間つかみ、離すと投げる </summary>
+        Hold,
+
+        /// <summary> 1回押すとつかみ、もう1回押すと投げる </summary>
         Toggle
     }
 }

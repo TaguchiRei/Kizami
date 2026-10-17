@@ -19,6 +19,10 @@ namespace Kizami.Initialization
         [Tooltip("ダッシュ入力の受け付け方の初期値")]
         private SprintInputMode _sprintInputMode = SprintInputMode.Hold;
 
+        [SerializeField]
+        [Tooltip("かけらと文字をつかんで投げる入力の受け付け方の初期値")]
+        private GrabInputMode _grabInputMode = GrabInputMode.Toggle;
+
         [SerializeField, Range(1f, 90f)]
         [Tooltip("切断面の回転入力（ホイール 1 段）1 回あたりの回転角度（度）の初期値")]
         private float _cutRotateStepAngle = 15f;
@@ -27,7 +31,8 @@ namespace Kizami.Initialization
 
         public override void Initialize(IBlackBoard blackBoard)
         {
-            _settingService = new OperationSettingService(blackBoard, _sprintInputMode, _cutRotateStepAngle);
+            _settingService = new OperationSettingService(blackBoard, _sprintInputMode, _grabInputMode,
+                _cutRotateStepAngle);
 
             base.Initialize(blackBoard);
         }
