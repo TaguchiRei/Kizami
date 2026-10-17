@@ -9,9 +9,11 @@ using UsefulToolkit.BlackBoard.Input;
 namespace Kizami.Application
 {
     /// <summary>
-    /// 投擲とランチャーの入力を受けて、かけらをつかむ・投げる・装填する・撃つ要求を実行役へ伝えるユースケース。
-    /// 投擲の入力を押したときにつかみ、離したときに投げる。
-    /// つかむのと装填するのはスローモード中だけで、持ったかけらと装填したかけらはスローモードが終わっても投げる・撃つことができる。
+    /// 投擲とランチャーの入力を受けて、かけらと Brilliant Skill の文字をつかむ・投げる、かけらを装填する・撃つ要求を実行役へ伝えるユースケース。
+    /// つかむ入力の受け付け方（GrabInputMode）が Toggle なら、1回押すとつかみ、もう1回押すと投げる。Hold なら、押したときにつかみ、離したときに投げる。
+    /// かけらをつかむのと装填するのはスローモード中だけで、文字はスローモードでなくてもつかめる。かけらは視線の先にあるものを先に探し、なければ文字を探す。
+    /// 持ったかけらと装填したかけらはスローモードが終わっても投げる・撃つことができる。
+    /// 文字をつかんでいる間は、プレイヤーを静止させて狙う状態にする（PlayerMovementService.SetHoldingLetter）。文字は爆発しないので、かけらの爆発の強化は使わない。
     /// かけらの爆発の強化中に投げた・撃ったかけらは、当たった所で爆発する。投げた・撃った回数を、回数で切れる強化の攻撃の回数に数える。
     /// </summary>
     public sealed class FragmentThrowService : IDisposable
@@ -22,28 +24,40 @@ namespace Kizami.Application
         private readonly Func<float, bool, bool> _tryThrow;
         private readonly Func<bool> _tryLoad;
         private readonly Func<float, bool, bool> _tryFire;
+        private readonly Func<bool> _tryGrabLetter;
+        private readonly Func<bool> _isHolding;
+        private readonly PlayerMovementService _movementService;
         private readonly ISlowModeState _slowModeState;
+        private readonly IOperationSettingState _settingState;
         private readonly List<IDisposable> _subscriptions = new();
 
         /// <param name="blackBoard">入力とスローモードの状態の取得元</param>
         /// <param name="parameters">つかむ範囲と、投げる速さ・撃つ速さの取得元</param>
         /// <param name="tryGrab">かけらをつかむ関数。引数はつかむ距離（m）と半径（m）。つかめたら true</param>
+        /// <param name="tryGrabLetter">文字をつかむ関数。つかめたら true。つかむ距離と半径は実行役が持つ</param>
+        /// <param name="isHolding">かけらか文字を持っているかを返す関数</param>
+        /// <param name="movementService">文字をつかんでいる間のプレイヤーの静止の設定先</param>
         /// <param name="enhanceService">かけらの爆発の強化の取得元</param>
-        /// <param name="tryThrow">持っているかけらを投げる関数。引数は初速（m/s）と、当たった所で爆発させるか。投げたら true</param>
+        /// <param name="tryThrow">持っているかけらか文字を投げる関数。引数は初速（m/s）と、当たった所で爆発させるか（かけらだけ）。投げたら true</param>
         /// <param name="tryLoad">持っているかけらをランチャーに装填する関数。装填できたら true</param>
         /// <param name="tryFire">装填したかけらを撃つ関数。引数は速さ（m/s）と、当たった所で爆発させるか。撃ったら true</param>
         public FragmentThrowService(IBlackBoard blackBoard, PlayerParameterData parameters,
-            PlayerEnhanceService enhanceService, Func<float, float, bool> tryGrab, Func<float, bool, bool> tryThrow,
-            Func<bool> tryLoad, Func<float, bool, bool> tryFire)
+            PlayerEnhanceService enhanceService, PlayerMovementService movementService,
+            Func<float, float, bool> tryGrab, Func<bool> tryGrabLetter, Func<bool> isHolding,
+            Func<float, bool, bool> tryThrow, Func<bool> tryLoad, Func<float, bool, bool> tryFire)
         {
             _parameters = parameters;
             _enhanceService = enhanceService;
+            _movementService = movementService;
             _tryGrab = tryGrab;
+            _tryGrabLetter = tryGrabLetter;
+            _isHolding = isHolding;
             _tryThrow = tryThrow;
             _tryLoad = tryLoad;
             _tryFire = tryFire;
 
             if (!blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this) ||
+                !blackBoard.TryGetGameState<AppBoard, IOperationSettingState>(out _settingState, this) ||
                 !blackBoard.TryGetSceneState<PlayerBoard, ISlowModeState>(out _slowModeState, this)) return;
 
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Throw, OnThrow));
@@ -55,15 +69,60 @@ namespace Kizami.Application
 
         private void OnThrow(InputContext<float> context)
         {
+            if (_settingState.GrabInputMode == GrabInputMode.Toggle)
+            {
+                if (context.Phase != InputPhase.Performed) return;
+
+                if (_isHolding != null && _isHolding())
+                {
+                    Throw();
+                }
+                else
+                {
+                    Grab();
+                }
+
+                return;
+            }
+
             switch (context.Phase)
             {
                 case InputPhase.Performed:
-                    if (_slowModeState.IsActive) _tryGrab?.Invoke(_parameters.GrabRange, _parameters.GrabRadius);
+                    Grab();
                     break;
                 case InputPhase.Canceled:
-                    Launch(_tryThrow, _parameters.ThrowSpeed);
+                    Throw();
                     break;
             }
+        }
+
+        /// <summary>
+        /// スローモード中ならかけらをつかみ、つかめなかったか、スローモードでなければ文字をつかむ。文字をつかんだら、プレイヤーを静止させる。
+        /// </summary>
+        private void Grab()
+        {
+            if (_slowModeState.IsActive && _tryGrab != null &&
+                _tryGrab(_parameters.GrabRange, _parameters.GrabRadius)) return;
+
+            if (_tryGrabLetter != null && _tryGrabLetter()) _movementService.SetHoldingLetter(true);
+        }
+
+        /// <summary>
+        /// 持っているものを投げる。文字を持っていたら、爆発の強化は使わずに文字を投げ、プレイヤーの静止を解く。
+        /// </summary>
+        private void Throw()
+        {
+            if (_movementService.IsHoldingLetter)
+            {
+                if (_tryThrow != null && _tryThrow(_parameters.ThrowSpeed, false))
+                {
+                    _movementService.SetHoldingLetter(false);
+                }
+
+                return;
+            }
+
+            Launch(_tryThrow, _parameters.ThrowSpeed);
         }
 
         private void OnLoadLauncher(InputContext<float> context)

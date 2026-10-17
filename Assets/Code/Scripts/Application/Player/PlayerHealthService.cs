@@ -8,7 +8,7 @@ namespace Kizami.Application
 {
     /// <summary>
     /// プレイヤーの HP を管理し、ダメージと回復を適用するユースケース。
-    /// ワープ中（PlayerMovementState.Mode が Warping）に受けたダメージには軽減率を適用する。
+    /// ワープ中（PlayerMovementState.Mode が Warping）に受けたダメージには軽減率を適用する。文字をつかんで狙っている間（Aiming）はダメージを受けない。
     /// インゲームの流れ（StageFlowState）がある間は、プレイ中に受けたダメージだけを適用する。開始の表示中とクリア・失敗のあとに HP を変えない為。
     /// </summary>
     public sealed class PlayerHealthService : IDisposable
@@ -50,13 +50,14 @@ namespace Kizami.Application
 
         /// <summary>
         /// ダメージを適用する。ワープ中は軽減率を掛け、四捨五入した値を減らす。
-        /// HP が残っていて、ダメージが正で、インゲームの流れがプレイ中か流れのないシーンのときだけ適用する。
+        /// HP が残っていて、ダメージが正で、狙っている間（Aiming）でなく、インゲームの流れがプレイ中か流れのないシーンのときだけ適用する。
         /// </summary>
         /// <param name="amount">ダメージ量</param>
         public void ApplyDamage(int amount)
         {
             if (_state == null || amount <= 0 || _state.Current <= 0) return;
             if (!IsDamageablePhase()) return;
+            if (_movementState != null && _movementState.Mode == PlayerMoveMode.Aiming) return;
 
             var damage = amount;
             if (_movementState != null && _movementState.Mode == PlayerMoveMode.Warping)

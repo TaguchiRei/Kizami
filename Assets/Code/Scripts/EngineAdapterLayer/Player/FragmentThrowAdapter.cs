@@ -13,6 +13,7 @@ namespace Kizami.EngineAdapter
     /// 持っているかけらはランチャーに1つだけ装填でき、装填したかけらは重力なしでまっすぐ撃ち出す。
     /// 投げたかけらと撃ったかけらは、何かにぶつかるか、寿命が来るとプールへ返す。飛ばした瞬間に重なっている相手にも当たったものとする。オーブにもチャージにもならない。
     /// 装甲のパネルにぶつかったら、粉砕タイプとしてそのパネルだけを一撃で壊す。爆発させて飛ばしたかけらは、ぶつかった所で爆発する。
+    /// かけらと同じ操作で、Brilliant Skill の文字（BrilliantLetter）もつかんで投げられる。文字は視線の先の近くにあるものをつかみ、かけらの装填はできない。
     /// </summary>
     /// <remarks>
     /// かけらのプールは空きがなくなると古いかけらを使い回すので、運んでいるかけらと飛んでいるかけらが回収されたら手放し、物理の設定を戻す。
@@ -74,13 +75,31 @@ namespace Kizami.EngineAdapter
         [Tooltip("爆発するかけらが当たったときの爆発の半径（m）")]
         private float _explosionRadius = 2f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("文字をつかめる距離（m）。文字は遠くに出る為、かけらより長い")]
+        private float _letterGrabRange = 30f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("視線から文字の中心までの距離がこの値（m）以内の文字をつかめる")]
+        private float _letterGrabRadius = 2f;
+
+        [SerializeField]
+        [Tooltip("持っている文字の中心を置く位置（カメラのローカル座標、m）")]
+        private Vector3 _letterHoldOffset = new(0.5f, -0.3f, 1.5f);
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("持っている間の文字の大きさ（出たときを1とした倍率）")]
+        private float _letterHoldScale = 0.3f;
+
         private Func<CuttableObject, bool> _tryTake;
         private Action<Vector3, float> _onExplode;
         private CarriedFragment _held;
         private CarriedFragment _loaded;
+        private BrilliantSkillTextAdapter _letterSource;
+        private BrilliantLetter _heldLetter;
 
-        /// <summary> かけらを持っているか </summary>
-        public bool IsHolding => _held.Fragment != null;
+        /// <summary> かけらか文字を持っているか </summary>
+        public bool IsHolding => _held.Fragment != null || _heldLetter != null;
 
         /// <summary> ランチャーにかけらを装填しているか </summary>
         public bool IsLoaded => _loaded.Fragment != null;
@@ -91,6 +110,15 @@ namespace Kizami.EngineAdapter
         private static Vector3 GetCenter(CuttableObject fragment)
         {
             return fragment.Renderer != null ? fragment.Renderer.bounds.center : fragment.transform.position;
+        }
+
+        /// <summary>
+        /// つかめる文字の取得元を設定する。設定するまで、文字はつかめない。
+        /// </summary>
+        /// <param name="letterSource">文字を出している Adapter</param>
+        public void SetLetterSource(BrilliantSkillTextAdapter letterSource)
+        {
+            _letterSource = letterSource;
         }
 
         /// <param name="tryTake">かけらを、オーブにする管理から外す関数。外せたかけらだけをつかむ</param>
@@ -137,14 +165,61 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 持っているかけらを、視線の先へ重力ありで投げる。
+        /// 視線に最も近い文字をつかむ。視線の上で、カメラから _letterGrabRange 以内にあり、視線から中心までの距離が _letterGrabRadius 以内の文字が対象。
+        /// 投げられて飛んでいる文字はつかめない。
+        /// </summary>
+        /// <returns>つかめたら true。既に持っているときと、つかめる文字がないときは false</returns>
+        public bool TryGrabLetter()
+        {
+            if (!Initialized || _letterSource == null || IsHolding) return false;
+
+            var cameraMain = Camera.main;
+            if (cameraMain == null) return false;
+
+            var cameraTransform = cameraMain.transform;
+            var origin = cameraTransform.position;
+            var forward = cameraTransform.forward;
+
+            BrilliantLetter nearest = null;
+            var nearestOffset = float.MaxValue;
+            foreach (var letter in _letterSource.Letters)
+            {
+                if (letter == null || letter.IsThrown) continue;
+
+                var toLetter = letter.Center - origin;
+                var along = Vector3.Dot(forward, toLetter);
+                if (along <= 0f || along > _letterGrabRange) continue;
+
+                var offset = Vector3.Cross(forward, toLetter).magnitude;
+                if (offset > _letterGrabRadius || offset >= nearestOffset) continue;
+
+                nearest = letter;
+                nearestOffset = offset;
+            }
+
+            if (nearest == null) return false;
+
+            nearest.BeginCarry(cameraTransform, _letterHoldScale);
+            nearest.FollowCamera(cameraTransform, _letterHoldOffset);
+            _heldLetter = nearest;
+            return true;
+        }
+
+        /// <summary>
+        /// 持っているかけらか文字を、視線の先へ重力ありで投げる。文字は爆発しない。
         /// </summary>
         /// <param name="speed">初速（m/s）</param>
-        /// <param name="isExplosive">当たった所で爆発させるか</param>
+        /// <param name="isExplosive">かけらを当たった所で爆発させるか</param>
         /// <returns>投げたら true。持っていないときは false</returns>
         public bool TryThrow(float speed, bool isExplosive)
         {
             if (!Initialized || !IsHolding) return false;
+
+            if (_heldLetter != null)
+            {
+                ThrowLetter(speed);
+                return true;
+            }
 
             Launch(_held, speed, true, isExplosive);
             _held = default;
@@ -157,7 +232,7 @@ namespace Kizami.EngineAdapter
         /// <returns>装填できたら true。持っていないか、既に装填しているときは false</returns>
         public bool TryLoad()
         {
-            if (!Initialized || !IsHolding || IsLoaded) return false;
+            if (!Initialized || _held.Fragment == null || IsLoaded) return false;
 
             _loaded = _held;
             _held = default;
@@ -194,8 +269,9 @@ namespace Kizami.EngineAdapter
             if (cameraMain == null) return;
 
             var cameraTransform = cameraMain.transform;
-            if (IsHolding) FollowCamera(_held, cameraTransform, _holdOffset);
+            if (_held.Fragment != null) FollowCamera(_held, cameraTransform, _holdOffset);
             if (IsLoaded) FollowCamera(_loaded, cameraTransform, _loadedOffset);
+            if (_heldLetter != null) _heldLetter.FollowCamera(cameraTransform, _letterHoldOffset);
         }
 
         /// <summary>
@@ -288,6 +364,21 @@ namespace Kizami.EngineAdapter
             rigidbody.angularVelocity = Vector3.zero;
 
             _flyingFragments[fragment] = (Time.time, carried.CollisionMode, isExplosive);
+        }
+
+        /// <summary>
+        /// 持っている文字を、中心から視線の先の狙った点へ向けて飛ばす。
+        /// </summary>
+        private void ThrowLetter(float speed)
+        {
+            var letter = _heldLetter;
+            _heldLetter = null;
+
+            var cameraMain = Camera.main;
+            var direction = cameraMain != null
+                ? (GetAimPoint(cameraMain.transform) - letter.Center).normalized
+                : letter.transform.forward;
+            letter.Launch(direction, speed, _flyingLifetime);
         }
 
         /// <summary>

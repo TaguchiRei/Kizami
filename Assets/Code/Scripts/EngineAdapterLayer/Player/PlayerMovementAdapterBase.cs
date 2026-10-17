@@ -147,6 +147,14 @@ namespace Kizami.EngineAdapter
                 return;
             }
 
+            if (mode == PlayerMoveMode.Aiming)
+            {
+                _rigidbody.useGravity = false;
+                _rigidbody.linearVelocity = Vector3.zero;
+                _horizontalVelocity = Vector3.zero;
+                return;
+            }
+
             var hasWarpEnded = previousMode == PlayerMoveMode.Warping;
             if (hasWarpEnded)
             {

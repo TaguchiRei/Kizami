@@ -79,6 +79,7 @@ namespace Kizami.Initialization
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
                 gameObject.scene.buildIndex);
             var textAdapter = FindOrCreateBrilliantSkillTextAdapter();
+            _fragmentThrowAdapter.SetLetterSource(textAdapter);
             _brilliantSkillService = new BrilliantSkillService(_brilliantSkillSettings, _flowService.AddBonusScore,
                 kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)));
             _enemySpawnAdapter.SetOnDefeated(OnDefeated);

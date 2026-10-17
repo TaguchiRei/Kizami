@@ -8,20 +8,15 @@ namespace Kizami.EngineAdapter
     /// Brilliant Skill の言葉を、物理的な文字としてプレイヤーのカメラの前に出す Adapter。
     /// 同じフレームに受け取った言葉は 1 組にまとめ、言葉ごとに 1 行として上下に積む。
     /// 文字は 1 文字ずつ別のオブジェクトで、カメラの中央を起点に左右へ並べる。中央に近い文字ほどカメラから遠くに置き、各文字はカメラへ向ける。
-    /// 出るときは拡大して少し行き過ぎてから戻る。使うまで消えず、組の数が上限を超えたら古い組から消す。
+    /// 出るときは拡大して少し行き過ぎてから戻る（BrilliantLetter）。使うまで消えず、組の数が上限を超えたら古い組から消す。
     /// 文字は Rigidbody を持つが、つかまれるまでは動かさない（Kinematic）。
+    /// 投げられた文字は、何かにぶつかったら消える。
     /// </summary>
     public sealed class BrilliantSkillTextAdapter : MonoBehaviour
     {
-        /// <summary> 拡大が行き過ぎの頂点に届く、出現にかける時間に対する割合 </summary>
-        private const float POP_PEAK_RATIO = 0.55f;
-
-        /// <summary> 行き過ぎの頂点の大きさ </summary>
-        private const float POP_PEAK_SCALE = 1.35f;
-
         private readonly List<string> _pendingWords = new();
         private readonly List<GameObject> _groups = new();
-        private readonly List<PopState> _popStates = new();
+        private readonly List<BrilliantLetter> _letters = new();
 
         [SerializeField, Min(1f)]
         [Tooltip("言葉の中央の文字を置く、カメラからの距離（m）")]
@@ -79,6 +74,9 @@ namespace Kizami.EngineAdapter
         [Tooltip("同時に置いておく組の数の上限。超えたら古い組から消す")]
         private int _maxGroupCount = 3;
 
+        /// <summary> 出ている文字。つかまれていない文字と、つかまれて運ばれている文字を含み、投げられて消えた文字は含まない </summary>
+        public IReadOnlyList<BrilliantLetter> Letters => _letters;
+
         /// <summary>
         /// 言葉を出す予約をする。同じフレームに予約した言葉は、1 組にまとめて出す。
         /// </summary>
@@ -88,23 +86,6 @@ namespace Kizami.EngineAdapter
             if (string.IsNullOrWhiteSpace(word)) return;
 
             _pendingWords.Add(word);
-        }
-
-        private void Update()
-        {
-            for (var i = _popStates.Count - 1; i >= 0; i--)
-            {
-                var state = _popStates[i];
-                if (state.Target == null)
-                {
-                    _popStates.RemoveAt(i);
-                    continue;
-                }
-
-                var progress = Mathf.Clamp01((Time.unscaledTime - state.StartTime) / _popDuration);
-                state.Target.localScale = Vector3.one * EvaluatePopScale(progress);
-                if (progress >= 1f) _popStates.RemoveAt(i);
-            }
         }
 
         private void LateUpdate()
@@ -183,8 +164,19 @@ namespace Kizami.EngineAdapter
             var body = letterObject.AddComponent<Rigidbody>();
             body.isKinematic = true;
 
-            letterObject.transform.localScale = Vector3.zero;
-            _popStates.Add(new PopState(letterObject.transform, Time.unscaledTime));
+            var letter = letterObject.AddComponent<BrilliantLetter>();
+            letter.Touched += OnLetterTouched;
+            letter.StartPop(_popDuration);
+            _letters.Add(letter);
+        }
+
+        /// <summary>
+        /// 投げられた文字がぶつかったら、その文字を消す。
+        /// </summary>
+        private void OnLetterTouched(BrilliantLetter letter, Collision collision)
+        {
+            _letters.Remove(letter);
+            Destroy(letter.gameObject);
         }
 
         /// <summary>
@@ -193,40 +185,11 @@ namespace Kizami.EngineAdapter
         private void TrimGroups()
         {
             _groups.RemoveAll(group => group == null);
+            _letters.RemoveAll(letter => letter == null);
             while (_groups.Count > _maxGroupCount)
             {
                 Destroy(_groups[0]);
                 _groups.RemoveAt(0);
-            }
-        }
-
-        /// <summary>
-        /// 出現の進み具合（0〜1）に対する文字の大きさ。0 から行き過ぎの頂点まで勢いよく広がり、1 に戻る。
-        /// </summary>
-        private static float EvaluatePopScale(float progress)
-        {
-            if (progress < POP_PEAK_RATIO)
-            {
-                var rise = progress / POP_PEAK_RATIO;
-                return POP_PEAK_SCALE * (1f - (1f - rise) * (1f - rise));
-            }
-
-            var settle = (progress - POP_PEAK_RATIO) / (1f - POP_PEAK_RATIO);
-            return Mathf.Lerp(POP_PEAK_SCALE, 1f, settle);
-        }
-
-        /// <summary>
-        /// 出現中の文字の、大きさを変える対象と出し始めた時刻。
-        /// </summary>
-        private readonly struct PopState
-        {
-            public readonly Transform Target;
-            public readonly float StartTime;
-
-            public PopState(Transform target, float startTime)
-            {
-                Target = target;
-                StartTime = startTime;
             }
         }
     }
