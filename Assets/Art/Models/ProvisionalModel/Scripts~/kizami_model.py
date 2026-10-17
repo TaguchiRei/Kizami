@@ -175,6 +175,24 @@ def save_glass(model_name, panes, fbx_dir):
         json.dump({"Panes": panes}, f, ensure_ascii=False, indent=1)
 
 
+def build_floor_models(prefix, parts):
+    """建物の階ごとのモデルをまとめて作る。parts は [(階の種類, 箱, (幅, 奥行き, 高さ) のセル数)]。
+
+    ガラスの箱は抜き出して配置の JSON にし、環境変数 KIZAMI_EXPORT が 1 なら FBX と JSON を Stage に書き出す。モデルごとの report を返す。
+    """
+    result = {}
+    for part, boxes, size in parts:
+        clear_scene()
+        boxes, panes = extract_glass(boxes, size)
+        root = build_model_from_boxes(f"{prefix}_{part}_01", boxes, size)
+        result[root.name] = dict(report(root), glass_panes=len(panes))
+        if os.environ.get("KIZAMI_EXPORT") == "1":
+            save_and_export(root, STAGE_DIR)
+            if panes:
+                save_glass(root.name, panes, STAGE_DIR)
+    return result
+
+
 def report(root):
     """寸法・グリッドの倍数・閉じているかを返す。"""
     import bmesh
