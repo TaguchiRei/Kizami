@@ -162,11 +162,38 @@
 |---|---|---|
 | A | ① ID の目印と、`StageData`・`StageClearAdapter`・`StageGuideScript` の ID の指定を作る。② 生産施設のプレハブを、ボクセルにベイクして `EnemySpawn` レイヤーと `DestructionTarget` を付ける。③ `TownMapBuilder` が施設 6 つに ID とスポーン位置を付け、街全体を覆う `EnemySpawnSystem`（格子は半径 350m を覆う。区画の大きさは要調整）を置く。④ `TownMap` をビルドに入れ、殲滅のシーングループの主を `TownMap` にする。`Stage_Annihilation` から施設・スポーン位置を消し、開始位置と台本を街の座標に直し、目標は施設 3 つの ID にする。⑤ カメラの描画距離を外壁まで延ばす | 殲滅を最初から最後まで遊べる。読み込み時間と、プレイ中の負荷を測る |
 | B | 崩壊。`TownLayout` で中庭を見つけ、コアと、時間で元に戻る破壊対象（新しい仕組み。作り方を提案してから作る）を置く。アーケードの屋根の案も試す | 崩壊を最初から最後まで遊べる |
-| B' | チュートリアル。中庭の 1 つを専用にして、`Town` の導線（壁キックの袋小路、高さ 7m の足場、崩れる足場と柱、広場）を同じ寸法で作り直す。この中庭は崩壊の候補から外す | チュートリアルを最初から最後まで遊べる |
+| B' | チュートリアル。最低限の内容に変更（2026-10-17、ユーザー）。移動を伴わず、街の 1 地点で指定の動作をする。中央よりやや上に操作説明（キーキャップ）、右上は台本の文だけを出す。下の「段階 B' の実装結果」 | チュートリアルを最初から最後まで遊べる |
 | C | 到達。14C-6 の天照塔の Y 40〜65m のボクセル化を先に行い、削られた割合で崩して、ボクセルの少ない側へ倒す。仮の `TenshoTower` を外す | 到達を最初から最後まで遊べる |
 | 後片付け | 全部移したら、`Town.unity` と `EnemySpawnCube` を消してよいか、ユーザーに聞く | |
 
 段階ごとに、変更したファイルと確認の結果を報告して止まる。
+
+### 段階 A の実装結果（2026-10-17）
+
+- `StageGimmick`（ID の目印）、`StageData._targetGimmickIds`、`StageClearAdapter.Initialize` の ID 絞り込み、`StageGuideScript` の `_targetId`・`_releaseSpawnPointIds` を追加した
+- 生産施設は `VoxelBuilding`（1 階）で、階は実行時に作られる。`DestructionTarget`（`VoxelModelLoader` 前提）は使えない為、`VoxelBuildingDestructionTarget` を追加した。`VoxelBuilding.LostVolumeRatio` は、階がメッシュに戻って体積を測れなくなっても削れた割合を保つ。`EnemySpawnPoint._structureBuilding` も同じ値を使う
+- `TownMapBuilder` が施設 6 つに ID（`Factory_NN`、スポーン位置は `Spawn_Factory_NN`）・`EnemySpawn` レイヤー・破壊対象・スポーン位置と、街全体の `EnemySpawnSystem` を置く。編成は仮（大：`EnemySquad_DefenderFinisher12`、小：`EnemySquad_Attacker12`）
+- 格子は軸に沿った四角形しか取れない為、範囲は 700m 四方、区画は 100m にした。円を覆うので、施設の外側の弓形にも格子ができる。測った値は「Distance Field」の nodes 約 58 万、bake 約 0.9 秒、compute 約 6ms（エディタ上）
+- `TownMap` をビルドに入れ（BuildScenes 9）、殲滅のシーングループの主を `TownMap` にした。`Stage_Annihilation` から仮の施設とスポーンシステムを消し、開始位置を (150, 0.5, 0) にして、台本の目標を `Factory_01`・`Factory_05`・`Factory_06` の ID にした
+- `TownMap.unity` の既定のカメラを消した（プレイヤーのカメラは InGame にあり、描画距離は 5000）
+
+### 段階 B の実装結果（2026-10-17）
+
+- 落とし役は新しいモデルを作らず、区間5 の `CollapseOverhang`（柱と、そこから張り出す梁）を使った。梁の根元を切ると梁が落ち、梁の真下に置いたコアの上の部位に当たる
+- `RegrowingStructure` を追加した。体積が読み込んだ時点の 0.9 を下回ってから 60 秒たち、カメラが 25m より離れたら、切り離されたピースと構造物を消し、プレハブから置き直す
+- `Town_CollapseSite`（`RegrowingStructure` ＋ コア `CoreSystem`（ID `Core_Collapse`））を `Town/Buildings` に作った。`TownLayout.PlanCollapseSite` が、建物より先に、ビル街の小区画の真ん中（18 × 10m）を確保し、`TownMapBuilder` が置く。向きは 90 度ごとに乱数で決まる（今のシードでは (58, -228)、180 度）
+- `Stage_Collapse` から仮のコア・柱・スポーンシステムを消し、開始位置を (-150, 0.5, 0) にして、台本の 2 段階目をコアの ID で指定した。シーングループの主を `TownMap` にし、`CollapseStageData` に `Core_Collapse` を登録した。案内の文は梁を落とす内容に直した
+- 確認：梁を 1 回落とすとコアの部位が 2/8 分離し、復活したあとの 2 回目で 5/8 になって破壊済みになった。1 回では足りない（梁の幅 3m に対し、コアの上の層の部位が 4 つ）
+
+### 段階 B' の実装結果（2026-10-17）
+
+- 台本は 5 段階：①移動の入力の 2 秒後、②壁の説明（表示だけ）の 5 秒後、③スキルの発動の 1 秒後、④ダミーを倒したとき、⑤台本の文の 6 秒後にクリア。`GuideStep` に待ち時間（`_delay`）、`GuideConditionKind.None`、`StageGuideScript._clearsOnFinish`（台本の終わりでクリア。`StageFlowService.Clear`）を足した
+- 操作説明は `StageGuideTexts` の段階ごとの `_hint`。`[W]` のように角括弧で囲んだ語を `StageGuideAdapter` がキーキャップに描く。画像は使わない
+- ダミーは新しい型を作らず、敵のしくみを使った。1 体だけの `Defender` の編成（`EnemySquad_Dummy`）を、動かない・保留のスポーン位置（ID `Spawn_TutorialDummy`、`TownMapBuilder` が東の大通り (135, 0, 0) に置く）から、段階 4 の台本が解放する。`Defender` は攻撃せず、1 体ではバリアも邪魔にならなかった
+- `StageSpawnOverride`（ステージのシーンに置く）が、街の生産施設のスポーン位置を ID で止める。チュートリアルは `Spawn_Factory_01〜06` を止めている
+- `Stage_Tutorial` から旧導線の物とスポーンシステムを消し、開始位置を (110, 0.5, 0) にして、`TutorialGroup` の主を `TownMap` にした。`Town.unity` の `TutorialAlley` は後片付けで消す
+- 確認：チュートリアルをプレイして、移動→壁の説明→スキル→ダミー斬撃→STAGE CLEAR まで進んだ。HUD の Targets は街の破壊対象の数（0 / 7）が出る。クリアには関係しない
+- 未確認：ウォールラッチ・ウォールラン・ウォールジャンプを実際に出来る壁が開始位置の近くにあるか（建物の壁は通りに面しているが、歩いて確かめていない）
 
 ### 気をつけること
 
