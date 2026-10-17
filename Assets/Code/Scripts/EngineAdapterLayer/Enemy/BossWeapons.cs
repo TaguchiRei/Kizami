@@ -56,6 +56,20 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 武装 index の最初のパーツの位置（ワールド座標）を返す。パーツが残っていなければ、ボスの根の位置。
+        /// </summary>
+        /// <param name="index">武装の番号（設定の並び）</param>
+        public Vector3 GetPosition(int index)
+        {
+            foreach (var part in _parts[index])
+            {
+                if (part != null) return part.transform.position;
+            }
+
+            return transform.position;
+        }
+
+        /// <summary>
         /// 種類 kind の武装のうち、順番で次に使う武装の番号を返し、順番を1つ進める。壊れた武装も番が来れば返す。
         /// その種類の武装がなければ -1。
         /// </summary>

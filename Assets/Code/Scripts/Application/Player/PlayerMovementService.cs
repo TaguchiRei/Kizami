@@ -49,6 +49,9 @@ namespace Kizami.Application
         /// <summary> 次の Step で処理する打ち上げの上向きの打ち出し速度（m/s）。要求がなければ0 </summary>
         private float _launchSpeed;
 
+        /// <summary> 次の Step で処理する打ち上げの水平の打ち出し速度（m/s）。要求がなければゼロ </summary>
+        private Vector3 _launchHorizontalVelocity;
+
         /// <summary> 次の Step で処理するワープ入力があるか </summary>
         private bool _isWarpRequested;
 
@@ -120,6 +123,19 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// 次の Step でプレイヤーを velocity の向きへ弾くよう要求する。上向きの成分は RequestLaunch と同じく最も速いものを使い、
+        /// 水平の成分は同じステップの要求のうち最も速いものを使う。
+        /// </summary>
+        /// <param name="velocity">打ち出し速度（m/s、ワールド空間）</param>
+        public void RequestKnockback(Vector3 velocity)
+        {
+            _launchSpeed = Mathf.Max(_launchSpeed, velocity.y);
+
+            var horizontal = new Vector3(velocity.x, 0f, velocity.z);
+            if (horizontal.sqrMagnitude > _launchHorizontalVelocity.sqrMagnitude) _launchHorizontalVelocity = horizontal;
+        }
+
+        /// <summary>
         /// EngineAdapterLayer の FixedUpdate から物理の1ステップごとに呼ばれ、記録済みの入力と視線の向き、
         /// 触れている物から移動モードと目標速度を決めて State に書き込む。
         /// ジャンプ入力・ワープ入力・打ち上げの要求はこのステップで処理し、行えなければ捨てる。
@@ -141,6 +157,8 @@ namespace Kizami.Application
             _isWarpRequested = false;
             var launchSpeed = _launchSpeed;
             _launchSpeed = 0f;
+            var launchHorizontalVelocity = _launchHorizontalVelocity;
+            _launchHorizontalVelocity = Vector3.zero;
 
             if (_state.Mode == PlayerMoveMode.Warping)
             {
@@ -167,13 +185,13 @@ namespace Kizami.Application
 
             var speed = IsSprinting ? _parameters.SprintSpeed : _parameters.WalkSpeed;
 
-            if (launchSpeed > 0f)
+            if (launchSpeed > 0f || launchHorizontalVelocity.sqrMagnitude > 0f)
             {
                 // 壁に触れたまま打ち上げられても、壁走りに入って上向きの速度を失わないよう、壁ジャンプ後と同じく再突入を止める
                 _state.SetMode(PlayerMoveMode.Normal);
                 _isWaitingWallRelease = true;
                 _state.SetTargetVelocity(worldInput * speed);
-                return Vector3.up * launchSpeed;
+                return launchHorizontalVelocity + Vector3.up * launchSpeed;
             }
 
             if (IsGrounded)
