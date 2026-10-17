@@ -56,6 +56,10 @@ namespace Kizami.Initialization
         private StageFlowService _flowService;
         private StageGuideService _guideService;
         private BrilliantSkillService _brilliantSkillService;
+        private VoxelDestructionAdapter _voxelDestructionAdapter;
+
+        /// <summary> 投げた文字の着弾を処理している間は true。着弾で倒した敵と壊したボクセルは、Brilliant Skill の判定に伝えない </summary>
+        private bool _isResolvingLetterImpact;
         private IStageFlowState _flowState;
 
         public override void Initialize(IBlackBoard blackBoard)
@@ -80,6 +84,7 @@ namespace Kizami.Initialization
                 gameObject.scene.buildIndex);
             var textAdapter = FindOrCreateBrilliantSkillTextAdapter();
             _fragmentThrowAdapter.SetLetterSource(textAdapter);
+            textAdapter.SetOnLetterLanded(OnLetterLanded);
             _brilliantSkillService = new BrilliantSkillService(_brilliantSkillSettings, _flowService.AddBonusScore,
                 kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)));
             _enemySpawnAdapter.SetOnDefeated(OnDefeated);
@@ -147,7 +152,34 @@ namespace Kizami.Initialization
         {
             _flowService.AddDefeats(notice.Count);
             _guideService.AddDefeats(notice.Count);
-            _brilliantSkillService.OnDefeated(notice);
+            if (!_isResolvingLetterImpact) _brilliantSkillService.OnDefeated(notice);
+        }
+
+        /// <summary>
+        /// 投げた文字がぶつかった点で、ボクセルを削り、範囲の中の敵を倒す。
+        /// 着弾の結果で別の文字が出て、それをまた投げて追加スコアを重ねられないよう、この間の撃破と破壊は Brilliant Skill の判定に伝えない。
+        /// </summary>
+        private void OnLetterLanded(Vector3 point)
+        {
+            var radius = _brilliantSkillSettings.LetterImpactRadius;
+            _isResolvingLetterImpact = true;
+            try
+            {
+                if (_voxelDestructionAdapter != null) _voxelDestructionAdapter.CarveExplosionAt(point, radius);
+                _enemySpawnAdapter.DefeatInRadius(point, radius);
+            }
+            finally
+            {
+                _isResolvingLetterImpact = false;
+            }
+        }
+
+        /// <summary>
+        /// ボクセルを壊した体積を Brilliant Skill の判定に伝える。投げた文字の着弾による破壊は伝えない。
+        /// </summary>
+        private void OnVoxelsCarved(float volume)
+        {
+            if (!_isResolvingLetterImpact) _brilliantSkillService.OnVoxelsDestroyed(volume);
         }
 
         /// <summary>
@@ -168,14 +200,14 @@ namespace Kizami.Initialization
         /// </summary>
         private void ConnectBrilliantSkillSources()
         {
-            var destructionAdapter = FindFirstObjectByType<VoxelDestructionAdapter>();
-            if (destructionAdapter == null)
+            _voxelDestructionAdapter = FindFirstObjectByType<VoxelDestructionAdapter>();
+            if (_voxelDestructionAdapter == null)
             {
-                UsefulLogger.LogWarning("VoxelDestructionAdapter が見つからない為、一撃の破壊は判定できません。", this);
+                UsefulLogger.LogWarning("VoxelDestructionAdapter が見つからない為、一撃の破壊の判定と、投げた文字の着弾によるボクセルの破壊はできません。", this);
             }
             else
             {
-                destructionAdapter.SetOnCarved(_brilliantSkillService.OnVoxelsDestroyed);
+                _voxelDestructionAdapter.SetOnCarved(OnVoxelsCarved);
             }
 
             foreach (var building in FindObjectsByType<VoxelBuilding>(FindObjectsSortMode.None))

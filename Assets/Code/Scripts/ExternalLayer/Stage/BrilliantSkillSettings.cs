@@ -33,6 +33,10 @@ namespace Kizami.External
         [Tooltip("一撃：成立に必要な、1回の攻撃で壊したボクセルの体積（m3）")]
         private float _shatterVolume = 30f;
 
+        [SerializeField, Min(0.1f)]
+        [Tooltip("投げた文字が当たったときに、ボクセルを削り敵を倒す球の半径（m）")]
+        private float _letterImpactRadius = 4f;
+
         [SerializeField, Min(0)]
         [Tooltip("連続キルの追加スコア")]
         private int _rampageScore = 100;
@@ -68,6 +72,8 @@ namespace Kizami.External
         public float CollapseMargin => _collapseMargin;
 
         public float ShatterVolume => _shatterVolume;
+
+        public float LetterImpactRadius => _letterImpactRadius;
 
         /// <summary>
         /// 種類ごとの追加スコアを返す。

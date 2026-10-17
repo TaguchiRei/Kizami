@@ -10,7 +10,7 @@ namespace Kizami.EngineAdapter
     /// 文字は 1 文字ずつ別のオブジェクトで、カメラの中央を起点に左右へ並べる。中央に近い文字ほどカメラから遠くに置き、各文字はカメラへ向ける。
     /// 出るときは拡大して少し行き過ぎてから戻る（BrilliantLetter）。使うまで消えず、組の数が上限を超えたら古い組から消す。
     /// 文字は Rigidbody を持つが、つかまれるまでは動かさない（Kinematic）。
-    /// 投げられた文字は、何かにぶつかったら消える。
+    /// 投げられた文字は、何かにぶつかったらぶつかった点を通知して消える。
     /// </summary>
     public sealed class BrilliantSkillTextAdapter : MonoBehaviour
     {
@@ -74,8 +74,20 @@ namespace Kizami.EngineAdapter
         [Tooltip("同時に置いておく組の数の上限。超えたら古い組から消す")]
         private int _maxGroupCount = 3;
 
+        /// <summary> 投げられた文字がぶつかったときに呼ぶ処理 </summary>
+        private System.Action<Vector3> _onLetterLanded;
+
         /// <summary> 出ている文字。つかまれていない文字と、つかまれて運ばれている文字を含み、投げられて消えた文字は含まない </summary>
         public IReadOnlyList<BrilliantLetter> Letters => _letters;
+
+        /// <summary>
+        /// 投げられた文字がぶつかったときに呼ぶ処理を設定する。
+        /// </summary>
+        /// <param name="onLanded">ぶつかった点（ワールド空間）を受け取る処理</param>
+        public void SetOnLetterLanded(System.Action<Vector3> onLanded)
+        {
+            _onLetterLanded = onLanded;
+        }
 
         /// <summary>
         /// 言葉を出す予約をする。同じフレームに予約した言葉は、1 組にまとめて出す。
@@ -171,12 +183,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 投げられた文字がぶつかったら、その文字を消す。
+        /// 投げられた文字がぶつかったら、ぶつかった点を通知して、その文字を消す。
         /// </summary>
         private void OnLetterTouched(BrilliantLetter letter, Collision collision)
         {
+            var point = collision.contactCount > 0 ? collision.GetContact(0).point : letter.Center;
             _letters.Remove(letter);
             Destroy(letter.gameObject);
+            _onLetterLanded?.Invoke(point);
         }
 
         /// <summary>

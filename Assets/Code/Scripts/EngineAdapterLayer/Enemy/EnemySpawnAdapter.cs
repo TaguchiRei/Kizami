@@ -476,6 +476,37 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 中心から半径の球の中にいる敵をすべて倒し、倒した数を通知する。敵の体の中心（足元から崩落の判定と同じ高さ）で距離を測り、倒した敵からはエネルギーを出す。
+        /// 体を貸している敵の体は、次の更新で返される。
+        /// </summary>
+        /// <param name="center">球の中心（ワールド空間）</param>
+        /// <param name="radius">球の半径（m）</param>
+        public void DefeatInRadius(Vector3 center, float radius)
+        {
+            if (!Initialized) return;
+
+            var radiusSq = radius * radius;
+            var defeatedCount = 0;
+            var positionSum = float3.zero;
+            for (var i = 0; i < _agents.Length; i++)
+            {
+                var agent = _agents[i];
+                if (!agent.IsAlive) continue;
+
+                var bodyCenter = (Vector3)agent.Position + Vector3.up * _crushBodyCenterHeight;
+                if ((bodyCenter - center).sqrMagnitude > radiusSq) continue;
+
+                agent.IsAlive = false;
+                _agents[i] = agent;
+                defeatedCount++;
+                positionSum += agent.Position;
+                _emitEnergy?.Invoke(bodyCenter);
+            }
+
+            NotifyDefeated(defeatedCount, EnemyDefeatCause.Impact, positionSum);
+        }
+
+        /// <summary>
         /// 切断の結果のうち、敵の部位を元の対象とするものを、その部位を持つ体へ渡し、体の部位の状態を敵の状態へ書き戻す。
         /// 体が倒れたら、敵をステージから消して体を空け、倒した数を通知する。
         /// </summary>

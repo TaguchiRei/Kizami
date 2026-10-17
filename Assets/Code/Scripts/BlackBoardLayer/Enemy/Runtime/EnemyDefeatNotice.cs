@@ -10,7 +10,9 @@ namespace Kizami.BlackBoard
         /// <summary> 核を切って倒した </summary>
         Cut,
         /// <summary> 崩落で倒した。落ちてきたボクセルの塊や倒れた建物の階に潰された敵と、高い所から落ちた敵を含む </summary>
-        Collapse
+        Collapse,
+        /// <summary> 投げた文字の着弾で倒した </summary>
+        Impact
     }
 
     /// <summary>
