@@ -498,6 +498,62 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8292357947771475696, guid: 6d2407d461b39544da8afc38bcb7aab4, type: 3}
   m_PrefabInstance: {fileID: 328338254}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &553539445
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 553539447}
+  - component: {fileID: 553539446}
+  m_Layer: 0
+  m_Name: EnemyFactory_Large
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &553539446
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 553539445}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
+  _sections:
+  - _model: {fileID: 11400000, guid: 94b5e33d382247b4e8665554690b08e7, type: 2}
+    _attachments: {fileID: 0}
+    _count: 1
+  _floorHeight: 8
+  _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
+  _meltSystem: {fileID: 2120036641}
+  _connectionThreshold: 0.05
+  _hardWeight: 4
+  _collapseDensity: 500
+  _target: {fileID: 0}
+  _swapDistance: 40
+--- !u!4 &553539447
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 553539445}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -60, y: 0, z: -90}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &609031708
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2720,6 +2776,62 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 8292357947771475696, guid: 6d2407d461b39544da8afc38bcb7aab4, type: 3}
   m_PrefabInstance: {fileID: 1926756361}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1991252658
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1991252660}
+  - component: {fileID: 1991252659}
+  m_Layer: 0
+  m_Name: EnemyFactory_Small
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1991252659
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1991252658}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
+  _sections:
+  - _model: {fileID: 11400000, guid: 6b6664d392f521040a29b8b501a94a8c, type: 2}
+    _attachments: {fileID: 0}
+    _count: 1
+  _floorHeight: 6.4
+  _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
+  _meltSystem: {fileID: 2120036641}
+  _connectionThreshold: 0.05
+  _hardWeight: 4
+  _collapseDensity: 500
+  _target: {fileID: 0}
+  _swapDistance: 40
+--- !u!4 &1991252660
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1991252658}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -40, y: 0, z: -90}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2026695349
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2864,3 +2976,5 @@ SceneRoots:
   - {fileID: 1761037332}
   - {fileID: 1444384436}
   - {fileID: 154510835}
+  - {fileID: 1991252660}
+  - {fileID: 553539447}
