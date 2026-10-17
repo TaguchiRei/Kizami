@@ -175,6 +175,56 @@ def save_glass(model_name, panes, fbx_dir):
         json.dump({"Panes": panes}, f, ensure_ascii=False, indent=1)
 
 
+def _wall_box(along, a0, a1, b0, b1, z0, z1):
+    """壁の向きの座標（a）と厚さの向きの座標（b）から、箱の (lo, hi) を作る。along は壁が延びる軸（"x" か "y"）。"""
+    if along == "x":
+        return (a0, b0, z0), (a1, b1, z1)
+    return (b0, a0, z0), (b1, a1, z1)
+
+
+def wall(boxes, along, start, end, offset, z0, z1, rebar_top=None, cap_bottom=False):
+    """厚さ 3 セルの壁。外と内の層はコンクリート、真ん中の層は鉄筋で、両端はコンクリートで覆う。
+
+    鉄筋は上下の階の壁とつながるよう z0 から通す。cap_bottom なら下端もコンクリートで覆う（地面に接する階）。
+    rebar_top を z1 より高くすると、鉄筋だけが壁の上から突き出す。
+    """
+    rebar_top = z1 if rebar_top is None else rebar_top
+    rebar_bottom = z0 + 1 if cap_bottom else z0
+    m = offset + 1
+    parts = [
+        ("Concrete", (start, end, offset, offset + 1, z0, z1)),
+        ("Concrete", (start, end, offset + 2, offset + 3, z0, z1)),
+        ("Concrete", (start, start + 1, m, m + 1, z0, z1)),
+        ("Concrete", (end - 1, end, m, m + 1, z0, z1)),
+        ("Rebar", (start + 1, end - 1, m, m + 1, rebar_bottom, rebar_top)),
+    ]
+    if cap_bottom:
+        parts.append(("Concrete", (start + 1, end - 1, m, m + 1, z0, rebar_bottom)))
+    for mat, (a0, a1, b0, b1, lo_z, hi_z) in parts:
+        if a1 > a0 and hi_z > lo_z:
+            boxes.append((mat,) + _wall_box(along, a0, a1, b0, b1, lo_z, hi_z))
+
+
+def wall_with_openings(boxes, along, start, end, offset, z0, z1, openings, cap_bottom=False):
+    """開口のある厚さ 3 セルの壁。openings は [(開口の始まり, 終わり, 下端, 上端, ガラスを入れるか)]（a と z はセル）。
+
+    開口の間の柱型は鉄筋入りの壁にし、開口の上下はコンクリートだけにする。ガラスは開口の真ん中の層に 1 セルの厚さで入れる。
+    """
+    cursor = start
+    for a0, a1, lo_z, hi_z, glass in sorted(openings):
+        if a0 > cursor:
+            wall(boxes, along, cursor, a0, offset, z0, z1, cap_bottom=cap_bottom)
+        if lo_z > z0:
+            boxes.append(("Concrete",) + _wall_box(along, a0, a1, offset, offset + 3, z0, lo_z))
+        if hi_z < z1:
+            boxes.append(("Concrete",) + _wall_box(along, a0, a1, offset, offset + 3, hi_z, z1))
+        if glass:
+            boxes.append(("Glass",) + _wall_box(along, a0, a1, offset + 1, offset + 2, lo_z, hi_z))
+        cursor = a1
+    if cursor < end:
+        wall(boxes, along, cursor, end, offset, z0, z1, cap_bottom=cap_bottom)
+
+
 def build_floor_models(prefix, parts):
     """建物の階ごとのモデルをまとめて作る。parts は [(階の種類, 箱, (幅, 奥行き, 高さ) のセル数)]。
 
