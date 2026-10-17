@@ -1,10 +1,13 @@
 """建物 7 商店街のアーケードの 1 モジュールを、VoxelBuilding で積む階ごとのモデルに分けて作る。
 
+モジュールは通りの真ん中で東西の 2 棟に分ける。片側の店舗だけを壊したとき、その上の階が反対側の店舗に支えられて宙に残らないようにする為。
+通りに架ける鉄骨の梁と屋根板も、通りの真ん中で切れる。
+
 幅 30.4 m × 通りに沿った長さ 12 m。東西に奥行き 8 m の 2 階建ての店舗、真ん中に幅 14.4 m の通り、その上に鉄骨の屋根を架ける。
 モジュールは通り（Y）の向きにつないで延ばす。店舗の間仕切りは各モジュールの南端にだけ置き、隣のモジュールと続いた店並みにする。
 屋根の鉄骨は、通りに面した店舗の壁の上に柱を立てて架ける。屋根は建設途中で、屋根板は南半分だけ張ってある。
 端のモジュールは、北端を店舗の壁で閉じ、看板を掛ける門の骨組みを立てる。床は各階の床側（下）に張る。
-直線のモジュールの区間：Ground ×1、Upper ×1、Roof ×1。端のモジュールの区間：GroundEnd ×1、UpperEnd ×1、RoofEnd ×1。
+1 棟の区間は、直線のモジュールが <West/East>Ground ×1、<West/East>Upper ×1、<West/East>Roof ×1。端のモジュールは末尾に End が付く。
 """
 import importlib
 import os
@@ -93,12 +96,28 @@ def roof(gate):
     return boxes
 
 
-SIZE = (WIDTH, LENGTH, STOREY)
-result = km.build_floor_models(MODEL_PREFIX, [
-    ("Ground", ground(False), SIZE),
-    ("Upper", upper(False), SIZE),
-    ("GroundEnd", ground(True), SIZE),
-    ("UpperEnd", upper(True), SIZE),
-    ("Roof", roof(False), (WIDTH, LENGTH, ROOF_HEIGHT)),
-    ("RoofEnd", roof(True), (WIDTH, LENGTH, GATE_Z)),
-])
+def split(boxes):
+    """モジュールの箱を、通りの真ん中で西の棟と東の棟に分ける。東の棟の箱は、棟の西端が原点になるようずらす。"""
+    middle = WIDTH // 2
+    west, east = [], []
+    for mat, lo, hi in boxes:
+        if lo[0] < middle:
+            west.append((mat, lo, (min(hi[0], middle), hi[1], hi[2])))
+        if hi[0] > middle:
+            east.append((mat, (max(lo[0], middle) - middle, lo[1], lo[2]), (hi[0] - middle, hi[1], hi[2])))
+    return west, east
+
+
+HALF = WIDTH // 2
+parts = []
+for name, boxes, height in (
+    ("Ground", ground(False), STOREY),
+    ("Upper", upper(False), STOREY),
+    ("Roof", roof(False), ROOF_HEIGHT),
+    ("GroundEnd", ground(True), STOREY),
+    ("UpperEnd", upper(True), STOREY),
+    ("RoofEnd", roof(True), GATE_Z),
+):
+    west, east = split(boxes)
+    parts += [("West" + name, west, (HALF, LENGTH, height)), ("East" + name, east, (HALF, LENGTH, height))]
+result = km.build_floor_models(MODEL_PREFIX, parts)
