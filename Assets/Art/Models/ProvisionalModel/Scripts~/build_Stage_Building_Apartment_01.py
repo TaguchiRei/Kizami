@@ -146,7 +146,10 @@ PARTS = (
 result = {}
 for part, make, height in PARTS:
     km.clear_scene()
-    root = km.build_model_from_boxes(f"{MODEL_PREFIX}_{part}_01", make(), (WIDTH, DEPTH, height))
-    result[root.name] = km.report(root)
+    boxes, panes = km.extract_glass(make(), (WIDTH, DEPTH, height))
+    root = km.build_model_from_boxes(f"{MODEL_PREFIX}_{part}_01", boxes, (WIDTH, DEPTH, height))
+    result[root.name] = dict(km.report(root), glass_panes=len(panes))
     if os.environ.get("KIZAMI_EXPORT") == "1":
         km.save_and_export(root, km.STAGE_DIR)
+        if panes:
+            km.save_glass(root.name, panes, km.STAGE_DIR)

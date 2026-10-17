@@ -48,10 +48,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: -8434096188726394707, guid: 7e988024c01de504daed3ffa03fde3e6, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2100000, guid: 6a69ca85c49936e4f96a27ca6ee3b088, type: 2}
     - target: {fileID: -5488077119852343692, guid: 7e988024c01de504daed3ffa03fde3e6, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -68,9 +64,6 @@ PrefabInstance:
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: -6470813941375914668, guid: 7e988024c01de504daed3ffa03fde3e6, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 3722144630110487722}
     - targetCorrespondingSourceObject: {fileID: 3261851628345466950, guid: 7e988024c01de504daed3ffa03fde3e6, type: 3}
       insertIndex: -1
       addedObject: {fileID: 872841221272484505}
@@ -93,21 +86,3 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelBakeMaterial
   _strength: 2
---- !u!1 &7776566548920268824 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: -6470813941375914668, guid: 7e988024c01de504daed3ffa03fde3e6, type: 3}
-  m_PrefabInstance: {fileID: 5609487400657442124}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &3722144630110487722
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7776566548920268824}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0e2c3ba4fa1661c45959eadc1d3aa420, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelBakeMaterial
-  _strength: 0

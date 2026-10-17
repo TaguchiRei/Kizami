@@ -60,39 +60,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: Stage_Building_HighRiseA_Middle_01
       objectReference: {fileID: 0}
-    - target: {fileID: 4636905217040121677, guid: 5cfeaad65ef17b7469619bf79b5c8285, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2100000, guid: 6a69ca85c49936e4f96a27ca6ee3b088, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 9035294401538573485, guid: 5cfeaad65ef17b7469619bf79b5c8285, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 7446246976366436466}
     - targetCorrespondingSourceObject: {fileID: 6986600266304154231, guid: 5cfeaad65ef17b7469619bf79b5c8285, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4206607762200924470}
   m_SourcePrefab: {fileID: 100100000, guid: 5cfeaad65ef17b7469619bf79b5c8285, type: 3}
---- !u!1 &5354712550367128092 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 9035294401538573485, guid: 5cfeaad65ef17b7469619bf79b5c8285, type: 3}
-  m_PrefabInstance: {fileID: 3975573267204091569}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &7446246976366436466
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5354712550367128092}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0e2c3ba4fa1661c45959eadc1d3aa420, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelBakeMaterial
-  _strength: 0
 --- !u!1 &6330215263531189446 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6986600266304154231, guid: 5cfeaad65ef17b7469619bf79b5c8285, type: 3}

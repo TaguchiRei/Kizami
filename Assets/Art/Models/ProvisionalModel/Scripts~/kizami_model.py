@@ -1,4 +1,5 @@
 """ステージ用仮モデルの共通処理。0.4 m のセル格子に素材を割り当て、素材ごとの閉じたメッシュにする。"""
+import json
 import math
 import os
 
@@ -129,6 +130,49 @@ def build_model_from_boxes(model_name, boxes, size):
         obj.data.materials.append(mat)
         obj.parent = root
     return root
+
+
+# 窓のガラスの板 1 枚の最大の幅（m）。開口はこの幅以下の板に等分する
+GLASS_PANE_MAX_WIDTH = 1.6
+
+
+def extract_glass(boxes, size):
+    """boxes から Glass の箱を抜き、残りの箱と、ガラスの板の配置を返す。
+
+    ガラスはボクセルにせず、Unity で GlassPane の板を置く。配置は Unity の座標（FBX の書き出しで (-x, z, -y) になる）で、
+    板の底面の中心 `position`、幅と高さ `size`、Y 軸まわりの回転 `yaw`（度）を持つ。板は厚さの向きが Z のときに yaw 0。
+    """
+    rest, panes = [], []
+    offset = (-size[0] * CELL / 2, -size[1] * CELL / 2, 0.0)
+    for mat_name, lo_c, hi_c in boxes:
+        if mat_name != "Glass":
+            rest.append((mat_name, lo_c, hi_c))
+            continue
+        lo = [c * CELL + o for c, o in zip(lo_c, offset)]
+        hi = [c * CELL + o for c, o in zip(hi_c, offset)]
+        # 開口の幅の向きは、箱の水平の辺の長い方
+        along = 0 if hi[0] - lo[0] >= hi[1] - lo[1] else 1
+        across = 1 - along
+        width, height = hi[along] - lo[along], hi[2] - lo[2]
+        count = max(1, math.ceil(width / GLASS_PANE_MAX_WIDTH - 1e-6))
+        pane_width = width / count
+        middle = (lo[across] + hi[across]) / 2
+        for i in range(count):
+            center = [0.0, 0.0]
+            center[along] = lo[along] + pane_width * (i + 0.5)
+            center[across] = middle
+            panes.append({
+                "position": [round(-center[0], 4), round(lo[2], 4), round(-center[1], 4)],
+                "size": [round(pane_width, 4), round(height, 4)],
+                "yaw": 0 if along == 0 else 90,
+            })
+    return rest, panes
+
+
+def save_glass(model_name, panes, fbx_dir):
+    """ガラスの板の配置を、FBX の隣に `<モデル名>_Glass.json` で書き出す。"""
+    with open(os.path.join(fbx_dir, model_name + "_Glass.json"), "w", encoding="utf-8") as f:
+        json.dump({"panes": panes}, f, ensure_ascii=False, indent=1)
 
 
 def report(root):
