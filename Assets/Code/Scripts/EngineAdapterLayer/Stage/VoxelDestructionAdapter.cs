@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Kizami.BlackBoard;
 using Kizami.EngineAdapter.Voxel;
@@ -57,6 +58,9 @@ namespace Kizami.EngineAdapter
         [Tooltip("装甲のパネルのレイヤー。遮断の判定と、当たったパネルの収集に使う")]
         private LayerMask _armorLayers;
 
+        /// <summary> 1回の攻撃で壊したボクセルの体積（m3）を受け取る処理 </summary>
+        private Action<float> _onCarved;
+
         /// <summary>
         /// 普通の強度の素材を radius で削る強さのとき、融点0の素材まで届く半径。
         /// 強さ P は 普通の融点 + 減衰率 × radius で、届く半径は P ÷ 減衰率。
@@ -64,6 +68,15 @@ namespace Kizami.EngineAdapter
         private static float ReachRadius(float radius, float falloff)
         {
             return radius + VoxelThermalSettings.NORMAL_MELTING_POINT / falloff;
+        }
+
+        /// <summary>
+        /// 攻撃でボクセルを壊したときに呼ぶ処理を設定する。1回の攻撃で複数のピースを壊したら、体積を合計して1回だけ呼ぶ。壊れなかった攻撃では呼ばない。
+        /// </summary>
+        /// <param name="onCarved">壊したボクセルの体積（m3）を受け取る処理</param>
+        public void SetOnCarved(Action<float> onCarved)
+        {
+            _onCarved = onCarved;
         }
 
         /// <summary>
@@ -254,14 +267,16 @@ namespace Kizami.EngineAdapter
                 }
             }
 
+            var carvedVolume = 0f;
             foreach (var piece in _pieces)
             {
                 if (checkArmor && IsBehindArmor(origin, piece.WorldBounds.center)) continue;
 
-                piece.ApplyStrike(reach, falloff, Space.World);
+                carvedVolume += piece.ApplyStrike(reach, falloff, Space.World) * piece.VoxelCubicVolume;
             }
 
             _pieces.Clear();
+            if (carvedVolume > 0f) _onCarved?.Invoke(carvedVolume);
         }
 
         /// <summary>

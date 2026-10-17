@@ -110,6 +110,16 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> このピースができた時点の内側サンプル数 </summary>
         public int InitialSampleCount { get; private set; }
 
+        /// <summary> ボクセル1つの体積（ワールド空間, m³） </summary>
+        public float VoxelCubicVolume
+        {
+            get
+            {
+                var size = VoxelSize;
+                return size * size * size;
+            }
+        }
+
         /// <summary> 体積（ワールド空間, m³）。内側サンプル数 × ボクセル1つの体積 </summary>
         public float Volume => SampleCount * VoxelCubicVolume;
 
@@ -205,15 +215,6 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> ボリュームが素材を持ち、素材ごとのマテリアルが設定されているか </summary>
         private bool UsesMaterials => _volume != null && _volume.HasMaterials && _materials.Length > 0;
-
-        private float VoxelCubicVolume
-        {
-            get
-            {
-                var size = VoxelSize;
-                return size * size * size;
-            }
-        }
 
         private static void BakeColliders(List<ChunkSlot> slots)
         {
