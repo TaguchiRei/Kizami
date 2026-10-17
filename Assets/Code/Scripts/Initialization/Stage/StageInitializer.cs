@@ -58,8 +58,8 @@ namespace Kizami.Initialization
         private BrilliantSkillService _brilliantSkillService;
         private VoxelDestructionAdapter _voxelDestructionAdapter;
 
-        /// <summary> 投げた文字の着弾を処理している間は true。着弾で倒した敵と壊したボクセルは、Brilliant Skill の判定に伝えない </summary>
-        private bool _isResolvingLetterImpact;
+        /// <summary> 投げた言葉の着弾を処理している間は true。着弾で倒した敵と壊したボクセルは、Brilliant Skill の判定に伝えない </summary>
+        private bool _isResolvingWordImpact;
         private IStageFlowState _flowState;
 
         public override void Initialize(IBlackBoard blackBoard)
@@ -83,9 +83,9 @@ namespace Kizami.Initialization
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
                 gameObject.scene.buildIndex);
             var textAdapter = FindOrCreateBrilliantSkillTextAdapter();
-            _fragmentThrowAdapter.SetLetterSource(textAdapter);
-            textAdapter.SetOnLetterLanded(OnLetterLanded);
-            ConnectLetterCutting(textAdapter);
+            _fragmentThrowAdapter.SetWordSource(textAdapter);
+            textAdapter.SetOnWordLanded(OnWordLanded);
+            ConnectWordCutting(textAdapter);
             _brilliantSkillService = new BrilliantSkillService(_brilliantSkillSettings, _flowService.AddBonusScore,
                 kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)));
             _enemySpawnAdapter.SetOnDefeated(OnDefeated);
@@ -153,17 +153,17 @@ namespace Kizami.Initialization
         {
             _flowService.AddDefeats(notice.Count);
             _guideService.AddDefeats(notice.Count);
-            if (!_isResolvingLetterImpact) _brilliantSkillService.OnDefeated(notice);
+            if (!_isResolvingWordImpact) _brilliantSkillService.OnDefeated(notice);
         }
 
         /// <summary>
-        /// 投げた文字がぶつかった点で、ボクセルを削り、範囲の中の敵を倒す。
-        /// 着弾の結果で別の文字が出て、それをまた投げて追加スコアを重ねられないよう、この間の撃破と破壊は Brilliant Skill の判定に伝えない。
+        /// 投げた言葉がぶつかった点で、ボクセルを削り、範囲の中の敵を倒す。
+        /// 着弾の結果で別の言葉が出て、それをまた投げて追加スコアを重ねられないよう、この間の撃破と破壊は Brilliant Skill の判定に伝えない。
         /// </summary>
-        private void OnLetterLanded(Vector3 point)
+        private void OnWordLanded(Vector3 point)
         {
-            var radius = _brilliantSkillSettings.LetterImpactRadius;
-            _isResolvingLetterImpact = true;
+            var radius = _brilliantSkillSettings.WordImpactRadius;
+            _isResolvingWordImpact = true;
             try
             {
                 if (_voxelDestructionAdapter != null) _voxelDestructionAdapter.CarveExplosionAt(point, radius);
@@ -171,20 +171,20 @@ namespace Kizami.Initialization
             }
             finally
             {
-                _isResolvingLetterImpact = false;
+                _isResolvingWordImpact = false;
             }
         }
 
         /// <summary>
-        /// ボクセルを壊した体積を Brilliant Skill の判定に伝える。投げた文字の着弾による破壊は伝えない。
+        /// ボクセルを壊した体積を Brilliant Skill の判定に伝える。投げた言葉の着弾による破壊は伝えない。
         /// </summary>
         private void OnVoxelsCarved(float volume)
         {
-            if (!_isResolvingLetterImpact) _brilliantSkillService.OnVoxelsDestroyed(volume);
+            if (!_isResolvingWordImpact) _brilliantSkillService.OnVoxelsDestroyed(volume);
         }
 
         /// <summary>
-        /// ステージシーンに置かれた Brilliant Skill の文字の Adapter を返す。置かれていなければ、既定の設定で作ってステージシーンに入れる（ステージを読み直すとシーンごと消える）。
+        /// ステージシーンに置かれた Brilliant Skill の言葉の Adapter を返す。置かれていなければ、既定の設定で作ってステージシーンに入れる（ステージを読み直すとシーンごと消える）。
         /// </summary>
         private BrilliantSkillTextAdapter FindOrCreateBrilliantSkillTextAdapter()
         {
@@ -199,7 +199,7 @@ namespace Kizami.Initialization
         /// <summary>
         /// 通常攻撃の切断で文字を切れるようにする。ステージシーンに切断の Adapter かオーブの Adapter がなければ、文字は切れない。
         /// </summary>
-        private void ConnectLetterCutting(BrilliantSkillTextAdapter textAdapter)
+        private void ConnectWordCutting(BrilliantSkillTextAdapter textAdapter)
         {
             var cutter = FindFirstObjectByType<MeleeCutAdapter>();
             var orbAdapter = FindFirstObjectByType<FragmentOrbAdapter>();
@@ -220,7 +220,7 @@ namespace Kizami.Initialization
             _voxelDestructionAdapter = FindFirstObjectByType<VoxelDestructionAdapter>();
             if (_voxelDestructionAdapter == null)
             {
-                UsefulLogger.LogWarning("VoxelDestructionAdapter が見つからない為、一撃の破壊の判定と、投げた文字の着弾によるボクセルの破壊はできません。", this);
+                UsefulLogger.LogWarning("VoxelDestructionAdapter が見つからない為、一撃の破壊の判定と、投げた言葉の着弾によるボクセルの破壊はできません。", this);
             }
             else
             {

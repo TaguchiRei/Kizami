@@ -34,7 +34,7 @@ namespace Kizami.External
         private float _shatterVolume = 30f;
 
         [SerializeField, Min(0.1f)]
-        [Tooltip("投げた文字が当たったときに、ボクセルを削り敵を倒す球の半径（m）")]
+        [Tooltip("投げた言葉が当たったときに、ボクセルを削り敵を倒す球の半径（m）")]
         private float _letterImpactRadius = 4f;
 
         [SerializeField, Min(0)]
@@ -73,7 +73,7 @@ namespace Kizami.External
 
         public float ShatterVolume => _shatterVolume;
 
-        public float LetterImpactRadius => _letterImpactRadius;
+        public float WordImpactRadius => _letterImpactRadius;
 
         /// <summary>
         /// 種類ごとの追加スコアを返す。

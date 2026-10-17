@@ -100,7 +100,7 @@ namespace Kizami.Initialization
 
             // FragmentThrowService は SlowModeState を取得する為、SlowModeService の生成より後に生成する
             _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _enhanceService, _movementService,
-                _fragmentThrowAdapter.TryGrab, _fragmentThrowAdapter.TryGrabLetter, () => _fragmentThrowAdapter.IsHolding,
+                _fragmentThrowAdapter.TryGrab, _fragmentThrowAdapter.TryGrabWord, () => _fragmentThrowAdapter.IsHolding,
                 _fragmentThrowAdapter.TryThrow, _fragmentThrowAdapter.TryLoad, _fragmentThrowAdapter.TryFire);
 
             // 以降の Adapter は Service が登録した State を取得する為、Service の生成より後に初期化する

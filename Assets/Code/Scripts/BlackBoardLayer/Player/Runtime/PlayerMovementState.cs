@@ -81,7 +81,7 @@ namespace Kizami.BlackBoard
         /// <summary> 短距離ワープ。重力を無視して、決まった時間だけ決まった速度で進む </summary>
         Warping,
 
-        /// <summary> 文字をつかんで投げる先を狙っている。重力を無視してその場に静止し、視点だけ動かせる。ダメージを受けない </summary>
+        /// <summary> 言葉をつかんで投げる先を狙っている。重力を無視してその場に静止し、視点だけ動かせる。ダメージを受けない </summary>
         Aiming
     }
 }

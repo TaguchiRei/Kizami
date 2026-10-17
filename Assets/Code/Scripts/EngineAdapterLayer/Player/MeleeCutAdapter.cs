@@ -189,6 +189,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 範囲内にあり、今切れる状態で、Renderer のバウンディングボックスが刃の平面をまたぎ、装甲の奥にない CuttableObject を _targets に集める。
+        /// Brilliant Skill の言葉（BrilliantWord）は文字が当たり判定を持たない為、言葉の箱が範囲に入っていたら、その文字を同じ条件で集める。
         /// 範囲内の装甲のパネルは _armorPanels に集める。collectsPieces なら、範囲内にあり装甲の奥にないボクセルのピースを _pieces に集める。
         /// </summary>
         private void CollectTargets(Vector3 origin, Vector3 forward, Vector3 normal, Quaternion bladeRotation,
@@ -222,12 +223,29 @@ namespace Kizami.EngineAdapter
                     continue;
                 }
 
-                if (!_hitBuffer[i].TryGetComponent(out CuttableObject cuttable)) continue;
-                if (!cuttable.IsCuttable || _targets.Contains(cuttable)) continue;
-                if (!IsStraddlingPlane(cuttable, origin, normal) || IsBehindArmor(origin, cuttable)) continue;
+                if (_hitBuffer[i].TryGetComponent(out BrilliantWord word))
+                {
+                    foreach (var letter in word.Letters)
+                    {
+                        TryAddTarget(letter.Cuttable, origin, normal);
+                    }
 
-                _targets.Add(cuttable);
+                    continue;
+                }
+
+                if (_hitBuffer[i].TryGetComponent(out CuttableObject cuttable)) TryAddTarget(cuttable, origin, normal);
             }
+        }
+
+        /// <summary>
+        /// 今切れる状態で、Renderer のバウンディングボックスが刃の平面をまたぎ、装甲の奥にない CuttableObject を _targets に加える。
+        /// </summary>
+        private void TryAddTarget(CuttableObject cuttable, Vector3 origin, Vector3 normal)
+        {
+            if (cuttable == null || !cuttable.IsCuttable || _targets.Contains(cuttable)) return;
+            if (!IsStraddlingPlane(cuttable, origin, normal) || IsBehindArmor(origin, cuttable)) return;
+
+            _targets.Add(cuttable);
         }
 
         /// <summary>

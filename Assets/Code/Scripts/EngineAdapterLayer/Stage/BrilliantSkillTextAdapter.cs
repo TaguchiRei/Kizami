@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Serialization;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.MeshCut;
 
@@ -15,7 +16,8 @@ namespace Kizami.EngineAdapter
     /// 出るときは 1 文字ずつ順に、大きくなりながら回り、縮んで元の大きさと向きに落ち着く。出てから少しの間は敵や建物より手前に描く（BrilliantLetter）。
     /// 使うまで消えず、組の数が上限を超えたら古い組から消す。
     /// 文字は Rigidbody を持つが、つかまれるまでは動かさない（Kinematic）。
-    /// 投げられた文字は、何かにぶつかったらぶつかった点を通知して消える。
+    /// 言葉全体（同時に出た複数行を含む）は、文字の形に依存しない 1 つの箱の当たり判定を持つ（BrilliantWord）。つかむ的も足場も、この箱を使う。
+    /// 投げられた言葉は、何かにぶつかったらぶつかった点を通知して消える。
     /// 文字は通常攻撃のメッシュ切断で切れる。切った文字は、切った面に垂直で文字の中心を通る面で自動でもう 1 回切り、
     /// 4 つのかけらをプレイヤーの視点方向へ散らす。散ったかけらは、止まったら足場として残る。
     /// </summary>
@@ -35,8 +37,7 @@ namespace Kizami.EngineAdapter
         private const string CUT_SETTINGS_JSON = "{\"_canMultiCut\":true,\"_maxCutCount\":2}";
 
         private readonly List<string> _pendingWords = new();
-        private readonly List<GameObject> _groups = new();
-        private readonly List<BrilliantLetter> _letters = new();
+        private readonly List<BrilliantWord> _words = new();
 
         /// <summary> 切れる文字の CuttableObject と、その文字 </summary>
         private readonly Dictionary<CuttableObject, BrilliantLetter> _cuttableLetters = new();
@@ -116,8 +117,9 @@ namespace Kizami.EngineAdapter
         private float _frontDuration = 0.6f;
 
         [SerializeField, Min(1)]
-        [Tooltip("同時に置いておく組の数の上限。超えたら古い組から消す")]
-        private int _maxGroupCount = 3;
+        [FormerlySerializedAs("_maxGroupCount")]
+        [Tooltip("同時に置いておく言葉の数の上限。超えたら古い言葉から消す。つかまれた言葉と投げられた言葉は数えない")]
+        private int _maxWordCount = 3;
 
         [SerializeField, Min(0f)]
         [Tooltip("切った文字のかけらを散らす初速（m/s）")]
@@ -139,8 +141,8 @@ namespace Kizami.EngineAdapter
         [Tooltip("散らしたかけらを足場にする為のレイヤー。プレイヤーと当たるレイヤーにする")]
         private int _platformLayer;
 
-        /// <summary> 投げられた文字がぶつかったときに呼ぶ処理 </summary>
-        private System.Action<Vector3> _onLetterLanded;
+        /// <summary> 投げられた言葉がぶつかったときに呼ぶ処理 </summary>
+        private System.Action<Vector3> _onWordLanded;
 
         /// <summary> かけらを、オーブにする管理から外す関数。外せたかけらは、寿命が来てもオーブにならずチャージにもならない </summary>
         private System.Func<CuttableObject, bool> _untrackFragment;
@@ -152,8 +154,8 @@ namespace Kizami.EngineAdapter
         private Material _fillOverlayMaterial;
         private Material _outlineOverlayMaterial;
 
-        /// <summary> 出ている文字。つかまれていない文字と、つかまれて運ばれている文字を含み、投げられて消えた文字は含まない </summary>
-        public IReadOnlyList<BrilliantLetter> Letters => _letters;
+        /// <summary> 出ている言葉。つかまれていない言葉と、つかまれて運ばれている言葉を含み、投げられて消えた言葉は含まない </summary>
+        public IReadOnlyList<BrilliantWord> Words => _words;
 
         /// <summary>
         /// 材質を作る。輪郭線の殻は表の面を描かない。手前に描く材質は、深度テストをせず深度も書かず、文字より輪郭線を先に描く。
@@ -172,12 +174,12 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 投げられた文字がぶつかったときに呼ぶ処理を設定する。
+        /// 投げられた言葉がぶつかったときに呼ぶ処理を設定する。
         /// </summary>
         /// <param name="onLanded">ぶつかった点（ワールド空間）を受け取る処理</param>
-        public void SetOnLetterLanded(System.Action<Vector3> onLanded)
+        public void SetOnWordLanded(System.Action<Vector3> onLanded)
         {
-            _onLetterLanded = onLanded;
+            _onWordLanded = onLanded;
         }
 
         /// <summary>
@@ -219,8 +221,8 @@ namespace Kizami.EngineAdapter
             {
                 if (_cuttableLetters.Remove(result.Original, out var letter))
                 {
-                    var center = letter.Center;
-                    _letters.Remove(letter);
+                    var center = letter.transform.position;
+                    letter.Word.RemoveLetter(letter);
                     Destroy(letter.gameObject);
 
                     Untrack(result.Front);
@@ -360,58 +362,62 @@ namespace Kizami.EngineAdapter
             var wordRotation = Quaternion.LookRotation(Vector3.Cross(wordRight, Vector3.up), Vector3.up);
             var center = cameraPosition + forward * _centerDistance;
 
-            var group = new GameObject("BrilliantSkillGroup");
-            group.transform.SetParent(transform, false);
+            // 言葉のオブジェクトは言葉の向きにして、箱の当たり判定を文字の並びに沿わせる。文字は子として、言葉の中心からの位置に置く
+            center.y = cameraPosition.y + _heightOffset;
+            var wordObject = new GameObject("BrilliantSkillWord");
+            wordObject.transform.SetParent(transform, false);
+            wordObject.transform.SetPositionAndRotation(center, wordRotation);
+            var wordBody = wordObject.AddComponent<Rigidbody>();
+            wordBody.isKinematic = true;
+            wordObject.AddComponent<BoxCollider>();
+            var brilliantWord = wordObject.AddComponent<BrilliantWord>();
+            brilliantWord.Touched += OnWordTouched;
 
             var letterIndex = 0;
             var lineCount = _pendingWords.Count;
             for (var line = 0; line < lineCount; line++)
             {
                 var word = _pendingWords[line];
-                var y = cameraPosition.y + _heightOffset + ((lineCount - 1) * 0.5f - line) * _lineHeight;
+                var y = ((lineCount - 1) * 0.5f - line) * _lineHeight;
                 for (var i = 0; i < word.Length; i++)
                 {
                     if (char.IsWhiteSpace(word[i])) continue;
 
-                    var position = center + wordRight * ((i - (word.Length - 1) * 0.5f) * _letterSpacing);
-                    position.y = y;
-                    CreateLetter(group.transform, word[i], position, wordRotation, letterIndex * _popInterval);
+                    var localPosition = new Vector3((i - (word.Length - 1) * 0.5f) * _letterSpacing, y, 0f);
+                    CreateLetter(brilliantWord, word[i], localPosition, letterIndex * _popInterval);
                     letterIndex++;
                 }
             }
 
-            _groups.Add(group);
-            TrimGroups();
+            if (brilliantWord.Letters.Count == 0)
+            {
+                Destroy(wordObject);
+                return;
+            }
+
+            _words.Add(brilliantWord);
+            TrimWords();
         }
 
         /// <summary>
-        /// 文字を 1 つ作る。メッシュの表（-Z 側）が言葉のカメラ側を向く。
-        /// 切れるようにメッシュを登録し、つかむ為の当たり判定と、輪郭線の殻を付ける。メッシュを作れない文字は出さない。
+        /// 文字を 1 つ作って言葉に加える。メッシュの表（-Z 側）が言葉のカメラ側を向く。
+        /// 切れるようにメッシュを登録し、輪郭線の殻を付ける。文字は当たり判定を持たない。メッシュを作れない文字は出さない。
         /// </summary>
-        /// <param name="parent">組のオブジェクト</param>
+        /// <param name="word">文字を加える言葉</param>
         /// <param name="character">文字</param>
-        /// <param name="position">文字の中心</param>
-        /// <param name="rotation">文字の向き</param>
+        /// <param name="localPosition">言葉の中心から見た、文字の中心の位置</param>
         /// <param name="popDelay">出る演出を始めるまでの時間（秒）</param>
-        private void CreateLetter(Transform parent, char character, Vector3 position, Quaternion rotation,
-            float popDelay)
+        private void CreateLetter(BrilliantWord word, char character, Vector3 localPosition, float popDelay)
         {
             var cellSize = _letterHeight / VoxelLetterMesh.GLYPH_HEIGHT;
             if (!VoxelLetterMesh.TryGetMesh(character, cellSize, cellSize * _letterDepthCells, out var mesh)) return;
 
             var letterObject = new GameObject(character.ToString());
-            letterObject.transform.SetParent(parent, false);
-            letterObject.transform.SetPositionAndRotation(position, rotation);
+            letterObject.transform.SetParent(word.transform, false);
+            letterObject.transform.localPosition = localPosition;
 
             letterObject.AddComponent<MeshFilter>().sharedMesh = mesh;
             var fillRenderer = letterObject.AddComponent<MeshRenderer>();
-
-            var box = letterObject.AddComponent<BoxCollider>();
-            box.center = mesh.bounds.center;
-            box.size = mesh.bounds.size;
-
-            var body = letterObject.AddComponent<Rigidbody>();
-            body.isKinematic = true;
 
             var cuttable = letterObject.AddComponent<CuttableObject>();
             cuttable.CapMaterial = _capMaterial;
@@ -419,11 +425,12 @@ namespace Kizami.EngineAdapter
 
             var outlineRenderer = CreateOutline(letterObject.transform, mesh);
             var letter = letterObject.AddComponent<BrilliantLetter>();
-            letter.Touched += OnLetterTouched;
             letter.SetFrontPhase(fillRenderer, outlineRenderer, _fillOverlayMaterial, _outlineOverlayMaterial,
                 _fillMaterial, _outlineMaterial, _frontDuration);
             letter.StartPop(popDelay, _popDuration, _popPeakScale, _popSpinDegrees);
-            _letters.Add(letter);
+
+            var letterBounds = new Bounds(localPosition + mesh.bounds.center, mesh.bounds.size);
+            word.AddLetter(letter, letterBounds);
 
             if (MeshDataCache.Instance != null && MeshDataCache.Instance.Store != null &&
                 MeshDataCache.Instance.Register(cuttable))
@@ -445,27 +452,26 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 投げられた文字がぶつかったら、ぶつかった点を通知して、その文字を消す。
+        /// 投げられた言葉がぶつかったら、ぶつかった点を通知して、その言葉を消す。
         /// </summary>
-        private void OnLetterTouched(BrilliantLetter letter, Collision collision)
+        private void OnWordTouched(BrilliantWord word, Collision collision)
         {
-            var point = collision.contactCount > 0 ? collision.GetContact(0).point : letter.Center;
-            _letters.Remove(letter);
-            Destroy(letter.gameObject);
-            _onLetterLanded?.Invoke(point);
+            var point = collision.contactCount > 0 ? collision.GetContact(0).point : word.Center;
+            _words.Remove(word);
+            Destroy(word.gameObject);
+            _onWordLanded?.Invoke(point);
         }
 
         /// <summary>
-        /// 組の数が上限を超えている間、古い組から消す。外から先に消された組は数えない。
+        /// 言葉の数が上限を超えている間、古い言葉から消す。外から先に消された言葉と、つかまれた言葉、投げられた言葉は数えない。
         /// </summary>
-        private void TrimGroups()
+        private void TrimWords()
         {
-            _groups.RemoveAll(group => group == null);
-            _letters.RemoveAll(letter => letter == null);
-            while (_groups.Count > _maxGroupCount)
+            _words.RemoveAll(word => word == null || word.IsCarried || word.IsThrown);
+            while (_words.Count > _maxWordCount)
             {
-                Destroy(_groups[0]);
-                _groups.RemoveAt(0);
+                Destroy(_words[0].gameObject);
+                _words.RemoveAt(0);
             }
         }
 

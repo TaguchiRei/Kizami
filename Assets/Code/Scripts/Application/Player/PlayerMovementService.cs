@@ -61,11 +61,11 @@ namespace Kizami.Application
         /// <summary> 次のワープができるまでの残り時間（秒） </summary>
         private float _warpCooldownRemaining;
 
-        /// <summary> 文字をつかんでいる間は true になり、その間は移動モードを Aiming にして静止する </summary>
-        private bool _isHoldingLetter;
+        /// <summary> 言葉をつかんでいる間は true になり、その間は移動モードを Aiming にして静止する </summary>
+        private bool _isHoldingWord;
 
-        /// <summary> 文字をつかんでいるか </summary>
-        public bool IsHoldingLetter => _isHoldingLetter;
+        /// <summary> 言葉をつかんでいるか </summary>
+        public bool IsHoldingWord => _isHoldingWord;
 
         /// <summary> ダッシュ入力の受け付け方に応じて、押下中またはトグルの状態を返す </summary>
         private bool IsSprinting => _settingState.SprintInputMode == SprintInputMode.Hold
@@ -117,12 +117,12 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 文字をつかんでいるかを設定する。つかんでいる間は、次の Step から移動モードを Aiming にして、移動・ジャンプ・ワープ・打ち上げの要求を捨てる。
+        /// 言葉をつかんでいるかを設定する。つかんでいる間は、次の Step から移動モードを Aiming にして、移動・ジャンプ・ワープ・打ち上げの要求を捨てる。
         /// </summary>
-        /// <param name="isHolding">文字をつかんでいるか</param>
-        public void SetHoldingLetter(bool isHolding)
+        /// <param name="isHolding">言葉をつかんでいるか</param>
+        public void SetHoldingWord(bool isHolding)
         {
-            _isHoldingLetter = isHolding;
+            _isHoldingWord = isHolding;
         }
 
         /// <summary>
@@ -149,7 +149,7 @@ namespace Kizami.Application
 
             UpdateViewForward(viewDirection);
 
-            if (_isHoldingLetter)
+            if (_isHoldingWord)
             {
                 HoldStill();
                 return null;
@@ -247,7 +247,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 文字をつかんでいる間の Step。進行中のワープは打ち切り、受け付けた要求を捨てて、移動モードを Aiming にして目標速度を0にする。
+        /// 言葉をつかんでいる間の Step。進行中のワープは打ち切り、受け付けた要求を捨てて、移動モードを Aiming にして目標速度を0にする。
         /// </summary>
         private void HoldStill()
         {
