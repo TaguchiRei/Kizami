@@ -492,6 +492,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
+  _sections:
+  - _model: {fileID: 11400000, guid: 6f41d29a352c3bf43b596b702d6f4581, type: 2}
+    _attachments: {fileID: 3971302975132308412, guid: ef8ae46f74bb9954aab8d8714e2010b8, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: b3d9c82b046a81143848c4446c2adb05, type: 2}
+    _attachments: {fileID: 2166648548246146167, guid: ef694c03383831644b41fc9be48e56b5, type: 3}
+    _count: 8
+  - _model: {fileID: 11400000, guid: 7b7f75a8b0b958b429a3088c59db3b8d, type: 2}
+    _attachments: {fileID: 0}
+    _count: 1
   _groundFloor: {fileID: 11400000, guid: 6f41d29a352c3bf43b596b702d6f4581, type: 2}
   _middleFloor: {fileID: 11400000, guid: b3d9c82b046a81143848c4446c2adb05, type: 2}
   _roof: {fileID: 11400000, guid: 7b7f75a8b0b958b429a3088c59db3b8d, type: 2}
@@ -551,6 +561,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
+  _sections:
+  - _model: {fileID: 11400000, guid: 6d041033ec5a8d14d8991c7564f17040, type: 2}
+    _attachments: {fileID: 0}
+    _count: 1
+  - _model: {fileID: 11400000, guid: 24520197826d66e48915d742ec65df12, type: 2}
+    _attachments: {fileID: 0}
+    _count: 6
+  - _model: {fileID: 11400000, guid: 1d5e6adac736d8a42af6207e8d1c5868, type: 2}
+    _attachments: {fileID: 0}
+    _count: 1
   _groundFloor: {fileID: 11400000, guid: 6d041033ec5a8d14d8991c7564f17040, type: 2}
   _middleFloor: {fileID: 11400000, guid: 24520197826d66e48915d742ec65df12, type: 2}
   _roof: {fileID: 11400000, guid: 1d5e6adac736d8a42af6207e8d1c5868, type: 2}
@@ -1202,6 +1222,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
+  _sections:
+  - _model: {fileID: 11400000, guid: aecbbd8d41e75df4285fb6559cf3d54e, type: 2}
+    _attachments: {fileID: 7897085694850461204, guid: 8d9d548bf16906145b353a5ef75a1e2d, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: 01f0d38487bb0964f88ca95736f0bc46, type: 2}
+    _attachments: {fileID: 130435334809023392, guid: a953d49f8d9ee6d4c9196470bf93286f, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: 4a84c9b4ba6b49043b9bf6ee921fe066, type: 2}
+    _attachments: {fileID: 128047016365770450, guid: be99bf94e107ce241b900afa530d732c, type: 3}
+    _count: 1
   _groundFloor: {fileID: 11400000, guid: aecbbd8d41e75df4285fb6559cf3d54e, type: 2}
   _middleFloor: {fileID: 11400000, guid: 01f0d38487bb0964f88ca95736f0bc46, type: 2}
   _roof: {fileID: 11400000, guid: 4a84c9b4ba6b49043b9bf6ee921fe066, type: 2}

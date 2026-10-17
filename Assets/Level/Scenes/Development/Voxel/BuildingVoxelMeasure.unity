@@ -1804,13 +1804,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
+  _sections:
+  - _model: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
+    _attachments: {fileID: 0}
+    _count: 1
+  - _model: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
+    _attachments: {fileID: 0}
+    _count: 4
+  - _model: {fileID: 11400000, guid: 3f25c186baa780447aa35910cffcfa9a, type: 2}
+    _attachments: {fileID: 0}
+    _count: 1
   _groundFloor: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
   _middleFloor: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
   _roof: {fileID: 11400000, guid: 3f25c186baa780447aa35910cffcfa9a, type: 2}
+  _groundAttachments: {fileID: 0}
+  _middleAttachments: {fileID: 0}
+  _roofAttachments: {fileID: 0}
   _floorCount: 5
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
   _meltSystem: {fileID: 2120036641}
+  _connectionThreshold: 0.05
+  _hardWeight: 4
+  _collapseDensity: 500
+  _target: {fileID: 0}
+  _swapDistance: 40
 --- !u!4 &555299023
 Transform:
   m_ObjectHideFlags: 0
