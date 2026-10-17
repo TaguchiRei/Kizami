@@ -1,5 +1,6 @@
 using System;
 using Kizami.BlackBoard;
+using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
@@ -14,8 +15,17 @@ namespace Kizami.EngineAdapter
     /// </summary>
     public abstract class PlayerMovementAdapterBase : InitializableMonoBehaviour
     {
+        /// <summary> 壁を探すカプセルキャストを飛ばす水平な向きの数 </summary>
+        private const int WALL_CAST_DIRECTION_COUNT = 8;
+
+        /// <summary> カプセルキャストで壁を探すときに、カプセルを細くして重なりを許容する幅（m） </summary>
+        private const float WALL_SKIN_WIDTH = 0.05f;
+
+        /// <summary> 壁とみなす面の法線の Y 成分の絶対値の上限。これを超える面は床や天井に近い </summary>
+        private const float MAX_WALL_NORMAL_Y = 0.5f;
+
         private readonly PlayerContactState _contactState = new();
-        private readonly Collider[] _wallOverlapBuffer = new Collider[8];
+        private readonly RaycastHit[] _wallHitBuffer = new RaycastHit[16];
 
         [Header("接地の判定")]
         [SerializeField, Min(0f)]
@@ -32,7 +42,7 @@ namespace Kizami.EngineAdapter
         private float _wallCheckDistance = 0.1f;
 
         [SerializeField]
-        [Tooltip("壁走りのできる壁として判定するレイヤー")]
+        [Tooltip("壁走りのできる壁として判定するレイヤー。ボクセルと Brilliant Skill の言葉は、レイヤーによらず壁として判定する")]
         private LayerMask _wallLayers;
 
         [SerializeField] private Rigidbody _rigidbody;
@@ -211,7 +221,7 @@ namespace Kizami.EngineAdapter
                 contacts |= PlayerContact.Ground;
             }
 
-            if (TryFindWallNormal(center, bottomSphereCenter, topSphereCenter, radius, out var wallNormal))
+            if (TryFindWallNormal(bottomSphereCenter, topSphereCenter, radius, out var wallNormal))
             {
                 contacts |= PlayerContact.Wall;
             }
@@ -237,35 +247,54 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// カプセルを _wallCheckDistance だけ太らせた範囲に _wallLayers のコライダーがあるかを調べ、
-        /// あれば最も近い壁の、壁から離れる向きの水平な単位ベクトルを返す。
-        /// 壁の面上の最も近い点は Collider.ClosestPoint で求める為、凸でない MeshCollider は判定できない。
+        /// カプセルを水平な 8 方向へ _wallCheckDistance だけ飛ばし、壁に当たったら、最も近い壁の、壁から離れる向きの水平な単位ベクトルを返す。
+        /// 壁は、_wallLayers のコライダーか、ボクセルのピース、Brilliant Skill の言葉（BrilliantWord）で、面の向きが床や天井に近いものは除く。
+        /// 凸でない MeshCollider（ボクセルのチャンクの当たり判定）は Collider.ClosestPoint で面の位置を求められない為、キャストで調べる。
+        /// カプセルは WALL_SKIN_WIDTH だけ細くして飛ばし、壁に少しめり込んでいても見つけられるようにする。
         /// </summary>
-        private bool TryFindWallNormal(Vector3 center, Vector3 bottomSphereCenter, Vector3 topSphereCenter,
-            float radius, out Vector3 wallNormal)
+        private bool TryFindWallNormal(Vector3 bottomSphereCenter, Vector3 topSphereCenter, float radius,
+            out Vector3 wallNormal)
         {
             wallNormal = Vector3.zero;
 
-            var checkRadius = radius + _wallCheckDistance;
-            var count = Physics.OverlapCapsuleNonAlloc(bottomSphereCenter, topSphereCenter, checkRadius,
-                _wallOverlapBuffer, _wallLayers, QueryTriggerInteraction.Ignore);
-
+            var castRadius = radius - WALL_SKIN_WIDTH;
+            var castDistance = WALL_SKIN_WIDTH + _wallCheckDistance;
+            var castLayers = _wallLayers | _groundLayers;
             var nearestDistance = float.MaxValue;
 
-            for (var i = 0; i < count; i++)
+            for (var i = 0; i < WALL_CAST_DIRECTION_COUNT; i++)
             {
-                var toPlayer = center - _wallOverlapBuffer[i].ClosestPoint(center);
-                toPlayer.y = 0f;
+                var direction = Quaternion.Euler(0f, i * 360f / WALL_CAST_DIRECTION_COUNT, 0f) * Vector3.forward;
+                var hitCount = Physics.CapsuleCastNonAlloc(bottomSphereCenter, topSphereCenter, castRadius, direction,
+                    _wallHitBuffer, castDistance, castLayers, QueryTriggerInteraction.Ignore);
 
-                // 壁の真上・真下にいる、または中心が壁の中にあるときは、水平な向きが決まらない為に除く
-                var distance = toPlayer.magnitude;
-                if (distance < 1e-4f || distance > checkRadius || distance >= nearestDistance) continue;
+                for (var h = 0; h < hitCount; h++)
+                {
+                    var hit = _wallHitBuffer[h];
+                    if (hit.distance >= nearestDistance || Mathf.Abs(hit.normal.y) > MAX_WALL_NORMAL_Y) continue;
+                    if (!IsWall(hit.collider)) continue;
 
-                nearestDistance = distance;
-                wallNormal = toPlayer / distance;
+                    // 壁の向きが水平に決まらない面は除く
+                    var horizontal = new Vector3(hit.normal.x, 0f, hit.normal.z);
+                    if (horizontal.sqrMagnitude < 1e-4f) continue;
+
+                    nearestDistance = hit.distance;
+                    wallNormal = horizontal.normalized;
+                }
             }
 
             return wallNormal != Vector3.zero;
+        }
+
+        /// <summary>
+        /// コライダーが壁走りのできる壁か。_wallLayers のレイヤーか、ボクセルのピース、Brilliant Skill の言葉なら壁。
+        /// </summary>
+        private bool IsWall(Collider wallCollider)
+        {
+            if (((1 << wallCollider.gameObject.layer) & _wallLayers.value) != 0) return true;
+
+            return wallCollider.GetComponentInParent<VoxelPiece>() != null ||
+                   wallCollider.GetComponentInParent<BrilliantWord>() != null;
         }
     }
 }
