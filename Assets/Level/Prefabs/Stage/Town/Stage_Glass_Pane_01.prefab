@@ -10,7 +10,8 @@ GameObject:
   m_Component:
   - component: {fileID: 8292357947771475696}
   - component: {fileID: 4863915132402929368}
-  m_Layer: 0
+  - component: {fileID: 1200924364588404003}
+  m_Layer: 14
   m_Name: Stage_Glass_Pane_01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -52,6 +53,25 @@ MonoBehaviour:
   _maxAngularSpeed: 10
   _density: 2500
   _shardLifetime: 4
+--- !u!205 &1200924364588404003
+LODGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1875570293808942604}
+  serializedVersion: 2
+  m_LocalReferencePoint: {x: 0, y: 1, z: 0}
+  m_Size: 2
+  m_FadeMode: 1
+  m_AnimateCrossFading: 0
+  m_LastLODIsBillboard: 0
+  m_LODs:
+  - screenRelativeHeight: 0.05
+    fadeTransitionWidth: 0.3
+    renderers:
+    - renderer: {fileID: 8619095452959780514}
+  m_Enabled: 1
 --- !u!1 &2683960083172781304
 GameObject:
   m_ObjectHideFlags: 0
@@ -64,7 +84,7 @@ GameObject:
   - component: {fileID: 7796652721054701445}
   - component: {fileID: 8619095452959780514}
   - component: {fileID: 8083347601528487983}
-  m_Layer: 0
+  m_Layer: 14
   m_Name: Stage_Glass_Pane_01_Intact
   m_TagString: Untagged
   m_Icon: {fileID: 0}

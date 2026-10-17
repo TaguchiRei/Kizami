@@ -3,6 +3,7 @@ Shader "Kizami/Glass"
     // 窓のガラスと、その破片に共通で使う半透明のシェーダー。
     // 正面から見ると透け、斜めから見るほどフレネルで不透明になり、反射プローブ（なければ空）を映す。主光源の鏡面反射を足す。
     // 透過は背景を歪めずにアルファで混ぜるだけにする。屈折は画面のコピーを要し、窓の数だけ重くなる為。
+    // 遠くの板は LODGroup で描画から外す。切り替わる幅の中では、unity_LODFade で不透明度を下げてなめらかに消す。
     Properties
     {
         [MainColor] _BaseColor("Tint", Color) = (0.55, 0.7, 0.78, 0.18)
@@ -28,6 +29,7 @@ Shader "Kizami/Glass"
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma multi_compile _ LOD_FADE_CROSSFADE
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -81,6 +83,10 @@ Shader "Kizami/Glass"
                 half reflection = lerp(0.1h, 1.0h, fresnel) * _Reflection;
                 half3 color = lerp(_BaseColor.rgb, environment, reflection) + specular;
                 half alpha = saturate(lerp(_BaseColor.a, _EdgeAlpha, fresnel) + Luminance(specular));
+            #if defined(LOD_FADE_CROSSFADE)
+                // 消えていく側は 1 から 0、現れる側は -1 から 0 へ進む
+                alpha *= unity_LODFade.x >= 0.0 ? unity_LODFade.x : 1.0 + unity_LODFade.x;
+            #endif
                 return half4(color, alpha);
             }
             ENDHLSL

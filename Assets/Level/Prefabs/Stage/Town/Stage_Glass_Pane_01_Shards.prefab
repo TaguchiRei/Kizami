@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 8375571752531114223}
   - component: {fileID: 2860740968442350513}
   - component: {fileID: 1644083024342517817}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_06
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -124,7 +124,7 @@ GameObject:
   - component: {fileID: 6764592262305731656}
   - component: {fileID: 8809169905465929816}
   - component: {fileID: 9017660116653708641}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_20
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -233,7 +233,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5434792388190848843}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shards
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -289,7 +289,7 @@ GameObject:
   - component: {fileID: 6376599307775628655}
   - component: {fileID: 3064865252796348009}
   - component: {fileID: 3229346981152560544}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -401,7 +401,7 @@ GameObject:
   - component: {fileID: 6869318430696581327}
   - component: {fileID: 3724164983120150735}
   - component: {fileID: 7906301705280810538}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_08
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -513,7 +513,7 @@ GameObject:
   - component: {fileID: 4081239096883320896}
   - component: {fileID: 2727428488614818168}
   - component: {fileID: 2693180310375988557}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_13
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -625,7 +625,7 @@ GameObject:
   - component: {fileID: 3948752114365139447}
   - component: {fileID: 1526441320111496680}
   - component: {fileID: 6875889380942392285}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_12
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -737,7 +737,7 @@ GameObject:
   - component: {fileID: 1670949365214666495}
   - component: {fileID: 4858892542051523968}
   - component: {fileID: 1611786086295584245}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_09
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -849,7 +849,7 @@ GameObject:
   - component: {fileID: 1296183668112080965}
   - component: {fileID: 2023021315051191634}
   - component: {fileID: 2225004693807583115}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_16
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -961,7 +961,7 @@ GameObject:
   - component: {fileID: 6349510962433925506}
   - component: {fileID: 5334589178853104559}
   - component: {fileID: 1436693226948838829}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_18
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1073,7 +1073,7 @@ GameObject:
   - component: {fileID: 155552797688210900}
   - component: {fileID: 8785623577160179234}
   - component: {fileID: 1842496436181824220}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_15
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1185,7 +1185,7 @@ GameObject:
   - component: {fileID: 2654583607441016814}
   - component: {fileID: 1920934379350483620}
   - component: {fileID: 7317600542628825604}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_19
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1297,7 +1297,7 @@ GameObject:
   - component: {fileID: 3731754168786860158}
   - component: {fileID: 8455598529523509786}
   - component: {fileID: 7381829969036677063}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_14
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1409,7 +1409,7 @@ GameObject:
   - component: {fileID: 8692563543276790662}
   - component: {fileID: 4668205593410915270}
   - component: {fileID: 7851809198715485910}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_00
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1521,7 +1521,7 @@ GameObject:
   - component: {fileID: 13610706004646602}
   - component: {fileID: 6359465841465147534}
   - component: {fileID: 3109332955003618493}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_21
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1633,7 +1633,7 @@ GameObject:
   - component: {fileID: 9044089052052131419}
   - component: {fileID: 8262423426244941010}
   - component: {fileID: 2066157655541891432}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_04
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1745,7 +1745,7 @@ GameObject:
   - component: {fileID: 1069539637508796542}
   - component: {fileID: 2204223106953613905}
   - component: {fileID: 1148316554270099665}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_10
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1857,7 +1857,7 @@ GameObject:
   - component: {fileID: 7763158088122395420}
   - component: {fileID: 7169889037523655535}
   - component: {fileID: 80071024085436312}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_02
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1969,7 +1969,7 @@ GameObject:
   - component: {fileID: 7048070330086124049}
   - component: {fileID: 954607440174250346}
   - component: {fileID: 2621987493902077252}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_11
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2081,7 +2081,7 @@ GameObject:
   - component: {fileID: 4944607626993756567}
   - component: {fileID: 6407513861226520581}
   - component: {fileID: 3878614997833786934}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_03
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2193,7 +2193,7 @@ GameObject:
   - component: {fileID: 1423903215044433342}
   - component: {fileID: 3101101674707622202}
   - component: {fileID: 8347085692448426647}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_05
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2305,7 +2305,7 @@ GameObject:
   - component: {fileID: 2914754860883660822}
   - component: {fileID: 872726695399225198}
   - component: {fileID: 816499288247695450}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_17
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2417,7 +2417,7 @@ GameObject:
   - component: {fileID: 6145690314293088772}
   - component: {fileID: 8909780714206918127}
   - component: {fileID: 1889386407864675356}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_07
   m_TagString: Untagged
   m_Icon: {fileID: 0}
