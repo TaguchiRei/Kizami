@@ -75,10 +75,11 @@ namespace Kizami.Initialization
                 UsefulLogger.LogError("ITimeScaleController か IInputController を受け取れなかった為、ポーズを使えません。", this);
             }
 
-            _flowService = new StageFlowService(blackBoard, GetSelectedStage(), _timeScaleController, _inputController,
+            var stage = GetSelectedStage();
+            _flowService = new StageFlowService(blackBoard, stage, _timeScaleController, _inputController,
                 _progressService != null ? _progressService.CompleteSelectedStage : null, gameObject.scene.buildIndex);
             blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this);
-            _stageClearAdapter.Initialize(_flowService.ReportTargets);
+            _stageClearAdapter.Initialize(_flowService.ReportTargets, stage.TargetGimmickIds);
             _timerAdapter.Initialize(_flowService.Tick);
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
                 gameObject.scene.buildIndex);
@@ -97,7 +98,7 @@ namespace Kizami.Initialization
             if (guideScript != null)
             {
                 guideScript.Initialize(blackBoard, _guideService.SetObjective, _guideService.SetSubObjective,
-                    _guideService.SetDialogue);
+                    _guideService.SetDialogue, _guideService.SetHint, _flowService.Clear);
             }
 
             _resultAdapter.Initialize(blackBoard, Retry, BackToOutGame);
