@@ -846,7 +846,7 @@ namespace Kizami.EngineAdapter
                 if (lacking[(int)kind] <= 0) continue;
 
                 lacking[(int)kind]--;
-                TrySpawn(g, kind, PickStandablePosition(point.GetSpawnPosition, center));
+                TrySpawn(g, kind, PickSpawnPosition(point, center));
             }
 
             _groups.Compact(g, _agents);
@@ -972,8 +972,10 @@ namespace Kizami.EngineAdapter
             {
                 if (_bodyPrefabs[(int)kind] == null) continue;
 
-                TrySpawn(g, kind, PickStandablePosition(point.GetSpawnPosition, center));
+                TrySpawn(g, kind, PickSpawnPosition(point, center));
             }
+
+            if (point.IsOnStructure) point.Hold();
         }
 
         /// <summary>
@@ -1003,6 +1005,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// スポーン位置から出す位置を選ぶ。固定する点は半径の中の位置をそのまま使い、そうでなければ立てる所を選ぶ。
+        /// </summary>
+        private Vector3 PickSpawnPosition(EnemySpawnPoint point, Vector3 center)
+        {
+            return point.IsPinned ? point.GetSpawnPosition() : PickStandablePosition(point.GetSpawnPosition, center);
+        }
+
+        /// <summary>
         /// pick で選んだ位置が立てる所に来るまで選び直し、見つからなければ fallback を返す。
         /// </summary>
         private Vector3 PickStandablePosition(Func<Vector3> pick, Vector3 fallback)
@@ -1017,7 +1027,7 @@ namespace Kizami.EngineAdapter
         {
             foreach (var point in _activeSpawnPoints)
             {
-                if (IsStandable(point.transform.position)) continue;
+                if (point.IsPinned || IsStandable(point.transform.position)) continue;
 
                 UsefulLogger.LogWarning(
                     $"スポーン位置 {point.name} の中心に、敵が立てる所がありません。そこから出したグループは動けないので、床の上へ動かしてください。",
@@ -1027,12 +1037,17 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 有効なスポーン位置を集め、出す敵の数（編成の人数の合計）を返す。
-        /// 1つの区画に置けるスポーン位置は1つで、位置の区画にすでに有効なスポーン位置があれば、Hierarchy で後ろのものは出さない。
+        /// 1つの区画に置けるスポーン位置は1つで、位置の区画にすでに有効なスポーン位置があれば、Hierarchy で後ろのものは出さない。構造物の上に置く点（IsOnStructure）は、生成システムの子でなくても集め、区画を調べない。
         /// 編成のないスポーン位置、編成に体の設定のない種類があるスポーン位置、区画の番号が位置と食い違うスポーン位置、区画が重なったスポーン位置は、名前つきで警告する。
         /// </summary>
         private int CollectSpawnPoints()
         {
             _spawnSystem.GetComponentsInChildren(true, _spawnPoints);
+            foreach (var structurePoint in EnemySpawnPoint.StructurePoints)
+            {
+                if (!_spawnPoints.Contains(structurePoint)) _spawnPoints.Add(structurePoint);
+            }
+
             _activeSpawnPoints.Clear();
             _usedSections.Clear();
             _fullMemberCounts.Clear();
@@ -1049,7 +1064,7 @@ namespace Kizami.EngineAdapter
                 }
 
                 var section = _spawnSystem.GetSection(point.transform.position);
-                if (!_usedSections.Add(section))
+                if (!point.IsOnStructure && !_usedSections.Add(section))
                 {
                     UsefulLogger.LogWarning(
                         $"スポーン位置 {point.name} の区画 {section} には、すでに別のスポーン位置がある為、敵を出しません。1 つの区画に置けるスポーン位置は 1 つです。",
@@ -1057,7 +1072,7 @@ namespace Kizami.EngineAdapter
                     continue;
                 }
 
-                if (section != point.Section)
+                if (!point.IsOnStructure && section != point.Section)
                 {
                     UsefulLogger.LogWarning(
                         $"スポーン位置 {point.name} の区画の番号 {point.Section} が、位置の区画 {section} と食い違っています。区画の番号か位置を直してください。",
@@ -1110,6 +1125,7 @@ namespace Kizami.EngineAdapter
                     Kind = kind,
                     BrokenMovePartLimit = bodyPrefab.BrokenMovePartLimit,
                     IsFloating = bodyPrefab.IsFloating,
+                    IsPinned = _activeSpawnPoints[g].IsPinned,
                     Position = position,
                     FallStartHeight = position.y,
                     Yaw = GetYawToTarget(position),

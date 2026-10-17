@@ -22,6 +22,26 @@ namespace Kizami.Editor
         // 配置を決める乱数のシード。変えると別の街並みになる
         private const int SEED = 14;
 
+        // 敵の経路の格子の範囲。格子は軸に沿った四角形しか取れない為、半径 350m の円を覆う一辺 700m にする
+        private const float NAVIGATION_SIZE = 700f;
+        private const float NAVIGATION_HEIGHT = 30f;
+        private const float NAVIGATION_CENTER_Y = 10f;
+        private const float SECTION_SIZE = 100f;
+
+        private const string FACTORY_PREFIX = "EnemyFactory";
+        private const string ENEMY_SPAWN_LAYER = "EnemySpawn";
+        private const string SQUAD_FOLDER = "Assets/Level/Data/Enemy";
+
+        // 外殻の地面の当たり判定。半径 450〜600m の環を、接線方向に長い箱 8 個で近似する。地面の上面は高さ 0
+        private const float FAR_GROUND_RADIUS = 525f;
+        private const float FAR_GROUND_LENGTH = 450f;
+        private const float FAR_GROUND_WIDTH = 150f;
+        private const float FAR_GROUND_THICKNESS = 20f;
+        private const int FAR_GROUND_BOXES = 8;
+
+        // チュートリアルのダミーのスポーン位置。東の大通りの上
+        private static readonly Vector3 _tutorialDummyPosition = new(135f, 0f, 0f);
+
         // 奈落のフォグの板を置く高さ（m）
         private const float ABYSS_FOG_HEIGHT = -40f;
 
@@ -31,7 +51,6 @@ namespace Kizami.Editor
             "Assets/Level/Prefabs/Stage/Terrain/Stage_Terrain_AbyssFog_01.prefab",
             "Assets/Level/Prefabs/Stage/Far/Stage_Far_Ring_01.prefab",
             "Assets/Level/Prefabs/Stage/Far/Stage_Far_BarrierDome_01.prefab",
-            "Assets/Level/Prefabs/Stage/Town/Stage_Tower_Tensho_01.prefab",
         };
 
         [MenuItem("Kizami/Stage/Build Town Map")]
@@ -41,9 +60,17 @@ namespace Kizami.Editor
             var old = GameObject.Find(ROOT_NAME);
             if (old != null) Object.DestroyImmediate(old);
 
+            // 塔は以前、環境の 1 枚のメッシュとして置いていた。今は組み立てるたびに置く
+            var oldTower = GameObject.Find("Stage_Tower_Tensho_01");
+            if (oldTower != null) Object.DestroyImmediate(oldTower);
+
             var plan = TownLayout.Plan(SEED);
             var root = new GameObject(ROOT_NAME).transform;
             var meltSystem = Instantiate($"{BUILDING_FOLDER}/Town_VoxelMeltSystem.prefab", root).GetComponent<VoxelMeltSystem>();
+
+            var tower = Instantiate($"{BUILDING_FOLDER}/Town_TenshoTower.prefab", root);
+            SetMeltSystem(tower.GetComponentInChildren<VoxelBuilding>(), meltSystem);
+            CreateFarGroundColliders(root);
 
             var roads = CreateGroup("Roads", root);
             foreach (var road in plan.Roads)
@@ -53,15 +80,21 @@ namespace Kizami.Editor
                 instance.transform.localScale = new Vector3(1f, 1f, road.LengthScale);
             }
 
+            var spawnSystem = CreateSpawnSystem(root);
+            CreateTutorialDummy(spawnSystem);
+            var factoryCount = 0;
             var buildings = CreateGroup("Buildings", root);
             foreach (var building in plan.Buildings)
             {
                 var instance = Instantiate($"{BUILDING_FOLDER}/Town_{building.Name}.prefab", buildings);
                 Pose(instance, building);
-                var serialized = new SerializedObject(instance.GetComponent<VoxelBuilding>());
-                serialized.FindProperty("_meltSystem").objectReferenceValue = meltSystem;
-                serialized.ApplyModifiedPropertiesWithoutUndo();
+                SetMeltSystem(instance.GetComponent<VoxelBuilding>(), meltSystem);
+                if (building.Name.StartsWith(FACTORY_PREFIX))
+                    SetUpFactory(instance, building.Name, ++factoryCount, spawnSystem);
             }
+
+            foreach (var site in plan.Sites)
+                Pose(Instantiate($"{BUILDING_FOLDER}/Town_{site.Name}.prefab", root), site);
 
             var props = CreateGroup("Props", root);
             foreach (var prop in plan.Props)
@@ -70,6 +103,94 @@ namespace Kizami.Editor
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
             Debug.Log($"街のマップを組み立てました。道路の部品 {plan.Roads.Count} 個、建物 {plan.Buildings.Count} 棟、小物 {plan.Props.Count} 個。");
+        }
+
+        private static void SetMeltSystem(VoxelBuilding building, VoxelMeltSystem meltSystem)
+        {
+            var serialized = new SerializedObject(building);
+            serialized.FindProperty("_meltSystem").objectReferenceValue = meltSystem;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// 外殻の地面の上に立てるよう、地面の環に沿った箱の当たり判定を置く。壁と遠景のビルには当たり判定を付けない。
+        /// </summary>
+        private static void CreateFarGroundColliders(Transform root)
+        {
+            var group = CreateGroup("FarGroundColliders", root);
+            for (var i = 0; i < FAR_GROUND_BOXES; i++)
+            {
+                var angle = i * 360f / FAR_GROUND_BOXES;
+                var box = new GameObject($"FarGround_{i}");
+                box.transform.SetParent(group, false);
+                box.transform.SetLocalPositionAndRotation(
+                    Quaternion.Euler(0f, angle, 0f) * new Vector3(FAR_GROUND_RADIUS, -FAR_GROUND_THICKNESS * 0.5f, 0f),
+                    Quaternion.Euler(0f, angle, 0f));
+                var collider = box.AddComponent<BoxCollider>();
+                collider.size = new Vector3(FAR_GROUND_WIDTH, FAR_GROUND_THICKNESS, FAR_GROUND_LENGTH);
+            }
+        }
+
+        private static Transform CreateSpawnSystem(Transform root)
+        {
+            var system = new GameObject("EnemySpawnSystem");
+            system.transform.SetParent(root, false);
+            var component = system.AddComponent<EnemySpawnSystem>();
+            var serialized = new SerializedObject(component);
+            serialized.FindProperty("_navigationBounds").boundsValue = new Bounds(
+                new Vector3(0f, NAVIGATION_CENTER_Y, 0f), new Vector3(NAVIGATION_SIZE, NAVIGATION_HEIGHT, NAVIGATION_SIZE));
+            serialized.FindProperty("_sectionSize").floatValue = SECTION_SIZE;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return system.transform;
+        }
+
+        /// <summary>
+        /// チュートリアルのダミー（動かない Defender 1 体）のスポーン位置を、出現を保留して置く。台本が ID（Spawn_TutorialDummy）で解放する。
+        /// 他のステージでは保留のまま敵を出さない。
+        /// </summary>
+        private static void CreateTutorialDummy(Transform spawnSystem)
+        {
+            var spawnObject = new GameObject("SpawnPoint_TutorialDummy");
+            spawnObject.transform.SetParent(spawnSystem, false);
+            spawnObject.transform.position = _tutorialDummyPosition;
+            var spawnPoint = spawnObject.AddComponent<EnemySpawnPoint>();
+            spawnObject.AddComponent<StageGimmick>().SetId("Spawn_TutorialDummy");
+
+            var serialized = new SerializedObject(spawnPoint);
+            serialized.FindProperty("_composition").objectReferenceValue =
+                AssetDatabase.LoadAssetAtPath<ScriptableObject>($"{SQUAD_FOLDER}/EnemySquad_Dummy.asset");
+            serialized.FindProperty("_isStationary").boolValue = true;
+            serialized.FindProperty("_isHeld").boolValue = true;
+            serialized.FindProperty("_radius").floatValue = 1f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        /// <summary>
+        /// 生産施設に、ギミックの ID・破壊対象・EnemySpawn レイヤーを付け、施設の中にスポーン位置を置く。
+        /// 施設の ID は Factory_NN、スポーン位置の ID は Spawn_Factory_NN。
+        /// </summary>
+        private static void SetUpFactory(GameObject factory, string name, int number, Transform spawnSystem)
+        {
+            var id = $"Factory_{number:00}";
+            factory.name = $"Town_{name}_{number:00}";
+            factory.layer = LayerMask.NameToLayer(ENEMY_SPAWN_LAYER);
+            factory.AddComponent<StageGimmick>().SetId(id);
+            factory.AddComponent<VoxelBuildingDestructionTarget>();
+
+            var isLarge = name.EndsWith("Large");
+            var spawnObject = new GameObject($"SpawnPoint_{id}");
+            spawnObject.transform.SetParent(spawnSystem, false);
+            spawnObject.transform.position = factory.transform.position;
+            var spawnPoint = spawnObject.AddComponent<EnemySpawnPoint>();
+            spawnObject.AddComponent<StageGimmick>().SetId($"Spawn_{id}");
+
+            var squad = AssetDatabase.LoadAssetAtPath<ScriptableObject>(
+                $"{SQUAD_FOLDER}/{(isLarge ? "EnemySquad_DefenderFinisher12" : "EnemySquad_Attacker12")}.asset");
+            var serialized = new SerializedObject(spawnPoint);
+            serialized.FindProperty("_composition").objectReferenceValue = squad;
+            serialized.FindProperty("_structureBuilding").objectReferenceValue = factory.GetComponent<VoxelBuilding>();
+            serialized.FindProperty("_radius").floatValue = isLarge ? 4f : 2f;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static UnityEngine.SceneManagement.Scene OpenOrCreateScene()
@@ -84,10 +205,9 @@ namespace Kizami.Editor
                 if (path.Contains("AbyssFog")) instance.transform.position = new Vector3(0f, ABYSS_FOG_HEIGHT, 0f);
             }
 
-            // 外壁とドームまで見えるよう、描画距離をマップの外まで延ばす
+            // プレイヤーのカメラが InGame シーンにある為、既定のカメラは置かない
             var camera = Camera.main;
-            camera.farClipPlane = 3000f;
-            camera.transform.SetPositionAndRotation(new Vector3(0f, 2f, -120f), Quaternion.identity);
+            if (camera != null) Object.DestroyImmediate(camera.gameObject);
             EditorSceneManager.SaveScene(scene, SCENE_PATH);
             return scene;
         }

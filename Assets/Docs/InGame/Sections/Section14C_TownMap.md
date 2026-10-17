@@ -117,8 +117,99 @@
 | 14C-4 | シェーダー | 奈落のフォグ、バリアのドーム。作成済み：`Kizami/AbyssFog` は高さ −40m の環状の板（`Stage_Terrain_AbyssFog_01`、半径 340〜610m）に使い、板から奥の物までの距離を深度テクスチャから求めて沈める（深度テクスチャのないスマホは `_ABYSS_DEPTH_OFF` で不透明に塗る）。`Kizami/BarrierDome` は半径 620m の半球（`Stage_Far_BarrierDome_01`）の裏面に加算で描き、六角形の格子・フレネル・流れる光の帯を重ね、地平線の近くは薄くする |
 | 14C-5 | マップの組み立て | 作成済み：メニュー「Kizami/Stage/Build Town Map」（`TownMapBuilder`・`TownLayout`）で、シーン `Assets/Level/Scenes/Town/TownMap.unity` に組み立てる。乱数のシードが同じなら同じ街になり、組み立て直すと生成した物は置き換わる |
 | 14C-6 | ボクセル化 | 建物をボクセルオブジェクトにする。天照塔は Y 40〜65m だけ |
-| 14C-7 | ステージへの反映 | 14B の 4 ステージを本番のマップに載せ替える |
+| 14C-7 | ステージへの反映 | 14B の 4 ステージを本番のマップに載せ替える。下の「14C-7 ステージへの反映」 |
 | 14C-8 | ガラス | ガラスはボクセルにせず、共通のシェーダーと、あらかじめ割った破片を持つ板（`GlassPane`）にする。① 板 1 種類と割れる仕組み、② 建物のモデルからガラスを外す、③ `VoxelBuilding` の各階にガラスなどの付属物を付ける仕組み、の順に進める。遠くの板は LODGroup で描画から外し、境目は `unity_LODFade` で薄くする。板は `Glass` レイヤーで、衝突するのは `Player` だけ。攻撃の半径に窓の周りの壁の厚さ分（1.2m）を足した範囲の板は丸ごと割る。割れた板は、階をメッシュに戻して傷を当て直しても戻さない（2026-10-17、ユーザー） |
+
+## 14C-7 ステージへの反映
+
+### 仕様（2026-10-17、ユーザー）
+
+- 敵のスポーン位置には、必ず生産施設がある。生産施設は壊せる
+- 殲滅・崩壊・到達のギミックは、いつも街にある。ステージごとに違うのは、どれを目標にするかだけ
+- 殲滅：生産施設を目標にする
+- 崩壊：コアを、道に面していない建物の間の空き地（中庭）や、アーケードの屋根に置く。コアの上に、時間がたつと元に戻る破壊対象を置いて、詰まないようにする
+- 到達：倒れる塔はマップ中央の天照塔。どの方向に倒れてもよいように、マップを円形にした。削られた割合が一定を超えたら塔を崩し、ボクセルの少ない側へ倒れる回転の力を加えて、必ず倒す。いずれは倒れた先のボクセルをすべて削り、大きな被害が出たように見せたい（今回は作らない。あとで足せる作りにしておく）
+- チュートリアルも街の中で行う。中庭の 1 つをチュートリアル専用にして、専用の導線を作る
+
+### 今の作り（調べた結果）
+
+- 4 ステージは、どれも「`Town`（主）＋ステージのシーン＋`InGame`」で読み込む（`Assets/Level/Data/SceneGroup/*Group.asset`）。`TownMap` はビルドに入っておらず、`NonBuildScenes` にある
+- `EnemySpawnAdapter` は `FindAnyObjectByType<EnemySpawnSystem>` で、スポーン位置の親を 1 つだけ探す。経路の格子の範囲と区画の大きさは `EnemySpawnSystem` が持つ。読み込んだ全ての `VoxelModelLoader` と `VoxelBuilding` を監視する
+- `StageClearAdapter` は、読み込んだ全てのシーンの `DestructionTarget` と `CoreSystem` を数える。街にギミックを常に置くと、全部がクリアの対象になる
+- `StageGuideScript` の条件（`TargetDestroyed`）と保留の解除（`ReleaseSpawnPoints`）は、オブジェクトを直接参照する。シーンをまたいでは参照できない
+- 開始位置（`PlayerStartPoint`）は `FindFirstObjectByType` で探す
+- 街の生産施設は `Town_EnemyFactory_Large`・`Town_EnemyFactory_Small`（`Assets/Level/Prefabs/Stage/Town/Buildings`）で、`TownMapBuilder` が大 2・小 4 を置く。ボクセルの破壊対象としての設定（`EnemySpawn` レイヤー、`DestructionTarget`）はまだない。仮の施設は `EnemySpawnCube`
+
+### 置き場所の分け方
+
+| 物 | 置くシーン |
+|---|---|
+| 生産施設、スポーン位置（`EnemySpawnSystem` と子の `EnemySpawnPoint`）、崩壊のコア、天照塔、チュートリアルの導線 | `TownMap`。`TownMapBuilder` が置く |
+| 台本（`StageGuideScript`）、開始位置、ステージ固有の設定 | ステージのシーン |
+| クリアの対象にするギミック | `StageData` に ID の一覧で持つ |
+
+ギミックには ID の目印のコンポーネント（例：`StageGimmick`、文字列の ID）を付け、ステージ側は ID で探す。
+
+- `StageClearAdapter`：`StageData` の ID の一覧に入った破壊対象だけを数える。一覧が空なら、今までどおり全部を数える（移行中のステージの為）
+- `StageGuideScript`：`TargetDestroyed` の条件と保留の解除に、ID でも指定できる項目を足す
+- スポーン位置の保留・編成をステージごとに変えたいときは、ステージのシーンから ID で上書きする（必要になったら足す）
+
+シーンをまたいだ参照は Unity の機能にないので、この ID の仕組みは新しく作る。
+
+### 段階
+
+| 段階 | 内容 | 終わりの確認 |
+|---|---|---|
+| A | ① ID の目印と、`StageData`・`StageClearAdapter`・`StageGuideScript` の ID の指定を作る。② 生産施設のプレハブを、ボクセルにベイクして `EnemySpawn` レイヤーと `DestructionTarget` を付ける。③ `TownMapBuilder` が施設 6 つに ID とスポーン位置を付け、街全体を覆う `EnemySpawnSystem`（格子は半径 350m を覆う。区画の大きさは要調整）を置く。④ `TownMap` をビルドに入れ、殲滅のシーングループの主を `TownMap` にする。`Stage_Annihilation` から施設・スポーン位置を消し、開始位置と台本を街の座標に直し、目標は施設 3 つの ID にする。⑤ カメラの描画距離を外壁まで延ばす | 殲滅を最初から最後まで遊べる。読み込み時間と、プレイ中の負荷を測る |
+| B | 崩壊。`TownLayout` で中庭を見つけ、コアと、時間で元に戻る破壊対象（新しい仕組み。作り方を提案してから作る）を置く。アーケードの屋根の案も試す | 崩壊を最初から最後まで遊べる |
+| B' | チュートリアル。最低限の内容に変更（2026-10-17、ユーザー）。移動を伴わず、街の 1 地点で指定の動作をする。中央よりやや上に操作説明（キーキャップ）、右上は台本の文だけを出す。下の「段階 B' の実装結果」 | チュートリアルを最初から最後まで遊べる |
+| C | 到達。14C-6 の天照塔の Y 40〜65m のボクセル化を先に行い、削られた割合で崩して、ボクセルの少ない側へ倒す。仮の `TenshoTower` を外す | 到達を最初から最後まで遊べる |
+| 後片付け | 全部移したら、`Town.unity` と `EnemySpawnCube` を消してよいか、ユーザーに聞く | |
+
+段階ごとに、変更したファイルと確認の結果を報告して止まる。
+
+### 段階 A の実装結果（2026-10-17）
+
+- `StageGimmick`（ID の目印）、`StageData._targetGimmickIds`、`StageClearAdapter.Initialize` の ID 絞り込み、`StageGuideScript` の `_targetId`・`_releaseSpawnPointIds` を追加した
+- 生産施設は `VoxelBuilding`（1 階）で、階は実行時に作られる。`DestructionTarget`（`VoxelModelLoader` 前提）は使えない為、`VoxelBuildingDestructionTarget` を追加した。`VoxelBuilding.LostVolumeRatio` は、階がメッシュに戻って体積を測れなくなっても削れた割合を保つ。`EnemySpawnPoint._structureBuilding` も同じ値を使う
+- `TownMapBuilder` が施設 6 つに ID（`Factory_NN`、スポーン位置は `Spawn_Factory_NN`）・`EnemySpawn` レイヤー・破壊対象・スポーン位置と、街全体の `EnemySpawnSystem` を置く。編成は仮（大：`EnemySquad_DefenderFinisher12`、小：`EnemySquad_Attacker12`）
+- 格子は軸に沿った四角形しか取れない為、範囲は 700m 四方、区画は 100m にした。円を覆うので、施設の外側の弓形にも格子ができる。測った値は「Distance Field」の nodes 約 58 万、bake 約 0.9 秒、compute 約 6ms（エディタ上）
+- `TownMap` をビルドに入れ（BuildScenes 9）、殲滅のシーングループの主を `TownMap` にした。`Stage_Annihilation` から仮の施設とスポーンシステムを消し、開始位置を (150, 0.5, 0) にして、台本の目標を `Factory_01`・`Factory_05`・`Factory_06` の ID にした
+- `TownMap.unity` の既定のカメラを消した（プレイヤーのカメラは InGame にあり、描画距離は 5000）
+
+### 段階 B の実装結果（2026-10-17）
+
+- 落とし役は新しいモデルを作らず、区間5 の `CollapseOverhang`（柱と、そこから張り出す梁）を使った。梁の根元を切ると梁が落ち、梁の真下に置いたコアの上の部位に当たる
+- `RegrowingStructure` を追加した。体積が読み込んだ時点の 0.9 を下回ってから 60 秒たち、カメラが 25m より離れたら、切り離されたピースと構造物を消し、プレハブから置き直す
+- `Town_CollapseSite`（`RegrowingStructure` ＋ コア `CoreSystem`（ID `Core_Collapse`））を `Town/Buildings` に作った。`TownLayout.PlanCollapseSite` が、建物より先に、ビル街の小区画の真ん中（18 × 10m）を確保し、`TownMapBuilder` が置く。向きは 90 度ごとに乱数で決まる（今のシードでは (58, -228)、180 度）
+- `Stage_Collapse` から仮のコア・柱・スポーンシステムを消し、開始位置を (-150, 0.5, 0) にして、台本の 2 段階目をコアの ID で指定した。シーングループの主を `TownMap` にし、`CollapseStageData` に `Core_Collapse` を登録した。案内の文は梁を落とす内容に直した
+- 確認：梁を 1 回落とすとコアの部位が 2/8 分離し、復活したあとの 2 回目で 5/8 になって破壊済みになった。1 回では足りない（梁の幅 3m に対し、コアの上の層の部位が 4 つ）
+
+### 段階 B' の実装結果（2026-10-17）
+
+- 台本は 5 段階：①移動の入力の 2 秒後、②壁の説明（表示だけ）の 5 秒後、③スキルの発動の 1 秒後、④ダミーを倒したとき、⑤台本の文の 6 秒後にクリア。`GuideStep` に待ち時間（`_delay`）、`GuideConditionKind.None`、`StageGuideScript._clearsOnFinish`（台本の終わりでクリア。`StageFlowService.Clear`）を足した
+- 操作説明は `StageGuideTexts` の段階ごとの `_hint`。`[W]` のように角括弧で囲んだ語を `StageGuideAdapter` がキーキャップに描く。画像は使わない
+- ダミーは新しい型を作らず、敵のしくみを使った。1 体だけの `Defender` の編成（`EnemySquad_Dummy`）を、動かない・保留のスポーン位置（ID `Spawn_TutorialDummy`、`TownMapBuilder` が東の大通り (135, 0, 0) に置く）から、段階 4 の台本が解放する。`Defender` は攻撃せず、1 体ではバリアも邪魔にならなかった
+- `StageSpawnOverride`（ステージのシーンに置く）が、街の生産施設のスポーン位置を ID で止める。チュートリアルは `Spawn_Factory_01〜06` を止めている
+- `Stage_Tutorial` から旧導線の物とスポーンシステムを消し、開始位置を (110, 0.5, 0) にして、`TutorialGroup` の主を `TownMap` にした。`Town.unity` の `TutorialAlley` は後片付けで消す
+- 確認：チュートリアルをプレイして、移動→壁の説明→スキル→ダミー斬撃→STAGE CLEAR まで進んだ。HUD の Targets は街の破壊対象の数（0 / 7）が出る。クリアには関係しない
+- 未確認：ウォールラッチ・ウォールラン・ウォールジャンプを実際に出来る壁が開始位置の近くにあるか（建物の壁は通りに面しているが、歩いて確かめていない）
+
+### 段階 C（到達）の途中経過（2026-10-18）
+
+- 塔は `build_Stage_Tower_01.py` で、下（0〜40m）・帯の階 ×6（40〜64m）・Cap（64〜68m）・上（68m〜）に分けた。帯と Cap は強度 Hard でベイクし、`Town_TenshoTower`（`VoxelBuilding` ＋ `TowerTopple` ＋ `StageGimmick` ID `Tower_Tensho`）にした。`TownMapBuilder` が置く。外殻の地面には、箱コライダー 8 個を置いた（壁と遠景のビルは当たり判定なし）
+- `TowerTopple`：帯の削れた割合が基準（`_triggerRatio`、既定 0.3）を超えたら、`VoxelBuilding.ForceCollapse(0)` で根元から倒す。倒れる向きは、帯に残ったピースの重心の反対（少ない側）。傾きが 20° に届くまで角加速度を与え続ける（質量 1.8×10⁷ kg で、勢いだけでは根元の面に乗ったまま眠る為）。止まったら、真上を向いた面（`TowerFace`）のスポーン位置を解放する
+- 橋の上の敵：塔の上の部分の 4 つの側面に、高さ 120〜720m の 80m ごとに固定のスポーン位置（Attacker 1 体、保留、構造物の上、固定）を置く（`TowerBridgeSpawnBuilder`）。`EnemyAgent.IsPinned` の敵は、歩かず落ちず、その場で攻撃する。構造物の上の点は、区画の重複を調べず、一度出したら保留に戻る（倒しても出し直さない）
+- 確認：削ったあと塔が +X の向きに倒れ、約 98° で止まって、真上の面（-X 面）の 8 個が解放され、橋の上の 8 体が出て攻撃してきた。塔の先端は半径 750m まで届き、外殻の地面（450〜600m）の上空を通る（中ほどの高さ 36〜26m）
+- `Stage_Arrival` を街へ載せ替えた：旧い仮の塔・道の障害物・スポーンシステムを消し、開始位置を (0, 0.5, -60)、脱出地点（ID `Escape_Arrival`）を外殻の地面の (0, 0, 520) にした。台本は 塔（`Tower_Tensho`）を削る → 敵を 4 体倒す → 脱出地点を壊す。`ArrivalStageData` の対象 ID は `Tower_Tensho` と `Escape_Arrival`、`ArrivalGroup` の主は `TownMap`。制限時間は 300 秒のまま
+- 確認：到達を起動し、塔を削ると、帯の削れた割合が基準を超えて倒れ、Targets が 1/2、台本が次の段階（道の敵を倒して進め）へ進み、残り時間 03:30 が出た。脱出地点まで歩いてのクリアは未確認
+- 未実施：倒した後の橋が歩けるか、外殻の地面へ降りられるか。1 回の爆発では、強度 Hard の帯は +0.1% ほどしか削れない（同じ所を繰り返しても増えない）ので、基準の割合は遊びで決める
+
+### 気をつけること
+
+- 建物 317 棟と小物 741 個の読み込みで、再生直後の数フレームが数百 ms 重い。段階 A で、建物と小物のどちらが原因かを切り分ける
+- 経路の格子を半径 350m に広げると、作る時間とメモリが増える。区画の大きさ（今は 50〜100m）と格子の細かさを測って決める
+- 殲滅の施設は、今は爆発 1 発で壊れる。本番の施設の大きさで、必要な割合（0.3）と壊れたとみなす割合（0.05）を調整し直す
 
 ## 完了条件
 
@@ -126,6 +217,30 @@
 - 崖から奈落、外殻エリア、外壁、バリアのドームが見える
 - 建物がボクセルオブジェクトとして壊れる。天照塔の Y 40〜65m を壊すと塔が倒れる
 - 14B の 4 ステージが、本番のマップで最初から最後まで遊べる
+
+## 既存コードの確認結果（2026-10-17、クラウドセッションでの静的な確認。Unity 上では未確認）
+
+| 作業 | 状態 | 根拠 |
+|---|---|---|
+| 14C-5 マップの組み立て | 実装済み | `TownMapBuilder`（道路・建物・小物・生産施設・環境プレハブを置く）、`TownLayout`。`TownMap.unity` あり |
+| 14C-6 建物のボクセル化 | 実装済み | `Town/Buildings/Town_*.prefab`（`VoxelBuilding`）15 種と `Town_VoxelMeltSystem`。`TownMapBuilder` が `_meltSystem` を配線する |
+| 14C-6 天照塔 | コード実装済み（2026-10-17。モデルの分割とシーンの組み立ては、ユーザーが行う） | `TowerTopple` を追加。使い方は下の「天照塔の組み方」 |
+| 14C-8 ガラス | 実装済み | `GlassPane`、`Glass` レイヤー（TagManager）、`Glass.shader`（`unity_LODFade`）、`Stage_Glass_Pane_01` に LODGroup、`GlassAttachmentBuilder` と `_Attachments.prefab`、`VoxelDestructionAdapter` の攻撃半径 ＋ `_glassMargin` での丸ごと割り、`VoxelBuilding.ShatterGlass`（倒壊時） |
+| 14C-7 14B の載せ替え | 未着手（シーンの変更はユーザーが行う。コード側の更新が要る分だけ、このあと扱う） | ステージは主シーン `Town`（`Town.unity`）＋ `Stage_*` ＋ `InGame` の組。`TownMap.unity` はまだどこからも使われていない |
+
+## 天照塔の組み方（2026-10-17、ユーザーの決定）
+
+- 倒れた塔は橋になり、外殻エリアへ渡れる。モデルの分割とシーンへの配置は、ユーザーが行う
+- 塔を 3 つに分けたモデルを使う：下の部分（0〜40m、動かない地形のメッシュ）、帯（40〜65m、ボクセル）、上の部分（65〜873m）
+- 帯を数階の `VoxelBuilding` にして、高さ 40m の位置に置く。区間は「帯の階 × N」と、一番上の階 1 つの 2 区間にする。一番上の区間の付属物（`Attachments`）に、塔の上の部分のプレハブ（メッシュと MeshCollider）を指定する。付属物は区間の階の数だけ複製されるので、上の部分は必ず積む回数 1 の区間に付ける
+- 帯の一番下の境目（境目 0）は地面側を常に中身とみなすので、帯の根元が切れると、帯と上の部分がまとまって倒れ始める
+- `TowerTopple` を同じ建物の GameObject に付け、`_building` と `_fallTarget`（橋にしたい向きの目印。建物から見た水平方向が倒れる向き）を指定する。`_upperMass`（上の部分の質量）と `_toppleAngularSpeed`（倒れ始めの角速度）は、実際に倒して決める。初期値は仮
+- 上の部分の MeshCollider は、倒れる間だけ凸包になる。`VoxelBuilding` が倒れた階を止めてキネマティックにしたら、元の形に戻る。橋の上を歩けるよう、元の形はプレイヤーが乗れる細かさにしておく
+
+### 未確認
+
+- Unity で動かして確かめていない。倒れ方（根元で止まるか、真下へ落ちるか）、橋として止まる位置、凸包の切り替えは、ローカルで確かめる
+- 塔の全長 873m のうち、上の部分は 808m ある。倒れると中心から約 800m 先に届き、外殻エリアの地面（半径 450〜600m）の外側にある外壁（半径 600m）に先端が当たる可能性がある。外壁にもたれるように止まる形になるかを、倒して確かめる
 
 ## 詳細仕様で決めること
 

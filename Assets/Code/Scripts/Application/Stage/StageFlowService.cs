@@ -88,6 +88,16 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// 破壊対象によらず、プレイ中ならクリアにする。台本の終わりでクリアにするステージが使う。
+        /// </summary>
+        public void Clear()
+        {
+            if (_state.Phase != StagePhase.Playing) return;
+
+            CompleteClear();
+        }
+
+        /// <summary>
         /// 倒した敵の数を足し、スコアに反映する。プレイ中のときだけ数える。
         /// </summary>
         /// <param name="count">倒した敵の数</param>
@@ -198,9 +208,17 @@ namespace Kizami.Application
             if (_state.Phase != StagePhase.Playing || _state.TargetCount == 0 ||
                 _state.DestroyedTargetCount < _state.TargetCount) return;
 
+            CompleteClear();
+            UsefulLogger.Log("すべての破壊対象が破壊済みになった為、クリアにしました。", this);
+        }
+
+        /// <summary>
+        /// 基礎スコアを足してクリアにする。
+        /// </summary>
+        private void CompleteClear()
+        {
             _state.SetScore(_state.Score + _clearScore);
             Finish(StagePhase.Cleared);
-            UsefulLogger.Log("すべての破壊対象が破壊済みになった為、クリアにしました。", this);
             _onCleared?.Invoke();
         }
 

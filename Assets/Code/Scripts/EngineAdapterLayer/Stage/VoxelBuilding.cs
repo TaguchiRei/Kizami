@@ -112,6 +112,8 @@ namespace Kizami.EngineAdapter
 
         private bool _hasRetainArea;
 
+        private float _lostVolumeRatio;
+
         /// <summary> 下から順の階。屋上を積んだ場合は最後の要素 </summary>
         public IReadOnlyList<VoxelModelLoader> Floors => _floors;
 
@@ -124,6 +126,29 @@ namespace Kizami.EngineAdapter
         public bool IsConnectionReady { get; private set; }
 
         /// <summary>
+        /// ボクセルにした階の、読み込んだ時点の体積のうち削れた割合（0〜1）の最大値。
+        /// 階はメッシュに戻されると体積を測れなくなる為、一度削れた割合は戻さずに持つ。測るのはこのプロパティを読んだときで、呼ばれない間に削れてメッシュに戻った分は数えない。
+        /// </summary>
+        public float LostVolumeRatio
+        {
+            get
+            {
+                var initialVolume = 0f;
+                var volume = 0f;
+                foreach (var floor in _floors)
+                {
+                    if (!floor.IsLoaded) continue;
+
+                    initialVolume += floor.InitialVolume;
+                    volume += floor.Volume;
+                }
+
+                if (initialVolume > 0f) _lostVolumeRatio = Mathf.Max(_lostVolumeRatio, 1f - volume / initialVolume);
+                return _lostVolumeRatio;
+            }
+        }
+
+        /// <summary>
         /// 境目が切れて上の階が倒れ始めたときに呼ぶ処理を登録する。引数は、倒れた階をまとめた Rigidbody。
         /// 倒れた階のピースは、その Rigidbody の子孫にある。
         /// </summary>
@@ -131,6 +156,19 @@ namespace Kizami.EngineAdapter
         public IDisposable RegisterOnCollapsed(Action<Rigidbody> callback)
         {
             return _collapsed.Register(callback);
+        }
+
+        /// <summary>
+        /// つながりの面積に関わらず、firstFloor 階から上の立っている階を倒す。倒れ始めた通知（RegisterOnCollapsed）も出る。
+        /// 境目の元の面積が測れる（IsConnectionReady）前や、すでに倒れた階には何もしない。
+        /// </summary>
+        /// <param name="firstFloor">倒す一番下の階の番号。0 なら建物全体</param>
+        public void ForceCollapse(int firstFloor)
+        {
+            if (!IsConnectionReady || firstFloor < 0 || firstFloor >= _standingFloorCount) return;
+
+            _connectionRatios[firstFloor] = 0f;
+            Collapse(firstFloor);
         }
 
         /// <summary>

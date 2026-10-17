@@ -24,12 +24,15 @@ namespace Kizami.EngineAdapter
         /// ステージシーンの破壊対象を集め、最初の数を通知する。ステージシーンを読み込んだあとに呼ぶ。
         /// </summary>
         /// <param name="onTargetsChanged">破壊済みの数が変わったときに呼ぶ処理。引数は破壊対象の数と破壊済みの数</param>
-        public void Initialize(Action<int, int> onTargetsChanged)
+        /// <param name="targetGimmickIds">クリアの対象にするギミックの ID。空なら、見つけた破壊対象をすべて対象にする</param>
+        public void Initialize(Action<int, int> onTargetsChanged, IReadOnlyList<string> targetGimmickIds)
         {
             _onTargetsChanged = onTargetsChanged;
             _targets.Clear();
             _targets.AddRange(FindObjectsByType<DestructionTarget>(FindObjectsSortMode.None));
+            _targets.AddRange(FindObjectsByType<VoxelBuildingDestructionTarget>(FindObjectsSortMode.None));
             _targets.AddRange(FindObjectsByType<CoreSystem>(FindObjectsSortMode.None));
+            if (targetGimmickIds.Count > 0) KeepGimmicks(targetGimmickIds);
 
             if (_targets.Count == 0)
             {
@@ -39,6 +42,32 @@ namespace Kizami.EngineAdapter
             _destroyedCount = -1;
             base.Initialize();
             CountDestroyed();
+        }
+
+        /// <summary>
+        /// 破壊対象のうち、ID の一覧に入ったギミックだけを残す。ID に当たる破壊対象がなければ警告する。
+        /// </summary>
+        private void KeepGimmicks(IReadOnlyList<string> ids)
+        {
+            _targets.RemoveAll(target =>
+                !(target is Component component && component.TryGetComponent<StageGimmick>(out var gimmick) &&
+                  ContainsId(ids, gimmick.Id)));
+
+            foreach (var id in ids)
+            {
+                var found = _targets.Exists(target => ((Component)target).GetComponent<StageGimmick>().Id == id);
+                if (!found) UsefulLogger.LogWarning($"ID '{id}' の破壊対象が見つかりません。", this);
+            }
+        }
+
+        private static bool ContainsId(IReadOnlyList<string> ids, string id)
+        {
+            for (var i = 0; i < ids.Count; i++)
+            {
+                if (ids[i] == id) return true;
+            }
+
+            return false;
         }
 
         private void Update()

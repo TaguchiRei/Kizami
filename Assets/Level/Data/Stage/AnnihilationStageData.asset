@@ -17,6 +17,10 @@ MonoBehaviour:
   _clearScore: 1000
   _initialCharge: 100
   _fixedSkills: []
+  _targetGimmickIds:
+  - Factory_01
+  - Factory_05
+  - Factory_06
   _failConditions:
   - rid: 8226038394822328400
   references:

@@ -17,6 +17,8 @@ MonoBehaviour:
   _clearScore: 1000
   _initialCharge: 100
   _fixedSkills: []
+  _targetGimmickIds:
+  - Core_Collapse
   _failConditions:
   - rid: 8226038394822328402
   references:

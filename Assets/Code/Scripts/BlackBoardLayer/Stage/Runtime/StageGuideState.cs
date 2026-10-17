@@ -4,7 +4,7 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// ステージの案内（大目標、小目標、会話、プレイヤーのやったことのログ）を保持するステート。
+    /// ステージの案内（大目標、小目標、会話、操作説明、プレイヤーのやったことのログ）を保持するステート。
     /// ログは上限の件数まで持ち、超えたら古いものから消す。
     /// </summary>
     [RegisterBoard(typeof(StageBoard))]
@@ -18,6 +18,7 @@ namespace Kizami.BlackBoard
         public string Objective { get; private set; } = string.Empty;
         public string SubObjective { get; private set; } = string.Empty;
         public string Dialogue { get; private set; } = string.Empty;
+        public string Hint { get; private set; } = string.Empty;
         public int LogMaxCount { get; }
         public float LogLifetime { get; }
         public IReadOnlyList<GuideLogEntry> Logs => _logs;
@@ -63,6 +64,15 @@ namespace Kizami.BlackBoard
         }
 
         /// <summary>
+        /// 操作説明を設定する。
+        /// </summary>
+        /// <param name="hint">操作説明の文。空なら出さない</param>
+        public void SetHint(string hint)
+        {
+            Hint = hint ?? string.Empty;
+        }
+
+        /// <summary>
         /// ログを末尾に足す。上限を超えたら、古いものから消す。
         /// </summary>
         /// <param name="text">ログの文</param>
@@ -104,6 +114,9 @@ namespace Kizami.BlackBoard
 
         /// <summary> 会話の文。空なら出さない </summary>
         string Dialogue { get; }
+
+        /// <summary> 操作説明の文。[W] のように角括弧で囲んだ語はキーとして描く。空なら出さない </summary>
+        string Hint { get; }
 
         /// <summary> ログを持つ件数の上限 </summary>
         int LogMaxCount { get; }

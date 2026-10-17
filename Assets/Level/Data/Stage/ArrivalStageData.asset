@@ -17,6 +17,9 @@ MonoBehaviour:
   _clearScore: 1000
   _initialCharge: 100
   _fixedSkills: []
+  _targetGimmickIds:
+  - Tower_Tensho
+  - Escape_Arrival
   _failConditions:
   - rid: 8226038394822328408
   - rid: 8226038394822328409

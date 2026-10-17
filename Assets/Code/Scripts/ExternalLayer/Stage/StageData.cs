@@ -32,6 +32,10 @@ namespace Kizami.External
         [Tooltip("このステージで使うスキルを固定する。空でなければ、アウトゲームでの装備を無視して、先頭から順に装備枠へ入れる。空なら装備したスキルを使う")]
         private SkillData[] _fixedSkills = System.Array.Empty<SkillData>();
 
+        [SerializeField]
+        [Tooltip("クリアの対象にするギミックの ID。空なら、読み込んだシーンの破壊対象をすべて対象にする")]
+        private string[] _targetGimmickIds = System.Array.Empty<string>();
+
         [SerializeReference, SubclassSelector]
         [Tooltip("失敗条件。どれか 1 つを満たしたら失敗にする。空ならこのステージでは失敗しない")]
         private StageFailCondition[] _failConditions = { new PlayerDeathFailCondition() };
@@ -50,6 +54,9 @@ namespace Kizami.External
 
         /// <summary> このステージで使うスキルの固定。空なら固定しない </summary>
         public IReadOnlyList<SkillData> FixedSkills => _fixedSkills;
+
+        /// <summary> クリアの対象にするギミックの ID。空なら破壊対象をすべて対象にする </summary>
+        public IReadOnlyList<string> TargetGimmickIds => _targetGimmickIds;
 
         /// <summary> 失敗条件。どれか1つを満たしたら失敗にする </summary>
         public IReadOnlyList<StageFailCondition> FailConditions => _failConditions;
