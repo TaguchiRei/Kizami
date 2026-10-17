@@ -127,7 +127,16 @@
 - 建物がボクセルオブジェクトとして壊れる。天照塔の Y 40〜65m を壊すと塔が倒れる
 - 14B の 4 ステージが、本番のマップで最初から最後まで遊べる
 
-## 詳細仕様で決めること
+## 既存コードの確認結果（2026-10-17、クラウドセッションでの静的な確認。Unity 上では未確認）
+
+| 作業 | 状態 | 根拠 |
+|---|---|---|
+| 14C-5 マップの組み立て | 実装済み | `TownMapBuilder`（道路・建物・小物・生産施設・環境プレハブを置く）、`TownLayout`。`TownMap.unity` あり |
+| 14C-6 建物のボクセル化 | 実装済み | `Town/Buildings/Town_*.prefab`（`VoxelBuilding`）15 種と `Town_VoxelMeltSystem`。`TownMapBuilder` が `_meltSystem` を配線する |
+| 14C-6 天照塔 | 未着手 | `Stage_Tower_Tensho_01.prefab` は MeshCollider 付きの 1 枚のメッシュを環境として置いているだけ。ボクセル化も倒れる仕組みもない |
+| 14C-8 ガラス | 実装済み | `GlassPane`、`Glass` レイヤー（TagManager）、`Glass.shader`（`unity_LODFade`）、`Stage_Glass_Pane_01` に LODGroup、`GlassAttachmentBuilder` と `_Attachments.prefab`、`VoxelDestructionAdapter` の攻撃半径 ＋ `_glassMargin` での丸ごと割り、`VoxelBuilding.ShatterGlass`（倒壊時） |
+| 14C-7 14B の載せ替え | 未着手 | ステージは主シーン `Town`（`Town.unity`）＋ `Stage_*` ＋ `InGame` の組。`TownMap.unity` はまだどこからも使われていない |
+
 
 | # | 項目 | 案 |
 |---|---|---|
