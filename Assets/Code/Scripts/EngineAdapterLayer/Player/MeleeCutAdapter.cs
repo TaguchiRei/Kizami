@@ -89,6 +89,18 @@ namespace Kizami.EngineAdapter
             return new Bounds(center, extents * 2f);
         }
 
+        /// <summary> 切断を実行中か </summary>
+        public bool IsCutting => _isCutting;
+
+        /// <summary>
+        /// 切断が終わったときに呼ぶ処理を足す。Initialize で渡した処理のあとに呼ばれる。
+        /// </summary>
+        /// <param name="onCut">切断の結果と切断面を受け取る処理。切断面の法線は表のかけらの側を向く</param>
+        public void AddOnCut(Action<MultiCutResult[], Plane> onCut)
+        {
+            _onCut += onCut;
+        }
+
         /// <param name="onCut">切断が終わったときに、切断の結果と切断面を渡す関数。切断面の法線は表のかけらの側を向く</param>
         public void Initialize(Action<MultiCutResult[], Plane> onCut)
         {
@@ -153,6 +165,26 @@ namespace Kizami.EngineAdapter
 
             _blade.transform.SetPositionAndRotation(origin, bladeRotation);
             CutAsync(_targets.ToArray(), new Plane(planeNormal, origin)).Forget();
+        }
+
+        /// <summary>
+        /// 指定した対象を、指定した面で切断する。切断中なら終わるのを待ってから切る。
+        /// 切断は 1 つの刃を共有していて同時に実行できない為、通常攻撃以外の切断もここを通す。結果は通常攻撃と同じく切断の処理に渡される。
+        /// </summary>
+        /// <param name="targets">切る対象</param>
+        /// <param name="point">切断面が通る点（ワールド空間）</param>
+        /// <param name="normal">切断面の法線（正規化済み）</param>
+        public async UniTask CutTargets(CuttableObject[] targets, Vector3 point, Vector3 normal)
+        {
+            if (!Initialized || _blade == null || targets == null || targets.Length == 0) return;
+
+            while (_isCutting)
+            {
+                await UniTask.Yield(destroyCancellationToken);
+            }
+
+            _blade.transform.SetPositionAndRotation(point, Quaternion.FromToRotation(Vector3.up, normal));
+            await CutAsync(targets, new Plane(normal, point));
         }
 
         /// <summary>
@@ -249,7 +281,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 対象を切断し、終わったら結果と切断面を渡す。
         /// </summary>
-        private async UniTaskVoid CutAsync(CuttableObject[] targets, Plane plane)
+        private async UniTask CutAsync(CuttableObject[] targets, Plane plane)
         {
             _isCutting = true;
 

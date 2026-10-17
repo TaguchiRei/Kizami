@@ -85,6 +85,7 @@ namespace Kizami.Initialization
             var textAdapter = FindOrCreateBrilliantSkillTextAdapter();
             _fragmentThrowAdapter.SetLetterSource(textAdapter);
             textAdapter.SetOnLetterLanded(OnLetterLanded);
+            ConnectLetterCutting(textAdapter);
             _brilliantSkillService = new BrilliantSkillService(_brilliantSkillSettings, _flowService.AddBonusScore,
                 kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)));
             _enemySpawnAdapter.SetOnDefeated(OnDefeated);
@@ -193,6 +194,22 @@ namespace Kizami.Initialization
             var adapterObject = new GameObject(nameof(BrilliantSkillTextAdapter));
             SceneManager.MoveGameObjectToScene(adapterObject, gameObject.scene);
             return adapterObject.AddComponent<BrilliantSkillTextAdapter>();
+        }
+
+        /// <summary>
+        /// 通常攻撃の切断で文字を切れるようにする。ステージシーンに切断の Adapter かオーブの Adapter がなければ、文字は切れない。
+        /// </summary>
+        private void ConnectLetterCutting(BrilliantSkillTextAdapter textAdapter)
+        {
+            var cutter = FindFirstObjectByType<MeleeCutAdapter>();
+            var orbAdapter = FindFirstObjectByType<FragmentOrbAdapter>();
+            if (cutter == null || orbAdapter == null)
+            {
+                UsefulLogger.LogWarning("MeleeCutAdapter か FragmentOrbAdapter が見つからない為、文字を切れません。", this);
+                return;
+            }
+
+            textAdapter.SetCutter(cutter, orbAdapter.TryTake);
         }
 
         /// <summary>
