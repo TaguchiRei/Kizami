@@ -21,6 +21,7 @@ namespace Kizami.EngineAdapter
     /// 境目が切れたら、その上の階をまとめて1つの Rigidbody の子にして落とす。当たり判定は各階のチャンクの BoxCollider をそのまま使う。
     /// 落ちた Rigidbody が眠ったらキネマティックにして止め、地形として残す。落ちた階は、以後つながりを判定しない。
     /// 階ごとに、ガラスの板などボクセルにしない付属物のプレハブを、階の子として置く。階と一緒に落ち、倒れ始めたらガラスを割る。
+    /// 区間に遠景用のプレハブ（ベイクの元のモデル）があれば、手付かずの間は遠くでそれを描く（VoxelModelLoader.SetStaticProxy）。マテリアルは階ごとの複製に差し替え、模様を続ける。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/LargeObjectVoxel.md">説明ドキュメント: 巨大なオブジェクトへのボクセルの適用</seealso>
     public sealed class VoxelBuilding : MonoBehaviour
@@ -81,6 +82,10 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0f)]
         [Tooltip("プレイヤーからこの距離（m）の中にかかるメッシュのままの階を、ボクセルにする")]
         private float _swapDistance = 40f;
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("手付かずの階を、画面に対する高さの割合がこれを下回ったら遠景用のプレハブで描く")]
+        private float _proxyTransitionHeight = 0.3f;
 
         private float[] _initialAreas = Array.Empty<float>();
         private float[] _connectionRatios = Array.Empty<float>();
@@ -188,7 +193,9 @@ namespace Kizami.EngineAdapter
             loader.SetQuality(_quality);
             loader.SetMeltSystem(_meltSystem);
             loader.SetLoadOnStart(false);
-            loader.SetMaterialEntries(CreateFloorMaterials(model, floorIndex));
+            var materials = CreateFloorMaterials(model, floorIndex);
+            loader.SetMaterialEntries(materials);
+            if (section.Proxy != null) loader.SetStaticProxy(CreateProxy(section.Proxy, floorObject.transform, model, materials), _proxyTransitionHeight);
             _subscriptions.Add(loader.RegisterOnPieceShapeChanged(_ => OnFloorShapeChanged(floorIndex)));
             _subscriptions.Add(loader.RegisterOnPieceSplit(pieces => AttachSeparatedPieces(floorIndex, pieces)));
             _subscriptions.Add(loader.RegisterOnPieceStruck(struck => Record(floorIndex, struck.Piece, FloorEdit.Strike(struck.Record))));
@@ -753,6 +760,33 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// モデルの素材のマテリアルを複製し、模様を階の高さだけずらす。同じマテリアルは階の中で1つの複製を使い回す。
         /// </summary>
+        /// <summary>
+        /// 遠景用のプレハブを階の子に置き、元のマテリアルを階ごとの複製に差し替える。複製の対応は、モデルの素材の一覧の元のマテリアルで取る。
+        /// </summary>
+        private static GameObject CreateProxy(GameObject prefab, Transform floor, VoxelModelAsset model, VoxelMaterialEntry[] floorMaterials)
+        {
+            var copies = new Dictionary<Material, Material>();
+            for (var i = 0; i < floorMaterials.Length; i++)
+            {
+                var source = model.Materials[i].Material;
+                if (source != null) copies[source] = floorMaterials[i].Material;
+            }
+
+            var proxy = Instantiate(prefab, floor, false);
+            foreach (var proxyRenderer in proxy.GetComponentsInChildren<Renderer>())
+            {
+                var shared = proxyRenderer.sharedMaterials;
+                for (var i = 0; i < shared.Length; i++)
+                {
+                    if (shared[i] != null && copies.TryGetValue(shared[i], out var copy)) shared[i] = copy;
+                }
+
+                proxyRenderer.sharedMaterials = shared;
+            }
+
+            return proxy;
+        }
+
         private VoxelMaterialEntry[] CreateFloorMaterials(VoxelModelAsset model, int floorIndex)
         {
             var offset = new Vector4(0f, floorIndex * _floorHeight, 0f, 0f);
@@ -856,12 +890,17 @@ namespace Kizami.EngineAdapter
             [Tooltip("階ごとに置く付属物（ガラスの板など）。未設定なら置かない")]
             private GameObject _attachments;
 
+            [SerializeField]
+            [Tooltip("手付かずの間に遠くで描くプレハブ（ベイクの元のモデル）。未設定なら手付かずの形のメッシュだけで描く")]
+            private GameObject _proxy;
+
             [SerializeField, Min(1)]
             [Tooltip("積む回数")]
             private int _count = 1;
 
             public VoxelModelAsset Model => _model;
             public GameObject Attachments => _attachments;
+            public GameObject Proxy => _proxy;
             public int Count => _count;
         }
 

@@ -12,6 +12,8 @@ namespace Kizami.EngineAdapter.Voxel
     /// 読み込むと、読み込み前からこの階層にあった MeshRenderer（元のモデルの見た目）を全て非表示にする。
     /// パーツと、パーツから切り離された全てのピースを、モデル単位でまとめて扱える。
     /// LoadStatic なら、ボクセルを作らずに手付かずの形のメッシュと BoxCollider だけを置き、Load を呼んだときにボクセルへ差し替える。
+    /// 遠景用の代わりの見た目（SetStaticProxy）があれば、手付かずの間だけ LODGroup で、遠くでは手付かずの形のメッシュの代わりにそれを描く。
+    /// 手付かずの形のメッシュはボクセルの表面なのでポリゴンが多く、たくさん並べると描画が重くなる為。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelModelLoader : MonoBehaviour
@@ -54,6 +56,14 @@ namespace Kizami.EngineAdapter.Voxel
 
         private MeshRenderer[] _sourceRenderers;
         private VoxelMaterialEntry[] _materialEntries;
+
+        /// <summary> 手付かずの間に遠くで描く代わりの見た目 </summary>
+        private GameObject _staticProxy;
+
+        /// <summary> 手付かずの形のメッシュから代わりの見た目に切り替える、画面に対する高さの割合 </summary>
+        private float _proxyTransitionHeight;
+
+        private LODGroup _staticLod;
 
         public VoxelQualitySettings Quality => _quality;
         public VoxelMeltSystem MeltSystem => _meltSystem;
@@ -139,6 +149,17 @@ namespace Kizami.EngineAdapter.Voxel
         public void SetLoadOnStart(bool loadOnStart)
         {
             _loadOnStart = loadOnStart;
+        }
+
+        /// <summary>
+        /// 手付かずの間に遠くで描く代わりの見た目を渡す。proxy はこの階層の子に置いたもので、手付かずの間だけ表示する。
+        /// 画面に対する高さの割合が transitionHeight を下回ると、手付かずの形のメッシュから proxy に切り替える。次の LoadStatic から反映される。
+        /// </summary>
+        public void SetStaticProxy(GameObject proxy, float transitionHeight)
+        {
+            _staticProxy = proxy;
+            _proxyTransitionHeight = transitionHeight;
+            _staticProxy.SetActive(IsStatic);
         }
 
         /// <summary>
@@ -378,6 +399,8 @@ namespace Kizami.EngineAdapter.Voxel
             {
                 if (sourceRenderer != null) sourceRenderer.enabled = false;
             }
+
+            EnableStaticProxy();
         }
 
         internal void NotifyShapeChanged(in VoxelShapeChange change)
@@ -425,6 +448,9 @@ namespace Kizami.EngineAdapter.Voxel
 
         private void ClearStatic()
         {
+            if (_staticLod != null) _staticLod.enabled = false;
+            if (_staticProxy != null) _staticProxy.SetActive(false);
+
             foreach (var staticObject in _staticObjects)
             {
                 if (staticObject == null) continue;
@@ -436,6 +462,30 @@ namespace Kizami.EngineAdapter.Voxel
 
             _staticObjects.Clear();
             _staticParts.Clear();
+        }
+
+        /// <summary>
+        /// 手付かずの形のメッシュを近く、代わりの見た目を遠くの段にした LODGroup を有効にする。代わりの見た目がなければ何もしない。
+        /// </summary>
+        private void EnableStaticProxy()
+        {
+            if (_staticProxy == null) return;
+
+            _staticProxy.SetActive(true);
+            var nearRenderers = new List<Renderer>();
+            foreach (var staticObject in _staticObjects)
+            {
+                nearRenderers.Add(staticObject.GetComponent<MeshRenderer>());
+            }
+
+            if (_staticLod == null) _staticLod = gameObject.AddComponent<LODGroup>();
+            _staticLod.SetLODs(new[]
+            {
+                new LOD(_proxyTransitionHeight, nearRenderers.ToArray()),
+                new LOD(0f, _staticProxy.GetComponentsInChildren<Renderer>()),
+            });
+            _staticLod.RecalculateBounds();
+            _staticLod.enabled = true;
         }
 
         /// <summary>

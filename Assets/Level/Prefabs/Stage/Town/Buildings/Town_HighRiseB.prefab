@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2765782884334652233
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6365906381508904428}
+  - component: {fileID: 695850029910192277}
+  m_Layer: 0
+  m_Name: Town_HighRiseB
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6365906381508904428
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2765782884334652233}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &695850029910192277
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2765782884334652233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
+  _sections:
+  - _model: {fileID: 11400000, guid: 9e592c5451913144d9600252e4a774d4, type: 2}
+    _attachments: {fileID: 5713175219576612057, guid: 41f27a9bf9866fe48986e6536149bd9c, type: 3}
+    _proxy: {fileID: 8114490608571326834, guid: 860ecdafe804d444d97df30c8b6564ea, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: 24fe182eefbd6ec4cb211b8452a7780c, type: 2}
+    _attachments: {fileID: 5151776423486151116, guid: 4da307d8b52b00c4cb60d0976c2ac8e5, type: 3}
+    _proxy: {fileID: 4286375325288424396, guid: 1838534c750f82a499fdcfa0f9b93223, type: 3}
+    _count: 5
+  - _model: {fileID: 11400000, guid: b25397ff2267ead44950bba8f73451a3, type: 2}
+    _attachments: {fileID: 842236185845967487, guid: 4224efd7ea586b84db845abec288c611, type: 3}
+    _proxy: {fileID: 5477251256874947326, guid: 4e4d706914be1e849b5c572f74685916, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: bbfdaaab2c5ae3d4f98ff207e31bf8fa, type: 2}
+    _attachments: {fileID: 1054682362775719897, guid: 2bbb58957d5bf80459aa9694ad45884e, type: 3}
+    _proxy: {fileID: 3274333925551986890, guid: c53072c372468914cbf39447a4136669, type: 3}
+    _count: 4
+  - _model: {fileID: 11400000, guid: d4d0dd048326e5640855c047ed1f4039, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 4511783619617217279, guid: d82c655ae3cdd4e44b946b918d917852, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: a4883a83e2b10a84a90f2c6c5f91261a, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 1217782162635504731, guid: 5ba096891893e4c4ea67f3e9e3f95e41, type: 3}
+    _count: 2
+  - _model: {fileID: 11400000, guid: d91bba0cb64dc374b88f2a3a76105ec4, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 5109158764745257293, guid: c0cb98f7c3198524fba7ca1c264e4256, type: 3}
+    _count: 1
+  _floorHeight: 4
+  _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
+  _meltSystem: {fileID: 0}
+  _connectionThreshold: 0.05
+  _hardWeight: 4
+  _collapseDensity: 500
+  _target: {fileID: 0}
+  _swapDistance: 40
+  _proxyTransitionHeight: 0.3
