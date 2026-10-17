@@ -13,6 +13,7 @@ namespace Kizami.Initialization
         IInjectable<PlayerMovementService>
     {
         [SerializeField] private BossShockwaves _shockwaves;
+        [SerializeField] private BossMissiles _missiles;
 
         private PlayerHealthService _healthService;
         private PlayerMovementService _movementService;
@@ -23,6 +24,11 @@ namespace Kizami.Initialization
             {
                 _shockwaves.Initialize(_healthService != null ? _healthService.ApplyDamage : null,
                     _movementService != null ? _movementService.RequestKnockback : null);
+            }
+
+            if (this.IsAssigned(_missiles, nameof(BossMissiles)))
+            {
+                _missiles.Initialize(_healthService != null ? _healthService.ApplyDamage : null);
             }
 
             base.Initialize(blackBoard);
