@@ -47,6 +47,7 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 6b6664d392f521040a29b8b501a94a8c, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 7205749107867811789, guid: 722e2e694ca4b2649aacb40f451c18d0, type: 3}
     _count: 1
   _floorHeight: 6.4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -56,3 +57,4 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3

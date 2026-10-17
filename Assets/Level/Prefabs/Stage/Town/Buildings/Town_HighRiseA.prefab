@@ -47,15 +47,19 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 6f41d29a352c3bf43b596b702d6f4581, type: 2}
     _attachments: {fileID: 3971302975132308412, guid: ef8ae46f74bb9954aab8d8714e2010b8, type: 3}
+    _proxy: {fileID: 7411640700035448166, guid: 7ad7388ee850e174d983e0fb0cc59623, type: 3}
     _count: 1
   - _model: {fileID: 11400000, guid: b3d9c82b046a81143848c4446c2adb05, type: 2}
     _attachments: {fileID: 2166648548246146167, guid: ef694c03383831644b41fc9be48e56b5, type: 3}
+    _proxy: {fileID: 4318242871979283424, guid: dc8470eb481162443a3a9551b4c6af85, type: 3}
     _count: 8
   - _model: {fileID: 11400000, guid: 1eb474ff2ccb51e49876056baa56b2a5, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 6514382882499703723, guid: 528cdd23aea50cd48a0011142188a491, type: 3}
     _count: 2
   - _model: {fileID: 11400000, guid: df699168955f83a4b8717df645010407, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 3975987264612754402, guid: b96eb56ea2e6d464495c90aa07ae1c2b, type: 3}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -65,3 +69,4 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3

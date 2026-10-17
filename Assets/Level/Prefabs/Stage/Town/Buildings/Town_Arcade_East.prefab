@@ -47,12 +47,15 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 146dea6d7423dbc4790d8e4933555e70, type: 2}
     _attachments: {fileID: 8669933531929439365, guid: 0df4874b7ebbb2a45b2456d596da9a8f, type: 3}
+    _proxy: {fileID: 2301204858181055190, guid: 32875dd700ab9fa44beaef8bf0f5772d, type: 3}
     _count: 1
   - _model: {fileID: 11400000, guid: 0fd6e1ed18675ab49a8e0a3968ff32fc, type: 2}
     _attachments: {fileID: 4549418165734046003, guid: c8625f599655d264ba11fdd304dcd2c6, type: 3}
+    _proxy: {fileID: 6613065615965636199, guid: f8afb5c8eee2035478b47d6337d7c590, type: 3}
     _count: 1
   - _model: {fileID: 11400000, guid: a3e2efdbe3a61a544b2723c87a8aea1a, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 5707552313396595511, guid: 81d308b60f200ad4683a891b51ca9735, type: 3}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -62,3 +65,4 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
