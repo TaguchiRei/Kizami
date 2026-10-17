@@ -76,20 +76,20 @@ namespace Kizami.EngineAdapter
         private float _explosionRadius = 2f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("文字をつかめる距離（m）。文字は遠くに出る為、かけらより長い")]
-        private float _letterGrabRange = 30f;
+        [Tooltip("文字をつかめる距離（m）。文字は遠くに大きく出る為、かけらより長い")]
+        private float _letterGrabDistance = 80f;
 
         [SerializeField, Min(0.01f)]
         [Tooltip("視線から文字の中心までの距離がこの値（m）以内の文字をつかめる")]
-        private float _letterGrabRadius = 2f;
+        private float _letterGrabAimRadius = 6f;
 
         [SerializeField]
         [Tooltip("持っている文字の中心を置く位置（カメラのローカル座標、m）")]
         private Vector3 _letterHoldOffset = new(0.5f, -0.3f, 1.5f);
 
         [SerializeField, Min(0.01f)]
-        [Tooltip("持っている間の文字の大きさ（出たときを1とした倍率）")]
-        private float _letterHoldScale = 0.3f;
+        [Tooltip("持っている間の文字の高さ（m）。投げた文字もこの大きさで飛ぶ")]
+        private float _letterHoldHeight = 0.5f;
 
         private Func<CuttableObject, bool> _tryTake;
         private Action<Vector3, float> _onExplode;
@@ -165,7 +165,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 視線に最も近い文字をつかむ。視線の上で、カメラから _letterGrabRange 以内にあり、視線から中心までの距離が _letterGrabRadius 以内の文字が対象。
+        /// 視線に最も近い文字をつかむ。視線の上で、カメラから _letterGrabDistance 以内にあり、視線から中心までの距離が _letterGrabAimRadius 以内の文字が対象。
         /// 投げられて飛んでいる文字はつかめない。
         /// </summary>
         /// <returns>つかめたら true。既に持っているときと、つかめる文字がないときは false</returns>
@@ -188,10 +188,10 @@ namespace Kizami.EngineAdapter
 
                 var toLetter = letter.Center - origin;
                 var along = Vector3.Dot(forward, toLetter);
-                if (along <= 0f || along > _letterGrabRange) continue;
+                if (along <= 0f || along > _letterGrabDistance) continue;
 
                 var offset = Vector3.Cross(forward, toLetter).magnitude;
-                if (offset > _letterGrabRadius || offset >= nearestOffset) continue;
+                if (offset > _letterGrabAimRadius || offset >= nearestOffset) continue;
 
                 nearest = letter;
                 nearestOffset = offset;
@@ -199,7 +199,7 @@ namespace Kizami.EngineAdapter
 
             if (nearest == null) return false;
 
-            nearest.BeginCarry(cameraTransform, _letterHoldScale);
+            nearest.BeginCarry(cameraTransform, _letterHoldHeight);
             nearest.FollowCamera(cameraTransform, _letterHoldOffset);
             _heldLetter = nearest;
             return true;

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.MeshCut;
 
@@ -9,8 +10,10 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// Brilliant Skill の言葉を、ボクセル風の物理的な文字としてプレイヤーのカメラの前に出す Adapter。
     /// 同じフレームに受け取った言葉は 1 組にまとめ、言葉ごとに 1 行として上下に積む。
-    /// 文字は 1 文字ずつ別のオブジェクトで（VoxelLetterMesh）、カメラの中央を起点に左右へ並べる。中央に近い文字ほどカメラから遠くに置き、各文字はカメラへ向ける。
-    /// 出るときは拡大して少し行き過ぎてから戻る（BrilliantLetter）。使うまで消えず、組の数が上限を超えたら古い組から消す。
+    /// 文字は 1 文字ずつ別のオブジェクトで（VoxelLetterMesh）、まっすぐ並べた言葉全体を、カメラの前の遠くに置く。
+    /// 言葉全体は、カメラから見て水平な向きから水平面の中で 70〜80 度ほど傾け、奥行き方向に伸びるように置く（傾ける向きは組ごとに左右のどちらか）。
+    /// 出るときは 1 文字ずつ順に、大きくなりながら回り、縮んで元の大きさと向きに落ち着く。出てから少しの間は敵や建物より手前に描く（BrilliantLetter）。
+    /// 使うまで消えず、組の数が上限を超えたら古い組から消す。
     /// 文字は Rigidbody を持つが、つかまれるまでは動かさない（Kinematic）。
     /// 投げられた文字は、何かにぶつかったらぶつかった点を通知して消える。
     /// 文字は通常攻撃のメッシュ切断で切れる。切った文字は、切った面に垂直で文字の中心を通る面で自動でもう 1 回切り、
@@ -22,6 +25,12 @@ namespace Kizami.EngineAdapter
     /// </remarks>
     public sealed class BrilliantSkillTextAdapter : MonoBehaviour
     {
+        /// <summary> 手前に描く輪郭線の殻の描画順。透明の描画の最後あたりで、文字より先に描く </summary>
+        private const int OVERLAY_OUTLINE_QUEUE = 3990;
+
+        /// <summary> 手前に描く文字の描画順 </summary>
+        private const int OVERLAY_FILL_QUEUE = 3995;
+
         /// <summary> 文字の CuttableObject に書き込む、複数回の切断の設定（Json）。2 回切れる </summary>
         private const string CUT_SETTINGS_JSON = "{\"_canMultiCut\":true,\"_maxCutCount\":2}";
 
@@ -39,32 +48,32 @@ namespace Kizami.EngineAdapter
         private readonly Dictionary<CuttableObject, int> _originalLayers = new();
 
         [SerializeField, Min(1f)]
-        [Tooltip("言葉の中央の文字を置く、カメラからの距離（m）")]
-        private float _centerDistance = 10f;
+        [Tooltip("言葉の中心を置く、カメラの水平な前方への距離（m）")]
+        private float _centerDistance = 32f;
 
-        [SerializeField, Min(0f)]
-        [Tooltip("中央から 1m 離れるごとに、カメラへ近づける距離（m）")]
-        private float _depthSlope = 0.4f;
+        [SerializeField, Range(0f, 90f)]
+        [Tooltip("言葉を傾ける角度（度）の下限。カメラから見て水平な向きからの角度で、大きいほど奥行き方向に伸びる")]
+        private float _tiltMinAngle = 70f;
 
-        [SerializeField, Min(1f)]
-        [Tooltip("カメラからの距離の下限（m）")]
-        private float _minDistance = 3f;
+        [SerializeField, Range(0f, 90f)]
+        [Tooltip("言葉を傾ける角度（度）の上限")]
+        private float _tiltMaxAngle = 80f;
 
         [SerializeField, Min(0.1f)]
         [Tooltip("隣の文字との間隔（m）")]
-        private float _letterSpacing = 1.5f;
+        private float _letterSpacing = 4.1f;
 
         [SerializeField, Min(0.1f)]
         [Tooltip("行と行の間隔（m）")]
-        private float _lineHeight = 2.2f;
+        private float _lineHeight = 6f;
 
         [SerializeField]
         [Tooltip("カメラの高さから見た、言葉全体の中心の高さ（m）")]
-        private float _heightOffset = 1f;
+        private float _heightOffset = 3f;
 
         [SerializeField, Min(0.1f)]
         [Tooltip("文字の高さ（m）。ドット 7 つぶん")]
-        private float _letterHeight = 1.6f;
+        private float _letterHeight = 4.4f;
 
         [SerializeField, Min(1f)]
         [Tooltip("文字の奥行きの、ドット 1 つに対する倍率")]
@@ -86,17 +95,25 @@ namespace Kizami.EngineAdapter
         [Tooltip("輪郭線にする、文字より大きい殻の倍率")]
         private float _outlineScale = 1.08f;
 
-        [SerializeField]
-        [Tooltip("文字の色のマテリアル。未設定なら URP の Unlit シェーダーで作る")]
-        private Material _fillMaterial;
+        [SerializeField, Min(0.01f)]
+        [Tooltip("1 文字が出る演出の時間（秒）。ゲーム内の時間の倍率に関係なく進む")]
+        private float _popDuration = 0.4f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("文字ごとの傾き（度）の幅。0 から ± この値の間でばらつかせる")]
-        private float _rollRange = 8f;
+        [Tooltip("隣の文字が出始めるまでの間隔（秒）。左の文字から順に出る")]
+        private float _popInterval = 0.07f;
 
-        [SerializeField, Min(0.01f)]
-        [Tooltip("文字が出る時間（秒）。ゲーム内の時間の倍率に関係なく進む")]
-        private float _popDuration = 0.18f;
+        [SerializeField, Min(1f)]
+        [Tooltip("出る演出で最も大きくなったときの大きさ（元の大きさに対する倍率）")]
+        private float _popPeakScale = 2.2f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("出る演出の始めに、元の向きから文字の面の中で回っている角度（度）")]
+        private float _popSpinDegrees = 540f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("出てから敵や建物より手前に描く時間（秒）。1 文字の演出の始まりから数える")]
+        private float _frontDuration = 0.6f;
 
         [SerializeField, Min(1)]
         [Tooltip("同時に置いておく組の数の上限。超えたら古い組から消す")]
@@ -129,16 +146,28 @@ namespace Kizami.EngineAdapter
         private System.Func<CuttableObject, bool> _untrackFragment;
 
         private MeleeCutAdapter _cutter;
+        private Material _fillMaterial;
         private Material _capMaterial;
         private Material _outlineMaterial;
+        private Material _fillOverlayMaterial;
+        private Material _outlineOverlayMaterial;
 
         /// <summary> 出ている文字。つかまれていない文字と、つかまれて運ばれている文字を含み、投げられて消えた文字は含まない </summary>
         public IReadOnlyList<BrilliantLetter> Letters => _letters;
 
-        private static Material CreateMaterial(Shader shader, Color color)
+        /// <summary>
+        /// 材質を作る。輪郭線の殻は表の面を描かない。手前に描く材質は、深度テストをせず深度も書かず、文字より輪郭線を先に描く。
+        /// </summary>
+        private static Material CreateMaterial(Shader shader, Color color, bool isOutline, bool isOverlay)
         {
             var material = new Material(shader);
             material.SetColor("_BaseColor", color);
+            material.SetFloat("_Cull", (float)(isOutline ? CullMode.Front : CullMode.Back));
+            if (!isOverlay) return material;
+
+            material.SetFloat("_ZTest", (float)CompareFunction.Always);
+            material.SetFloat("_ZWrite", 0f);
+            material.renderQueue = isOutline ? OVERLAY_OUTLINE_QUEUE : OVERLAY_FILL_QUEUE;
             return material;
         }
 
@@ -196,6 +225,8 @@ namespace Kizami.EngineAdapter
 
                     Untrack(result.Front);
                     Untrack(result.Back);
+                    UseNormalMaterial(result.Front);
+                    UseNormalMaterial(result.Back);
                     _halves.Add(result.Front);
                     _halves.Add(result.Back);
                     secondCuts ??= new List<(CuttableObject[], Vector3)>();
@@ -257,6 +288,22 @@ namespace Kizami.EngineAdapter
             }
         }
 
+        /// <summary>
+        /// 手前に描く材質のまま切られたかけらを、普通に描く材質に直す。かけらは切られた文字の材質を引き継ぐ為。
+        /// </summary>
+        private void UseNormalMaterial(CuttableObject fragment)
+        {
+            if (fragment == null || fragment.Renderer == null) return;
+
+            var materials = fragment.Renderer.sharedMaterials;
+            for (var i = 0; i < materials.Length; i++)
+            {
+                if (materials[i] == _fillOverlayMaterial) materials[i] = _fillMaterial;
+            }
+
+            fragment.Renderer.sharedMaterials = materials;
+        }
+
         private void RestoreLayer(CuttableObject piece)
         {
             if (_originalLayers.Remove(piece, out var layer)) piece.gameObject.layer = layer;
@@ -272,17 +319,18 @@ namespace Kizami.EngineAdapter
 
         private void Awake()
         {
-            var shader = Shader.Find("Universal Render Pipeline/Unlit");
+            var shader = Shader.Find("Kizami/BrilliantLetter");
             if (shader == null)
             {
-                UsefulLogger.LogError("Universal Render Pipeline/Unlit シェーダーが見つからない為、文字の色を付けられません。", this);
+                UsefulLogger.LogError("Kizami/BrilliantLetter シェーダーが見つからない為、文字の色を付けられません。", this);
                 return;
             }
 
-            if (_fillMaterial == null) _fillMaterial = CreateMaterial(shader, _fillColor);
-            _capMaterial = CreateMaterial(shader, _capColor);
-            _outlineMaterial = CreateMaterial(shader, _outlineColor);
-            _outlineMaterial.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Front);
+            _fillMaterial = CreateMaterial(shader, _fillColor, false, false);
+            _capMaterial = CreateMaterial(shader, _capColor, false, false);
+            _outlineMaterial = CreateMaterial(shader, _outlineColor, true, false);
+            _fillOverlayMaterial = CreateMaterial(shader, _fillColor, false, true);
+            _outlineOverlayMaterial = CreateMaterial(shader, _outlineColor, true, true);
         }
 
         private void LateUpdate()
@@ -306,9 +354,16 @@ namespace Kizami.EngineAdapter
             forward = forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.forward;
             var right = Vector3.Cross(Vector3.up, forward);
 
+            // 言葉全体を、水平面の中で左右のどちらかへ傾ける。文字は言葉の向きに揃え、読む向きの面をカメラ側へ向ける
+            var tilt = Random.Range(_tiltMinAngle, _tiltMaxAngle) * (Random.value < 0.5f ? -1f : 1f);
+            var wordRight = Quaternion.AngleAxis(tilt, Vector3.up) * right;
+            var wordRotation = Quaternion.LookRotation(Vector3.Cross(wordRight, Vector3.up), Vector3.up);
+            var center = cameraPosition + forward * _centerDistance;
+
             var group = new GameObject("BrilliantSkillGroup");
             group.transform.SetParent(transform, false);
 
+            var letterIndex = 0;
             var lineCount = _pendingWords.Count;
             for (var line = 0; line < lineCount; line++)
             {
@@ -318,11 +373,10 @@ namespace Kizami.EngineAdapter
                 {
                     if (char.IsWhiteSpace(word[i])) continue;
 
-                    var offset = (i - (word.Length - 1) * 0.5f) * _letterSpacing;
-                    var depth = Mathf.Max(_minDistance, _centerDistance - Mathf.Abs(offset) * _depthSlope);
-                    var position = cameraPosition + forward * depth + right * offset;
+                    var position = center + wordRight * ((i - (word.Length - 1) * 0.5f) * _letterSpacing);
                     position.y = y;
-                    CreateLetter(group.transform, word[i], position, cameraPosition);
+                    CreateLetter(group.transform, word[i], position, wordRotation, letterIndex * _popInterval);
+                    letterIndex++;
                 }
             }
 
@@ -331,24 +385,26 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 文字を 1 つ作る。メッシュの表（-Z 側）がカメラへ向くよう、カメラから見て奥へ向ける。
+        /// 文字を 1 つ作る。メッシュの表（-Z 側）が言葉のカメラ側を向く。
         /// 切れるようにメッシュを登録し、つかむ為の当たり判定と、輪郭線の殻を付ける。メッシュを作れない文字は出さない。
         /// </summary>
-        private void CreateLetter(Transform parent, char character, Vector3 position, Vector3 cameraPosition)
+        /// <param name="parent">組のオブジェクト</param>
+        /// <param name="character">文字</param>
+        /// <param name="position">文字の中心</param>
+        /// <param name="rotation">文字の向き</param>
+        /// <param name="popDelay">出る演出を始めるまでの時間（秒）</param>
+        private void CreateLetter(Transform parent, char character, Vector3 position, Quaternion rotation,
+            float popDelay)
         {
             var cellSize = _letterHeight / VoxelLetterMesh.GLYPH_HEIGHT;
             if (!VoxelLetterMesh.TryGetMesh(character, cellSize, cellSize * _letterDepthCells, out var mesh)) return;
-
-            var awayFromCamera = Vector3.ProjectOnPlane(position - cameraPosition, Vector3.up);
-            var rotation = Quaternion.LookRotation(awayFromCamera) *
-                           Quaternion.Euler(0f, 0f, Random.Range(-_rollRange, _rollRange));
 
             var letterObject = new GameObject(character.ToString());
             letterObject.transform.SetParent(parent, false);
             letterObject.transform.SetPositionAndRotation(position, rotation);
 
             letterObject.AddComponent<MeshFilter>().sharedMesh = mesh;
-            letterObject.AddComponent<MeshRenderer>().sharedMaterial = _fillMaterial;
+            var fillRenderer = letterObject.AddComponent<MeshRenderer>();
 
             var box = letterObject.AddComponent<BoxCollider>();
             box.center = mesh.bounds.center;
@@ -360,9 +416,13 @@ namespace Kizami.EngineAdapter
             var cuttable = letterObject.AddComponent<CuttableObject>();
             cuttable.CapMaterial = _capMaterial;
             JsonUtility.FromJsonOverwrite(CUT_SETTINGS_JSON, cuttable);
+
+            var outlineRenderer = CreateOutline(letterObject.transform, mesh);
             var letter = letterObject.AddComponent<BrilliantLetter>();
             letter.Touched += OnLetterTouched;
-            letter.StartPop(_popDuration);
+            letter.SetFrontPhase(fillRenderer, outlineRenderer, _fillOverlayMaterial, _outlineOverlayMaterial,
+                _fillMaterial, _outlineMaterial, _frontDuration);
+            letter.StartPop(popDelay, _popDuration, _popPeakScale, _popSpinDegrees);
             _letters.Add(letter);
 
             if (MeshDataCache.Instance != null && MeshDataCache.Instance.Store != null &&
@@ -370,20 +430,18 @@ namespace Kizami.EngineAdapter
             {
                 _cuttableLetters[cuttable] = letter;
             }
-
-            CreateOutline(letterObject.transform, mesh);
         }
 
         /// <summary>
         /// 輪郭線として、裏面だけ描く少し大きい殻を子に付ける。
         /// </summary>
-        private void CreateOutline(Transform letterTransform, Mesh mesh)
+        private Renderer CreateOutline(Transform letterTransform, Mesh mesh)
         {
             var outline = new GameObject("Outline");
             outline.transform.SetParent(letterTransform, false);
             outline.transform.localScale = Vector3.one * _outlineScale;
             outline.AddComponent<MeshFilter>().sharedMesh = mesh;
-            outline.AddComponent<MeshRenderer>().sharedMaterial = _outlineMaterial;
+            return outline.AddComponent<MeshRenderer>();
         }
 
         /// <summary>
@@ -413,8 +471,13 @@ namespace Kizami.EngineAdapter
 
         private void OnDestroy()
         {
-            if (_capMaterial != null) Destroy(_capMaterial);
-            if (_outlineMaterial != null) Destroy(_outlineMaterial);
+            foreach (var material in new[]
+                     {
+                         _fillMaterial, _capMaterial, _outlineMaterial, _fillOverlayMaterial, _outlineOverlayMaterial
+                     })
+            {
+                if (material != null) Destroy(material);
+            }
         }
     }
 }
