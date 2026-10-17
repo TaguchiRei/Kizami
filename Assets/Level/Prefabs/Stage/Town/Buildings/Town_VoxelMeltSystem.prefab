@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1880784653946416053
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4439392973645273622}
+  - component: {fileID: 2966846033052351212}
+  m_Layer: 0
+  m_Name: Town_VoxelMeltSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4439392973645273622
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1880784653946416053}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2966846033052351212
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1880784653946416053}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cbe15c00b17875428330e945305e3cc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelMeltSystem
+  _settings: {fileID: 11400000, guid: ad499fcc5db37044eb7c10a306021374, type: 2}
+  _maxParticles: 20000
+  _environmentLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _destroyBelowY: -20
+  _renderMode: 0
+  _particleMaterial: {fileID: 2100000, guid: 81048d6dd9ace5240a698ee5263b1886, type: 2}
+  _surfaceVoxelSize: 0.02
+  _surfaceRadiusScale: 1.5
+  _surfaceBlend: 0.03
+  _particleMesh: {fileID: 0}
