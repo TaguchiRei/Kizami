@@ -256,8 +256,8 @@ namespace Kizami.EngineAdapter
         /// <summary> 部隊の命令を決める関数（EnemySquadService.Step）。引数は経過時間（秒） </summary>
         private Action<float> _stepSquads;
 
-        /// <summary> 敵を倒したときに呼ぶ処理。引数は倒した数。吸収された敵は含めない </summary>
-        private Action<int> _onDefeated;
+        /// <summary> 敵を倒したときに呼ぶ処理。吸収された敵は含めない </summary>
+        private Action<EnemyDefeatNotice> _onDefeated;
 
         private IEnemySquadCommandState _commandState;
 
@@ -460,8 +460,8 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 敵を倒したときに呼ぶ処理を設定する。核を切って倒した敵と、崩落で倒した敵を通知する。フィニッシャーに吸収された敵は、プレイヤーが倒していないので通知しない。
         /// </summary>
-        /// <param name="onDefeated">倒したときに呼ぶ処理。引数は倒した数</param>
-        public void SetOnDefeated(Action<int> onDefeated)
+        /// <param name="onDefeated">倒したときに呼ぶ処理。同じ原因で同時に倒した敵をまとめて渡す</param>
+        public void SetOnDefeated(Action<EnemyDefeatNotice> onDefeated)
         {
             _onDefeated = onDefeated;
         }
@@ -486,12 +486,13 @@ namespace Kizami.EngineAdapter
             if (!Initialized || results == null) return;
 
             var defeatedCount = 0;
+            var positionSum = float3.zero;
             foreach (var lender in _bodyLenders)
             {
-                if (lender != null) defeatedCount += lender.ReceiveCutResults(results, plane, _agents);
+                if (lender != null) defeatedCount += lender.ReceiveCutResults(results, plane, _agents, ref positionSum);
             }
 
-            if (defeatedCount > 0) _onDefeated?.Invoke(defeatedCount);
+            NotifyDefeated(defeatedCount, EnemyDefeatCause.Cut, positionSum);
         }
 
         private void Update()
@@ -845,6 +846,7 @@ namespace Kizami.EngineAdapter
         private void CountCollapseDefeats()
         {
             var defeatedCount = 0;
+            var positionSum = float3.zero;
             for (var i = 0; i < _agents.Length; i++)
             {
                 var agent = _agents[i];
@@ -854,10 +856,21 @@ namespace Kizami.EngineAdapter
                 _agents[i] = agent;
                 CollapseDefeatCount++;
                 defeatedCount++;
+                positionSum += agent.Position;
                 _emitEnergy?.Invoke((Vector3)agent.Position + Vector3.up * _crushBodyCenterHeight);
             }
 
-            if (defeatedCount > 0) _onDefeated?.Invoke(defeatedCount);
+            NotifyDefeated(defeatedCount, EnemyDefeatCause.Collapse, positionSum);
+        }
+
+        /// <summary>
+        /// 倒した敵がいれば、数と原因と位置の平均を通知する。
+        /// </summary>
+        private void NotifyDefeated(int defeatedCount, EnemyDefeatCause cause, float3 positionSum)
+        {
+            if (defeatedCount <= 0) return;
+
+            _onDefeated?.Invoke(new EnemyDefeatNotice(defeatedCount, cause, positionSum / defeatedCount));
         }
 
         /// <summary>

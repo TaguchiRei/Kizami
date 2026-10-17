@@ -128,10 +128,10 @@ namespace Kizami.Initialization
         /// <summary>
         /// 倒した敵の数を、流れの State と案内のログへ渡す。
         /// </summary>
-        private void OnDefeated(int count)
+        private void OnDefeated(EnemyDefeatNotice notice)
         {
-            _flowService.AddDefeats(count);
-            _guideService.AddDefeats(count);
+            _flowService.AddDefeats(notice.Count);
+            _guideService.AddDefeats(notice.Count);
         }
 
         /// <summary>
