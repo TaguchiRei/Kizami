@@ -11,6 +11,8 @@ namespace Kizami.EngineAdapter
     /// 範囲が複数のピースにまたがるときも、範囲内のすべてのピースを削る。手付かずの形のメッシュのまま置いたモデル（VoxelModelLoader.LoadStatic）に当たったら、ボクセルにしてから削る。
     /// 攻撃は強さと減衰率で当て、普通の強度の素材がちょうど指定の半径で削れる強さにする。柔い素材は深く、硬い素材は浅く削れる。
     /// 破壊タイプの攻撃として、装甲のパネルに当たったら1回当たったものとし、装甲の奥のピースは削らない。
+    /// ガラスの板は削らずに割る。割る範囲は、攻撃の半径に、窓の周りの壁の厚さ分の余白を足したもの。周りの壁を削る攻撃でガラスも割れ、壁が消えてガラスだけ宙に残ることを防ぐ。
+    /// 素材の強度で広げた削る範囲は使わない。柔い素材まで届く範囲は広すぎ、離れた窓まで割れる為。
     /// </summary>
     public sealed class VoxelDestructionAdapter : MonoBehaviour
     {
@@ -19,6 +21,7 @@ namespace Kizami.EngineAdapter
 
         private readonly Collider[] _hitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly Collider[] _armorHitBuffer = new Collider[MAX_HIT_COUNT];
+        private readonly Collider[] _glassHitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly HashSet<VoxelPiece> _pieces = new();
         private readonly HashSet<ArmorPanel> _armorPanels = new();
 
@@ -41,6 +44,10 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0.01f)]
         [Tooltip("爆発の、1m あたりに減る強さ")]
         private float _explosionFalloff = 0.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ガラスの板を割る範囲に、攻撃の半径へ足す余白（m）。窓の周りの壁の厚さに合わせる")]
+        private float _glassMargin = 1.2f;
 
         [SerializeField]
         [Tooltip("狙う先と、削るピースを探すレイヤー")]
@@ -79,6 +86,9 @@ namespace Kizami.EngineAdapter
                 return;
             }
 
+            ShatterGlass(Physics.OverlapSphereNonAlloc(hit.point, _radius + _glassMargin, _glassHitBuffer, _targetLayers,
+                QueryTriggerInteraction.Ignore), hit.point);
+
             var reach = ReachRadius(_radius, _aimFalloff);
             var hitCount = Physics.OverlapSphereNonAlloc(hit.point, reach, _hitBuffer, _targetLayers,
                 QueryTriggerInteraction.Ignore);
@@ -111,6 +121,9 @@ namespace Kizami.EngineAdapter
             }
 
             var end = start + forward * length;
+            ShatterGlass(Physics.OverlapCapsuleNonAlloc(start, end, radius + _glassMargin, _glassHitBuffer, _targetLayers,
+                QueryTriggerInteraction.Ignore), start);
+
             var reach = ReachRadius(radius, _beamFalloff);
             var hitCount = Physics.OverlapCapsuleNonAlloc(start, end, reach, _hitBuffer, _targetLayers,
                 QueryTriggerInteraction.Ignore);
@@ -138,6 +151,8 @@ namespace Kizami.EngineAdapter
         public void CarveExplosionAt(Vector3 center, float radius)
         {
             CollectArmorPanels(center, radius);
+            ShatterGlass(Physics.OverlapSphereNonAlloc(center, radius + _glassMargin, _glassHitBuffer, _targetLayers,
+                QueryTriggerInteraction.Ignore), center);
 
             var reach = ReachRadius(radius, _explosionFalloff);
             var hitCount = Physics.OverlapSphereNonAlloc(center, reach, _hitBuffer, _targetLayers,
@@ -186,6 +201,18 @@ namespace Kizami.EngineAdapter
             for (var i = 0; i < hitCount; i++)
             {
                 if (_armorHitBuffer[i].TryGetComponent(out ArmorPanel armorPanel)) _armorPanels.Add(armorPanel);
+            }
+        }
+
+        /// <summary>
+        /// _glassHitBuffer に集めたコライダーのうち、ガラスの板を origin を起点に割る。
+        /// </summary>
+        private void ShatterGlass(int hitCount, Vector3 origin)
+        {
+            for (var i = 0; i < hitCount; i++)
+            {
+                var glass = _glassHitBuffer[i].GetComponentInParent<GlassPane>();
+                if (glass != null) glass.Shatter(origin);
             }
         }
 

@@ -440,7 +440,7 @@ B-10 の確認で見つけたこと
 
 ### 使い方
 
-- 建物は、空の GameObject に `VoxelBuilding` を付け、1 階・中間階・屋上のベイク（`VoxelModelAsset`）、階の数、階の高さ（4m）、品質設定（`VoxelQuality_Building`）を設定する。階は Awake で子に作る
+- 建物は、空の GameObject に `VoxelBuilding` を付け、下から順の区間（区間ごとに 1 階分のベイク `VoxelModelAsset`・付属物のプレハブ・積む回数）、階の高さ（4m）、品質設定（`VoxelQuality_Building`）を設定する。一番上の区間以外のモデルは、高さを階の高さにそろえる。階は Awake で子に作る
 - 建物の高さは、ステージの天井より低くする。囲いの層は `StageBounds` にする（建物や破片と当たらない）
 - 階のプレハブは、部材の寸法と位置を 0.4m の倍数にし、素材の違う箱を重ねない（鉄筋の周りのコンクリートは、鉄筋と重ならない 4 つの箱で組む）。硬い部材には `VoxelBakeMaterial` を付ける
 - ベイクは、ボクセル 0.2m・最大距離 1.6・余白 12・階層をまとめる・内外の補正 0 回（`BuildingFloorTall` と同じ）

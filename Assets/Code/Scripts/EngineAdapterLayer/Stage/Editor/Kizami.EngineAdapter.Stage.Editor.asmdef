@@ -1,0 +1,18 @@
+{
+    "name": "Kizami.EngineAdapter.Stage.Editor",
+    "rootNamespace": "Kizami.Editor",
+    "references": [
+        "Kizami.EngineAdapter.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -10,6 +10,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 1階分ずつベイクしたボクセルのモデルを、縦に積み重ねた大きな建物。ステージシーンへ置く。
+    /// 階は区間の並びで決め、区間ごとに同じモデルを指定の回数だけ積む。上下で平面の大きさが違う階も積める。
     /// 階ごとに別の VoxelModelLoader にし、削ったときの分離の判定を削った階だけで済ませる。
     /// 階は Awake で作り、Start で手付かずの形のメッシュ（VoxelModelLoader.LoadStatic）で置く。
     /// プレイヤーから差し替える距離の中にかかった階と、攻撃が当たった階（VoxelDestructionAdapter が読み込む）だけをボクセルにする。
@@ -19,6 +20,7 @@ namespace Kizami.EngineAdapter
     /// 階とパーツは回転させずに置く前提で、点の対応は建物のローカル空間の水平座標を格子の番号にして取る。
     /// 境目が切れたら、その上の階をまとめて1つの Rigidbody の子にして落とす。当たり判定は各階のチャンクの BoxCollider をそのまま使う。
     /// 落ちた Rigidbody が眠ったらキネマティックにして止め、地形として残す。落ちた階は、以後つながりを判定しない。
+    /// 階ごとに、ガラスの板などボクセルにしない付属物のプレハブを、階の子として置く。階と一緒に落ち、倒れ始めたらガラスを割る。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/LargeObjectVoxel.md">説明ドキュメント: 巨大なオブジェクトへのボクセルの適用</seealso>
     public sealed class VoxelBuilding : MonoBehaviour
@@ -45,20 +47,8 @@ namespace Kizami.EngineAdapter
         private readonly ActionChannel<Rigidbody> _collapsed = new();
 
         [SerializeField]
-        [Tooltip("1 階のモデル")]
-        private VoxelModelAsset _groundFloor;
-
-        [SerializeField]
-        [Tooltip("2 階から上の階のモデル")]
-        private VoxelModelAsset _middleFloor;
-
-        [SerializeField]
-        [Tooltip("一番上に積む屋上のモデル。未設定なら積まない")]
-        private VoxelModelAsset _roof;
-
-        [SerializeField, Min(1)]
-        [Tooltip("屋上を除いた階の数")]
-        private int _floorCount = 5;
+        [Tooltip("下から順に積む区間。区間ごとに、モデルと付属物を指定の回数だけ積む")]
+        private FloorSection[] _sections = Array.Empty<FloorSection>();
 
         [SerializeField, Min(0.01f)]
         [Tooltip("1 階の高さ（m）。ボクセルの大きさの倍数にする")]
@@ -164,20 +154,26 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// floorIndex 階のモデル。1階・中間階・屋上の順に決まる。
+        /// floorIndex 階が属する区間。
         /// </summary>
-        private VoxelModelAsset GetFloorModel(int floorIndex)
+        private FloorSection GetSection(int floorIndex)
         {
-            if (floorIndex == 0) return _groundFloor;
+            foreach (var section in _sections)
+            {
+                if (floorIndex < section.Count) return section;
 
-            return floorIndex < _floorCount ? _middleFloor : _roof;
+                floorIndex -= section.Count;
+            }
+
+            throw new ArgumentOutOfRangeException(nameof(floorIndex));
         }
 
         /// <summary>
-        /// 階を作る。読み込みは Start で、手付かずの形のメッシュから始める。
+        /// 階を作る。読み込みは Start で、手付かずの形のメッシュから始める。付属物があれば階の子に置く。
         /// </summary>
-        private void CreateFloor(int floorIndex, VoxelModelAsset model)
+        private void CreateFloor(int floorIndex, FloorSection section)
         {
+            var model = section.Model;
             var floorObject = new GameObject($"Floor_{floorIndex:00}")
             {
                 layer = gameObject.layer
@@ -186,6 +182,8 @@ namespace Kizami.EngineAdapter
             floorObject.transform.localPosition = new Vector3(0f, floorIndex * _floorHeight, 0f);
 
             var loader = floorObject.AddComponent<VoxelModelLoader>();
+            // VoxelModelLoader は Awake で子の MeshRenderer を元のモデルとして控えて隠すので、付属物はその後に置く
+            if (section.Attachments != null) Instantiate(section.Attachments, floorObject.transform, false);
             loader.SetModel(model);
             loader.SetQuality(_quality);
             loader.SetMeltSystem(_meltSystem);
@@ -396,7 +394,19 @@ namespace Kizami.EngineAdapter
 
             var body = AddGroupBody(groupObject);
             _fallingBodies.Add(body);
+            ShatterGlass(groupObject.transform, body.worldCenterOfMass);
             _collapsed.Invoke(body);
+        }
+
+        /// <summary>
+        /// group の子にあるガラスの板をすべて、origin から外へ破片を飛ばして割る。
+        /// </summary>
+        private static void ShatterGlass(Transform group, Vector3 origin)
+        {
+            foreach (var glass in group.GetComponentsInChildren<GlassPane>())
+            {
+                glass.Shatter(origin);
+            }
         }
 
         /// <summary>
@@ -731,7 +741,7 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private byte[] CreateMaterialWeights(int floorIndex)
         {
-            var weights = new byte[GetFloorModel(floorIndex).Materials.Count];
+            var weights = new byte[GetSection(floorIndex).Model.Materials.Count];
             for (var i = 0; i < weights.Length; i++)
             {
                 weights[i] = _floors[floorIndex].GetMaterialStrength(i) == VoxelStrength.Hard ? (byte)_hardWeight : (byte)1;
@@ -768,16 +778,19 @@ namespace Kizami.EngineAdapter
 
         private void Awake()
         {
-            if (_groundFloor == null || _middleFloor == null || _quality == null)
+            if (_sections.Length == 0 || Array.Exists(_sections, section => section.Model == null) || _quality == null)
             {
-                UsefulLogger.LogError("1 階・中間階のモデル、または VoxelQualitySettings が設定されていません。", this);
+                UsefulLogger.LogError("区間、区間のモデル、または VoxelQualitySettings が設定されていません。", this);
                 return;
             }
 
-            var layerCount = _floorCount + (_roof != null ? 1 : 0);
-            for (var i = 0; i < layerCount; i++)
+            var floorIndex = 0;
+            foreach (var section in _sections)
             {
-                CreateFloor(i, GetFloorModel(i));
+                for (var i = 0; i < section.Count; i++)
+                {
+                    CreateFloor(floorIndex++, section);
+                }
             }
         }
 
@@ -827,6 +840,29 @@ namespace Kizami.EngineAdapter
             }
 
             _floorMaterials.Clear();
+        }
+
+        /// <summary>
+        /// 同じモデルの階を続けて積む区間。
+        /// </summary>
+        [Serializable]
+        private sealed class FloorSection
+        {
+            [SerializeField]
+            [Tooltip("1 階分のモデル。一番上の区間以外は、高さを階の高さにそろえる")]
+            private VoxelModelAsset _model;
+
+            [SerializeField]
+            [Tooltip("階ごとに置く付属物（ガラスの板など）。未設定なら置かない")]
+            private GameObject _attachments;
+
+            [SerializeField, Min(1)]
+            [Tooltip("積む回数")]
+            private int _count = 1;
+
+            public VoxelModelAsset Model => _model;
+            public GameObject Attachments => _attachments;
+            public int Count => _count;
         }
 
         /// <summary>

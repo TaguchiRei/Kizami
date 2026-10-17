@@ -92,3 +92,6 @@ Assets/LocalAssets/
 # uloop のスキルは Unity エディタが動く環境でしか使えないので追跡しない
 .claude/skills/uloop-*/
 .uloop/
+
+# Blender の生成スクリプトを実行すると作られる
+__pycache__/

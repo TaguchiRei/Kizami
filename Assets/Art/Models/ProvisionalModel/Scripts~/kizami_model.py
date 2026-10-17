@@ -1,4 +1,5 @@
 """ステージ用仮モデルの共通処理。0.4 m のセル格子に素材を割り当て、素材ごとの閉じたメッシュにする。"""
+import json
 import math
 import os
 
@@ -10,6 +11,8 @@ CELL = 0.4
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BLEND_DIR = os.path.join(ROOT_DIR, "Blender~")
+# マップ用モデルの FBX の置き場所
+STAGE_DIR = os.path.join(os.path.dirname(ROOT_DIR), "Stage")
 
 # 面の向きと、その面の 4 頂点（セルの最小の隅からのオフセット、外から見て反時計回り）
 _FACES = [
@@ -83,7 +86,162 @@ MATERIAL_PREVIEW_COLORS = {
     "Rebar": (0.15, 0.25, 0.6, 1),
     "Metal": (0.3, 0.3, 0.35, 1),
     "Wood": (0.6, 0.45, 0.25, 1),
+    "Glass": (0.55, 0.75, 0.85, 1),
+    "Machine": (0.75, 0.35, 0.1, 1),
 }
+
+
+def build_model_from_boxes(model_name, boxes, size):
+    """boxes は [(素材名, (x0, y0, z0), (x1, y1, z1))]（セル単位、終端は含まない）。大きい建物用。
+
+    箱ごとに閉じた直方体にして、素材ごとに 1 つのメッシュにまとめる。セルごとに面を張るとポリゴンが多すぎるため。
+    """
+    for i, (_, lo_a, hi_a) in enumerate(boxes):
+        for _, lo_b, hi_b in boxes[i + 1:]:
+            if all(lo_a[k] < hi_b[k] and lo_b[k] < hi_a[k] for k in range(3)):
+                raise ValueError(f"箱が重なっている: {lo_a}-{hi_a} と {lo_b}-{hi_b}")
+
+    root = bpy.data.objects.new(model_name, None)
+    bpy.context.collection.objects.link(root)
+    offset = (-size[0] * CELL / 2, -size[1] * CELL / 2, 0.0)
+
+    by_material = {}
+    for mat_name, lo_c, hi_c in boxes:
+        by_material.setdefault(mat_name, []).append((lo_c, hi_c))
+
+    for mat_name in sorted(by_material):
+        verts, faces = [], []
+        for lo_c, hi_c in by_material[mat_name]:
+            base = len(verts)
+            for cz in (lo_c[2], hi_c[2]):
+                for cy in (lo_c[1], hi_c[1]):
+                    for cx in (lo_c[0], hi_c[0]):
+                        verts.append(tuple(round(c * CELL + o, 4) for c, o in zip((cx, cy, cz), offset)))
+            # 頂点の番号は x + 2y + 4z
+            for quad in ((0, 2, 3, 1), (4, 5, 7, 6), (0, 1, 5, 4), (2, 6, 7, 3), (0, 4, 6, 2), (1, 3, 7, 5)):
+                faces.append([base + q for q in quad])
+        name = f"{model_name}_{mat_name}"
+        mesh = bpy.data.meshes.new(name)
+        mesh.from_pydata(verts, [], faces)
+        mesh.update()
+        obj = bpy.data.objects.new(name, mesh)
+        bpy.context.collection.objects.link(obj)
+        mat = bpy.data.materials.get(mat_name) or bpy.data.materials.new(mat_name)
+        mat.diffuse_color = MATERIAL_PREVIEW_COLORS.get(mat_name, (0.5, 0.5, 0.5, 1))
+        obj.data.materials.append(mat)
+        obj.parent = root
+    return root
+
+
+# 窓のガラスの板 1 枚の最大の幅（m）。開口はこの幅以下の板に等分する
+GLASS_PANE_MAX_WIDTH = 1.6
+
+
+def extract_glass(boxes, size):
+    """boxes から Glass の箱を抜き、残りの箱と、ガラスの板の配置を返す。
+
+    ガラスはボクセルにせず、Unity で GlassPane の板を置く。配置は Unity の座標（FBX の書き出しで (-x, z, -y) になる）で、
+    板の底面の中心 `Position`、幅と高さ `Size`、Y 軸まわりの回転 `Yaw`（度）を持つ。板は厚さの向きが Z のときに yaw 0。
+    """
+    rest, panes = [], []
+    offset = (-size[0] * CELL / 2, -size[1] * CELL / 2, 0.0)
+    for mat_name, lo_c, hi_c in boxes:
+        if mat_name != "Glass":
+            rest.append((mat_name, lo_c, hi_c))
+            continue
+        lo = [c * CELL + o for c, o in zip(lo_c, offset)]
+        hi = [c * CELL + o for c, o in zip(hi_c, offset)]
+        # 開口の幅の向きは、箱の水平の辺の長い方
+        along = 0 if hi[0] - lo[0] >= hi[1] - lo[1] else 1
+        across = 1 - along
+        width, height = hi[along] - lo[along], hi[2] - lo[2]
+        count = max(1, math.ceil(width / GLASS_PANE_MAX_WIDTH - 1e-6))
+        pane_width = width / count
+        middle = (lo[across] + hi[across]) / 2
+        for i in range(count):
+            center = [0.0, 0.0]
+            center[along] = lo[along] + pane_width * (i + 0.5)
+            center[across] = middle
+            panes.append({
+                "Position": [round(-center[0], 4), round(lo[2], 4), round(-center[1], 4)],
+                "Size": [round(pane_width, 4), round(height, 4)],
+                "Yaw": 0 if along == 0 else 90,
+            })
+    return rest, panes
+
+
+def save_glass(model_name, panes, fbx_dir):
+    """ガラスの板の配置を、FBX の隣に `<モデル名>_Glass.json` で書き出す。"""
+    with open(os.path.join(fbx_dir, model_name + "_Glass.json"), "w", encoding="utf-8") as f:
+        json.dump({"Panes": panes}, f, ensure_ascii=False, indent=1)
+
+
+def _wall_box(along, a0, a1, b0, b1, z0, z1):
+    """壁の向きの座標（a）と厚さの向きの座標（b）から、箱の (lo, hi) を作る。along は壁が延びる軸（"x" か "y"）。"""
+    if along == "x":
+        return (a0, b0, z0), (a1, b1, z1)
+    return (b0, a0, z0), (b1, a1, z1)
+
+
+def wall(boxes, along, start, end, offset, z0, z1, rebar_top=None, cap_bottom=False):
+    """厚さ 3 セルの壁。外と内の層はコンクリート、真ん中の層は鉄筋で、両端はコンクリートで覆う。
+
+    鉄筋は上下の階の壁とつながるよう z0 から通す。cap_bottom なら下端もコンクリートで覆う（地面に接する階）。
+    rebar_top を z1 より高くすると、鉄筋だけが壁の上から突き出す。
+    """
+    rebar_top = z1 if rebar_top is None else rebar_top
+    rebar_bottom = z0 + 1 if cap_bottom else z0
+    m = offset + 1
+    parts = [
+        ("Concrete", (start, end, offset, offset + 1, z0, z1)),
+        ("Concrete", (start, end, offset + 2, offset + 3, z0, z1)),
+        ("Concrete", (start, start + 1, m, m + 1, z0, z1)),
+        ("Concrete", (end - 1, end, m, m + 1, z0, z1)),
+        ("Rebar", (start + 1, end - 1, m, m + 1, rebar_bottom, rebar_top)),
+    ]
+    if cap_bottom:
+        parts.append(("Concrete", (start + 1, end - 1, m, m + 1, z0, rebar_bottom)))
+    for mat, (a0, a1, b0, b1, lo_z, hi_z) in parts:
+        if a1 > a0 and hi_z > lo_z:
+            boxes.append((mat,) + _wall_box(along, a0, a1, b0, b1, lo_z, hi_z))
+
+
+def wall_with_openings(boxes, along, start, end, offset, z0, z1, openings, cap_bottom=False):
+    """開口のある厚さ 3 セルの壁。openings は [(開口の始まり, 終わり, 下端, 上端, ガラスを入れるか)]（a と z はセル）。
+
+    開口の間の柱型は鉄筋入りの壁にし、開口の上下はコンクリートだけにする。ガラスは開口の真ん中の層に 1 セルの厚さで入れる。
+    """
+    cursor = start
+    for a0, a1, lo_z, hi_z, glass in sorted(openings):
+        if a0 > cursor:
+            wall(boxes, along, cursor, a0, offset, z0, z1, cap_bottom=cap_bottom)
+        if lo_z > z0:
+            boxes.append(("Concrete",) + _wall_box(along, a0, a1, offset, offset + 3, z0, lo_z))
+        if hi_z < z1:
+            boxes.append(("Concrete",) + _wall_box(along, a0, a1, offset, offset + 3, hi_z, z1))
+        if glass:
+            boxes.append(("Glass",) + _wall_box(along, a0, a1, offset + 1, offset + 2, lo_z, hi_z))
+        cursor = a1
+    if cursor < end:
+        wall(boxes, along, cursor, end, offset, z0, z1, cap_bottom=cap_bottom)
+
+
+def build_floor_models(prefix, parts):
+    """建物の階ごとのモデルをまとめて作る。parts は [(階の種類, 箱, (幅, 奥行き, 高さ) のセル数)]。
+
+    ガラスの箱は抜き出して配置の JSON にし、環境変数 KIZAMI_EXPORT が 1 なら FBX と JSON を Stage に書き出す。モデルごとの report を返す。
+    """
+    result = {}
+    for part, boxes, size in parts:
+        clear_scene()
+        boxes, panes = extract_glass(boxes, size)
+        root = build_model_from_boxes(f"{prefix}_{part}_01", boxes, size)
+        result[root.name] = dict(report(root), glass_panes=len(panes))
+        if os.environ.get("KIZAMI_EXPORT") == "1":
+            save_and_export(root, STAGE_DIR)
+            if panes:
+                save_glass(root.name, panes, STAGE_DIR)
+    return result
 
 
 def report(root):
@@ -147,12 +305,12 @@ def render_ortho(path, center=(0, 0, 2), dist=40.0, rot_x=70, rot_z=-35, ortho_s
     bpy.data.cameras.remove(cam_data)
 
 
-def save_and_export(root):
-    """`.blend` を Blender~ に保存し、FBX をこのフォルダの直下に書き出す。"""
+def save_and_export(root, fbx_dir=ROOT_DIR):
+    """`.blend` を Blender~ に保存し、FBX を fbx_dir に書き出す。"""
     os.makedirs(BLEND_DIR, exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(BLEND_DIR, root.name + ".blend"), copy=True)
     bpy.ops.export_scene.fbx(
-        filepath=os.path.join(ROOT_DIR, root.name + ".fbx"),
+        filepath=os.path.join(fbx_dir, root.name + ".fbx"),
         use_selection=False,
         object_types={'EMPTY', 'MESH'},
         apply_scale_options='FBX_SCALE_ALL',
