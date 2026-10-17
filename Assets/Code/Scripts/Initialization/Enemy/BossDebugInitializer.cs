@@ -10,7 +10,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// ボスの武装の状態の画面表示と、武装を順番に使わせる操作（6：タレット、7：レーザー、8：ミサイル、9：アウトリガー。BossMissiles・BossShockwaves があれば撃たせる）を行うデバッグ用の Initializer。ボスを置いたシーンへ置く。
+    /// ボスの武装の状態の画面表示と、武装を順番に使わせる操作（6：タレット、7：レーザー、8：ミサイル、9：アウトリガー。それぞれの武装の攻撃のコンポーネントがあれば撃たせる）を行うデバッグ用の Initializer。ボスを置いたシーンへ置く。
     /// 操作はデバッグ専用の為、入力マップに Action を足さず Keyboard.current を直接読む。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動く。
     /// </summary>
@@ -21,6 +21,14 @@ namespace Kizami.Initialization
         [SerializeField]
         [Tooltip("ボスの武装")]
         private BossWeapons _weapons;
+
+        [SerializeField]
+        [Tooltip("ボスの上部タレット。6 キーで撃たせる")]
+        private BossTurret _turret;
+
+        [SerializeField]
+        [Tooltip("ボスの下部レーザー。7 キーで撃たせる")]
+        private BossLaser _laser;
 
         [SerializeField]
         [Tooltip("ボスの脚のミサイル。8 キーで撃たせる")]
@@ -49,8 +57,17 @@ namespace Kizami.Initialization
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
 
-            if (keyboard.digit6Key.wasPressedThisFrame) Use(BossWeaponKind.Turret);
-            if (keyboard.digit7Key.wasPressedThisFrame) Use(BossWeaponKind.Laser);
+            if (keyboard.digit6Key.wasPressedThisFrame)
+            {
+                if (_turret != null) _turret.TryFire();
+                else Use(BossWeaponKind.Turret);
+            }
+
+            if (keyboard.digit7Key.wasPressedThisFrame)
+            {
+                if (_laser != null) _laser.TryFire();
+                else Use(BossWeaponKind.Laser);
+            }
             if (keyboard.digit8Key.wasPressedThisFrame)
             {
                 if (_missiles != null) _missiles.TryFire();

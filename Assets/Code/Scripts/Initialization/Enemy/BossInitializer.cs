@@ -14,6 +14,8 @@ namespace Kizami.Initialization
     {
         [SerializeField] private BossShockwaves _shockwaves;
         [SerializeField] private BossMissiles _missiles;
+        [SerializeField] private BossLaser _laser;
+        [SerializeField] private BossTurret _turret;
 
         private PlayerHealthService _healthService;
         private PlayerMovementService _movementService;
@@ -29,6 +31,16 @@ namespace Kizami.Initialization
             if (this.IsAssigned(_missiles, nameof(BossMissiles)))
             {
                 _missiles.Initialize(_healthService != null ? _healthService.ApplyDamage : null);
+            }
+
+            if (this.IsAssigned(_laser, nameof(BossLaser)))
+            {
+                _laser.Initialize(_healthService != null ? _healthService.ApplyDamage : null);
+            }
+
+            if (this.IsAssigned(_turret, nameof(BossTurret)))
+            {
+                _turret.Initialize(_healthService != null ? _healthService.ApplyDamage : null);
             }
 
             base.Initialize(blackBoard);
