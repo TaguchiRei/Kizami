@@ -10,14 +10,26 @@ namespace Kizami.EngineAdapter
     /// 出たあとは Kinematic で動かず、つかまれるまで出現位置にとどまる。
     /// つかまれている間は小さくして物理を止め、読む向きの先頭（頭文字の側）をカメラの前方へ向けて運ぶ。
     /// 投げられたら重力を無視してまっすぐ飛び、頭文字を進む先へ向ける（プレイヤーからは文字が読めない向き）。
+    /// 飛びながら出たときの大きさに戻る。戻る間は当たり判定を止め、地面に重ならない高さへ持ち上げる。
     /// </summary>
     [RequireComponent(typeof(Rigidbody), typeof(BoxCollider))]
     public sealed class BrilliantWord : MonoBehaviour
     {
+        /// <summary> 投げるときに、真下の面を探すレイの長さ（m） </summary>
+        private const float LIFT_RAY_DISTANCE = 200f;
+
         private readonly List<BrilliantLetter> _letters = new();
 
         private Rigidbody _body;
         private BoxCollider _collider;
+        private bool _isGrowing;
+        private float _growStartTime;
+        private float _growDuration;
+        private float _growFromScale;
+        private float _liftTotal;
+        private float _liftApplied;
+        private Vector3 _launchDirection;
+        private float _launchSpeed;
 
         /// <summary> つかんだときの、カメラから見た向き </summary>
         private Quaternion _carryRotation;
@@ -105,25 +117,67 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 運んでいる言葉を、運んでいた大きさのまま、頭文字を進む先へ向けて、重力なしでまっすぐ飛ばす。ぶつからないまま寿命が来たら消える。
-        /// 元の大きさに戻すと、運んでいる位置では地面やプレイヤーに重なる為、小さいまま飛ばす。
+        /// 運んでいる言葉を、頭文字を進む先へ向けて、重力なしでまっすぐ飛ばす。ぶつからないまま寿命が来たら消える。
+        /// 運んでいる位置で出たときの大きさに戻すと、地面やプレイヤーに重なる為、growDuration の間に飛びながら元の大きさに戻す。
+        /// 戻る間は当たり判定を止め、戻った大きさの箱の下端が、真下にある面から clearance 以上離れる高さまで持ち上げる。
         /// </summary>
         /// <param name="direction">飛ばす向き（正規化済み）</param>
         /// <param name="speed">速さ（m/s）</param>
-        /// <param name="lifetime">何にもぶつからないときに、消えるまでの時間（秒）</param>
-        public void Launch(Vector3 direction, float speed, float lifetime)
+        /// <param name="lifetime">元の大きさに戻ってから、何にもぶつからないときに消えるまでの時間（秒）</param>
+        /// <param name="growDuration">元の大きさに戻るまでの時間（秒）</param>
+        /// <param name="clearance">真下にある面から空ける高さ（m）</param>
+        public void Launch(Vector3 direction, float speed, float lifetime, float growDuration, float clearance)
         {
             IsCarried = false;
             IsThrown = true;
             transform.rotation = GetFlightRotation(direction);
-            _body.isKinematic = false;
+            _collider.enabled = false;
+            _launchDirection = direction;
+            _launchSpeed = speed;
+            _growFromScale = transform.localScale.x;
+            _growStartTime = Time.time;
+            _growDuration = growDuration;
+            _liftTotal = CalculateLift(clearance);
+            _liftApplied = 0f;
+            _isGrowing = true;
+            Destroy(gameObject, lifetime + growDuration);
+        }
+
+        /// <summary>
+        /// 元の大きさに戻り、当たり判定を戻して、重力なしの物理でまっすぐ飛ぶようにする。
+        /// </summary>
+        private void FinishGrowth()
+        {
+            _isGrowing = false;
+            transform.localScale = Vector3.one;
             _collider.enabled = true;
+            _body.isKinematic = false;
             _body.useGravity = false;
             _body.constraints = RigidbodyConstraints.FreezeRotation;
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            _body.linearVelocity = direction * speed;
+            _body.linearVelocity = _launchDirection * _launchSpeed;
             _body.angularVelocity = Vector3.zero;
-            Destroy(gameObject, lifetime);
+        }
+
+        /// <summary>
+        /// 元の大きさに戻った箱の下端を、真下にある面から clearance 離すのに要る持ち上げる高さを返す。真下に何もなければ 0。
+        /// 箱の下端は、今の向きの箱の、ワールドの Y 方向の広がりから求める。
+        /// </summary>
+        private float CalculateLift(float clearance)
+        {
+            var center = Center;
+            if (!Physics.Raycast(center, Vector3.down, out var hit, LIFT_RAY_DISTANCE, ~0,
+                    QueryTriggerInteraction.Ignore))
+            {
+                return 0f;
+            }
+
+            var size = _collider.size;
+            var halfHeight = 0.5f * (Mathf.Abs((transform.rotation * Vector3.right).y) * size.x +
+                                     Mathf.Abs((transform.rotation * Vector3.up).y) * size.y +
+                                     Mathf.Abs((transform.rotation * Vector3.forward).y) * size.z);
+            var bottom = center.y - halfHeight;
+            return Mathf.Max(0f, hit.point.y + clearance - bottom);
         }
 
         /// <summary>
@@ -143,6 +197,21 @@ namespace Kizami.EngineAdapter
         {
             _body = GetComponent<Rigidbody>();
             _collider = GetComponent<BoxCollider>();
+        }
+
+        private void Update()
+        {
+            if (!_isGrowing) return;
+
+            var progress = Mathf.Clamp01((Time.time - _growStartTime) / Mathf.Max(_growDuration, 0.0001f));
+            var remaining = 1f - progress;
+            var eased = 1f - remaining * remaining * remaining;
+            transform.localScale = Vector3.one * Mathf.Lerp(_growFromScale, 1f, eased);
+
+            var lift = _liftTotal * eased - _liftApplied;
+            _liftApplied += lift;
+            transform.position += _launchDirection * (_launchSpeed * Time.deltaTime) + Vector3.up * lift;
+            if (progress >= 1f) FinishGrowth();
         }
 
         private void OnCollisionEnter(Collision collision)

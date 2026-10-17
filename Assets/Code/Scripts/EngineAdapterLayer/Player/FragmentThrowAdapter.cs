@@ -92,8 +92,16 @@ namespace Kizami.EngineAdapter
         private Vector3 _wordHoldOffset = new(0.5f, -0.3f, 1.6f);
 
         [SerializeField, Min(0.01f)]
-        [Tooltip("持っている間の言葉の長さ（m）。箱の最も長い辺がこの長さになる大きさにする。投げた言葉もこの大きさで飛ぶ")]
+        [Tooltip("持っている間の言葉の長さ（m）。箱の最も長い辺がこの長さになる大きさにする。投げた言葉は飛びながら出たときの大きさに戻る")]
         private float _wordHoldLength = 1.2f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("投げた言葉が出たときの大きさに戻るまでの時間（秒）。戻る間は当たり判定がない")]
+        private float _wordGrowDuration = 0.35f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("投げた言葉の下端を、真下の面から空ける高さ（m）。地面に重ならないよう、戻る間に持ち上げる")]
+        private float _wordGroundClearance = 0.5f;
 
         [SerializeField, Min(0.1f)]
         [Tooltip("言葉を投げる速さの、かけらの投擲の速さに対する倍率")]
@@ -377,7 +385,7 @@ namespace Kizami.EngineAdapter
             var direction = cameraMain != null
                 ? (GetAimPoint(cameraMain.transform) - word.Center).normalized
                 : word.transform.forward;
-            word.Launch(direction, speed, _flyingLifetime);
+            word.Launch(direction, speed, _flyingLifetime, _wordGrowDuration, _wordGroundClearance);
         }
 
         /// <summary>
