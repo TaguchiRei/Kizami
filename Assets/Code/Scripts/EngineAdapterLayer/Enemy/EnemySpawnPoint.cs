@@ -45,6 +45,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("スポーン位置の建物。壊れたら補充と出し直しの敵を出さない。未設定なら壊れない")]
         private VoxelModelLoader _structure;
 
+        [SerializeField]
+        [Tooltip("スポーン位置の建物が階ごとのボクセルの建物（VoxelBuilding）のとき、その建物。壊れたとみなす割合は下と同じ。未設定なら使わない")]
+        private VoxelBuilding _structureBuilding;
+
         [SerializeField, Range(0f, 1f)]
         [Tooltip("建物の、読み込んだ時点の体積のうち、この割合以上が削れたら壊れたとみなす")]
         private float _brokenLossRatio = 0.05f;
@@ -83,6 +87,7 @@ namespace Kizami.EngineAdapter
         {
             get
             {
+                if (_structureBuilding != null) return _structureBuilding.LostVolumeRatio >= _brokenLossRatio;
                 if (_structure == null || _initialVolume <= 0f) return false;
 
                 return _structure.Volume <= _initialVolume * (1f - _brokenLossRatio);
