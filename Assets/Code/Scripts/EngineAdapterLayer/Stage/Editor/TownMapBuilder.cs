@@ -17,6 +17,7 @@ namespace Kizami.Editor
         private const string ROOT_NAME = "TownMap";
         private const string ROAD_FOLDER = "Assets/Level/Prefabs/Stage/Road";
         private const string BUILDING_FOLDER = "Assets/Level/Prefabs/Stage/Town/Buildings";
+        private const string PROP_FOLDER = "Assets/Level/Prefabs/Stage/Town/Props";
 
         // 配置を決める乱数のシード。変えると別の街並みになる
         private const int SEED = 14;
@@ -62,9 +63,13 @@ namespace Kizami.Editor
                 serialized.ApplyModifiedPropertiesWithoutUndo();
             }
 
+            var props = CreateGroup("Props", root);
+            foreach (var prop in plan.Props)
+                Pose(Instantiate($"{PROP_FOLDER}/Stage_Prop_{prop.Name}_01.prefab", props), prop);
+
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
-            Debug.Log($"街のマップを組み立てました。道路の部品 {plan.Roads.Count} 個、建物 {plan.Buildings.Count} 棟。");
+            Debug.Log($"街のマップを組み立てました。道路の部品 {plan.Roads.Count} 個、建物 {plan.Buildings.Count} 棟、小物 {plan.Props.Count} 個。");
         }
 
         private static UnityEngine.SceneManagement.Scene OpenOrCreateScene()

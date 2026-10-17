@@ -11,6 +11,9 @@ namespace Kizami.Editor
     /// 区画は大通りと中通りに囲まれた長方形で、辺が SPLIT_THRESHOLD より長い区画は、小道で SUB_BLOCK_LENGTH 前後の小区画に分ける。
     /// 建物は小区画の道に面した辺に沿って、正面（モデルの +Z）を道へ向けて並べる。幅の広い道に面した辺から先に埋め、重なる位置・円の外へはみ出す位置・天照塔の脚にかかる位置には置かない。
     /// 中心から 100 m の中通りの内側は商業エリア、外側はビル街で、置く建物の種類を変える。ビル街の小道沿いには小さめの建物を置く。
+    /// 敵の生産施設は、建物より先に、ビル街の小道沿いの小区画へ、互いに離して置く。
+    /// 小物は、大通りと中通りの歩道に街灯（商業エリアではベンチも）、交差点に信号、崖の手前の道の端にガードレール、骨組みのビルの前に工事用のフェンスとバリケードを置く。
+    /// 天照塔の通り穴の中とアーケードの屋根の下には、歩道の小物を置かない。
     /// </summary>
     public static class TownLayout
     {
@@ -50,9 +53,38 @@ namespace Kizami.Editor
         private const float ARCADE_HALF_SPACING = 7.6f;
         private const float ARCADE_SHOP_DEPTH = 8f;
 
-        public static readonly RoadKind Main = new("Main", 13.6f);
-        public static readonly RoadKind Middle = new("Middle", 7.2f);
-        public static readonly RoadKind Narrow = new("Narrow", 2.4f);
+        // 生産施設どうしを離す、中心どうしの最小の距離（m）
+        private const float FACTORY_SPACING = 120f;
+
+        // 歩道の上面と車道の上面の高さ（m）。道路の部品に合わせる
+        private const float SIDEWALK_TOP = 0.25f;
+        private const float ROAD_TOP = 0.05f;
+
+        // 街灯の間隔と、街灯を縁石から歩道の内へ下げる距離（m）
+        private const float LIGHT_SPACING = 32f;
+        private const float CURB_INSET = 0.6f;
+
+        // この半径の内側の道は天照塔の通り穴なので、歩道の小物を置かない（m）
+        private const float TUNNEL_RADIUS = 80f;
+
+        // 工事用のフェンス・ガードレールの 1 枚の幅（m）
+        private const float FENCE_WIDTH = 2f;
+        private const float GUARDRAIL_WIDTH = 4f;
+
+        public static readonly RoadKind Main = new("Main", 13.6f, 4f);
+        public static readonly RoadKind Middle = new("Middle", 7.2f, 2.4f);
+        public static readonly RoadKind Narrow = new("Narrow", 2.4f, 0f);
+
+        // 生産施設を置く順。大を先に置き、離した場所を取りやすくする
+        private static readonly BuildingType[] _factories =
+        {
+            new("EnemyFactory_Large", 14.4f, 14.4f),
+            new("EnemyFactory_Large", 14.4f, 14.4f),
+            new("EnemyFactory_Small", 8f, 8f),
+            new("EnemyFactory_Small", 8f, 8f),
+            new("EnemyFactory_Small", 8f, 8f),
+            new("EnemyFactory_Small", 8f, 8f),
+        };
 
         private static readonly BuildingType[] _commercial =
         {
@@ -101,8 +133,9 @@ namespace Kizami.Editor
                 SplitBlock(block, lines, subBlocks);
 
             var occupied = new List<Rect>();
-            PlanArcade(plan, occupied);
-            PlanRoads(plan, lines);
+            var arcade = PlanArcade(plan, occupied);
+            var crossings = PlanRoads(plan, lines);
+            PlanFactories(plan, subBlocks, occupied, random);
 
             // 幅の広い道に面した辺から先に埋める
             var sides = new List<(SubBlock Block, BlockSide Side)>();
@@ -118,6 +151,7 @@ namespace Kizami.Editor
             foreach (var (subBlock, side) in sides)
                 PlanBuildings(plan, subBlock, side, occupied, random);
 
+            PlanStreetProps(plan, lines, crossings, arcade);
             return plan;
         }
 
@@ -218,9 +252,9 @@ namespace Kizami.Editor
 
         /// <summary>
         /// 北（+Z）の中通りの、西の大通りとの間の 1 区間をアーケードにする。区間の両端は、北端を閉じた端のモジュールを外へ向けて置く。
-        /// 店舗は中通りの両側の歩道の外に建つので、その範囲を建物の置き場所から外す。
+        /// 店舗は中通りの両側の歩道の外に建つので、その範囲を建物の置き場所から外す。屋根の下の通りの範囲を返す。
         /// </summary>
-        private static void PlanArcade(TownPlan plan, List<Rect> occupied)
+        private static Rect PlanArcade(TownPlan plan, List<Rect> occupied)
         {
             var start = -MIDDLE_OFFSET + Middle.HalfWidth;
             var end = -Main.HalfWidth;
@@ -244,12 +278,13 @@ namespace Kizami.Editor
             var x1 = first + count * ARCADE_MODULE_LENGTH;
             occupied.Add(Rect.MinMaxRect(x0, MIDDLE_OFFSET - Middle.HalfWidth - ARCADE_SHOP_DEPTH, x1, MIDDLE_OFFSET - Middle.HalfWidth));
             occupied.Add(Rect.MinMaxRect(x0, MIDDLE_OFFSET + Middle.HalfWidth, x1, MIDDLE_OFFSET + Middle.HalfWidth + ARCADE_SHOP_DEPTH));
+            return Rect.MinMaxRect(x0, MIDDLE_OFFSET - Middle.HalfWidth, x1, MIDDLE_OFFSET + Middle.HalfWidth);
         }
 
         /// <summary>
         /// 線どうしの交点に幅の広いほうの十字路を置き、その間を長さ 16 m の直線で埋める。最後の 1 枚に端数が出ないよう、区間の直線は同じ倍率で道の向きに伸び縮みさせる。
         /// </summary>
-        private static void PlanRoads(TownPlan plan, List<RoadLine> lines)
+        private static List<Crossing> PlanRoads(TownPlan plan, List<RoadLine> lines)
         {
             plan.Roads.Add(new PartPlacement("Rotary", Vector3.zero, 0f));
 
@@ -281,6 +316,8 @@ namespace Kizami.Editor
                 foreach (var (start, end) in OpenSpans(line, crossings))
                     FillStraight(plan, line, start, end);
             }
+
+            return crossings;
         }
 
         /// <summary>
@@ -360,6 +397,7 @@ namespace Kizami.Editor
                     occupied.Add(footprint);
                     var center = footprint.center;
                     plan.Buildings.Add(new PartPlacement(type.Name, new Vector3(center.x, 0f, center.y), FrontYaw(side.Edge)));
+                    if (type.Name == "Frame") PlanConstructionFront(plan, rect, side, footprint);
                     cursor += type.Width + Mathf.Lerp(ALLEY_MIN, ALLEY_MAX, (float)random.NextDouble());
                     placed = true;
                     break;
@@ -367,6 +405,157 @@ namespace Kizami.Editor
 
                 if (!placed) cursor += SCAN_STEP;
             }
+        }
+
+        /// <summary>
+        /// ビル街の小道に面した小区画へ、生産施設を小道の辺の真ん中に、正面を小道へ向けて置く。候補の小区画は乱数で並べ、既に置いた施設から FACTORY_SPACING 以上離れた所だけを使う。
+        /// </summary>
+        private static void PlanFactories(TownPlan plan, List<SubBlock> subBlocks, List<Rect> occupied, Random random)
+        {
+            var candidates = new List<(SubBlock Block, BlockSide Side)>();
+            foreach (var subBlock in subBlocks)
+            {
+                if (subBlock.Commercial) continue;
+                foreach (var side in subBlock.Sides)
+                {
+                    if (side.Kind == Narrow) candidates.Add((subBlock, side));
+                }
+            }
+
+            Shuffle(candidates, random);
+            var placed = new List<Vector2>();
+            foreach (var type in _factories)
+            {
+                foreach (var (block, side) in candidates)
+                {
+                    var alongX = side.Edge is Edge.ZMin or Edge.ZMax;
+                    var middle = alongX ? block.Rect.center.x : block.Rect.center.y;
+                    var footprint = Footprint(block.Rect, side.Edge, middle - type.Width * 0.5f, type);
+                    if (placed.Exists(other => (other - footprint.center).magnitude < FACTORY_SPACING)) continue;
+                    if (!CanPlace(footprint, occupied)) continue;
+
+                    occupied.Add(footprint);
+                    placed.Add(footprint.center);
+                    plan.Buildings.Add(new PartPlacement(type.Name, new Vector3(footprint.center.x, 0f, footprint.center.y), FrontYaw(side.Edge)));
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 骨組みのビルの正面の、道との間に工事用のフェンスを並べ、正面の真ん中の道の端にバリケードを置く。
+        /// </summary>
+        private static void PlanConstructionFront(TownPlan plan, Rect block, BlockSide side, Rect footprint)
+        {
+            var alongX = side.Edge is Edge.ZMin or Edge.ZMax;
+            var outward = side.Edge is Edge.ZMax or Edge.XMax ? 1f : -1f;
+            var edge = side.Edge switch
+            {
+                Edge.ZMax => block.yMax,
+                Edge.ZMin => block.yMin,
+                Edge.XMax => block.xMax,
+                _ => block.xMin,
+            };
+
+            var fenceAcross = edge - outward * SETBACK * 0.5f;
+            var a0 = alongX ? footprint.xMin : footprint.yMin;
+            var a1 = alongX ? footprint.xMax : footprint.yMax;
+            var count = Mathf.FloorToInt((a1 - a0) / FENCE_WIDTH);
+            var first = (a0 + a1) * 0.5f - count * FENCE_WIDTH * 0.5f;
+            for (var i = 0; i < count; i++)
+            {
+                var along = first + FENCE_WIDTH * (i + 0.5f);
+                plan.Props.Add(new PartPlacement("ConstructionFence", AlongAcross(alongX, along, fenceAcross, 0f), alongX ? 0f : 90f));
+            }
+
+            // 歩道があれば歩道の上、なければ車道の端に置く
+            var top = side.Kind.SidewalkWidth > 0f ? SIDEWALK_TOP : ROAD_TOP;
+            var barricadeAcross = edge + outward * Mathf.Max(1f, side.Kind.SidewalkWidth * 0.5f);
+            plan.Props.Add(new PartPlacement("Barricade", AlongAcross(alongX, (a0 + a1) * 0.5f, barricadeAcross, top), alongX ? 0f : 90f));
+        }
+
+        /// <summary>
+        /// 大通りと中通りの歩道に、両側互い違いに街灯を並べ、商業エリアでは街灯の間にベンチを置く。交差点には信号、崖の手前の道の端にはガードレールを置く。
+        /// 街灯の腕と信号の腕は車道へ向け、ベンチは車道に向けて座る向きにする。
+        /// </summary>
+        private static void PlanStreetProps(TownPlan plan, List<RoadLine> lines, List<Crossing> crossings, Rect arcade)
+        {
+            foreach (var line in lines)
+            {
+                if (line.Kind == Narrow) continue;
+
+                var curb = line.Kind.HalfWidth - line.Kind.SidewalkWidth;
+                var spans = OpenSpans(line, crossings);
+                foreach (var (start, end) in spans)
+                {
+                    var side = 1f;
+                    for (var along = start + LIGHT_SPACING * 0.5f; along < end - 1f; along += LIGHT_SPACING)
+                    {
+                        side = -side;
+                        var position = AlongAcross(line.AlongX, along, line.Offset + side * (curb + CURB_INSET), SIDEWALK_TOP);
+                        var flat = new Vector2(position.x, position.z);
+                        if (flat.magnitude < TUNNEL_RADIUS || arcade.Contains(flat)) continue;
+
+                        var toRoad = AlongAcross(line.AlongX, 0f, -side, 0f);
+                        plan.Props.Add(new PartPlacement("StreetLight", position, YawFacing(toRoad)));
+
+                        var commercial = Mathf.Abs(flat.x) < MIDDLE_OFFSET && Mathf.Abs(flat.y) < MIDDLE_OFFSET;
+                        if (!commercial || along + LIGHT_SPACING * 0.5f > end - 1f) continue;
+
+                        var benchAcross = line.Offset + side * (line.Kind.HalfWidth - 0.6f);
+                        var bench = AlongAcross(line.AlongX, along + LIGHT_SPACING * 0.5f, benchAcross, SIDEWALK_TOP);
+                        if (!arcade.Contains(new Vector2(bench.x, bench.z))) plan.Props.Add(new PartPlacement("Bench", bench, YawFacing(-toRoad)));
+                    }
+                }
+
+                PlanGuardrails(plan, line, spans);
+            }
+
+            foreach (var crossing in crossings)
+            {
+                if (crossing.Kind == Narrow) continue;
+
+                var corner = crossing.Kind.HalfWidth - crossing.Kind.SidewalkWidth * 0.5f;
+                foreach (var sign in new[] { 1f, -1f })
+                {
+                    var position = new Vector3(crossing.Center.x + sign * corner, SIDEWALK_TOP, crossing.Center.y + sign * corner);
+                    plan.Props.Add(new PartPlacement("TrafficLight", position, YawFacing(new Vector3(-sign, 0f, 0f))));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 崖の手前で終わる道の端に、道を横切ってガードレールを並べる。
+        /// </summary>
+        private static void PlanGuardrails(TownPlan plan, RoadLine line, List<(float Start, float End)> spans)
+        {
+            if (spans.Count == 0) return;
+
+            var count = Mathf.FloorToInt(line.Kind.HalfWidth * 2f / GUARDRAIL_WIDTH);
+            foreach (var along in new[] { spans[0].Start + 0.5f, spans[^1].End - 0.5f })
+            {
+                for (var i = 0; i < count; i++)
+                {
+                    var across = line.Offset - count * GUARDRAIL_WIDTH * 0.5f + GUARDRAIL_WIDTH * (i + 0.5f);
+                    plan.Props.Add(new PartPlacement("Guardrail_Straight", AlongAcross(line.AlongX, along, across, ROAD_TOP), line.AlongX ? 90f : 0f));
+                }
+            }
+        }
+
+        /// <summary>
+        /// 線に沿った座標と横切る座標から、ワールドの位置を作る。alongX なら along が X、across が Z。
+        /// </summary>
+        private static Vector3 AlongAcross(bool alongX, float along, float across, float height)
+        {
+            return alongX ? new Vector3(along, height, across) : new Vector3(across, height, along);
+        }
+
+        /// <summary>
+        /// モデルの -Z を direction へ向ける Y の回転（度）。街灯・信号の腕と、ベンチの背もたれはモデルの -Z の向き。
+        /// </summary>
+        private static float YawFacing(Vector3 direction)
+        {
+            return Mathf.Atan2(-direction.x, -direction.z) * Mathf.Rad2Deg;
         }
 
         /// <summary>
@@ -547,6 +736,7 @@ namespace Kizami.Editor
     {
         public readonly List<PartPlacement> Roads = new();
         public readonly List<PartPlacement> Buildings = new();
+        public readonly List<PartPlacement> Props = new();
     }
 
     /// <summary>
@@ -569,17 +759,19 @@ namespace Kizami.Editor
     }
 
     /// <summary>
-    /// 道の種類。Name は道路の部品の名前の一部、HalfWidth は歩道を含めた幅の半分（m）。
+    /// 道の種類。Name は道路の部品の名前の一部、HalfWidth は歩道を含めた幅の半分、SidewalkWidth は片側の歩道の幅（m）。
     /// </summary>
     public sealed class RoadKind
     {
         public readonly string Name;
         public readonly float HalfWidth;
+        public readonly float SidewalkWidth;
 
-        public RoadKind(string name, float halfWidth)
+        public RoadKind(string name, float halfWidth, float sidewalkWidth)
         {
             Name = name;
             HalfWidth = halfWidth;
+            SidewalkWidth = sidewalkWidth;
         }
     }
 
