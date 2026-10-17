@@ -50,6 +50,7 @@ namespace Kizami.EngineAdapter
         private float _defaultSleepThreshold;
         private MeshCollider _upperCollider;
         private bool _hasToppled;
+        private bool _hasReleasedSpawns;
 
         private void Awake()
         {
@@ -65,6 +66,14 @@ namespace Kizami.EngineAdapter
             }
 
             if (_upperCollider == null) return;
+
+            // 倒れて止まったら（VoxelBuilding がキネマティックにしたら）、橋の上に敵を出す
+            if (_hasToppled && !_hasReleasedSpawns && _upperCollider.attachedRigidbody != null &&
+                _upperCollider.attachedRigidbody.isKinematic)
+            {
+                _hasReleasedSpawns = true;
+                ReleaseTopFaceSpawns();
+            }
 
             // 動く間は凸包でないと Rigidbody に付けられない。止まった（キネマティックの）間だけ元の形にする
             var body = _upperCollider.attachedRigidbody;
@@ -121,6 +130,38 @@ namespace Kizami.EngineAdapter
             _drivenBody = body;
             _defaultSleepThreshold = body.sleepThreshold;
             body.sleepThreshold = 0f;
+        }
+
+        /// <summary>
+        /// 塔の上の部分の面のうち、法線が最も上を向いた面を選び、その面の子のスポーン位置の保留を解く。
+        /// </summary>
+        private void ReleaseTopFaceSpawns()
+        {
+            TowerFace top = null;
+            var bestUp = float.NegativeInfinity;
+            foreach (var face in _upperCollider.transform.parent.GetComponentsInChildren<TowerFace>())
+            {
+                var up = face.WorldNormal.y;
+                if (up <= bestUp) continue;
+
+                bestUp = up;
+                top = face;
+            }
+
+            if (top == null)
+            {
+                UsefulLogger.LogWarning("塔の上の部分に TowerFace がない為、橋の上に敵を出せません。", this);
+                return;
+            }
+
+            var count = 0;
+            foreach (var point in top.GetComponentsInChildren<EnemySpawnPoint>(true))
+            {
+                point.Release();
+                count++;
+            }
+
+            UsefulLogger.Log($"橋の上の面 {top.name} のスポーン位置 {count} 個を解放しました。", this);
         }
 
         /// <summary>
