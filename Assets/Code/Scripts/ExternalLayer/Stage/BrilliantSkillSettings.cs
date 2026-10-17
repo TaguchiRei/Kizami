@@ -45,6 +45,18 @@ namespace Kizami.External
         [Tooltip("一撃の追加スコア")]
         private int _shatterScore = 100;
 
+        [SerializeField]
+        [Tooltip("連続キルで出す言葉")]
+        private string _rampageWord = "RAMPAGE";
+
+        [SerializeField]
+        [Tooltip("倒壊で出す言葉")]
+        private string _collapseWord = "COLLAPSE";
+
+        [SerializeField]
+        [Tooltip("一撃で出す言葉")]
+        private string _shatterWord = "SHATTER";
+
         public int RampageDefeatCount => _rampageDefeatCount;
 
         public float RampageInterval => _rampageInterval;
@@ -68,6 +80,20 @@ namespace Kizami.External
                 BrilliantSkillKind.Collapse => _collapseScore,
                 BrilliantSkillKind.Shatter => _shatterScore,
                 _ => 0
+            };
+        }
+
+        /// <summary>
+        /// 種類ごとの、文字で出す言葉を返す。
+        /// </summary>
+        public string GetWord(BrilliantSkillKind kind)
+        {
+            return kind switch
+            {
+                BrilliantSkillKind.Rampage => _rampageWord,
+                BrilliantSkillKind.Collapse => _collapseWord,
+                BrilliantSkillKind.Shatter => _shatterWord,
+                _ => string.Empty
             };
         }
     }

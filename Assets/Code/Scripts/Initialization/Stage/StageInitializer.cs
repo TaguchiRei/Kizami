@@ -7,6 +7,7 @@ using Kizami.EngineAdapter;
 using Kizami.EngineAdapter.Voxel;
 using Kizami.External;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Input;
 using UsefulToolkit.BlackBoard.Logger;
@@ -77,7 +78,9 @@ namespace Kizami.Initialization
             _timerAdapter.Initialize(_flowService.Tick);
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
                 gameObject.scene.buildIndex);
-            _brilliantSkillService = new BrilliantSkillService(_brilliantSkillSettings, _flowService.AddBonusScore, null);
+            var textAdapter = FindOrCreateBrilliantSkillTextAdapter();
+            _brilliantSkillService = new BrilliantSkillService(_brilliantSkillSettings, _flowService.AddBonusScore,
+                kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)));
             _enemySpawnAdapter.SetOnDefeated(OnDefeated);
             ConnectBrilliantSkillSources();
             PlacePlayerAtStartPoint();
@@ -144,6 +147,19 @@ namespace Kizami.Initialization
             _flowService.AddDefeats(notice.Count);
             _guideService.AddDefeats(notice.Count);
             _brilliantSkillService.OnDefeated(notice);
+        }
+
+        /// <summary>
+        /// ステージシーンに置かれた Brilliant Skill の文字の Adapter を返す。置かれていなければ、既定の設定で作ってステージシーンに入れる（ステージを読み直すとシーンごと消える）。
+        /// </summary>
+        private BrilliantSkillTextAdapter FindOrCreateBrilliantSkillTextAdapter()
+        {
+            var adapter = FindFirstObjectByType<BrilliantSkillTextAdapter>();
+            if (adapter != null) return adapter;
+
+            var adapterObject = new GameObject(nameof(BrilliantSkillTextAdapter));
+            SceneManager.MoveGameObjectToScene(adapterObject, gameObject.scene);
+            return adapterObject.AddComponent<BrilliantSkillTextAdapter>();
         }
 
         /// <summary>
