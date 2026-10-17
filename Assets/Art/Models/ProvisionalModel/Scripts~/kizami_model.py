@@ -90,6 +90,8 @@ MATERIAL_PREVIEW_COLORS = {
     "Machine": (0.75, 0.35, 0.1, 1),
     "Ground": (0.35, 0.35, 0.37, 1),
     "Rock": (0.42, 0.38, 0.33, 1),
+    "FarConcrete": (0.5, 0.52, 0.56, 1),
+    "FarWall": (0.3, 0.32, 0.36, 1),
 }
 
 
@@ -322,3 +324,62 @@ def save_and_export(root, fbx_dir=ROOT_DIR):
         bake_space_transform=True,
         add_leaf_bones=False,
     )
+
+
+_BOX_CORNERS = [(x, y, z) for z in (0, 1) for y in (0, 1) for x in (0, 1)]
+_BOX_QUADS = ((0, 2, 3, 1), (4, 5, 7, 6), (0, 1, 5, 4), (2, 6, 7, 3), (0, 4, 6, 2), (1, 3, 7, 5))
+
+
+class MeshBuilder:
+    """素材ごとに頂点と面を貯めて、最後に 1 つのルートの下へメッシュを作る。"""
+
+    def __init__(self):
+        self.parts = {}
+
+    def add(self, mat, verts, faces):
+        v, f = self.parts.setdefault(mat, ([], []))
+        base = len(v)
+        v.extend(verts)
+        f.extend([tuple(base + i for i in face) for face in faces])
+
+    def box(self, mat, x0, y0, x1, y1, z0, z1):
+        """Blender の座標の直方体。"""
+        lo, hi = (x0, y0, z0), (x1, y1, z1)
+        verts = [tuple(hi[k] if c[k] else lo[k] for k in range(3)) for c in _BOX_CORNERS]
+        self.add(mat, verts, _BOX_QUADS)
+
+    def sector(self, mat, r0, r1, a0, a1, z0, z1, segments):
+        """角度 a0〜a1（ラジアン）、半径 r0〜r1 の扇形の板。r0 が 0 なら中心を 1 点にする。"""
+        verts, faces = [], []
+        for i in range(segments + 1):
+            a = a0 + (a1 - a0) * i / segments
+            c, s = math.cos(a), math.sin(a)
+            verts += [(r0 * c, r0 * s, z0), (r1 * c, r1 * s, z0), (r1 * c, r1 * s, z1), (r0 * c, r0 * s, z1)]
+        for i in range(segments):
+            p, q = 4 * i, 4 * (i + 1)
+            faces += [(p + 3, p + 2, q + 2, q + 3), (p, q, q + 1, p + 1), (p + 1, q + 1, q + 2, p + 2)]
+            if r0 > 0:
+                faces.append((p, p + 3, q + 3, q))
+        # 一周する板は始まりと終わりの頂点が重なるので、端の面を張らない
+        last = 4 * segments
+        if a1 - a0 < 2 * math.pi - 1e-6:
+            faces += [(0, 1, 2, 3), (last, last + 3, last + 2, last + 1)]
+        if r0 == 0:
+            faces = [f for f in faces if len(set(verts[i] for i in f)) > 2]
+        self.add(mat, verts, faces)
+
+    def build(self, name):
+        root = bpy.data.objects.new(name, None)
+        bpy.context.collection.objects.link(root)
+        for mat_name, (verts, faces) in sorted(self.parts.items()):
+            mesh = bpy.data.meshes.new(f"{name}_{mat_name}")
+            mesh.from_pydata([tuple(round(c, 4) for c in v) for v in verts], [], faces)
+            mesh.validate()
+            mesh.update()
+            obj = bpy.data.objects.new(mesh.name, mesh)
+            bpy.context.collection.objects.link(obj)
+            mat = bpy.data.materials.get(mat_name) or bpy.data.materials.new(mat_name)
+            mat.diffuse_color = MATERIAL_PREVIEW_COLORS.get(mat_name, (0.5, 0.5, 0.5, 1))
+            obj.data.materials.append(mat)
+            obj.parent = root
+        return root

@@ -27,68 +27,9 @@ WIDTHS = {"Main": (19.2, 4.0), "Middle": (9.6, 2.4), "Narrow": (4.8, 0.0)}
 # ロータリーの外周・歩道の内側・中の島の半径（m）と、円周の分割数
 ROTARY_RADIUS, ROTARY_SIDEWALK, ROTARY_ISLAND, ROTARY_SEGMENTS = 40.0, 36.0, 18.0, 64
 
-_CORNERS = [(x, y, z) for z in (0, 1) for y in (0, 1) for x in (0, 1)]
-_QUADS = ((0, 2, 3, 1), (4, 5, 7, 6), (0, 1, 5, 4), (2, 6, 7, 3), (0, 4, 6, 2), (1, 3, 7, 5))
-
-
-class MeshBuilder:
-    """素材ごとに頂点と面を貯めて、最後に 1 つのルートの下へメッシュを作る。"""
-
-    def __init__(self):
-        self.parts = {}
-
-    def add(self, mat, verts, faces):
-        v, f = self.parts.setdefault(mat, ([], []))
-        base = len(v)
-        v.extend(verts)
-        f.extend([tuple(base + i for i in face) for face in faces])
-
-    def box(self, mat, x0, y0, x1, y1, z0, z1):
-        """Blender の座標の直方体。"""
-        lo, hi = (x0, y0, z0), (x1, y1, z1)
-        verts = [tuple(hi[k] if c[k] else lo[k] for k in range(3)) for c in _CORNERS]
-        self.add(mat, verts, _QUADS)
-
-    def sector(self, mat, r0, r1, a0, a1, z0, z1, segments):
-        """角度 a0〜a1（ラジアン）、半径 r0〜r1 の扇形の板。r0 が 0 なら中心を 1 点にする。"""
-        verts, faces = [], []
-        for i in range(segments + 1):
-            a = a0 + (a1 - a0) * i / segments
-            c, s = math.cos(a), math.sin(a)
-            verts += [(r0 * c, r0 * s, z0), (r1 * c, r1 * s, z0), (r1 * c, r1 * s, z1), (r0 * c, r0 * s, z1)]
-        for i in range(segments):
-            p, q = 4 * i, 4 * (i + 1)
-            faces += [(p + 3, p + 2, q + 2, q + 3), (p, q, q + 1, p + 1), (p + 1, q + 1, q + 2, p + 2)]
-            if r0 > 0:
-                faces.append((p, p + 3, q + 3, q))
-        # 一周する板は始まりと終わりの頂点が重なるので、端の面を張らない
-        last = 4 * segments
-        if a1 - a0 < 2 * math.pi - 1e-6:
-            faces += [(0, 1, 2, 3), (last, last + 3, last + 2, last + 1)]
-        if r0 == 0:
-            faces = [f for f in faces if len(set(verts[i] for i in f)) > 2]
-        self.add(mat, verts, faces)
-
-    def build(self, name):
-        root = bpy.data.objects.new(name, None)
-        bpy.context.collection.objects.link(root)
-        for mat_name, (verts, faces) in sorted(self.parts.items()):
-            mesh = bpy.data.meshes.new(f"{name}_{mat_name}")
-            mesh.from_pydata([tuple(round(c, 4) for c in v) for v in verts], [], faces)
-            mesh.validate()
-            mesh.update()
-            obj = bpy.data.objects.new(mesh.name, mesh)
-            bpy.context.collection.objects.link(obj)
-            mat = bpy.data.materials.get(mat_name) or bpy.data.materials.new(mat_name)
-            mat.diffuse_color = km.MATERIAL_PREVIEW_COLORS.get(mat_name, (0.5, 0.5, 0.5, 1))
-            obj.data.materials.append(mat)
-            obj.parent = root
-        return root
-
-
 def straight(road, side):
     """Blender の Y が道の向き（Unity の Z）。"""
-    b = MeshBuilder()
+    b = km.MeshBuilder()
     half, length = road / 2 + side, STRAIGHT_LENGTH / 2
     b.box("Asphalt", -half, -length, half, length, 0, ROAD_TOP)
     if side:
@@ -98,7 +39,7 @@ def straight(road, side):
 
 
 def cross(road, side):
-    b = MeshBuilder()
+    b = km.MeshBuilder()
     half = road / 2 + side
     b.box("Asphalt", -half, -half, half, half, 0, ROAD_TOP)
     if side:
@@ -112,7 +53,7 @@ def cross(road, side):
 
 def t_junction(road, side):
     """Blender の -Y（Unity の +Z）側を歩道で閉じる。"""
-    b = MeshBuilder()
+    b = km.MeshBuilder()
     half = road / 2 + side
     b.box("Asphalt", -half, -half, half, half, 0, ROAD_TOP)
     if side:
@@ -124,7 +65,7 @@ def t_junction(road, side):
 
 def rotary():
     """中の島と外周の歩道は、4 方向の大通りの車道の幅だけ切り欠く。車道は外周まで円盤で敷き、大通りの車道の幅で正方形の端まで延ばす。"""
-    b = MeshBuilder()
+    b = km.MeshBuilder()
     road, _ = WIDTHS["Main"]
     full = 2 * math.pi
     b.sector("Asphalt", 0, ROTARY_RADIUS, 0, full, 0, ROAD_TOP, ROTARY_SEGMENTS)
