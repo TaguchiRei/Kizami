@@ -1,0 +1,78 @@
+# 区間14D：スポーン位置の街への移動と、敵の出し方のデータ
+
+| 項目 | 内容 |
+|---|---|
+| 状態 | 計画中（2026-10-17） |
+| 目安の時期 | 未定 |
+| 前提となる区間 | 14B |
+| ブランチ | 未定 |
+| 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
+
+## 目的
+
+街のマップ（`Town`）はステージによらず常に同じにし、スポーン位置も `Town` に置く。どの位置からどの敵を出すかは ScriptableObject にし、ステージシーンが参照する。同じステージでも、読み込む SO を差し替えれば難易度を変えられるようにする。
+
+## 確定事項（2026-10-17、ユーザー）
+
+| # | 項目 | 内容 |
+|---|---|---|
+| 1 | シーンの役割 | `Town` は常に同じ地形とスポーン位置。`Stage_○○` には、ミッションに必要な地形の追加と、そのステージ専用の物（敵の出し方の参照、破壊対象、`PlayerStartPoint`、ギミック）を置く。`InGame` は共通のシステム。区間14Bの決めたこと 12 を、この形に改める |
+| 2 | 分け方 | `Town` の `EnemySpawnPoint` は位置の情報（位置、出す半径、建物と壊れたとみなす割合、ID）だけを持つ。出す敵の情報（編成、出し直しの間隔、有効か、動かないか、出現を保留するか）は、新しい SO（仮名 `EnemySpawnTable`）にスポーン位置の ID ごとに持たせる。テーブルに載っていない位置からは出さない |
+| 3 | SO の参照の置き場所 | `Stage_○○` に置くコンポーネントに持たせる（`StageData` には持たせない） |
+| 4 | `EnemySpawnSystem` | 格子の範囲と区画の大きさは、今どおり `Stage_○○` に置く（ステージごとの範囲のまま） |
+| 5 | ID | 文字列（例：`Plaza_North`） |
+| 6 | 既存のステージ | チュートリアル・殲滅・崩壊・到達のスポーン位置を `Town` へ移し、それぞれのテーブルを作るところまで行う |
+
+## 既存コードの確認結果
+
+| 対象 | 今の状態 | この区間での扱い |
+|---|---|---|
+| `EnemySpawnPoint`（`Code/Scripts/EngineAdapterLayer/Enemy/EnemySpawnPoint.cs:24-61`） | 編成・区画・半径・出し直しの間隔・建物・有効・動かない・保留をまとめて持つ。`Enable` / `Disable` / `Release` で実行中の状態を変える | 出す敵の情報をテーブルへ移す。実行中の状態（有効・保留）は、初期化のときにテーブルの値を入れて、今どおり位置が持つ |
+| `EnemySpawnAdapter.CollectSpawnPoints`（`EnemySpawnAdapter.cs:989-`） | `_spawnSystem.GetComponentsInChildren` で、ステージシーンの `EnemySpawnSystem` の子から集める | `Town` の位置を集め、ステージのテーブルと ID で突き合わせる。編成・間隔・動かないかはテーブルから読む（`:731-733`、`:801`、`:812`、`:927`、`:1024`） |
+| `EnemySquadComposition` | すでに SO | 変更なし。テーブルから参照する |
+| `StageGuideScript`（`Code/Scripts/EngineAdapterLayer/Stage/StageGuideScript.cs:115`、`:182`） | チュートリアルの手順が `EnemySpawnPoint[]` を直接参照して `Release` する | `Stage_Tutorial` から `Town` の物はシーンをまたいで参照できないので、ID の指定に変える |
+| シーン | スポーン位置は `Stage_Tutorial` 3、`Stage_Annihilation` 3、`Stage_Collapse` 2、`Stage_Arrival` 3 個（`TestStage` に 82 個）。`Town` には 0 個 | 4 ステージの位置を `Town` へ移す。`TestStage` は `Town` を使わないので扱いを決める（決めること 3） |
+
+## 作業一覧
+
+| # | 作業 | 層 | 内容 |
+|---|---|---|---|
+| 14D-1 | テーブルの SO | EngineAdapter | `EnemySpawnTable`：ID と、編成・出し直しの間隔・有効・動かない・保留の一覧。`EnemySquadComposition` と同じフォルダ |
+| 14D-2 | ステージ側の参照 | EngineAdapter | `Stage_○○` に置き、`EnemySpawnTable` を 1 つ参照するコンポーネント。`EnemySpawnSystem` のフィールドに足すか、別のコンポーネントにするかは決めること 1 |
+| 14D-3 | スポーン位置 | EngineAdapter | `EnemySpawnPoint` に ID を足し、出す敵の情報を外す |
+| 14D-4 | 読み込み | EngineAdapter | `EnemySpawnAdapter` が `Town` の位置とテーブルを突き合わせる。ID の重複、テーブルにあって位置がない ID を警告する |
+| 14D-5 | チュートリアルの案内 | EngineAdapter | `StageGuideScript` の解放する位置を ID の指定にする |
+| 14D-6 | シーンとアセット | Level | 4 ステージのスポーン位置を `Town` へ移し、テーブルを 4 つ作って各ステージシーンから参照する |
+| 14D-7 | 計画書 | Docs | 区間14Bの決めたこと 12、全体計画書の「インゲームのシーン」「ステージシーン」の行。Notion の仕様への反映はユーザーに提案する |
+
+新しく作る型と、この区間での利用者
+
+| 型 | 利用者 |
+|---|---|
+| `EnemySpawnTable`（SO） | `EnemySpawnAdapter`（4 ステージ分のアセット） |
+| ステージ側の参照（決めること 1 で別のコンポーネントにした場合だけ） | `EnemySpawnAdapter` |
+
+## 完了条件
+
+- 4 ステージそれぞれで、移す前と同じ位置から同じ編成の敵が出る
+- チュートリアルの手順で、保留したスポーン位置が解放されて敵が出る
+- テーブルの SO を別のアセットに差し替えると、同じステージで出る敵が変わる
+- クラウドではコンパイルと実機の確認ができないので、ローカルで確かめる（`Kizami.EngineAdapter` のコンパイル、常駐シーンから 4 ステージを順に開始）
+
+## 詳細仕様で決めること
+
+| # | 項目 | 案 |
+|---|---|---|
+| 1 | テーブルの参照を持つ場所 | **A（おすすめ）**：`EnemySpawnSystem` に `EnemySpawnTable` のフィールドを足す。どちらもステージごとの敵の設定で、`EnemySpawnAdapter` がすでに `FindAnyObjectByType` で見つけている（`EnemySpawnAdapter.cs:370`）。B：別のコンポーネントを作る（新しい型が増える） |
+| 2 | 区画の番号（`EnemySpawnPoint._section`） | 区画は `Stage_○○` の格子の範囲で決まるので、`Town` に置いた位置に番号を持たせるとステージごとに食い違う。**案**：手で入れる番号をやめ、位置から計算した区画だけを使う（今も判定は位置で行い、番号は置き場所の確認の警告にだけ使っている。`EnemySpawnAdapter.cs:1008-1020`）。シーンビューの区画の色分けは `EnemySpawnSystem` 側で描けるので残る |
+| 3 | `TestStage` | `Town` を使わず、82 個の位置を持つ。**案**：`TestStage` に置いたまま、`TestStage` 用のテーブルを作る（位置を集める対象を「読み込んだ全シーンの `EnemySpawnPoint`」にすれば、置き場所を問わない） |
+| 4 | 位置を集める範囲 | **案**：`FindObjectsByType<EnemySpawnPoint>` で読み込んだシーン全体から集める。並び順が Hierarchy の順でなくなるので、区画が重なったときにどちらを出すかを ID の順で決める |
+| 5 | 格子の範囲の外の位置 | テーブルに載っていて、ステージの格子の範囲の外にある位置は、警告して出さない |
+
+## 見つけた問題（今回は扱わない）
+
+- 区間14Cで `Town` を本番の街に作り直すと、この区間で移したスポーン位置は置き直しになる。14C の作業一覧の「14B のステージの載せ替え」に含める
+
+## 持ち越し
+
+- 難易度を選ぶ仕組み（アウトゲームで選び、`StageData` などからテーブルを差し替える）。選ぶ画面ができたら、参照を `StageData` 側へ移すかを決める
