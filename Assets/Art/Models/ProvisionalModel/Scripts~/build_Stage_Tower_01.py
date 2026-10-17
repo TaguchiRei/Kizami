@@ -4,6 +4,11 @@
 ロータリーの環（半径 18〜40 m）と、大通り 4 本の通路（車道と両側の歩道の幅）を、高さ TUNNEL_HEIGHT までブーリアンの差で切り抜く。
 切り抜いたあとのタワーは、中の島の上の芯と対角線の 4 本の脚で立ち、ロータリーの上はアーチの天井になる。
 元のモデルは残し、切り抜いたものを別の FBX にする。原点は底面の中心。
+
+倒して橋にする為、切り抜いたタワーを高さで分けた部品も作る（ブーリアンの積で切り出す）。
+下の部分 Lower（0〜BAND_BOTTOM m。動かない地形のメッシュ）、帯の階 Floor0〜（BAND_BOTTOM から階の高さ FLOOR_HEIGHT ずつ。ボクセルにする）、
+帯の一番上の階 Cap、上の部分 Upper（CAP_TOP から上。倒れる塔のメッシュ）。
+Upper の原点は Cap の底面（BAND_TOP）にそろえ、VoxelBuilding の最上階の付属物にしたときに元の高さへ戻るようにする。
 """
 import importlib
 import math
@@ -18,6 +23,7 @@ import kizami_model as km
 importlib.reload(km)
 
 MODEL_NAME = "Stage_Tower_Tensho_01"
+PART_PREFIX = "Stage_Tower_Tensho_"
 SOURCE_FBX = os.path.join(km.STAGE_DIR, "big_tower.fbx")
 # 通り穴の高さ（m）。大きい敵も通れる 3 階分
 TUNNEL_HEIGHT = 12.0
@@ -27,6 +33,8 @@ ROTARY_ISLAND, ROTARY_RADIUS = 18.0, 40.0
 MAIN_ROAD_WIDTH, MAIN_ROAD_RANGE = 27.2, (15.0, 75.0)
 # 切り抜く形を、タワーの底面より下まで延ばす長さ（m）。底面と同じ高さの面を残さない為
 CUT_BELOW = 1.0
+# 帯（ボクセルにする範囲）の下端（m）と、階の高さ（m）・階の数。帯の上に Cap の 1 階を積む
+BAND_BOTTOM, FLOOR_HEIGHT, BAND_FLOORS = 40.0, 4.0, 6
 
 
 def import_tower():
@@ -76,18 +84,51 @@ def carve(tower, pieces):
         bpy.data.objects.remove(root, do_unlink=True)
 
 
-km.clear_scene()
-tower = import_tower()
-carve(tower, cutters())
+def slice_tower(tower, z0, z1, shift):
+    """タワーを高さ z0〜z1 で切り出し、全体を下へ shift ずらす。"""
+    bpy.ops.mesh.primitive_cube_add()
+    box = bpy.context.active_object
+    box.location = (0, 0, (z0 + z1) / 2)
+    box.scale = (200, 200, (z1 - z0) / 2)
+    modifier = tower.modifiers.new("Slice", 'BOOLEAN')
+    modifier.operation = 'INTERSECT'
+    modifier.solver = 'EXACT'
+    modifier.object = box
+    bpy.context.view_layer.objects.active = tower
+    bpy.ops.object.modifier_apply(modifier=modifier.name)
+    bpy.data.objects.remove(box, do_unlink=True)
+    for vertex in tower.data.vertices:
+        vertex.co.z -= shift
 
-root = bpy.data.objects.new(MODEL_NAME, None)
-bpy.context.collection.objects.link(root)
-tower.name = tower.data.name = f"{MODEL_NAME}_Tower"
-tower.data.materials.clear()
-material = bpy.data.materials.get("Tower") or bpy.data.materials.new("Tower")
-tower.data.materials.append(material)
-tower.parent = root
 
-result = dict(km.report(root), tris=sum(len(p.vertices) - 2 for p in tower.data.polygons))
-if os.environ.get("KIZAMI_EXPORT") == "1":
-    km.save_and_export(root, km.STAGE_DIR)
+def build(model_name, mesh_suffix, material_name, z0=None, z1=None, shift=0.0):
+    """切り抜いたタワー（z0〜z1 で切り出す）を、ルートの下の 1 つのメッシュにして書き出す。"""
+    km.clear_scene()
+    tower = import_tower()
+    carve(tower, cutters())
+    if z0 is not None:
+        slice_tower(tower, z0, z1, shift)
+
+    root = bpy.data.objects.new(model_name, None)
+    bpy.context.collection.objects.link(root)
+    tower.name = tower.data.name = f"{model_name}_{mesh_suffix}"
+    tower.data.materials.clear()
+    material = bpy.data.materials.get(material_name) or bpy.data.materials.new(material_name)
+    tower.data.materials.append(material)
+    tower.parent = root
+
+    report = dict(km.report(root), tris=sum(len(p.vertices) - 2 for p in tower.data.polygons))
+    if os.environ.get("KIZAMI_EXPORT") == "1":
+        km.save_and_export(root, km.STAGE_DIR)
+    return report
+
+
+cap_bottom = BAND_BOTTOM + FLOOR_HEIGHT * BAND_FLOORS
+cap_top = cap_bottom + FLOOR_HEIGHT
+result = {MODEL_NAME: build(MODEL_NAME, "Tower", "Tower")}
+result["Lower"] = build(f"{PART_PREFIX}Lower_01", "Tower", "Tower", -CUT_BELOW, BAND_BOTTOM, 0.0)
+for i in range(BAND_FLOORS):
+    z0 = BAND_BOTTOM + FLOOR_HEIGHT * i
+    result[f"Floor{i}"] = build(f"{PART_PREFIX}Floor{i}_01", "Concrete", "Concrete", z0, z0 + FLOOR_HEIGHT, z0)
+result["Cap"] = build(f"{PART_PREFIX}Cap_01", "Concrete", "Concrete", cap_bottom, cap_top, cap_bottom)
+result["Upper"] = build(f"{PART_PREFIX}Upper_01", "Tower", "Tower", cap_top, 2000.0, cap_bottom)
