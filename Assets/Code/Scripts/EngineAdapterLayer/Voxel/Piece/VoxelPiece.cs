@@ -110,6 +110,16 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> このピースができた時点の内側サンプル数 </summary>
         public int InitialSampleCount { get; private set; }
 
+        /// <summary> ボクセル1つの体積（ワールド空間, m³） </summary>
+        public float VoxelCubicVolume
+        {
+            get
+            {
+                var size = VoxelSize;
+                return size * size * size;
+            }
+        }
+
         /// <summary> 体積（ワールド空間, m³）。内側サンプル数 × ボクセル1つの体積 </summary>
         public float Volume => SampleCount * VoxelCubicVolume;
 
@@ -205,15 +215,6 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> ボリュームが素材を持ち、素材ごとのマテリアルが設定されているか </summary>
         private bool UsesMaterials => _volume != null && _volume.HasMaterials && _materials.Length > 0;
-
-        private float VoxelCubicVolume
-        {
-            get
-            {
-                var size = VoxelSize;
-                return size * size * size;
-            }
-        }
 
         private static void BakeColliders(List<ChunkSlot> slots)
         {
@@ -375,20 +376,21 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="reach">space で表した、融点0の素材まで届く範囲</param>
         /// <param name="falloff">1m（space の長さ）あたりに減る強さ</param>
         /// <param name="space">reach と falloff を表している空間</param>
+        /// <returns>壊した（内側から外側になった）サンプルの数</returns>
         /// <remarks>モデルに属していれば、当てた攻撃を VoxelStrikeRecord にしてモデルへ通知する。</remarks>
-        public void ApplyStrike<TShape>(in TShape reach, float falloff, Space space)
+        public int ApplyStrike<TShape>(in TShape reach, float falloff, Space space)
             where TShape : struct, ITransformableVoxelShape<TShape>
         {
             if (_volume == null)
             {
                 UsefulLogger.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
-                return;
+                return 0;
             }
 
             if (falloff <= 0f)
             {
                 UsefulLogger.LogError($"減衰率 {falloff} は正の値にしてください。", this);
-                return;
+                return 0;
             }
 
             var localReach = space == Space.World ? reach.Transformed(transform.worldToLocalMatrix) : reach;
@@ -417,6 +419,8 @@ namespace Kizami.EngineAdapter.Voxel
             {
                 Model.NotifyStruck(this, record);
             }
+
+            return result.RemovedSampleCount;
         }
 
         /// <summary>

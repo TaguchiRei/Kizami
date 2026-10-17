@@ -12,7 +12,7 @@ namespace Kizami.Application
     /// <summary>
     /// インゲームの流れ（StageFlowState）を進めるユースケース。破壊対象がすべて破壊済みになったらクリアにし、
     /// ステージの失敗条件のどれかを満たしたら失敗にする。クリアと失敗はプレイ中にだけ起こり、一度決まったら変わらない。
-    /// スコアは、倒した敵1体につき1点と、クリアしたときの基礎スコアの合計。クリアタイムと被ダメージは、時間をかけて準備して壊す遊び方を損なわない為、使わない。
+    /// スコアは、倒した敵1体につき1点と、よい行動の追加スコアと、クリアしたときの基礎スコアの合計。クリアタイムと被ダメージは、時間をかけて準備して壊す遊び方を損なわない為、使わない。
     /// プレイ中は UI マップの Cancel（Esc）でポーズを切り替える。ポーズは時間の倍率を0にして Player マップを止め、解くとポーズ前の倍率に戻す。
     /// クリアか失敗になったら Player マップを止める。
     /// 制限時間の失敗条件があるステージでは、外から渡された実時間（Tick）で残り時間を減らし、ポーズ中は減らさない。
@@ -97,6 +97,17 @@ namespace Kizami.Application
 
             _state.SetDefeatCount(_state.DefeatCount + count);
             _state.SetScore(_state.Score + count);
+        }
+
+        /// <summary>
+        /// よい行動の追加スコアを足す。プレイ中のときだけ足す。
+        /// </summary>
+        /// <param name="score">追加スコア</param>
+        public void AddBonusScore(int score)
+        {
+            if (_state.Phase != StagePhase.Playing || score <= 0) return;
+
+            _state.SetScore(_state.Score + score);
         }
 
         /// <summary>
