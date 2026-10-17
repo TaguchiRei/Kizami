@@ -19,6 +19,7 @@ namespace Kizami.EngineAdapter
     /// 階とパーツは回転させずに置く前提で、点の対応は建物のローカル空間の水平座標を格子の番号にして取る。
     /// 境目が切れたら、その上の階をまとめて1つの Rigidbody の子にして落とす。当たり判定は各階のチャンクの BoxCollider をそのまま使う。
     /// 落ちた Rigidbody が眠ったらキネマティックにして止め、地形として残す。落ちた階は、以後つながりを判定しない。
+    /// 階ごとに、ガラスの板などボクセルにしない付属物のプレハブを、階の子として置く。階と一緒に落ち、倒れ始めたらガラスを割る。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/LargeObjectVoxel.md">説明ドキュメント: 巨大なオブジェクトへのボクセルの適用</seealso>
     public sealed class VoxelBuilding : MonoBehaviour
@@ -55,6 +56,18 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("一番上に積む屋上のモデル。未設定なら積まない")]
         private VoxelModelAsset _roof;
+
+        [SerializeField]
+        [Tooltip("1 階に置く付属物（ガラスの板など）。未設定なら置かない")]
+        private GameObject _groundAttachments;
+
+        [SerializeField]
+        [Tooltip("2 階から上の階に置く付属物。未設定なら置かない")]
+        private GameObject _middleAttachments;
+
+        [SerializeField]
+        [Tooltip("屋上に置く付属物。未設定なら置かない")]
+        private GameObject _roofAttachments;
 
         [SerializeField, Min(1)]
         [Tooltip("屋上を除いた階の数")]
@@ -174,7 +187,17 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 階を作る。読み込みは Start で、手付かずの形のメッシュから始める。
+        /// floorIndex 階の付属物のプレハブ。階のモデルと同じ順に決まる。
+        /// </summary>
+        private GameObject GetFloorAttachments(int floorIndex)
+        {
+            if (floorIndex == 0) return _groundAttachments;
+
+            return floorIndex < _floorCount ? _middleAttachments : _roofAttachments;
+        }
+
+        /// <summary>
+        /// 階を作る。読み込みは Start で、手付かずの形のメッシュから始める。付属物があれば階の子に置く。
         /// </summary>
         private void CreateFloor(int floorIndex, VoxelModelAsset model)
         {
@@ -186,6 +209,9 @@ namespace Kizami.EngineAdapter
             floorObject.transform.localPosition = new Vector3(0f, floorIndex * _floorHeight, 0f);
 
             var loader = floorObject.AddComponent<VoxelModelLoader>();
+            // VoxelModelLoader は Awake で子の MeshRenderer を元のモデルとして控えて隠すので、付属物はその後に置く
+            var attachments = GetFloorAttachments(floorIndex);
+            if (attachments != null) Instantiate(attachments, floorObject.transform, false);
             loader.SetModel(model);
             loader.SetQuality(_quality);
             loader.SetMeltSystem(_meltSystem);
@@ -396,7 +422,19 @@ namespace Kizami.EngineAdapter
 
             var body = AddGroupBody(groupObject);
             _fallingBodies.Add(body);
+            ShatterGlass(groupObject.transform, body.worldCenterOfMass);
             _collapsed.Invoke(body);
+        }
+
+        /// <summary>
+        /// group の子にあるガラスの板をすべて、origin から外へ破片を飛ばして割る。
+        /// </summary>
+        private static void ShatterGlass(Transform group, Vector3 origin)
+        {
+            foreach (var glass in group.GetComponentsInChildren<GlassPane>())
+            {
+                glass.Shatter(origin);
+            }
         }
 
         /// <summary>

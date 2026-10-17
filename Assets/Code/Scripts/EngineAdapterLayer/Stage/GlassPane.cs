@@ -4,8 +4,8 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 窓のガラスの1枚の板。ボクセルにはせず、攻撃が当たったら、あらかじめ割っておいた破片に差し替えて飛ばす。
-    /// 破片は板の子に非アクティブで置いておき、割れたときにシーンの直下へ出して Rigidbody を付ける。板と一緒に動く建物から切り離して落とす為。
-    /// 破片は寿命が来たら消し、拾い直さない。
+    /// 破片は割れたときにプレハブから板の位置・向き・大きさで生成し、シーンの直下へ出して Rigidbody を付ける。板と一緒に動く建物から切り離して落とす為。
+    /// 建物には板が数百枚並ぶので、割れる前の破片は持たない。破片は寿命が来たら消し、拾い直さない。
     /// </summary>
     public sealed class GlassPane : MonoBehaviour
     {
@@ -14,8 +14,8 @@ namespace Kizami.EngineAdapter
         private GameObject _intact;
 
         [SerializeField]
-        [Tooltip("破片をまとめた親。子の1つ1つが破片で、BoxCollider を付けておく")]
-        private Transform _shards;
+        [Tooltip("破片をまとめたプレハブ。子の1つ1つが破片で、BoxCollider を付けておく。板と同じ原点で作る")]
+        private GameObject _shardsPrefab;
 
         [SerializeField, Min(0f)]
         [Tooltip("割れの起点から破片を飛ばす速さ（m/s）")]
@@ -50,12 +50,12 @@ namespace Kizami.EngineAdapter
             IsBroken = true;
 
             _intact.SetActive(false);
-            _shards.gameObject.SetActive(true);
+            var shards = Instantiate(_shardsPrefab, transform, false).transform;
 
             // 子を外すと並びが変わるので、後ろから取り出す
-            for (var i = _shards.childCount - 1; i >= 0; i--)
+            for (var i = shards.childCount - 1; i >= 0; i--)
             {
-                var shard = _shards.GetChild(i);
+                var shard = shards.GetChild(i);
                 shard.SetParent(null, true);
 
                 var size = shard.TryGetComponent(out BoxCollider box) ? Vector3.Scale(box.size, shard.lossyScale) : Vector3.one * 0.01f;
@@ -70,6 +70,8 @@ namespace Kizami.EngineAdapter
 
                 Destroy(shard.gameObject, _shardLifetime);
             }
+
+            Destroy(shards.gameObject);
         }
     }
 }
