@@ -46,10 +46,6 @@ namespace Kizami.EngineAdapter
         private float _driveUntilAngle = 20f;
 
         [SerializeField, Min(0.1f)]
-        [Tooltip("倒れた塔の足場の箱の角に埋める、地面と接する球の半径（m）。箱の半分より大きいときは、箱に収まる大きさにする")]
-        private float _footSphereRadius = 2f;
-
-        [SerializeField, Min(0.1f)]
         [Tooltip("倒れた塔が止まったあと、塔の下になったビルを削る半径の、根元での値（m）。塔の半幅に合わせる")]
         private float _crushRadiusBase = 20f;
 
@@ -94,6 +90,12 @@ namespace Kizami.EngineAdapter
         private VoxelDestructionAdapter _crushAdapter;
         private bool _hasToppled;
         private bool _hasReleasedSpawns;
+
+        /// <summary> 倒れて止まった塔のまとまり。倒れている途中と、倒れる前は null。軸は transform.up </summary>
+        public Rigidbody SettledBody => _hasReleasedSpawns ? _toppledBody : null;
+
+        /// <summary> 倒れた塔の軸に沿った長さ（m）。軸の原点は SettledBody の位置。上の部分の凸包を作る前は 0 </summary>
+        public float AxisLength => _upperHullMesh != null ? _upperHullMesh.bounds.max.y : 0f;
 
         private void Awake()
         {
@@ -250,7 +252,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 階のまとまり group の子のコライダーをすべて消し、倒れた塔用の当たり判定に置き換える。
         /// 塔の上の部分は凸包の MeshCollider 1つ（プレイヤー・敵・地面と接触）。
-        /// 帯は、全体で足場の箱 1 つ（プレイヤー・敵と接触）と、箱の内側の角に埋めた球（地面とだけ接触）を付ける。
+        /// 帯は、全体で足場の箱 1 つ（プレイヤー・敵と接触）と、箱の中心に置いた大きな球 1 つ（地面とだけ接触）を付ける。
         /// 地面以外のコライダー（建物のボクセルなど）とは接触せず、倒れる向きが乱れない。
         /// </summary>
         private void ReplaceWithHull(Transform group)
@@ -292,8 +294,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 帯全体の範囲 bounds に、足場の箱と、地面と接する球を付ける。球は箱の8つの角の内側に、箱の面に接するよう埋める。
-        /// どの面を下にして倒れても、その面の4つの球が地面に乗り、箱の面が地面の高さに揃う。
+        /// 帯全体の範囲 bounds に、足場の箱と、地面と接する大きな球を 1 つ付ける。球は箱の中心に置き、箱に収まる最大の半径にする。
         /// </summary>
         private void AddFootColliders(Transform group, Bounds bounds, int groundMask, int peopleMask)
         {
@@ -305,16 +306,10 @@ namespace Kizami.EngineAdapter
             box.size = bounds.size;
             box.excludeLayers = ~peopleMask;
 
-            var radius = Mathf.Min(_footSphereRadius, Mathf.Min(bounds.extents.x, bounds.extents.y, bounds.extents.z));
-            var inset = bounds.extents - Vector3.one * radius;
-            for (var i = 0; i < 8; i++)
-            {
-                var sphere = footObject.AddComponent<SphereCollider>();
-                sphere.radius = radius;
-                sphere.center = bounds.center + Vector3.Scale(inset, new Vector3(
-                    (i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
-                sphere.excludeLayers = ~groundMask;
-            }
+            var sphere = footObject.AddComponent<SphereCollider>();
+            sphere.radius = Mathf.Min(bounds.extents.x, bounds.extents.y, bounds.extents.z);
+            sphere.center = bounds.center;
+            sphere.excludeLayers = ~groundMask;
         }
 
         /// <summary>

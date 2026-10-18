@@ -10,7 +10,7 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.Application
 {
     /// <summary>
-    /// インゲームの流れ（StageFlowState）を進めるユースケース。破壊対象がすべて破壊済みになったらクリアにし、
+    /// インゲームの流れ（StageFlowState）を進めるユースケース。破壊対象がすべて破壊済みになったら（ステージが破壊でのクリアを許すときだけ）クリアにし、
     /// ステージの失敗条件のどれかを満たしたら失敗にする。クリアと失敗はプレイ中にだけ起こり、一度決まったら変わらない。
     /// スコアは、倒した敵1体につき1点と、よい行動の追加スコアと、クリアしたときの基礎スコアの合計。クリアタイムと被ダメージは、時間をかけて準備して壊す遊び方を損なわない為、使わない。
     /// プレイ中は UI マップの Cancel（Esc）でポーズを切り替える。ポーズは時間の倍率を0にして Player マップを止め、解くとポーズ前の倍率に戻す。
@@ -22,6 +22,7 @@ namespace Kizami.Application
         private readonly StageFlowState _state = new();
         private readonly List<IDisposable> _subscriptions = new();
         private readonly int _clearScore;
+        private readonly bool _clearsOnTargets;
         private readonly ITimeScaleController _timeScaleController;
         private readonly ITimeScaleState _timeScaleState;
         private readonly IInputController _inputController;
@@ -46,6 +47,7 @@ namespace Kizami.Application
             IInputController inputController, Action onCleared, int sceneId)
         {
             _clearScore = stage.ClearScore;
+            _clearsOnTargets = stage.ClearsOnTargets;
             _timeScaleController = timeScaleController;
             _inputController = inputController;
             _onCleared = onCleared;
@@ -205,7 +207,7 @@ namespace Kizami.Application
         /// </summary>
         private void TryClear()
         {
-            if (_state.Phase != StagePhase.Playing || _state.TargetCount == 0 ||
+            if (!_clearsOnTargets || _state.Phase != StagePhase.Playing || _state.TargetCount == 0 ||
                 _state.DestroyedTargetCount < _state.TargetCount) return;
 
             CompleteClear();

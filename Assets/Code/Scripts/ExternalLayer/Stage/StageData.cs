@@ -37,6 +37,10 @@ namespace Kizami.External
         private string[] _targetGimmickIds = System.Array.Empty<string>();
 
         [SerializeField]
+        [Tooltip("破壊対象の破壊でクリアにするか。オフなら、破壊済みの数は表示だけに使い、クリアは台本や到達の判定など別の仕組みが決める")]
+        private bool _clearsOnTargets = true;
+
+        [SerializeField]
         [Tooltip("すべてのスキルの破壊力を最大にする。どのスキルでも、強度が硬い素材を普通の素材と同じ範囲まで削れる")]
         private bool _isMaxDestructionPower;
 
@@ -61,6 +65,9 @@ namespace Kizami.External
 
         /// <summary> クリアの対象にするギミックの ID。空なら破壊対象をすべて対象にする </summary>
         public IReadOnlyList<string> TargetGimmickIds => _targetGimmickIds;
+
+        /// <summary> 破壊対象の破壊でクリアにするか </summary>
+        public bool ClearsOnTargets => _clearsOnTargets;
 
         /// <summary> すべてのスキルの破壊力を最大にするか </summary>
         public bool IsMaxDestructionPower => _isMaxDestructionPower;
