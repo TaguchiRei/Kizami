@@ -19,8 +19,8 @@ namespace Kizami.Application
         public void Begin(SkillData skill)
         {
             _enhancements[skill.Effect] = skill.EnhanceLimit == EnhanceLimit.Count
-                ? new Enhancement(double.PositiveInfinity, skill.EnhanceCount, skill.EnhanceScale)
-                : new Enhancement(Time.unscaledTimeAsDouble + skill.EnhanceDuration, -1, skill.EnhanceScale);
+                ? new Enhancement(double.PositiveInfinity, skill.EnhanceCount, skill.EnhanceScale, skill.EnhanceIntervalScale)
+                : new Enhancement(Time.unscaledTimeAsDouble + skill.EnhanceDuration, -1, skill.EnhanceScale, skill.EnhanceIntervalScale);
         }
 
         /// <summary>
@@ -30,7 +30,19 @@ namespace Kizami.Application
         /// <param name="scale">かかっていれば強化の倍率、かかっていなければ1</param>
         public bool IsActive(SkillEffect effect, out float scale)
         {
+            return IsActive(effect, out scale, out _);
+        }
+
+        /// <summary>
+        /// 強化がかかっているかを返す。回数は使わない。
+        /// </summary>
+        /// <param name="effect">強化の種類</param>
+        /// <param name="scale">かかっていれば強化の倍率、かかっていなければ1</param>
+        /// <param name="intervalScale">かかっていれば強化の攻撃間隔の倍率、かかっていなければ1</param>
+        public bool IsActive(SkillEffect effect, out float scale, out float intervalScale)
+        {
             scale = 1f;
+            intervalScale = 1f;
             if (!_enhancements.TryGetValue(effect, out var enhancement)) return false;
 
             if (!enhancement.IsActive(Time.unscaledTimeAsDouble))
@@ -40,6 +52,7 @@ namespace Kizami.Application
             }
 
             scale = enhancement.Scale;
+            intervalScale = enhancement.IntervalScale;
             return true;
         }
 
@@ -51,7 +64,19 @@ namespace Kizami.Application
         /// <returns>この攻撃に強化がかかるなら true</returns>
         public bool TryUse(SkillEffect effect, out float scale)
         {
-            if (!IsActive(effect, out scale)) return false;
+            return TryUse(effect, out scale, out _);
+        }
+
+        /// <summary>
+        /// 攻撃を1回行うときに呼び、強化がかかっていれば、回数で切れる強化の残りを1減らす。
+        /// </summary>
+        /// <param name="effect">強化の種類</param>
+        /// <param name="scale">かかっていれば強化の倍率、かかっていなければ1</param>
+        /// <param name="intervalScale">かかっていれば強化の攻撃間隔の倍率、かかっていなければ1</param>
+        /// <returns>この攻撃に強化がかかるなら true</returns>
+        public bool TryUse(SkillEffect effect, out float scale, out float intervalScale)
+        {
+            if (!IsActive(effect, out scale, out intervalScale)) return false;
 
             var enhancement = _enhancements[effect];
             if (enhancement.RemainingCount < 0) return true;
@@ -80,14 +105,18 @@ namespace Kizami.Application
             /// <summary> 強化の倍率 </summary>
             public readonly float Scale;
 
+            /// <summary> 強化の攻撃間隔の倍率 </summary>
+            public readonly float IntervalScale;
+
             /// <summary> 残りの回数。負なら回数では切れない </summary>
             public int RemainingCount;
 
-            public Enhancement(double endTime, int remainingCount, float scale)
+            public Enhancement(double endTime, int remainingCount, float scale, float intervalScale)
             {
                 EndTime = endTime;
                 RemainingCount = remainingCount;
                 Scale = scale;
+                IntervalScale = intervalScale;
             }
 
             public bool IsActive(double now)

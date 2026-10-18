@@ -52,6 +52,10 @@ namespace Kizami.External
         [Tooltip("強化の倍率。範囲アップは刃の幅と届く距離に、速さアップは攻撃間隔に掛ける")]
         private float _enhanceScale = 1.5f;
 
+        [SerializeField, Min(0.01f)]
+        [Tooltip("強化の攻撃間隔の倍率。範囲と速さの強化でだけ使う")]
+        private float _enhanceIntervalScale = 1f;
+
         /// <summary> HUD に出す名前 </summary>
         public string DisplayName => _displayName;
 
@@ -85,6 +89,9 @@ namespace Kizami.External
         /// <summary> 強化の倍率 </summary>
         public float EnhanceScale => _enhanceScale;
 
+        /// <summary> 強化の攻撃間隔の倍率 </summary>
+        public float EnhanceIntervalScale => _enhanceIntervalScale;
+
         /// <summary> 強化型スキルか </summary>
         public bool IsEnhancement => _effect >= SkillEffect.EnhanceDestroy;
     }
@@ -117,6 +124,9 @@ namespace Kizami.External
 
         /// <summary> 強化型。投げた・撃ったかけらが、当たった所で爆発する </summary>
         ExplosiveFragment,
+
+        /// <summary> 強化型。剣の切断の範囲に倍率を掛け、攻撃間隔にも倍率を掛ける </summary>
+        EnhanceRangeSpeed,
     }
 
     /// <summary>

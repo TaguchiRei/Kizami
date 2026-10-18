@@ -11,7 +11,7 @@ namespace Kizami.Application
 {
     /// <summary>
     /// 近接切断の入力を解釈して MeleeCutState へ書き込み、振ったことを切断の実行役へ伝えるユースケース。
-    /// 速さアップの強化は攻撃間隔に、範囲アップの強化は振ったときの範囲に倍率を掛ける。
+    /// 速さアップの強化は攻撃間隔に、範囲アップの強化は振ったときの範囲に倍率を掛ける。範囲と速さの強化（覇剣）は両方に掛ける。
     /// 切断は攻撃タイプで、ボクセル破壊の強化中は破壊タイプを、シルブレの強化中は粉砕タイプを足す。ボスが止まったあとは、強化がなくても常に破壊タイプを足す。
     /// </summary>
     public sealed class MeleeCutService : IDisposable
@@ -97,11 +97,15 @@ namespace Kizami.Application
             // スローモード中も攻撃間隔は実時間で数える
             var now = Time.unscaledTimeAsDouble;
             _enhanceService.IsActive(SkillEffect.EnhanceSpeed, out var intervalScale);
+            _enhanceService.IsActive(SkillEffect.EnhanceRangeSpeed, out _, out var rangeSpeedIntervalScale);
+            intervalScale *= rangeSpeedIntervalScale;
             if (now - _lastSwingTime < _parameters.MeleeAttackInterval * intervalScale) return;
             if (_tryUseCut != null && !_tryUseCut()) return;
 
             _enhanceService.TryUse(SkillEffect.EnhanceSpeed, out _);
             _enhanceService.TryUse(SkillEffect.EnhanceRange, out var rangeScale);
+            _enhanceService.TryUse(SkillEffect.EnhanceRangeSpeed, out var rangeSpeedScale);
+            rangeScale *= rangeSpeedScale;
 
             var damageType = DamageType.Attack;
             var isDestroyEnhanced = _enhanceService.TryUse(SkillEffect.EnhanceDestroy, out _);
