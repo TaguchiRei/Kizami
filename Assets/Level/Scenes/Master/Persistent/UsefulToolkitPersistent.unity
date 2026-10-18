@@ -334,7 +334,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 915f9661f3c042808d0ec221d6504a4b, type: 2}
   - {fileID: 11400000, guid: f2b0a31f96fa4b778dae9d37060d5951, type: 2}
   - {fileID: 11400000, guid: 31cc274cbb124a9f84294d6370f08646, type: 2}
-  _firstClearReward: 100
   _transitionOnStart: 1
 --- !u!1 &752471123
 GameObject:

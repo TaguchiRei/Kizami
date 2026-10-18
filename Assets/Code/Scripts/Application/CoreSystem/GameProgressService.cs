@@ -10,7 +10,6 @@ namespace Kizami.Application
     /// <summary>
     /// アウトゲームとインゲームの間で受け渡す進行（GameProgressState）を生成し、書き込むユースケース。
     /// ステージの番号とステージの定義（StageData）、スキルの番号とスキルの定義（SkillData）の対応を持つ。常駐シーンで一度だけ生成する。
-    /// 初回クリアの通貨は、仕様でステージによらず同じ量なので、ステージの定義ではなくここで持つ。
     /// </summary>
     public sealed class GameProgressService
     {
@@ -18,7 +17,6 @@ namespace Kizami.Application
 
         private StageData[] _stages = Array.Empty<StageData>();
         private SkillData[] _skills = Array.Empty<SkillData>();
-        private int _firstClearReward;
 
         /// <summary> 選べるステージ。番号はこの並びの位置 </summary>
         public IReadOnlyList<StageData> Stages => _stages;
@@ -36,12 +34,10 @@ namespace Kizami.Application
         /// <param name="blackBoard">GameProgressState の登録先</param>
         /// <param name="stages">選べるステージ。番号はこの並びの位置</param>
         /// <param name="skills">装備できるスキル。番号はこの並びの位置</param>
-        /// <param name="firstClearReward">ステージを初めてクリアしたときに得る通貨の量</param>
-        public void Initialize(IBlackBoard blackBoard, StageData[] stages, SkillData[] skills, int firstClearReward)
+        public void Initialize(IBlackBoard blackBoard, StageData[] stages, SkillData[] skills)
         {
             _stages = stages ?? Array.Empty<StageData>();
             _skills = skills ?? Array.Empty<SkillData>();
-            _firstClearReward = firstClearReward;
 
             for (var slot = 0; slot < Math.Min(_state.SlotCount, _skills.Length); slot++)
             {
@@ -124,7 +120,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 選んだステージをクリアしたことにする。初めてのクリアなら通貨を足す。
+        /// 選んだステージをクリアしたことにする。
         /// </summary>
         public void CompleteSelectedStage()
         {
@@ -132,7 +128,6 @@ namespace Kizami.Application
             if (index < 0 || index >= _stages.Length || _state.IsStageCleared(index)) return;
 
             _state.MarkStageCleared(index);
-            _state.SetCurrency(_state.Currency + _firstClearReward);
         }
     }
 }

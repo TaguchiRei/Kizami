@@ -32,10 +32,6 @@ namespace Kizami.Initialization
         [Tooltip("アウトゲームで装備できるスキル。スキルの番号はこの並びの位置。初めは先頭から順に装備枠へ装備する。")]
         private SkillData[] _skills;
 
-        [SerializeField, Min(0)]
-        [Tooltip("ステージを初めてクリアしたときに得る通貨の量。仕様でステージによらず同じ量。")]
-        private int _firstClearReward = 100;
-
         [SerializeField]
         [Tooltip("起動時にアウトゲームへ自動で遷移する。")]
         private bool _transitionOnStart = true;
@@ -48,7 +44,7 @@ namespace Kizami.Initialization
                 return;
             }
 
-            _progressService.Initialize(blackBoard, _stages, _skills, _firstClearReward);
+            _progressService.Initialize(blackBoard, _stages, _skills);
             if (!_sceneController.Initialize(blackBoard, _outGameGroup.GroupData, _progressService)) return;
 
             base.Initialize(blackBoard);

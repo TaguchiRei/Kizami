@@ -7,10 +7,10 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// 仮のアウトゲームに、通貨、スキルの装備枠、ステージのボタンを並べる Initializer。仮のアウトゲームの場面シーンへ置く。
+    /// 仮のアウトゲームに、スキルの装備枠、ステージのボタンを並べる Initializer。仮のアウトゲームの場面シーンへ置く。
     /// 装備枠のボタンを押すと装備できるスキルを順に替え、ステージのボタンを押すとそのステージのインゲームへ遷移する。
     /// </summary>
-    // TODO: アウトゲーム本来の流れ（スキルの購入、装備の画面、セーブ）に置き換える
+    // TODO: アウトゲーム本来の流れ（ホーム、ステージ選択、装備の画面）に置き換える
     public sealed class OutGameStartInitializer : InitializerBase, IInjectable<IGameSceneController>,
         IInjectable<GameProgressService>
     {
@@ -44,13 +44,11 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 通貨と、スキルの装備枠のボタンを並べる。
+        /// スキルの装備枠のボタンを並べる。
         /// </summary>
         private void DrawProgress()
         {
             if (_progressService == null || _progressState == null) return;
-
-            GUILayout.Label($"Currency: {_progressState.Currency}");
 
             var skills = _progressService.Skills;
             for (var slot = 0; slot < _progressState.SlotCount; slot++)

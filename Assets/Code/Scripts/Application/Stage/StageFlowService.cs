@@ -43,7 +43,7 @@ namespace Kizami.Application
         /// <param name="stage">遊ぶステージの定義</param>
         /// <param name="timeScaleController">ポーズで時間の倍率を変える操作面</param>
         /// <param name="inputController">ポーズ中とクリア・失敗のあとに Player マップを止める操作面</param>
-        /// <param name="onCleared">クリアしたときに呼ぶ処理（初回クリアの通貨を足すなど）</param>
+        /// <param name="onCleared">クリアしたときに呼ぶ処理（クリアの記録とスキルの解放など）</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public StageFlowService(IBlackBoard blackBoard, StageData stage, ITimeScaleController timeScaleController,
             IInputController inputController, Action onCleared, int sceneId)
