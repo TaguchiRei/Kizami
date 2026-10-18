@@ -542,10 +542,11 @@ MonoBehaviour:
   _enemySpawnAdapter: {fileID: 1539543158}
   _voxelDestructionAdapter: {fileID: 1734900002}
   _fragmentThrowAdapter: {fileID: 1258148392}
+  _bombThrowAdapter: {fileID: 1258148394}
   _equippedSkills:
-  - {fileID: 11400000, guid: 3c8d0496d6baf774494d30e32f8f5cda, type: 2}
-  - {fileID: 11400000, guid: 992c0f9acc63fff468eee1c55f9d0a68, type: 2}
-  - {fileID: 11400000, guid: 22fd5b84f87f4aecbf46858fbb16eb64, type: 2}
+  - {fileID: 11400000, guid: 7ae116c07fce44eb9d3d2f376c7e56ab, type: 2}
+  - {fileID: 11400000, guid: ed106c18d54e42b7804f9237315ad9e8, type: 2}
+  - {fileID: 11400000, guid: 5c7332ccc0f74149a007736fded64901, type: 2}
 --- !u!136 &903436363
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -1031,6 +1032,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1258148393}
   - component: {fileID: 1258148392}
+  - component: {fileID: 1258148394}
   m_Layer: 0
   m_Name: FragmentThrow
   m_TagString: Untagged
@@ -1084,6 +1086,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1258148394
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1258148391}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9cbf4ec58f04a8f9ed754c4bb553d25, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BombThrowAdapter
+  _bombDiameter: 0.3
+  _spawnOffset: 1
+  _lifetime: 5
 --- !u!1 &1307013806
 GameObject:
   m_ObjectHideFlags: 0
