@@ -159,6 +159,8 @@ namespace Kizami.EngineAdapter
                 case GuideConditionKind.TargetDestroyed:
                     var target = condition.Target;
                     return target != null && target.IsDestroyed;
+                case GuideConditionKind.DestroyedTargetCount:
+                    return _flowState.DestroyedTargetCount >= Mathf.Max(1, condition.Count);
                 case GuideConditionKind.DefeatCount:
                     return _flowState.DefeatCount - _defeatBaseline >= Mathf.Max(1, condition.Count);
                 case GuideConditionKind.PlayerAction:
@@ -256,7 +258,10 @@ namespace Kizami.EngineAdapter
         PlayerMoved,
 
         /// <summary> 条件はなく、段階に入ってすぐ満たす。待ち時間だけで進める </summary>
-        None
+        None,
+
+        /// <summary> クリアの対象のうち、どれでもよいので、指定した数が破壊済みになった。ステージを始めてからの数で数える </summary>
+        DestroyedTargetCount
     }
 
     /// <summary>
@@ -278,7 +283,7 @@ namespace Kizami.EngineAdapter
         private string _targetId;
 
         [SerializeField, Min(1)]
-        [Tooltip("倒す敵の数。種類が DefeatCount のときに使う")]
+        [Tooltip("倒す敵の数か、破壊済みを待つ対象の数。種類が DefeatCount か DestroyedTargetCount のときに使う")]
         private int _count;
 
         [SerializeField]
@@ -305,7 +310,7 @@ namespace Kizami.EngineAdapter
         public bool HasTargetReference =>
             _target != null ? _target is IDestructionTarget : !string.IsNullOrEmpty(_targetId);
 
-        /// <summary> 倒す敵の数 </summary>
+        /// <summary> 倒す敵の数か、破壊済みを待つ対象の数 </summary>
         public int Count => _count;
 
         /// <summary> 待つプレイヤーの出来事 </summary>

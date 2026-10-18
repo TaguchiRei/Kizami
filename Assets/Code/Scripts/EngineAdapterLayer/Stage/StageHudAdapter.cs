@@ -132,7 +132,7 @@ namespace Kizami.EngineAdapter
             _chargeValueText.text = _chargeState.Current.ToString();
             UpdateSkills();
 
-            _targetText.text = $"Targets {_flowState.DestroyedTargetCount} / {_flowState.TargetCount}";
+            _targetText.text = $"Targets {_flowState.DestroyedTargetCount} / {_flowState.RequiredTargetCount}";
             _defeatText.text = $"Defeated {_flowState.DefeatCount}";
             UpdateTimeText();
             _launcherText.text = _fragmentThrowAdapter != null && _fragmentThrowAdapter.IsLoaded

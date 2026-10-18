@@ -300,7 +300,8 @@ namespace Kizami.Initialization
             if (_flowState != null)
             {
                 _targetText.Append(_flowState.Phase).Append(' ')
-                    .Append(_flowState.DestroyedTargetCount).Append(" / ").Append(_flowState.TargetCount);
+                    .Append(_flowState.DestroyedTargetCount).Append(" / ").Append(_flowState.RequiredTargetCount)
+                    .Append(" (of ").Append(_flowState.TargetCount).Append(')');
                 if (_flowState.Phase == StagePhase.Failed) _targetText.Append(' ').Append(_flowState.FailReason);
             }
 
