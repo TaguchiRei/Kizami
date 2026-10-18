@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手（区間0の実装後に見直し済み。着手するときは「既存コードの確認結果」が今のコードと合っているかだけ確かめる） |
+| 状態 | 実装済み・ローカルでの確認待ち |
 | 目安の時期 | 未定 |
 | 前提となる区間 | 0, 1（羽天轟号の表示は 6 を待たずに作れる） |
 | 全体計画 | [OutGameOverallPlan.md](../OutGameOverallPlan.md) |
@@ -63,7 +63,33 @@
 
 ## 実装結果
 
-区間を終えるときに書く。
+決めたこと
+
+| # | 項目 | 決定 |
+|---|---|---|
+| 1 | 装備の操作 | 枠を選んでから一覧のスキルを押す。ほかの枠にあるスキルを押すと入れ替える。「Unequip」で選んだ枠を空きにする |
+| 2 | 出す情報 | 名前、消費、説明文（空なら出さない）。装備枠と一覧のボタンには装備している枠の印を付ける |
+| 3 | 解放の演出 | 通常は画面右上の通知（3 秒）、専用の枠のスキルは全画面で、OK を押すまで閉じない |
+| 4 | 演出を出したかの記録 | `progress.json` の `ShownUnlockSkillIds`。順番待ちに加えた時点で記録する（途中で閉じても二度は出ない） |
+| 5 | 羽天轟号の見分け方 | `GameSceneInitializer._ultimateSkill`（装備できるスキルに含まれるもの。空なら専用の枠を出さない） |
+| 6 | 説明文 | `SkillData._description` を足した。文は未入力（スキルの定義を作り直す区間5で入れる） |
+
+作ったもの
+
+- `GameProgressService`：`EquipSkill(slot, skillIndex)`（`CycleEquippedSkill` を置き換え）、`GetPendingUnlockSkills`、`MarkUnlockShown`、`UltimateSkillIndex`
+- `OutGameMenuAdapter`：スキル装備の画面（左に枠と説明、右に専用の枠と一覧）と、解放の演出。表示内容は `SkillEntry` で受け取る
+- `OutGameStartInitializer`：装備の操作と演出の順番待ちをつなぐ
+
+完了条件の確認結果
+
+- 未確認（クラウドで Unity が動かない為）。静的な確認として、asmdef の参照、命名、メンバー順は見た
+- ローカルで確かめること：`Kizami.External.Runtime`・`Kizami.Application.Runtime`・`Kizami.EngineAdapter.Runtime`・`Kizami.Initialization.Runtime` のコンパイル。`OutGame` シーンで、枠を選んでスキルを押すと装備でき、ほかの枠のスキルを押すと入れ替わること。未解放のスキルが押せないこと。装備したスキルをインゲームで使えること。ステージをクリアして戻ると通知が一度だけ出ること。専用の枠と全画面の演出は、`UsefulToolkitPersistent` の `GameSceneInitializer._ultimateSkill` に羽天轟号ができるまで確かめられない（仮にほかのスキルを入れて確かめる）
+
+次の区間へ持ち越すこと
+
+- 説明文の入力と、`_ultimateSkill` への羽天轟号の割り当て（区間5・6）
+- 既存の保存データは `ShownUnlockSkillIds` を持たないので、クリア済みのステージのスキルの通知が最初に一度出る
+- 見た目の作り込み
 
 ## 見つけた問題（今回は扱わない）
 
