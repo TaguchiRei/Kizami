@@ -254,7 +254,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.OperationSettingInitializer
   _sprintInputMode: 0
+  _grabInputMode: 1
   _cutRotateStepAngle: 15
+  _inputActions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  _audioMixer: {fileID: 24100000, guid: 0b59da02c04555141ab4cc1f5a6f6e12, type: 2}
 --- !u!114 &669221193
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -336,6 +339,7 @@ MonoBehaviour:
   _initialUnlockedSkills:
   - {fileID: 11400000, guid: 3c8d0496d6baf774494d30e32f8f5cda, type: 2}
   - {fileID: 11400000, guid: 992c0f9acc63fff468eee1c55f9d0a68, type: 2}
+  _ultimateSkill: {fileID: 0}
   _transitionOnStart: 1
 --- !u!1 &752471123
 GameObject:
