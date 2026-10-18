@@ -151,12 +151,15 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 146dea6d7423dbc4790d8e4933555e70, type: 2}
     _attachments: {fileID: 8669933531929439365, guid: 0df4874b7ebbb2a45b2456d596da9a8f, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: 0fd6e1ed18675ab49a8e0a3968ff32fc, type: 2}
     _attachments: {fileID: 4549418165734046003, guid: c8625f599655d264ba11fdd304dcd2c6, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: a3e2efdbe3a61a544b2723c87a8aea1a, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -166,6 +169,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &14204142
 Transform:
   m_ObjectHideFlags: 0
@@ -213,12 +217,15 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 146dea6d7423dbc4790d8e4933555e70, type: 2}
     _attachments: {fileID: 8669933531929439365, guid: 0df4874b7ebbb2a45b2456d596da9a8f, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: 0fd6e1ed18675ab49a8e0a3968ff32fc, type: 2}
     _attachments: {fileID: 4549418165734046003, guid: c8625f599655d264ba11fdd304dcd2c6, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: a3e2efdbe3a61a544b2723c87a8aea1a, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -228,6 +235,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &50383994
 Transform:
   m_ObjectHideFlags: 0
@@ -530,6 +538,7 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 94b5e33d382247b4e8665554690b08e7, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 8
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -539,6 +548,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &553539447
 Transform:
   m_ObjectHideFlags: 0
@@ -837,15 +847,19 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 6f41d29a352c3bf43b596b702d6f4581, type: 2}
     _attachments: {fileID: 3971302975132308412, guid: ef8ae46f74bb9954aab8d8714e2010b8, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: b3d9c82b046a81143848c4446c2adb05, type: 2}
     _attachments: {fileID: 2166648548246146167, guid: ef694c03383831644b41fc9be48e56b5, type: 3}
+    _proxy: {fileID: 0}
     _count: 8
   - _model: {fileID: 11400000, guid: 1eb474ff2ccb51e49876056baa56b2a5, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 2
   - _model: {fileID: 11400000, guid: df699168955f83a4b8717df645010407, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -855,6 +869,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &689990777
 Transform:
   m_ObjectHideFlags: 0
@@ -902,12 +917,15 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 3ae66602670c35f43a9fa76d8be6d081, type: 2}
     _attachments: {fileID: 7860300971024753909, guid: 614b13a9f8136214ca7cd1681dfbbd76, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: 55436f5f50eaf784da44a42171ceb030, type: 2}
     _attachments: {fileID: 309721069825277734, guid: afa947f0b6653344a93393b607fe5664, type: 3}
+    _proxy: {fileID: 0}
     _count: 4
   - _model: {fileID: 11400000, guid: 8d0e619c5e64afc4c911d03b38bb2c76, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -917,6 +935,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &718238394
 Transform:
   m_ObjectHideFlags: 0
@@ -1026,9 +1045,11 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: d5ac216ea435b4f438c5da266f625719, type: 2}
     _attachments: {fileID: 6205263122029394432, guid: db131e2baa7a36645881ed7a729257e9, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: 6fa6ee9f8e5e41c4c807453ca25411f1, type: 2}
     _attachments: {fileID: 8419231157667380889, guid: d05dd7cb15af0434a8a772f69af5bdbc, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -1038,6 +1059,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &854837102
 Transform:
   m_ObjectHideFlags: 0
@@ -1085,12 +1107,15 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 6d041033ec5a8d14d8991c7564f17040, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: 24520197826d66e48915d742ec65df12, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 6
   - _model: {fileID: 11400000, guid: 1d5e6adac736d8a42af6207e8d1c5868, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -1100,6 +1125,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &873104501
 Transform:
   m_ObjectHideFlags: 0
@@ -1333,12 +1359,15 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 9655271648f834d47b65ca92f2c407cf, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: f496b0e04bc1b22469424084e8a07408, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 3
   - _model: {fileID: 11400000, guid: 05e91daa8efc13040aa3d08ff54d1dd3, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -1348,6 +1377,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &1136281083
 Transform:
   m_ObjectHideFlags: 0
@@ -1519,12 +1549,15 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: e5599b5b57d7cf5408ef8ffd731c9bd0, type: 2}
     _attachments: {fileID: 7478254270967849381, guid: 84b37c00b82433249993636caecf3150, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: ea2d5547631c9dc4e8ee840be5df38df, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 2
   - _model: {fileID: 11400000, guid: 6bae342fe65d82045b7c00b63300a842, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -1534,6 +1567,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &1200112191
 Transform:
   m_ObjectHideFlags: 0
@@ -1820,12 +1854,15 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: acb529935af8d3144a4e7720388d77b8, type: 2}
     _attachments: {fileID: 1010145321871906105, guid: a24915f0d363e1b4b84b579880eeb9f5, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: 06fbb9c2ed258a048b2a10f345be7078, type: 2}
     _attachments: {fileID: 6231190782456025760, guid: af0cccabf7305f74493c08c015f749d1, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: ee12291946890ae4396c7bc1ff41e904, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -1835,6 +1872,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &1377695547
 Transform:
   m_ObjectHideFlags: 0
@@ -1944,12 +1982,15 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 8ea0e0049534612419b387711fe51924, type: 2}
     _attachments: {fileID: 5160333256934473565, guid: e27f5b0f9097b224cb8abb2e196eb58e, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: a236a66378c1ea940980b0ad94c5f0dd, type: 2}
     _attachments: {fileID: 3688057601760208316, guid: b015a6a9ed5da64459d9608441d0d061, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: a1541f548dcf98e4a9624a2adc863435, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -1959,6 +2000,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &1444384436
 Transform:
   m_ObjectHideFlags: 0
@@ -2006,15 +2048,19 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 27eb7895e48333a438b1f5e632a3afc3, type: 2}
     _attachments: {fileID: 7720203426462631845, guid: f225d069f3331244aaa2706d9baa3388, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: a350264c32821d04da03dfdde033f73f, type: 2}
     _attachments: {fileID: 2136494680529178027, guid: f9b9ecc24d7da684799da0f1390eefe5, type: 3}
+    _proxy: {fileID: 0}
     _count: 6
   - _model: {fileID: 11400000, guid: 02c049d59f551de4694254a077f75cf2, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 2
   - _model: {fileID: 11400000, guid: 0fe3baa212a31da40a61ef9d592ff1cc, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -2024,6 +2070,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &1587322383
 Transform:
   m_ObjectHideFlags: 0
@@ -2133,12 +2180,15 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 79c86fdb1ef587d4ba68382afa386df6, type: 2}
     _attachments: {fileID: 2709068930135344456, guid: a8051d30ea82af14ab54a55e953ca0d9, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: c3412d1b39759ba4db8b7e1707e34ec9, type: 2}
     _attachments: {fileID: 7129408856053212570, guid: d65c1ecae3f8f8f4cba2e90681cf3393, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: 02e01735d3a004041868be5c40570793, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -2148,6 +2198,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &1761037332
 Transform:
   m_ObjectHideFlags: 0
@@ -2300,12 +2351,15 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: acb529935af8d3144a4e7720388d77b8, type: 2}
     _attachments: {fileID: 1010145321871906105, guid: a24915f0d363e1b4b84b579880eeb9f5, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: 06fbb9c2ed258a048b2a10f345be7078, type: 2}
     _attachments: {fileID: 6231190782456025760, guid: af0cccabf7305f74493c08c015f749d1, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: ee12291946890ae4396c7bc1ff41e904, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -2315,6 +2369,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &1792068892
 Transform:
   m_ObjectHideFlags: 0
@@ -2424,12 +2479,15 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: aecbbd8d41e75df4285fb6559cf3d54e, type: 2}
     _attachments: {fileID: 7897085694850461204, guid: 8d9d548bf16906145b353a5ef75a1e2d, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: 01f0d38487bb0964f88ca95736f0bc46, type: 2}
     _attachments: {fileID: 130435334809023392, guid: a953d49f8d9ee6d4c9196470bf93286f, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: 4a84c9b4ba6b49043b9bf6ee921fe066, type: 2}
     _attachments: {fileID: 128047016365770450, guid: be99bf94e107ce241b900afa530d732c, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -2439,6 +2497,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &1844916530
 Transform:
   m_ObjectHideFlags: 0
@@ -2610,24 +2669,31 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 9e592c5451913144d9600252e4a774d4, type: 2}
     _attachments: {fileID: 5713175219576612057, guid: 41f27a9bf9866fe48986e6536149bd9c, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: 24fe182eefbd6ec4cb211b8452a7780c, type: 2}
     _attachments: {fileID: 5151776423486151116, guid: 4da307d8b52b00c4cb60d0976c2ac8e5, type: 3}
+    _proxy: {fileID: 0}
     _count: 5
   - _model: {fileID: 11400000, guid: b25397ff2267ead44950bba8f73451a3, type: 2}
     _attachments: {fileID: 842236185845967487, guid: 4224efd7ea586b84db845abec288c611, type: 3}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: bbfdaaab2c5ae3d4f98ff207e31bf8fa, type: 2}
     _attachments: {fileID: 1054682362775719897, guid: 2bbb58957d5bf80459aa9694ad45884e, type: 3}
+    _proxy: {fileID: 0}
     _count: 4
   - _model: {fileID: 11400000, guid: d4d0dd048326e5640855c047ed1f4039, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   - _model: {fileID: 11400000, guid: a4883a83e2b10a84a90f2c6c5f91261a, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 2
   - _model: {fileID: 11400000, guid: d91bba0cb64dc374b88f2a3a76105ec4, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -2637,6 +2703,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &1909234103
 Transform:
   m_ObjectHideFlags: 0
@@ -2808,6 +2875,7 @@ MonoBehaviour:
   _sections:
   - _model: {fileID: 11400000, guid: 6b6664d392f521040a29b8b501a94a8c, type: 2}
     _attachments: {fileID: 0}
+    _proxy: {fileID: 0}
     _count: 1
   _floorHeight: 6.4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -2817,6 +2885,7 @@ MonoBehaviour:
   _collapseDensity: 500
   _target: {fileID: 0}
   _swapDistance: 40
+  _proxyTransitionHeight: 0.3
 --- !u!4 &1991252660
 Transform:
   m_ObjectHideFlags: 0

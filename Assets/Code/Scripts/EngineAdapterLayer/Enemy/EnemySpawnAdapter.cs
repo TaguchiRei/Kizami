@@ -575,7 +575,7 @@ namespace Kizami.EngineAdapter
 
                 if (_finisherAttack != null)
                 {
-                    _finisherAttack.Tick(_agents, _groups, _bodyLenders, Time.deltaTime, _distanceField.Grid);
+                    _finisherAttack.Tick(_agents, _groups, _bodyLenders, Time.deltaTime);
                 }
 
                 using (_renderMarker.Auto())
@@ -1130,7 +1130,10 @@ namespace Kizami.EngineAdapter
                     FallStartHeight = position.y,
                     Yaw = GetYawToTarget(position),
                     BodyIndex = -1,
-                    GroupIndex = -1
+                    GroupIndex = -1,
+                    AttackCooldown = kind == EnemyKind.Finisher && _finisherAttack != null
+                        ? _finisherAttack.RollFirstCooldown()
+                        : 0f
                 };
 
                 if (!_groups.TryAdd(g, i, ref agent)) return false;
