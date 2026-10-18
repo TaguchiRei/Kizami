@@ -10,7 +10,8 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 体を貸していない敵の状態から部位ごとの行列を Job で作り、Graphics.RenderMeshInstanced で部位ごとにまとめて描画する。体から外れた部位は描かない。
-    /// 敵の種類ごとに1つ作り、その種類の敵だけを描く。部位のメッシュ・マテリアル・体の根から見た位置は、その種類の体のプレハブから初期化のときに読む。
+    /// 敵の種類ごとに1つ作り、その種類の敵だけを描く。部位のメッシュ・マテリアルは、その種類の体のプレハブから初期化のときに読む。
+    /// 体の根から見た位置は、部位が待機姿勢（EnemyPart.HasIdlePose）を持っていればそれ、なければプレハブの姿勢から作る。
     /// </summary>
     /// <remarks>
     /// マテリアルは GPU インスタンシングを有効にしておく必要がある。
@@ -64,7 +65,10 @@ namespace Kizami.EngineAdapter
                 var meshRenderer = cuttable.GetComponent<MeshRenderer>();
 
                 _meshes[i] = meshFilter.sharedMesh;
-                _partLocalMatrices[i] = rootWorldToLocal * cuttable.transform.localToWorldMatrix;
+                var prefabMatrix = rootWorldToLocal * cuttable.transform.localToWorldMatrix;
+                _partLocalMatrices[i] = parts[i].HasIdlePose
+                    ? Matrix4x4.TRS(parts[i].IdlePosition, parts[i].IdleRotation, prefabMatrix.lossyScale)
+                    : prefabMatrix;
 
                 var materials = meshRenderer.sharedMaterials;
                 _renderParams[i] = new RenderParams[materials.Length];

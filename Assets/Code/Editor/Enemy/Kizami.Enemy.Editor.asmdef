@@ -2,7 +2,8 @@
     "name": "Kizami.Enemy.Editor",
     "rootNamespace": "Kizami.EditorTools",
     "references": [
-        "Kizami.EngineAdapter.Runtime"
+        "Kizami.EngineAdapter.Runtime",
+        "UsefulToolkit.MeshCut.Runtime"
     ],
     "includePlatforms": [
         "Editor"

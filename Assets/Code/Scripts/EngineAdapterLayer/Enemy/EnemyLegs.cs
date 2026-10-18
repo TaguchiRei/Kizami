@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 
@@ -85,6 +86,8 @@ namespace Kizami.EngineAdapter
         private float _stepProgress;
 
         private Vector3 _previousRootPosition;
+
+        private bool _isSetUp;
 
         /// <summary> 脚の数 </summary>
         public int LegCount => _legs.Length;
@@ -195,6 +198,19 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 各脚の足先を、体の根の空間の位置へ IK で向ける。待機姿勢をエディタで焼き込むときに、体の根の向きと位置を決めたあとで呼ぶ。
+        /// </summary>
+        /// <param name="footTargets">脚の番号（設定の並び）ごとの、足先を向ける位置（体の根の空間）</param>
+        public void PoseFeet(IReadOnlyList<Vector3> footTargets)
+        {
+            Setup();
+            for (var i = 0; i < _legs.Length && i < footTargets.Count; i++)
+            {
+                if (IsUpperAttached(i)) Solve(i, footTargets[i]);
+            }
+        }
+
+        /// <summary>
         /// 留めていた足を放し、基準の位置に置き直す。留めていなければ何もしない。
         /// </summary>
         /// <param name="leg">脚の番号（設定の並び）</param>
@@ -209,6 +225,17 @@ namespace Kizami.EngineAdapter
 
         private void Awake()
         {
+            Setup();
+        }
+
+        /// <summary>
+        /// 腰・膝・基準の位置などを脚の設定から読む。最初の1回だけ行う。
+        /// </summary>
+        private void Setup()
+        {
+            if (_isSetUp) return;
+
+            _isSetUp = true;
             var count = _legs.Length;
             _hips = new Vector3[count];
             _axes = new Vector3[count];

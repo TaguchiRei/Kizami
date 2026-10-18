@@ -258,47 +258,81 @@ MonoBehaviour:
     _jointDistance: 0.3
     _role:
       rid: 8226038166398435415
+    _hasIdlePose: 1
+    _idlePosition: {x: -0.457523, y: 1.51169, z: -0.45495516}
+    _idleRotation: {x: 0.28176194, y: 0.34082773, z: -0.004211503, w: 0.89689964}
   - _cuttable: {fileID: 2809557936706671616}
     _jointDistance: 0.3
     _role:
       rid: 8226038166398435416
+    _hasIdlePose: 1
+    _idlePosition: {x: -1.7541355, y: 2.567417, z: -1.7644868}
+    _idleRotation: {x: -0.6204781, y: 0.120400935, z: -0.00256882, w: 0.7749219}
   - _cuttable: {fileID: 2195112773157030558}
     _jointDistance: 0.3
     _role:
       rid: 8226038166398435417
+    _hasIdlePose: 1
+    _idlePosition: {x: 0.457523, y: 1.51169, z: -0.45495516}
+    _idleRotation: {x: 0.28010485, y: -0.34147426, z: 0.005426514, w: 0.8971662}
   - _cuttable: {fileID: 429418932810833592}
     _jointDistance: 0.3
     _role:
       rid: 8226038166398435418
+    _hasIdlePose: 1
+    _idlePosition: {x: 1.7585664, y: 2.5581722, z: -1.7599993}
+    _idleRotation: {x: -0.61556005, y: -0.12562646, z: 0.0006534524, w: 0.77801245}
   - _cuttable: {fileID: 8595465916919686587}
     _jointDistance: 0
     _role:
       rid: 8226038166398435419
+    _hasIdlePose: 1
+    _idlePosition: {x: 0, y: 0.48810586, z: 0}
+    _idleRotation: {x: 0, y: 0, z: 0, w: 1}
   - _cuttable: {fileID: 7486529459491993296}
     _jointDistance: 0.3
     _role:
       rid: 8226038166398435420
+    _hasIdlePose: 1
+    _idlePosition: {x: -0.457523, y: 1.51169, z: 0.480953}
+    _idleRotation: {x: -0.283349, y: -0.3455899, z: -0.0042926623, w: 0.8945739}
   - _cuttable: {fileID: 24662961443034679}
     _jointDistance: 0.3
     _role:
       rid: 8226038166398435421
+    _hasIdlePose: 1
+    _idlePosition: {x: -1.7631444, y: 2.5661907, z: 1.7672716}
+    _idleRotation: {x: 0.6204609, y: -0.12273232, z: -0.002611903, w: 0.7745697}
   - _cuttable: {fileID: 6223184954038695183}
     _jointDistance: 0.3
     _role:
       rid: 8226038166398435422
+    _hasIdlePose: 1
+    _idlePosition: {x: 0.457523, y: 1.51169, z: 0.480953}
+    _idleRotation: {x: -0.28478518, y: 0.34486973, z: 0.00549791, w: 0.8943892}
   - _cuttable: {fileID: 6052654112854228297}
     _jointDistance: 0.3
     _role:
       rid: 8226038166398435423
+    _hasIdlePose: 1
+    _idlePosition: {x: 1.7640771, y: 2.5701904, z: 1.761891}
+    _idleRotation: {x: 0.6220692, y: 0.12032143, z: 0.0005665447, w: 0.77366173}
   - _cuttable: {fileID: 6170856892598330292}
     _jointDistance: 0.3
     _role:
       rid: 8226038210120122651
+    _hasIdlePose: 1
+    _idlePosition: {x: 0, y: 2.8743625, z: 0.017962612}
+    _idleRotation: {x: 0, y: 0, z: 0, w: 1}
   - _cuttable: {fileID: 5505983852874233367}
     _jointDistance: 0.3
     _role:
       rid: 8226038210120122652
+    _hasIdlePose: 1
+    _idlePosition: {x: 0, y: 3.311, z: 0}
+    _idleRotation: {x: 0, y: 0, z: 0, w: 1}
   _brokenMovePartLimit: 4
+  _isFloating: 0
   references:
     version: 2
     RefIds:
@@ -364,6 +398,7 @@ MonoBehaviour:
     _lower: {fileID: 259607693237171716}
     _lowerRestDirection: {x: 0, y: 0, z: 0}
     _pair: 1
+  _animator: {fileID: 0}
   _reachRate: 0.7
   _splay: 0.7
   _stepThreshold: 0.9
