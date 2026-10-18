@@ -354,15 +354,7 @@ namespace Kizami.EngineAdapter
             if (_meltTimer > 0f) return;
 
             _meltTimer += _meltInterval;
-            if (_hitCollider == null) return;
-
-            var piece = _hitCollider.GetComponentInParent<VoxelPiece>();
-            if (piece == null) return;
-
-            var start = surface - _aimDirection * _meltRadius;
-            var end = start + _aimDirection * (_meltSpeed * _meltInterval);
-            var reach = _meltRadius + VoxelThermalSettings.NORMAL_MELTING_POINT / _meltFalloff;
-            piece.ApplyStrike(new CapsuleShape(start, end, reach), _meltFalloff, Space.World);
+            VoxelBeamMelt.Melt(_hitCollider, surface, _aimDirection, _meltRadius, _meltSpeed * _meltInterval, _meltFalloff);
         }
 
         /// <summary>

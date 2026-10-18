@@ -483,27 +483,18 @@ namespace Kizami.EngineAdapter
         /// <param name="radius">球の半径（m）</param>
         public void DefeatInRadius(Vector3 center, float radius)
         {
-            if (!Initialized) return;
+            RemoveInRadius(center, radius, true);
+        }
 
-            var radiusSq = radius * radius;
-            var defeatedCount = 0;
-            var positionSum = float3.zero;
-            for (var i = 0; i < _agents.Length; i++)
-            {
-                var agent = _agents[i];
-                if (!agent.IsAlive) continue;
-
-                var bodyCenter = (Vector3)agent.Position + Vector3.up * _crushBodyCenterHeight;
-                if ((bodyCenter - center).sqrMagnitude > radiusSq) continue;
-
-                agent.IsAlive = false;
-                _agents[i] = agent;
-                defeatedCount++;
-                positionSum += agent.Position;
-                _emitEnergy?.Invoke(bodyCenter);
-            }
-
-            NotifyDefeated(defeatedCount, EnemyDefeatCause.Impact, positionSum);
+        /// <summary>
+        /// 中心から半径の球の中にいる敵をすべて、吸収されたものとして消す。DefeatInRadius と違い、エネルギーを出さず、倒した数にも数えない。
+        /// </summary>
+        /// <param name="center">球の中心（ワールド空間）</param>
+        /// <param name="radius">球の半径（m）</param>
+        /// <returns>消した敵の数</returns>
+        public int AbsorbInRadius(Vector3 center, float radius)
+        {
+            return RemoveInRadius(center, radius, false);
         }
 
         /// <summary>
@@ -524,6 +515,37 @@ namespace Kizami.EngineAdapter
             }
 
             NotifyDefeated(defeatedCount, EnemyDefeatCause.Cut, positionSum);
+        }
+
+        /// <summary>
+        /// 中心から半径の球の中にいる敵をすべて消す。敵の体の中心（足元から崩落の判定と同じ高さ）で距離を測る。
+        /// isDefeat なら、倒したものとしてエネルギーを出し、倒した数を通知する。
+        /// </summary>
+        /// <returns>消した敵の数</returns>
+        private int RemoveInRadius(Vector3 center, float radius, bool isDefeat)
+        {
+            if (!Initialized) return 0;
+
+            var radiusSq = radius * radius;
+            var removedCount = 0;
+            var positionSum = float3.zero;
+            for (var i = 0; i < _agents.Length; i++)
+            {
+                var agent = _agents[i];
+                if (!agent.IsAlive) continue;
+
+                var bodyCenter = (Vector3)agent.Position + Vector3.up * _crushBodyCenterHeight;
+                if ((bodyCenter - center).sqrMagnitude > radiusSq) continue;
+
+                agent.IsAlive = false;
+                _agents[i] = agent;
+                removedCount++;
+                positionSum += agent.Position;
+                if (isDefeat) _emitEnergy?.Invoke(bodyCenter);
+            }
+
+            if (isDefeat) NotifyDefeated(removedCount, EnemyDefeatCause.Impact, positionSum);
+            return removedCount;
         }
 
         private void Update()
