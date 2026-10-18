@@ -45,6 +45,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("傾きがこの角度（度）に届くまで、角加速度を与え続ける。届いたあとは重力に任せる")]
         private float _driveUntilAngle = 20f;
 
+        [SerializeField, Min(0.1f)]
+        [Tooltip("倒れた塔の足場の箱の角に埋める、地面と接する球の半径（m）。箱の半分より大きいときは、箱に収まる大きさにする")]
+        private float _footSphereRadius = 2f;
+
         [SerializeField, Min(0f)]
         [Tooltip("塔の上の部分の質量（kg）。倒れた階のまとまりの質量に足す")]
         private float _upperMass = 1000000f;
@@ -52,6 +56,10 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0f)]
         [Tooltip("倒れたまとまりの質量の下限（kg）。階をボクセルにせずに倒すと、階の体積が質量に入らない為")]
         private float _minimumMass = 25000000f;
+
+        private const string GROUND_LAYER = "Ground";
+        private const string PLAYER_LAYER = "Player";
+        private const string ENEMY_LAYER = "Enemy";
 
         /// <summary> 止まったとみなす速さ（m/s） </summary>
         private const float SETTLED_SPEED = 0.05f;
@@ -199,17 +207,19 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 階のまとまり group の子のコライダーをすべて消し、塔の上の部分の凸包と、帯の箱の角から作った凸包の、2つの MeshCollider を body に付ける。
+        /// 階のまとまり group の子のコライダーをすべて消し、倒れた塔用の当たり判定に置き換える。
+        /// 塔の上の部分は凸包の MeshCollider 1つ（プレイヤー・敵・地面と接触）。
+        /// 帯の階は、階ごとに足場の箱（プレイヤー・敵と接触）と、箱の内側の角に埋めた球（地面とだけ接触）を付ける。
+        /// 地面以外のコライダー（建物のボクセルなど）とは接触せず、倒れる向きが乱れない。
         /// </summary>
         private void ReplaceWithHull(Transform group)
         {
-            var points = new List<Vector3>();
             var floorBounds = new Dictionary<Transform, Bounds>();
             foreach (var collider in group.GetComponentsInChildren<Collider>())
             {
                 if (collider is BoxCollider box)
                 {
-                    // 箱の角をすべて凸包の点にすると数万点になるので、階ごとに階の空間の範囲へまとめ、その角だけを使う
+                    // 箱の角をすべて使うと数万点になるので、階ごとに階の空間の範囲へまとめる
                     var floor = box.GetComponentInParent<VoxelModelLoader>().transform;
                     var half = box.size * 0.5f;
                     for (var i = 0; i < 8; i++)
@@ -228,27 +238,45 @@ namespace Kizami.EngineAdapter
                 Destroy(collider);
             }
 
+            var groundMask = 1 << LayerMask.NameToLayer(GROUND_LAYER);
+            var peopleMask = (1 << LayerMask.NameToLayer(PLAYER_LAYER)) | (1 << LayerMask.NameToLayer(ENEMY_LAYER));
             foreach (var (floor, bounds) in floorBounds)
             {
-                for (var i = 0; i < 8; i++)
-                {
-                    var corner = bounds.center + Vector3.Scale(bounds.extents, new Vector3(
-                        (i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
-                    points.Add(group.InverseTransformPoint(floor.TransformPoint(corner)));
-                }
+                AddFootColliders(floor, bounds, groundMask, peopleMask);
             }
 
-            AddHull(group, "TowerHull_Band", CreateHullMesh(points));
-            AddHull(group, "TowerHull_Upper", _upperHullMesh);
+            var upperObject = new GameObject("TowerHull_Upper") { layer = group.gameObject.layer };
+            upperObject.transform.SetParent(group, false);
+            var upper = upperObject.AddComponent<MeshCollider>();
+            upper.convex = true;
+            upper.sharedMesh = _upperHullMesh;
+            upper.excludeLayers = ~(groundMask | peopleMask);
         }
 
-        private static void AddHull(Transform group, string objectName, Mesh mesh)
+        /// <summary>
+        /// 階 floor の範囲 bounds に、足場の箱と、地面と接する球を付ける。球は箱の8つの角の内側に、箱の面に接するよう埋める。
+        /// どの面を下にして倒れても、その面の4つの球が地面に乗り、箱の面が地面の高さに揃う。
+        /// </summary>
+        private void AddFootColliders(Transform floor, Bounds bounds, int groundMask, int peopleMask)
         {
-            var hullObject = new GameObject(objectName) { layer = group.gameObject.layer };
-            hullObject.transform.SetParent(group, false);
-            var hull = hullObject.AddComponent<MeshCollider>();
-            hull.convex = true;
-            hull.sharedMesh = mesh;
+            var footObject = new GameObject("TowerFoot") { layer = floor.gameObject.layer };
+            footObject.transform.SetParent(floor, false);
+
+            var box = footObject.AddComponent<BoxCollider>();
+            box.center = bounds.center;
+            box.size = bounds.size;
+            box.excludeLayers = ~peopleMask;
+
+            var radius = Mathf.Min(_footSphereRadius, Mathf.Min(bounds.extents.x, bounds.extents.y, bounds.extents.z));
+            var inset = bounds.extents - Vector3.one * radius;
+            for (var i = 0; i < 8; i++)
+            {
+                var sphere = footObject.AddComponent<SphereCollider>();
+                sphere.radius = radius;
+                sphere.center = bounds.center + Vector3.Scale(inset, new Vector3(
+                    (i & 1) == 0 ? -1f : 1f, (i & 2) == 0 ? -1f : 1f, (i & 4) == 0 ? -1f : 1f));
+                sphere.excludeLayers = ~groundMask;
+            }
         }
 
         /// <summary>
