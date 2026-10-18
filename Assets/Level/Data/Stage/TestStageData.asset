@@ -13,4 +13,6 @@ MonoBehaviour:
   m_Name: TestStageData
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.StageData
   _displayName: TestStage
+  _id: Test
+  _unlockSkill: {fileID: 0}
   _sceneGroup: {fileID: 11400000, guid: 9887d82077f25504f982d304dd4e9f8b, type: 2}

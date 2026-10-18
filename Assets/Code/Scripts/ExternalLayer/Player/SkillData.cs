@@ -13,6 +13,10 @@ namespace Kizami.External
         private string _displayName = "Skill";
 
         [SerializeField]
+        [Tooltip("保存データでスキルを見分ける ID。並びを変えても装備が残るよう、番号ではなく ID で保存する。空ならアセットの名前を使う")]
+        private string _id;
+
+        [SerializeField]
         [Tooltip("HUD に出すアイコン")]
         private Texture2D _icon;
 
