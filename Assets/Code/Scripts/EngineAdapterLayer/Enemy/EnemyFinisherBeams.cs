@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Cinemachine;
 using Unity.Mathematics;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
@@ -19,16 +20,48 @@ namespace Kizami.EngineAdapter
         /// <summary> ビームが何にも当たらないときの長さ（m） </summary>
         private const float MAX_BEAM_LENGTH = 1500f;
 
+        private static readonly int _tintId = Shader.PropertyToID("_Tint");
+        private static readonly int _intensityId = Shader.PropertyToID("_Intensity");
+        private static readonly int _ringIntensityId = Shader.PropertyToID("_RingIntensity");
+
         /// <summary> 頭の位置の履歴。古い順に並ぶ </summary>
         private readonly Queue<HeadSample> _headHistory = new();
 
         [SerializeField]
-        [Tooltip("ビームの円柱のマテリアル")]
+        [Tooltip("ビームの外側のマテリアル。内側と重ねて描く")]
         private Material _beamMaterial;
+
+        [SerializeField]
+        [Tooltip("ビームの内側のマテリアル。未設定なら外側だけで描く")]
+        private Material _beamInnerMaterial;
 
         [SerializeField]
         [Tooltip("照準と予兆の間に出す、危険範囲の帯のマテリアル。半透明にする")]
         private Material _telegraphMaterial;
+
+        [SerializeField]
+        [Tooltip("発射口と先端の光、火花に使う加算のマテリアル（Kizami/FinisherGlow）。未設定なら演出を出さない")]
+        private Material _glowMaterial;
+
+        [SerializeField, ColorUsage(false, true)]
+        [Tooltip("照射中の発射口と先端の光の色")]
+        private Color _glowColor = new(0.4f, 1f, 0.9f, 1f);
+
+        [SerializeField, ColorUsage(false, true)]
+        [Tooltip("照準と予兆の間に、先端に出す光の色")]
+        private Color _telegraphGlowColor = new(2f, 0.35f, 0.1f, 1f);
+
+        [SerializeField, Min(0f)]
+        [Tooltip("発射口の光の大きさ（m）。予兆の間は、この大きさまで育つ")]
+        private float _muzzleSize = 24f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("先端の光の大きさ（m）")]
+        private float _tipSize = 60f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("照射中に画面を揺らす強さ。0 なら揺らさない")]
+        private float _shakeForce = 0.5f;
 
         [SerializeField, Min(0f)]
         [Tooltip("ビームの半径（m）")]
@@ -54,6 +87,16 @@ namespace Kizami.EngineAdapter
         [Tooltip("ビームを出している時間（秒）")]
         private float _firingDuration = 1f;
 
+        [SerializeField]
+        [Tooltip("照射の経過時間（秒）に対するノイズのしきい値の変化。旧作の BeamBeam と同じ")]
+        private AnimationCurve _noiseLevelCurve = new(new Keyframe(0f, 0f), new Keyframe(0.167f, 1f),
+            new Keyframe(0.667f, 0.5f), new Keyframe(1.667f, 0f));
+
+        [SerializeField]
+        [Tooltip("照射の経過時間（秒）に対する、射線に沿った模様の細かさの変化。旧作の BeamBeam と同じ")]
+        private AnimationCurve _tillingYCurve = new(new Keyframe(0f, 1f), new Keyframe(0.167f, -4f),
+            new Keyframe(1.167f, 1f), new Keyframe(1.667f, 1f));
+
         [SerializeField, Min(0)]
         [Tooltip("ビームに当たっているときに、間隔ごとに与えるダメージ")]
         private int _damage = 1;
@@ -70,6 +113,12 @@ namespace Kizami.EngineAdapter
         private Action<int> _applyDamage;
         private EnemyBeam _beam;
         private EnemyBeam _telegraph;
+        private Renderer _muzzleGlow;
+        private Renderer _tipGlow;
+        private ParticleSystem _sparks;
+        private CinemachineImpulseSource _impulseSource;
+        private MaterialPropertyBlock _glowProperties;
+        private Transform _camera;
         private Phase _phase;
 
         /// <summary> 今の段階に入ってからの時間（秒） </summary>
@@ -107,8 +156,20 @@ namespace Kizami.EngineAdapter
             }
 
             _applyDamage = applyDamage;
-            _beam = new EnemyBeam(transform, _beamMaterial);
+            _beam = _beamInnerMaterial != null
+                ? new EnemyBeam(transform, _beamInnerMaterial, _beamMaterial)
+                : new EnemyBeam(transform, _beamMaterial);
             if (_telegraphMaterial != null) _telegraph = new EnemyBeam(transform, _telegraphMaterial);
+
+            if (_glowMaterial != null)
+            {
+                _muzzleGlow = CreateGlowQuad("MuzzleGlow");
+                _tipGlow = CreateGlowQuad("TipGlow");
+                _sparks = CreateSparks();
+                _glowProperties = new MaterialPropertyBlock();
+            }
+
+            if (_shakeForce > 0f) _impulseSource = CreateImpulseSource();
 
             _isReady = true;
             return true;
@@ -178,6 +239,7 @@ namespace Kizami.EngineAdapter
 
             _beam.Hide();
             _telegraph?.Hide();
+            HideEffects();
             SetPhase(Phase.Idle);
         }
 
@@ -201,7 +263,13 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void ShowTelegraph(Vector3 pivot)
         {
-            _telegraph?.ShowBeam(pivot, CastBeam(pivot), _telegraphRadius);
+            var stop = CastBeam(pivot, out var hasHit, out var normal);
+            _telegraph?.ShowBeam(pivot, stop, _telegraphRadius);
+
+            // 発射口の光は、撃つまでの間に育てる
+            var charge = _phase == Phase.Telegraph ? _phaseTime / Mathf.Max(_telegraphDuration, 0.01f) : 0f;
+            ShowGlow(_muzzleGlow, pivot, _muzzleSize * charge, _telegraphGlowColor, 1f, 0f);
+            ShowTipEffects(stop, normal, hasHit, _telegraphGlowColor, false);
         }
 
         private void StartFiring()
@@ -209,6 +277,7 @@ namespace Kizami.EngineAdapter
             _telegraph?.Hide();
             _damageTimer = 0f;
             SetPhase(Phase.Firing);
+            _impulseSource?.GenerateImpulseWithForce(_shakeForce);
         }
 
         /// <summary>
@@ -217,7 +286,11 @@ namespace Kizami.EngineAdapter
         private void UpdateFiring(Vector3 pivot, float3 capsuleStart, float3 capsuleEnd, float capsuleRadius,
             float deltaTime)
         {
-            var stop = CastBeam(pivot);
+            var stop = CastBeam(pivot, out var hasHit, out var normal);
+            var flicker = 1f + 0.25f * Mathf.Sin(_phaseTime * 60f);
+            ShowGlow(_muzzleGlow, pivot, _muzzleSize * flicker, _glowColor, 2f, 1f);
+            ShowTipEffects(stop, normal, hasHit, _glowColor, true);
+            _beam.SetPattern(_noiseLevelCurve.Evaluate(_phaseTime), _tillingYCurve.Evaluate(_phaseTime));
             _beam.ShowBeam(pivot, stop, _beamRadius);
 
             _damageTimer -= deltaTime;
@@ -233,12 +306,138 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// pivot から _aimDirection へ調べ、最初に当たった物の位置を返す。当たらなければ MAX_BEAM_LENGTH 先の位置を返す。
         /// </summary>
-        private Vector3 CastBeam(Vector3 pivot)
+        /// <param name="hasHit">何かに当たったか</param>
+        /// <param name="normal">当たった面の向き。当たらなければ pivot へ戻る向き</param>
+        private Vector3 CastBeam(Vector3 pivot, out bool hasHit, out Vector3 normal)
         {
-            return Physics.Raycast(pivot, _aimDirection, out var hit, MAX_BEAM_LENGTH, _blockLayers,
-                QueryTriggerInteraction.Ignore)
-                ? hit.point
-                : pivot + _aimDirection * MAX_BEAM_LENGTH;
+            hasHit = Physics.Raycast(pivot, _aimDirection, out var hit, MAX_BEAM_LENGTH, _blockLayers,
+                QueryTriggerInteraction.Ignore);
+            normal = hasHit ? hit.normal : -_aimDirection;
+            return hasHit ? hit.point : pivot + _aimDirection * MAX_BEAM_LENGTH;
+        }
+
+        /// <summary>
+        /// 先端の光を出し、照射中は火花を当たった面の向きへ出す。何にも当たっていなければ、どちらも出さない。
+        /// </summary>
+        private void ShowTipEffects(Vector3 stop, Vector3 normal, bool hasHit, Color color, bool emitSparks)
+        {
+            if (!hasHit)
+            {
+                if (_tipGlow != null) _tipGlow.gameObject.SetActive(false);
+                if (_sparks != null && _sparks.isEmitting) _sparks.Stop();
+                return;
+            }
+
+            ShowGlow(_tipGlow, stop, _tipSize, color, emitSparks ? 3f : 1f, emitSparks ? 1.5f : 1f);
+            if (_sparks == null) return;
+
+            _sparks.transform.SetPositionAndRotation(stop, Quaternion.LookRotation(normal));
+            if (emitSparks && !_sparks.isEmitting) _sparks.Play();
+        }
+
+        /// <summary>
+        /// 光の板を position に、カメラの方を向けて出す。size が 0 なら消す。
+        /// </summary>
+        private void ShowGlow(Renderer glow, Vector3 position, float size, Color color, float intensity,
+            float ringIntensity)
+        {
+            if (glow == null) return;
+
+            if (size <= 0f)
+            {
+                glow.gameObject.SetActive(false);
+                return;
+            }
+
+            if (_camera == null && Camera.main != null) _camera = Camera.main.transform;
+
+            var glowTransform = glow.transform;
+            glowTransform.position = position;
+            glowTransform.localScale = Vector3.one * size;
+            if (_camera != null) glowTransform.rotation = Quaternion.LookRotation(position - _camera.position);
+
+            _glowProperties.SetColor(_tintId, color);
+            _glowProperties.SetFloat(_intensityId, intensity);
+            _glowProperties.SetFloat(_ringIntensityId, ringIntensity);
+            glow.SetPropertyBlock(_glowProperties);
+            glow.gameObject.SetActive(true);
+        }
+
+        private void HideEffects()
+        {
+            if (_muzzleGlow != null) _muzzleGlow.gameObject.SetActive(false);
+            if (_tipGlow != null) _tipGlow.gameObject.SetActive(false);
+            if (_sparks != null) _sparks.Stop();
+        }
+
+        private Renderer CreateGlowQuad(string objectName)
+        {
+            var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            quad.name = objectName;
+            Destroy(quad.GetComponent<Collider>());
+            var quadRenderer = quad.GetComponent<MeshRenderer>();
+            quadRenderer.sharedMaterial = _glowMaterial;
+            quadRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            quadRenderer.receiveShadows = false;
+            quad.transform.SetParent(transform, false);
+            quad.SetActive(false);
+            return quadRenderer;
+        }
+
+        /// <summary>
+        /// 先端から飛び散る火花のパーティクルを作る。ワールド座標で動かし、先端が動いても出た火花はその場に残る。
+        /// </summary>
+        private ParticleSystem CreateSparks()
+        {
+            var sparksObject = new GameObject("BeamSparks");
+            sparksObject.transform.SetParent(transform, false);
+            var sparks = sparksObject.AddComponent<ParticleSystem>();
+            sparks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            var main = sparks.main;
+            main.loop = true;
+            main.playOnAwake = false;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.4f, 0.9f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(15f, 40f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.8f, 2f);
+            main.gravityModifier = 1.5f;
+            main.maxParticles = 400;
+
+            var emission = sparks.emission;
+            emission.rateOverTime = 150f;
+
+            var shape = sparks.shape;
+            shape.shapeType = ParticleSystemShapeType.Cone;
+            shape.angle = 55f;
+            shape.radius = 6f;
+
+            var fade = new Gradient();
+            fade.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) });
+            var colorOverLifetime = sparks.colorOverLifetime;
+            colorOverLifetime.enabled = true;
+            colorOverLifetime.color = fade;
+
+            var sparksRenderer = sparksObject.GetComponent<ParticleSystemRenderer>();
+            sparksRenderer.sharedMaterial = _glowMaterial;
+            sparksRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            sparksRenderer.receiveShadows = false;
+            return sparks;
+        }
+
+        /// <summary>
+        /// 画面を揺らす CinemachineImpulseSource を作る。揺れは、カメラの CinemachineImpulseListener が受ける。
+        /// </summary>
+        private CinemachineImpulseSource CreateImpulseSource()
+        {
+            var source = gameObject.AddComponent<CinemachineImpulseSource>();
+            source.ImpulseDefinition.ImpulseShape = CinemachineImpulseDefinition.ImpulseShapes.Rumble;
+            source.ImpulseDefinition.ImpulseType = CinemachineImpulseDefinition.ImpulseTypes.Uniform;
+            source.ImpulseDefinition.ImpulseDuration = _firingDuration + 0.3f;
+            source.DefaultVelocity = Vector3.down;
+            return source;
         }
 
         private void SetPhase(Phase phase)

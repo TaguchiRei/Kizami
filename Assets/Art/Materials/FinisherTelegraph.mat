@@ -8,18 +8,17 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: FinisherTelegraph
-  m_Shader: {fileID: 4800000, guid: 650dd9526735d5b46b79224bc6e94025, type: 3}
+  m_Shader: {fileID: 4800000, guid: 717202b5de9423d42841128a1e536743, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords:
+  m_ValidKeywords: []
+  m_InvalidKeywords:
   - _SURFACE_TYPE_TRANSPARENT
-  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 1
-  m_CustomRenderQueue: 3000
-  stringTagMap:
-    RenderType: Transparent
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
   disabledShaderPasses:
   - DepthOnly
   - SHADOWCASTER
@@ -33,22 +32,31 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: 4ae2cc574a642d6488d3e2d31d2015b9, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _AddPrecomputedVelocity: 0
+    - _Alpha: 0.3
     - _AlphaClip: 0
     - _AlphaToMask: 0
+    - _BeamLength: 100
+    - _BeamRadius: 16
     - _Blend: 0
     - _BlendOp: 0
     - _Cull: 0
     - _Cutoff: 0.5
     - _DstBlend: 10
     - _DstBlendAlpha: 10
+    - _EdgeSoftness: 0.5
+    - _PulseAmount: 0.35
+    - _PulseSpeed: 6
     - _QueueOffset: 0
     - _SampleGI: 0
+    - _ScrollSpeed: 6
+    - _SignSize: 8
+    - _SoftDistance: 3
     - _SrcBlend: 5
     - _SrcBlendAlpha: 1
     - _Surface: 1
@@ -57,6 +65,7 @@ Material:
     m_Colors:
     - _BaseColor: {r: 1, g: 0.1, b: 0.05, a: 0.18}
     - _Color: {r: 1, g: 0.09999997, b: 0.049999982, a: 0.18}
+    - _Tint: {r: 2, g: 0.35, b: 0.1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &7986641191949920374
