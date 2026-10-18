@@ -8,7 +8,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// ボスの攻撃に、プレイヤーへダメージを与える関数と弾く関数を渡し、直接戦闘の段階を進める BossBattleService と BossBattleAdapter を繋ぐ配線役。ボスを置いたシーンへ置く。
+    /// ボスの攻撃に、プレイヤーへダメージを与える関数と弾く関数、敵を吸収・撃破する関数を渡し、ボス戦の段階を進める BossBattleService と BossBattleAdapter を繋ぐ配線役。ボスを置いたシーンへ置く。
     /// </summary>
     public sealed class BossInitializer : InitializerBase, IInjectable<PlayerHealthService>,
         IInjectable<PlayerMovementService>
@@ -17,11 +17,16 @@ namespace Kizami.Initialization
         [SerializeField] private BossMissiles _missiles;
         [SerializeField] private BossLaser _laser;
         [SerializeField] private BossTurret _turret;
+        [SerializeField] private BossHeadLaser _headLaser;
         [SerializeField] private BossArena _arena;
         [SerializeField] private BossBattleAdapter _battleAdapter;
 
+        [SerializeField]
+        [Tooltip("頭部のレーザーで敵を吸収・撃破する先。なければ敵を巻き込まない")]
+        private EnemySpawnAdapter _enemySpawnAdapter;
+
         [SerializeField, Min(1)]
-        [Tooltip("直接戦闘の 1 周で足踏みする回数")]
+        [Tooltip("ボス戦の 1 周で足踏みする回数")]
         private int _stompsPerRound = 3;
 
         [SerializeField, Min(1)]
@@ -29,7 +34,7 @@ namespace Kizami.Initialization
         private int _roundCount = 2;
 
         [SerializeField]
-        [Tooltip("初期化の終わりに直接戦闘を始める")]
+        [Tooltip("初期化の終わりにボス戦を始める")]
         private bool _beginOnInitialize = true;
 
         private PlayerHealthService _healthService;
@@ -58,6 +63,13 @@ namespace Kizami.Initialization
                 _turret.Initialize(_healthService != null ? _healthService.ApplyDamage : null);
             }
 
+            if (this.IsAssigned(_headLaser, nameof(BossHeadLaser)))
+            {
+                _headLaser.Initialize(_healthService != null ? _healthService.ApplyDamage : null,
+                    _enemySpawnAdapter != null ? _enemySpawnAdapter.AbsorbInRadius : null,
+                    _enemySpawnAdapter != null ? _enemySpawnAdapter.DefeatInRadius : null);
+            }
+
             if (this.IsAssigned(_arena, nameof(BossArena)))
             {
                 _arena.Initialize(_healthService != null ? _healthService.ApplyDamage : null);
@@ -69,7 +81,8 @@ namespace Kizami.Initialization
                     gameObject.scene.buildIndex);
                 if (blackBoard.TryGetSceneState<EnemyBoard, IBossBattleState>(out var battleState, this))
                 {
-                    _battleAdapter.Initialize(battleState, battleService.ReportStomp,
+                    _battleAdapter.Initialize(battleState, battleService.ReportCrystalsCleared,
+                        battleService.ReportArrived, battleService.ReportStomp,
                         battleService.ReportCoreAttackFinished, battleService.ReportWeaponBroken,
                         battleService.ReportAllOutFinished);
                     if (_beginOnInitialize) battleService.Begin();

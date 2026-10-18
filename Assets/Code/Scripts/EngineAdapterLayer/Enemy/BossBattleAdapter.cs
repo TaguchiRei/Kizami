@@ -8,13 +8,15 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// ボスとの直接戦闘で、BossBattleState の段階に合わせてボスの武装を動かし、段階が進む出来事を報告する。ボスのボクセルのモデル（VoxelModelLoader）と同じ GameObject に付ける。
+    /// ボス戦で、BossBattleState の段階に合わせてボスの武装を動かし、段階が進む出来事を報告する。ボスのボクセルのモデル（VoxelModelLoader）と同じ GameObject に付ける。
+    /// 水晶の段階は水晶を投げて置き、上部タレット・ミサイル・頭部のレーザーで遠くから攻撃する。水晶がすべて壊れたら、飛来の段階で水晶のあった所へ飛ぶ。
     /// 足踏みの段階はアウトリガーで足踏みし、コアを出す段階は下部レーザーとミサイルで攻撃する。隙の段階はコアを出したまま、武装が壊れるのを待つ。
     /// 総攻撃は、レーザーを撃ち続け、ミサイルを撃ち切り、衝撃波を消えるたびに出す。止まったあとは攻撃をやめる。
     /// </summary>
     /// <remarks>
-    /// 直接戦闘の間、ボスは動かさない。武装以外のパーツは止まるまで保護し、削れないようにする。
-    /// 上部タレットは直接戦闘では使わない。円形の空間は最初の足踏みで作り、止まったときに閉じる。
+    /// ボス戦の間、ボスは自分では歩かない（飛来でだけ動く）。武装以外のパーツは止まるまで保護し、削れないようにする。
+    /// 上部タレットは水晶の段階でだけ使う。円形の空間は足踏みの段階に入るときに作り、水晶の段階に入るときと止まったときに閉じる。
+    /// 水晶・飛来・上部タレット・頭部のレーザーは無くてもよく、無ければその攻撃をせず、水晶と飛来は済んだものとして進める。
     /// </remarks>
     [RequireComponent(typeof(VoxelModelLoader))]
     public sealed class BossBattleAdapter : MonoBehaviour
@@ -40,6 +42,22 @@ namespace Kizami.EngineAdapter
         private BossMissiles _missiles;
 
         [SerializeField]
+        [Tooltip("ボスの上部タレット。水晶の段階で使う")]
+        private BossTurret _turret;
+
+        [SerializeField]
+        [Tooltip("ボスの頭部のレーザー。水晶の段階で使う")]
+        private BossHeadLaser _headLaser;
+
+        [SerializeField]
+        [Tooltip("水晶の段階で投げる水晶")]
+        private BossCrystals _crystals;
+
+        [SerializeField]
+        [Tooltip("水晶のあった所へ飛んでくる飛来")]
+        private BossArrival _arrival;
+
+        [SerializeField]
         [Tooltip("プレイヤーを閉じ込める円形の空間。なければ閉じ込めない")]
         private BossArena _arena;
 
@@ -49,6 +67,8 @@ namespace Kizami.EngineAdapter
 
         private VoxelModelLoader _loader;
         private IBossBattleState _state;
+        private Action _reportCrystalsCleared;
+        private Action _reportArrived;
         private Action _reportStomp;
         private Action _reportCoreAttackFinished;
         private Action _reportWeaponBroken;
@@ -68,17 +88,21 @@ namespace Kizami.EngineAdapter
         private bool _isProtected;
 
         /// <summary>
-        /// 直接戦闘の State と、段階が進む出来事を報告する関数を受け取る。
+        /// ボス戦の State と、段階が進む出来事を報告する関数を受け取る。
         /// </summary>
-        /// <param name="state">直接戦闘の State</param>
+        /// <param name="state">ボス戦の State</param>
+        /// <param name="reportCrystalsCleared">水晶をすべて壊したことを報告する関数（BossBattleService.ReportCrystalsCleared）</param>
+        /// <param name="reportArrived">飛来を終えたことを報告する関数（BossBattleService.ReportArrived）</param>
         /// <param name="reportStomp">足踏みしたことを報告する関数（BossBattleService.ReportStomp）</param>
         /// <param name="reportCoreAttackFinished">コアを出した攻撃を終えたことを報告する関数（BossBattleService.ReportCoreAttackFinished）</param>
         /// <param name="reportWeaponBroken">武装が 1 つ壊れたことを報告する関数（BossBattleService.ReportWeaponBroken）</param>
         /// <param name="reportAllOutFinished">総攻撃を終えたことを報告する関数（BossBattleService.ReportAllOutFinished）</param>
-        public void Initialize(IBossBattleState state, Action reportStomp, Action reportCoreAttackFinished,
-            Action reportWeaponBroken, Action reportAllOutFinished)
+        public void Initialize(IBossBattleState state, Action reportCrystalsCleared, Action reportArrived,
+            Action reportStomp, Action reportCoreAttackFinished, Action reportWeaponBroken, Action reportAllOutFinished)
         {
             _state = state;
+            _reportCrystalsCleared = reportCrystalsCleared;
+            _reportArrived = reportArrived;
             _reportStomp = reportStomp;
             _reportCoreAttackFinished = reportCoreAttackFinished;
             _reportWeaponBroken = reportWeaponBroken;
@@ -86,7 +110,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 段階・周・足踏みの回数を書き足す。
+        /// 段階・周・足踏みの回数と、水晶の壊れ具合を書き足す。
         /// </summary>
         public void AppendStatus(StringBuilder builder)
         {
@@ -98,6 +122,10 @@ namespace Kizami.EngineAdapter
 
             builder.Append(_state.Phase).Append(" round ").Append(_state.Round)
                 .Append(" stomp ").Append(_state.StompCount);
+            if (_state.Phase != BossBattlePhase.Crystal || _crystals == null) return;
+
+            builder.Append(" | ");
+            _crystals.AppendStatus(builder);
         }
 
         private void Awake()
@@ -127,6 +155,12 @@ namespace Kizami.EngineAdapter
 
             switch (phase)
             {
+                case BossBattlePhase.Crystal:
+                    TickCrystal();
+                    break;
+                case BossBattlePhase.Arriving:
+                    if (_arrival == null || !_arrival.IsArriving) _reportArrived?.Invoke();
+                    break;
                 case BossBattlePhase.Stomping:
                     TickStomping();
                     break;
@@ -149,6 +183,16 @@ namespace Kizami.EngineAdapter
         {
             switch (phase)
             {
+                case BossBattlePhase.Crystal:
+                    _body.SetMoving(false);
+                    _laser.HoldCoreExposed(false);
+                    if (_arena != null) _arena.Close();
+                    if (_crystals != null) _crystals.Throw();
+                    break;
+                case BossBattlePhase.Arriving:
+                    if (_headLaser != null) _headLaser.Cancel();
+                    if (_arrival != null) _arrival.Begin(_crystals != null ? _crystals.PlacedCenter : transform.position);
+                    break;
                 case BossBattlePhase.Stomping:
                     _body.SetMoving(false);
                     _laser.HoldCoreExposed(false);
@@ -171,9 +215,26 @@ namespace Kizami.EngineAdapter
                     _body.SetMoving(false);
                     _laser.Cancel();
                     _laser.HoldCoreExposed(true);
+                    if (_headLaser != null) _headLaser.Cancel();
                     if (_arena != null) _arena.Close();
                     break;
             }
+        }
+
+        /// <summary>
+        /// 上部タレット・ミサイル・頭部のレーザーを、それぞれのクールタイムごとに撃つ。水晶がすべて壊れたら報告する。
+        /// </summary>
+        private void TickCrystal()
+        {
+            if (_crystals == null || _crystals.IsCleared)
+            {
+                _reportCrystalsCleared?.Invoke();
+                return;
+            }
+
+            if (_turret != null) _turret.TryFire();
+            _missiles.TryFire();
+            if (_headLaser != null) _headLaser.TryFire();
         }
 
         /// <summary>
