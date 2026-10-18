@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 計画済み（仕様は 2026-10-17 にユーザーと決めた。作業者は着手前に「既存コードの確認結果」を今のコードと突き合わせる） |
+| 状態 | 進行中（2026-10-18 時点で 18-1・18-4・18-6 が完了。18-2・18-3・18-5 は未着手） |
 | 目安の時期 | 未定（区間14C の街のマップとは独立。どちらを先にしてもよい） |
 | 前提となる区間 | 9, 15 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -136,6 +136,45 @@
 
 - 旧作の骨と kizami の部位は、名前の対応（Leg → Arm、Buck → Back、UnderLeg → Forearm）で 1 対 1 に結べる
 - 旧作の攻撃する敵とシールドを持つ敵のモデルの骨も、kizami の `MachineEnemy_Attacker`、`MachineEnemy_Defender` と対応する
+
+## 実装結果（2026-10-18、18-1・18-4・18-6）
+
+### 決めたこと
+
+- 時間は確定仕様どおり、照準 3 秒（2 秒前の頭の位置を追う）→ 予兆 1 秒 → 照射 1 秒。冷却は 10 秒、最初の 1 回は 10〜15 秒（出したときに `EnemyFinisherAttack.RollFirstCooldown` で決める）
+- 旧作の実際は、プレハブが `_maxTimer = 7`、`_beamDelay = 3` を上書きしていて照準が 6 秒だった。仕様の 3 秒を優先した。値は [FinisherReference.md](../FinisherReference.md) の「5. 食い違い」にある
+- 構えは照準と同時に進める旧作の形にする。体の傾けは照準の開始から始まる。構えの姿勢のアニメーション自体は 18-3
+- ビームは旧作の大きさ（半径 14.14m、長さ約 1.5km）、危険範囲の帯は半径 16m。値は `EnemyFinisherBeams` の SerializeField
+- `FinisherClone.prefab`、`BeamTelegraph.prefab`、`FinisherClone.mat` は削除した（決めること #5）
+
+### 作った主なもの
+
+- `EnemyFinisherBeams`：分身と上空への移動を削除し、照準・予兆・照射の 3 段階に作り直した。射線は pivot（体の根から 2m）から最初に当たった物まで。継続ダメージは 0.1 秒ごとに 1。プレイヤーの頭の位置の履歴を持つ
+- `EnemyFinisherAttack`：`Barrage` を `Beam` にし、吸収した位置に浮いたまま、pivot を中心に体を傾けて狙う（`TiltBody`）
+- `EnemyBeam`：デカールを外し、複数マテリアルの円柱と `MaterialPropertyBlock`（長さ・半径・ノイズのしきい値・模様の細かさ）に変えた
+- シェーダー（`Assets/Code/Shader/FinisherBeam/`）：`FinisherBeam`（旧作 `Beam.shadergraph` と同じ 2 枚のノイズ、白い芯、縁と交差部のフェード）、`FinisherTelegraph`（旧作の警告の標識 `FinisherDangerous.png` を流し、脈動）、`FinisherGlow`（発射口・先端の光とリング、火花）
+- マテリアル：`FinisherBeam`（外側）、`FinisherBeamInner`（内側）、`FinisherTelegraph`、`FinisherGlow`
+- 旧作の `BeamBeam` の動きは、`AnimationCurve` 2 本（ノイズのしきい値、模様の細かさ）に写した
+- 発射口の光（予兆の間に育つ）、先端の光と火花、照射中の画面の揺れ（`CinemachineImpulseSource` と、カメラの `CinemachineImpulseListener`）
+- 資料：[FinisherReference.md](../FinisherReference.md)
+
+### 完了条件の確認
+
+| 条件 | 結果 |
+|---|---|
+| 吸収のあと、その場で 3 秒追い、1 秒予兆、1 秒照射。分身も上空への移動もない | ユーザーがプレイモードで確認 |
+| 当たっている間、0.1 秒ごとに 1 減る | ユーザーがプレイモードで確認（「悪くない」） |
+| 冷却は 10 秒、最初の 1 回は 10〜15 秒 | コードで確認（プレイでの計測はしていない） |
+| ビームと警告の見た目 | ユーザーが確認 |
+| ボクセルの建物を溶かして進む。メッシュの建物と装甲で止まる | 未実装（18-5）。今は最初に当たった物（`_blockLayers`）で止まる |
+| 遠くの敵とフィニッシャーの待機姿勢、FK の再現 | 未実装（18-2、18-3） |
+
+### 次へ持ち越すこと
+
+- 18-5：ボクセルを溶かして進む。先端が毎秒何 m 進むか（決めること #4）を決める
+- 18-2・18-3：待機姿勢と FK。構えのアニメーション（BeamStance）は照準と同時に流す
+- 体の高さが旧作と 0.723m 違う（旧作 5.744m、kizami 5.021m）。18-3 で合わせるか決める
+- `EnemyFinisherAttack` の `_pivotHeight`（2m）は、旧作の内側の `FinisherEnemy`（根から 2.723m）の位置を kizami の体の高さに換算した値
 
 ## 見つけた問題（今回は扱わない）
 
