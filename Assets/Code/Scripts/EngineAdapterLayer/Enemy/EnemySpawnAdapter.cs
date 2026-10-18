@@ -1130,7 +1130,10 @@ namespace Kizami.EngineAdapter
                     FallStartHeight = position.y,
                     Yaw = GetYawToTarget(position),
                     BodyIndex = -1,
-                    GroupIndex = -1
+                    GroupIndex = -1,
+                    AttackCooldown = kind == EnemyKind.Finisher && _finisherAttack != null
+                        ? _finisherAttack.RollFirstCooldown()
+                        : 0f
                 };
 
                 if (!_groups.TryAdd(g, i, ref agent)) return false;

@@ -2,107 +2,65 @@ using System;
 using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.Rendering.Universal;
 using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 吸収を終えたフィニッシャーの分身・予兆・ビームを扱う。EnemyFinisherAttack と同じ GameObject に置き、EnemyFinisherAttack が初期化と毎フレームの更新を呼ぶ。
-    /// 分身を出して本体をプレイヤーの上へ向かわせ、着いたら真下に攻撃の範囲をデカールで示し、一定時間後に本体が特大のビームを撃つ。
-    /// 同時に、本体の周りを回る分身が細いビームを撃ち、その当たる所がプレイヤーを追う。追い終えたら分身とデカールを消して終える。
+    /// 吸収を終えたフィニッシャーが、その場で撃つ極太のビームを扱う。EnemyFinisherAttack と同じ GameObject に置き、EnemyFinisherAttack が初期化と毎フレームの更新を呼ぶ。
+    /// 照準（プレイヤーの頭の少し前の位置を追う）、予兆（向きを固定）、照射の順に進める。照準と予兆の間は射線に沿って危険範囲の帯を出し、照射の間は射線にいるプレイヤーへ間隔ごとにダメージを与える。
     /// </summary>
     /// <remarks>
-    /// 分身はフィニッシャーの見た目を色違いにしたプレハブで、当たり判定（Armor レイヤー）と ArmorPanel を持ち、装甲と同じく壊せる。
-    /// 敵の状態（EnemyAgent）を持たないので、グループにも移動にも敵の数にも入らない。壊れた分身のビームは止まる。
-    /// ビームは撃つ所から下へ向かい、最初に当たった物で止まる。特大のビームは範囲が広いので、撃つ所の高さからプレイヤーの頭まで真下へ調べ、物があれば遮られたとする。
+    /// 撃つ所と傾ける中心は、フィニッシャーの体の根から一定の高さの点（pivot）。ビームは pivot から頭の位置の向きへ伸び、最初に当たった物で止まる。
+    /// 頭の位置は _aimDelay 秒前の位置を狙う。照準の間だけ狙い直し、予兆と照射では最後の向きを使う。
     /// </remarks>
     public sealed class EnemyFinisherBeams : MonoBehaviour
     {
-        /// <summary> 飛ぶ先にこの距離（m）まで近づいたら、着いたとみなす </summary>
-        private const float ARRIVE_DISTANCE = 0.1f;
-
         /// <summary> ビームが何にも当たらないときの長さ（m） </summary>
-        private const float MAX_BEAM_LENGTH = 200f;
+        private const float MAX_BEAM_LENGTH = 1500f;
 
-        private readonly List<ArmorPanel> _clones = new();
-        private readonly List<Rigidbody> _cloneBodies = new();
-
-        [SerializeField]
-        [Tooltip("分身のプレハブ。根に ArmorPanel、当たり判定（Armor レイヤー）、Kinematic の Rigidbody を付ける")]
-        private ArmorPanel _clonePrefab;
-
-        [SerializeField, Min(0)]
-        [Tooltip("分身の数")]
-        private int _cloneCount = 4;
+        /// <summary> 頭の位置の履歴。古い順に並ぶ </summary>
+        private readonly Queue<HeadSample> _headHistory = new();
 
         [SerializeField]
         [Tooltip("ビームの円柱のマテリアル")]
         private Material _beamMaterial;
 
         [SerializeField]
-        [Tooltip("攻撃の範囲を示すデカールのプレハブ。投影の奥行き（size の z）はこのプレハブの値を使う")]
-        private DecalProjector _decalPrefab;
+        [Tooltip("照準と予兆の間に出す、危険範囲の帯のマテリアル。半透明にする")]
+        private Material _telegraphMaterial;
 
         [SerializeField, Min(0f)]
-        [Tooltip("本体が浮く、プレイヤーからの高さ（m）")]
-        private float _height = 25f;
+        [Tooltip("ビームの半径（m）")]
+        private float _beamRadius = 14.14f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("本体が狙う位置にこの距離（m）まで近づいたら、プレイヤーを追うのをやめて位置を決める")]
-        private float _lockDistance = 3f;
+        [Tooltip("危険範囲の帯の半径（m）。ビームより少し広くして、避けきれたかを分かりやすくする")]
+        private float _telegraphRadius = 16f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("ビームを撃つ所の、本体と分身の体の根からの高さ（m）")]
-        private float _bodyCenterHeight = 5f;
+        [Tooltip("プレイヤーの頭の位置を追って向きを変える時間（秒）")]
+        private float _aimDuration = 3f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("分身が本体の周りを回る半径（m）")]
-        private float _orbitRadius = 8f;
-
-        [SerializeField]
-        [Tooltip("分身が本体の周りを回る速さ（度/秒）")]
-        private float _orbitSpeed = 60f;
-
-        [SerializeField, Min(0.01f)]
-        [Tooltip("分身が本体の位置から回る半径まで広がるのにかける時間（秒）")]
-        private float _spreadDuration = 1f;
+        [Tooltip("狙うのは、この時間（秒）前のプレイヤーの頭の位置")]
+        private float _aimDelay = 2f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("範囲を示してから、特大のビームを撃つまでの時間（秒）")]
-        private float _telegraphDuration = 2f;
+        [Tooltip("向きを固定してから、ビームを撃つまでの時間（秒）")]
+        private float _telegraphDuration = 1f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("特大のビームの半径（m）")]
-        private float _giantRadius = 4f;
+        [Tooltip("ビームを出している時間（秒）")]
+        private float _firingDuration = 1f;
 
         [SerializeField, Min(0)]
-        [Tooltip("特大のビームのダメージ。1 回撃つあいだに 1 回だけ与える")]
-        private int _giantDamage = 40;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("特大のビームを出している時間（秒）")]
-        private float _giantDuration = 0.5f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("追いかけるビームの半径（m）")]
-        private float _trackingRadius = 1f;
-
-        [SerializeField, Min(0)]
-        [Tooltip("追いかけるビームのダメージ。当たっている間、間隔ごとに与える")]
-        private int _trackingDamage = 10;
+        [Tooltip("ビームに当たっているときに、間隔ごとに与えるダメージ")]
+        private int _damage = 1;
 
         [SerializeField, Min(0.01f)]
-        [Tooltip("追いかけるビームがダメージを与える間隔（秒）")]
-        private float _trackingInterval = 0.5f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("追いかけるビームを出している時間（秒）")]
-        private float _trackingDuration = 4f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("追いかけるビームの当たる所が、プレイヤーへ向かう速さ（m/s）")]
-        private float _trackingSpeed = 4f;
+        [Tooltip("ダメージを与える間隔（秒）")]
+        private float _damageInterval = 0.1f;
 
         [SerializeField]
         [Tooltip("ビームを止める物のレイヤー。プレイヤー自身のレイヤーは外す")]
@@ -110,40 +68,26 @@ namespace Kizami.EngineAdapter
 
         private CapsuleCollider _targetCapsule;
         private Action<int> _applyDamage;
-        private EnemyBeam _giantBeam;
+        private EnemyBeam _beam;
+        private EnemyBeam _telegraph;
         private Phase _phase;
-
-        /// <summary> 分身ごとの、追いかけるビーム。並びは _clones と同じ </summary>
-        private EnemyBeam[] _trackingBeams;
-
-        /// <summary> 分身ごとの、追いかけるビームの当たる所（水平の位置）。並びは _clones と同じ </summary>
-        private Vector2[] _trackingPoints;
-
-        /// <summary> 分身ごとの、追いかけるビームが次にダメージを与えられるまでの時間（秒）。並びは _clones と同じ </summary>
-        private float[] _trackingTimers;
 
         /// <summary> 今の段階に入ってからの時間（秒） </summary>
         private float _phaseTime;
 
-        /// <summary> 分身を出してからの時間（秒） </summary>
-        private float _cloneTime;
+        /// <summary> 照準を始めてからの時間（秒）。頭の位置の履歴の時刻に使う </summary>
+        private float _aimTime;
 
-        /// <summary> 本体が狙う位置を決めたか。決めるまでは毎フレーム、プレイヤーの上へ狙い直す </summary>
-        private bool _isLocked;
+        /// <summary> 撃つ所から狙う位置への向き。照準の間だけ更新する </summary>
+        private Vector3 _aimDirection = Vector3.down;
 
-        /// <summary> 本体が浮く位置（体の根） </summary>
-        private Vector3 _hoverPosition;
-
-        /// <summary> 特大のビームが止まる所 </summary>
-        private Vector3 _giantStop;
-
-        /// <summary> 今回の特大のビームがプレイヤーに当たったか </summary>
-        private bool _hasGiantHit;
+        /// <summary> 次にダメージを与えられるまでの時間（秒） </summary>
+        private float _damageTimer;
 
         private bool _isReady;
 
         /// <summary>
-        /// 分身とビームの見た目をプールに作る。プレハブ・マテリアル・プレイヤーの当たり判定のどれかがなければ、警告を出して使えないままにする。
+        /// ビームと帯の見た目を作る。マテリアルかプレイヤーの当たり判定がなければ、警告を出して使えないままにする。
         /// </summary>
         /// <param name="target">プレイヤー。子に CapsuleCollider を持つ</param>
         /// <param name="applyDamage">ビームがプレイヤーに当たったときにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
@@ -151,84 +95,68 @@ namespace Kizami.EngineAdapter
         public bool Initialize(Transform target, Action<int> applyDamage)
         {
             _targetCapsule = target != null ? target.GetComponentInChildren<CapsuleCollider>() : null;
-            if (_clonePrefab == null || _beamMaterial == null || _targetCapsule == null)
+            if (_beamMaterial == null || _targetCapsule == null)
             {
-                UsefulLogger.LogWarning("分身のプレハブ・ビームのマテリアル・プレイヤーの CapsuleCollider のどれかがない為、フィニッシャーは吸収したあと分身せずに戻ります。", this);
+                UsefulLogger.LogWarning("ビームのマテリアルかプレイヤーの CapsuleCollider がない為、フィニッシャーは吸収したあとビームを撃たずに戻ります。", this);
                 return false;
             }
 
-            if (_decalPrefab == null)
+            if (_telegraphMaterial == null)
             {
-                UsefulLogger.LogWarning("デカールのプレハブがない為、ビームの範囲を示しません。", this);
+                UsefulLogger.LogWarning("危険範囲の帯のマテリアルがない為、ビームの射線を示しません。", this);
             }
 
             _applyDamage = applyDamage;
-            _giantBeam = new EnemyBeam(transform, _beamMaterial, _decalPrefab);
-            _trackingBeams = new EnemyBeam[_cloneCount];
-            _trackingPoints = new Vector2[_cloneCount];
-            _trackingTimers = new float[_cloneCount];
-
-            for (var i = 0; i < _cloneCount; i++)
-            {
-                var clone = Instantiate(_clonePrefab, transform);
-                clone.gameObject.SetActive(false);
-                _clones.Add(clone);
-                _cloneBodies.Add(clone.GetComponent<Rigidbody>());
-                _trackingBeams[i] = new EnemyBeam(transform, _beamMaterial, _decalPrefab);
-            }
+            _beam = new EnemyBeam(transform, _beamMaterial);
+            if (_telegraphMaterial != null) _telegraph = new EnemyBeam(transform, _telegraphMaterial);
 
             _isReady = true;
             return true;
         }
 
         /// <summary>
-        /// 本体の位置に分身を出し、本体をプレイヤーの上へ向かわせ始める。
+        /// 照準を始める。
         /// </summary>
-        /// <param name="mainPosition">本体の体の根の位置</param>
-        public void Begin(Vector3 mainPosition)
+        public void Begin()
         {
             if (!_isReady) return;
 
-            for (var i = 0; i < _clones.Count; i++)
-            {
-                _clones[i].transform.position = mainPosition;
-                _clones[i].gameObject.SetActive(true);
-                _clones[i].SetDurability(_clones[i].MaxDurability);
-            }
-
-            _cloneTime = 0f;
-            _isLocked = false;
-            SetPhase(Phase.Rising);
+            _headHistory.Clear();
+            _aimTime = 0f;
+            SetPhase(Phase.Aiming);
         }
 
         /// <summary>
-        /// 段階を進め、分身を本体の周りで回し、ビームを撃つ。EnemyFinisherAttack が毎フレーム呼ぶ。
+        /// 段階を進め、帯とビームを出す。EnemyFinisherAttack が毎フレーム呼ぶ。
         /// </summary>
-        /// <param name="mainPosition">本体の体の根の位置</param>
+        /// <param name="pivot">ビームを撃つ所（ワールド座標）</param>
         /// <param name="deltaTime">経過時間（秒）</param>
-        /// <param name="flyTarget">本体が向かう位置（体の根）</param>
-        /// <returns>まだ続くか。撃ち終えたら false を返し、分身とデカールを消している</returns>
-        public bool Tick(Vector3 mainPosition, float deltaTime, out Vector3 flyTarget)
+        /// <param name="aimDirection">pivot からビームの向き。体を傾ける向きに使う</param>
+        /// <returns>まだ続くか。撃ち終えたら false を返し、帯とビームを消している</returns>
+        public bool Tick(Vector3 pivot, float deltaTime, out Vector3 aimDirection)
         {
-            flyTarget = mainPosition;
+            aimDirection = _aimDirection;
             if (_phase == Phase.Idle) return false;
 
             _phaseTime += deltaTime;
-            _cloneTime += deltaTime;
+            _aimTime += deltaTime;
             CapsuleGeometry.GetAxis(_targetCapsule, out var capsuleStart, out var capsuleEnd, out var capsuleRadius);
+            var head = (Vector3)capsuleEnd + Vector3.up * capsuleRadius;
 
             switch (_phase)
             {
-                case Phase.Rising:
-                    UpdateRising(mainPosition, capsuleStart);
+                case Phase.Aiming:
+                    Aim(pivot, head);
+                    ShowTelegraph(pivot);
+                    if (_phaseTime >= _aimDuration) SetPhase(Phase.Telegraph);
                     break;
                 case Phase.Telegraph:
+                    ShowTelegraph(pivot);
                     if (_phaseTime >= _telegraphDuration) StartFiring();
                     break;
                 case Phase.Firing:
-                    UpdateGiantBeam(capsuleStart, capsuleEnd, capsuleRadius);
-                    UpdateTrackingBeams(capsuleStart, capsuleEnd, capsuleRadius, deltaTime);
-                    if (_phaseTime >= Mathf.Max(_giantDuration, _trackingDuration))
+                    UpdateFiring(pivot, capsuleStart, capsuleEnd, capsuleRadius, deltaTime);
+                    if (_phaseTime >= _firingDuration)
                     {
                         Stop();
                         return false;
@@ -237,170 +165,80 @@ namespace Kizami.EngineAdapter
                     break;
             }
 
-            flyTarget = _hoverPosition;
-            MoveClones(mainPosition, capsuleStart);
+            aimDirection = _aimDirection;
             return true;
         }
 
         /// <summary>
-        /// 分身・ビーム・デカールを消して終える。本体が倒れたときにも呼ぶ。
+        /// 帯とビームを消して終える。本体が倒れたときにも呼ぶ。
         /// </summary>
         public void Stop()
         {
             if (!_isReady) return;
 
-            foreach (var clone in _clones)
-            {
-                clone.gameObject.SetActive(false);
-            }
-
-            _giantBeam.Hide();
-            foreach (var beam in _trackingBeams)
-            {
-                beam.Hide();
-            }
-
+            _beam.Hide();
+            _telegraph?.Hide();
             SetPhase(Phase.Idle);
         }
 
         /// <summary>
-        /// 位置を決めるまではプレイヤーの上を狙い直し、決めた位置に着いたら、特大のビームが止まる所に範囲を示す。
+        /// 頭の位置を履歴に足し、_aimDelay 秒前の位置へ向きを合わせる。履歴が足りない間は、最も古い位置を使う。
         /// </summary>
-        private void UpdateRising(Vector3 mainPosition, Vector3 capsuleStart)
+        private void Aim(Vector3 pivot, Vector3 head)
         {
-            if (!_isLocked)
+            _headHistory.Enqueue(new HeadSample(_aimTime, head));
+            while (_headHistory.Count > 1 && _headHistory.Peek().Time < _aimTime - _aimDelay)
             {
-                _hoverPosition = capsuleStart + Vector3.up * _height;
-                _isLocked = Vector3.Distance(mainPosition, _hoverPosition) <= _lockDistance;
-                return;
+                _headHistory.Dequeue();
             }
 
-            if (Vector3.Distance(mainPosition, _hoverPosition) > ARRIVE_DISTANCE) return;
-
-            var emitter = _hoverPosition + Vector3.up * _bodyCenterHeight;
-            _giantStop = CastBeam(emitter, Vector3.down, MAX_BEAM_LENGTH);
-            _giantBeam.ShowDecal(_giantStop, _giantRadius);
-            SetPhase(Phase.Telegraph);
+            var toHead = _headHistory.Peek().Position - pivot;
+            if (toHead.sqrMagnitude > 0f) _aimDirection = toHead.normalized;
         }
 
         /// <summary>
-        /// 特大のビームと追いかけるビームを撃ち始める。追いかけるビームの当たる所は、各分身の真下から始める。
+        /// 危険範囲の帯を、pivot から最初に当たった物まで出す。
         /// </summary>
+        private void ShowTelegraph(Vector3 pivot)
+        {
+            _telegraph?.ShowBeam(pivot, CastBeam(pivot), _telegraphRadius);
+        }
+
         private void StartFiring()
         {
-            _hasGiantHit = false;
-            for (var i = 0; i < _clones.Count; i++)
-            {
-                var position = _clones[i].transform.position;
-                _trackingPoints[i] = new Vector2(position.x, position.z);
-                _trackingTimers[i] = 0f;
-            }
-
+            _telegraph?.Hide();
+            _damageTimer = 0f;
             SetPhase(Phase.Firing);
         }
 
         /// <summary>
-        /// 特大のビームを出している間、円柱を出し、プレイヤーが範囲の中にいて、撃つ所の高さから頭まで物がなければ、1回だけダメージを与える。出し終えたら円柱とデカールを消す。
+        /// ビームを pivot から最初に当たった物まで出し、プレイヤーが半径の中に入っていれば、間隔ごとにダメージを与える。
         /// </summary>
-        private void UpdateGiantBeam(Vector3 capsuleStart, Vector3 capsuleEnd, float capsuleRadius)
+        private void UpdateFiring(Vector3 pivot, float3 capsuleStart, float3 capsuleEnd, float capsuleRadius,
+            float deltaTime)
         {
-            if (_phaseTime > _giantDuration)
-            {
-                _giantBeam.Hide();
-                return;
-            }
+            var stop = CastBeam(pivot);
+            _beam.ShowBeam(pivot, stop, _beamRadius);
 
-            var emitter = _hoverPosition + Vector3.up * _bodyCenterHeight;
-            _giantBeam.ShowBeam(emitter, _giantStop, _giantRadius);
-            if (_hasGiantHit) return;
+            _damageTimer -= deltaTime;
+            if (_damageTimer > 0f) return;
 
-            var horizontal = new Vector2(capsuleStart.x - emitter.x, capsuleStart.z - emitter.z);
-            var reach = _giantRadius + capsuleRadius;
-            if (horizontal.sqrMagnitude > reach * reach || capsuleEnd.y >= emitter.y) return;
+            var reach = _beamRadius + capsuleRadius;
+            if (CapsuleGeometry.GetSegmentDistanceSq(pivot, stop, capsuleStart, capsuleEnd, out _) > reach * reach) return;
 
-            // ビームと同じく上から下へ調べ、頭より上に物があれば屋根の下に隠れているとして当てない。撃つ所を包む物は、調べ始めに重なるので数えない
-            var head = capsuleEnd + Vector3.up * capsuleRadius;
-            var above = new Vector3(head.x, emitter.y, head.z);
-            if (Physics.Raycast(above, Vector3.down, emitter.y - head.y, _blockLayers, QueryTriggerInteraction.Ignore)) return;
-
-            _hasGiantHit = true;
-            _applyDamage?.Invoke(_giantDamage);
+            _damageTimer = _damageInterval;
+            _applyDamage?.Invoke(_damage);
         }
 
         /// <summary>
-        /// 残っている分身ごとに、ビームの当たる所をプレイヤーへ近づけ、分身からそこまでの円柱とデカールを出し、プレイヤーが円柱に触れていれば間隔ごとにダメージを与える。
-        /// 当たる所は、その位置の真下で最初に当たる物の上。分身からそこまでの間に物があれば、そこで止まる。壊れた分身のビームは消す。
+        /// pivot から _aimDirection へ調べ、最初に当たった物の位置を返す。当たらなければ MAX_BEAM_LENGTH 先の位置を返す。
         /// </summary>
-        private void UpdateTrackingBeams(Vector3 capsuleStart, Vector3 capsuleEnd, float capsuleRadius, float deltaTime)
+        private Vector3 CastBeam(Vector3 pivot)
         {
-            var player = new Vector2(capsuleStart.x, capsuleStart.z);
-            var hitReach = _trackingRadius + capsuleRadius;
-
-            for (var i = 0; i < _clones.Count; i++)
-            {
-                var beam = _trackingBeams[i];
-                if (_phaseTime > _trackingDuration || !_clones[i].gameObject.activeSelf)
-                {
-                    beam.Hide();
-                    continue;
-                }
-
-                _trackingPoints[i] = Vector2.MoveTowards(_trackingPoints[i], player, _trackingSpeed * deltaTime);
-                _trackingTimers[i] -= deltaTime;
-
-                var emitter = _clones[i].transform.position + Vector3.up * _bodyCenterHeight;
-                var above = new Vector3(_trackingPoints[i].x, emitter.y, _trackingPoints[i].y);
-                var aim = CastBeam(above, Vector3.down, MAX_BEAM_LENGTH);
-                var toAim = aim - emitter;
-                var stop = CastBeam(emitter, toAim.normalized, toAim.magnitude);
-
-                beam.ShowBeam(emitter, stop, _trackingRadius);
-                beam.ShowDecal(stop, _trackingRadius);
-
-                if (_trackingTimers[i] > 0f) continue;
-                if (CapsuleGeometry.GetSegmentDistanceSq(emitter, stop, capsuleStart, capsuleEnd, out _) > hitReach * hitReach) continue;
-
-                _trackingTimers[i] = _trackingInterval;
-                _applyDamage?.Invoke(_trackingDamage);
-            }
-        }
-
-        /// <summary>
-        /// 残っている分身を、本体の周りの回る半径の上へ動かし、プレイヤーへ向ける。半径は出してから広がる時間をかけて広げる。
-        /// </summary>
-        private void MoveClones(Vector3 mainPosition, Vector3 capsuleStart)
-        {
-            var radius = _orbitRadius * Mathf.Clamp01(_cloneTime / _spreadDuration);
-            for (var i = 0; i < _clones.Count; i++)
-            {
-                if (!_clones[i].gameObject.activeSelf) continue;
-
-                var angle = math.radians(360f * i / _clones.Count + _orbitSpeed * _cloneTime);
-                var position = mainPosition + new Vector3(math.cos(angle), 0f, math.sin(angle)) * radius;
-                var toPlayer = capsuleStart - position;
-                toPlayer.y = 0f;
-                var rotation = toPlayer.sqrMagnitude > 0f ? Quaternion.LookRotation(toPlayer) : _clones[i].transform.rotation;
-
-                if (_cloneBodies[i] != null)
-                {
-                    _cloneBodies[i].MovePosition(position);
-                    _cloneBodies[i].MoveRotation(rotation);
-                }
-                else
-                {
-                    _clones[i].transform.SetPositionAndRotation(position, rotation);
-                }
-            }
-        }
-
-        /// <summary>
-        /// origin から direction へ length まで調べ、最初に当たった物の位置を返す。当たらなければ length 先の位置を返す。
-        /// </summary>
-        private Vector3 CastBeam(Vector3 origin, Vector3 direction, float length)
-        {
-            return Physics.Raycast(origin, direction, out var hit, length, _blockLayers, QueryTriggerInteraction.Ignore)
+            return Physics.Raycast(pivot, _aimDirection, out var hit, MAX_BEAM_LENGTH, _blockLayers,
+                QueryTriggerInteraction.Ignore)
                 ? hit.point
-                : origin + direction * length;
+                : pivot + _aimDirection * MAX_BEAM_LENGTH;
         }
 
         private void SetPhase(Phase phase)
@@ -409,30 +247,37 @@ namespace Kizami.EngineAdapter
             _phaseTime = 0f;
         }
 
-        private void OnDrawGizmos()
-        {
-            if (_phase != Phase.Telegraph && _phase != Phase.Firing) return;
-
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(_giantStop, _giantRadius);
-        }
-
         /// <summary>
-        /// 分身とビームの段階
+        /// ビームの段階
         /// </summary>
         private enum Phase
         {
             /// <summary> 出していない </summary>
             Idle,
 
-            /// <summary> 本体がプレイヤーの上へ向かっている </summary>
-            Rising,
+            /// <summary> 頭の位置を追って向きを変えている </summary>
+            Aiming,
 
-            /// <summary> 特大のビームの範囲を示している </summary>
+            /// <summary> 向きを固定して、撃つのを待っている </summary>
             Telegraph,
 
-            /// <summary> 特大のビームと追いかけるビームを撃っている </summary>
+            /// <summary> ビームを撃っている </summary>
             Firing
+        }
+
+        /// <summary>
+        /// ある時刻のプレイヤーの頭の位置
+        /// </summary>
+        private readonly struct HeadSample
+        {
+            public readonly float Time;
+            public readonly Vector3 Position;
+
+            public HeadSample(float time, Vector3 position)
+            {
+                Time = time;
+                Position = position;
+            }
         }
     }
 }

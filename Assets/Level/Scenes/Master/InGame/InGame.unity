@@ -1593,13 +1593,16 @@ MonoBehaviour:
   _grabDuration: 0.3
   _foldDuration: 0.3
   _absorbDuration: 1
-  _cooldown: 15
+  _cooldown: 10
   _graspSpread: 1
   _targetCenterHeight: 1.5
   _finisherCenterHeight: 5
   _particlesPerPart: 4
   _burstInterval: 0.1
   _maxBurstPositions: 32
+  _firstCooldownMin: 10
+  _firstCooldownMax: 15
+  _pivotHeight: 2
 --- !u!114 &1539543163
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1612,25 +1615,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 36b6c3ddb34b87844adb3289eeae309e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyFinisherBeams
-  _clonePrefab: {fileID: 7733473083201751770, guid: aeda01e63a8a04d4688a990727ab32de, type: 3}
-  _cloneCount: 4
   _beamMaterial: {fileID: 2100000, guid: f1ee0f09a79d09a49809cb68c0313769, type: 2}
-  _decalPrefab: {fileID: 6800740689205450650, guid: 781d0116b3e61944fb6b90e99c7294d7, type: 3}
-  _height: 25
-  _lockDistance: 3
-  _bodyCenterHeight: 5
-  _orbitRadius: 8
-  _orbitSpeed: 60
-  _spreadDuration: 1
-  _telegraphDuration: 2
-  _giantRadius: 4
-  _giantDamage: 40
-  _giantDuration: 0.5
-  _trackingRadius: 1
-  _trackingDamage: 10
-  _trackingInterval: 0.5
-  _trackingDuration: 4
-  _trackingSpeed: 4
+  _telegraphMaterial: {fileID: 2100000, guid: 75145594f275da24eaabc61d61316f8c, type: 2}
+  _beamRadius: 14.14
+  _telegraphRadius: 16
+  _aimDuration: 3
+  _aimDelay: 2
+  _telegraphDuration: 1
+  _firingDuration: 1
+  _damage: 1
+  _damageInterval: 0.1
   _blockLayers:
     serializedVersion: 2
     m_Bits: 11777

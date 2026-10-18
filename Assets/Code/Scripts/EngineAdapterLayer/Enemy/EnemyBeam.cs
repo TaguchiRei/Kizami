@@ -1,58 +1,31 @@
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal;
 
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// フィニッシャーのビーム1本の見た目。ビームの円柱と、攻撃の範囲を地面に示すデカールを持つ。
-    /// EnemyFinisherAttack が初期化のときに作って使い回す。当たりの判定は持たない。
+    /// フィニッシャーのビームや危険範囲の帯 1 本の見た目。円柱を持つ。
+    /// EnemyFinisherBeams が初期化のときに作って使い回す。当たりの判定は持たない。
     /// </summary>
-    /// <remarks>
-    /// デカールは URP の Decal Projector で、描くには Renderer に Decal Renderer Feature が要る。
-    /// </remarks>
     public sealed class EnemyBeam
     {
         private readonly GameObject _cylinder;
         private readonly Transform _cylinderTransform;
-        private readonly DecalProjector _decal;
 
-        /// <param name="parent">円柱とデカールを置く親。拡大率を1に保つこと</param>
-        /// <param name="beamMaterial">円柱のマテリアル</param>
-        /// <param name="decalPrefab">デカールのプレハブ。投影の向きと奥行き（size の z）はプレハブのものを使い、幅だけを半径に合わせる</param>
-        public EnemyBeam(Transform parent, Material beamMaterial, DecalProjector decalPrefab)
+        /// <param name="parent">円柱を置く親。拡大率を1に保つこと</param>
+        /// <param name="material">円柱のマテリアル</param>
+        public EnemyBeam(Transform parent, Material material)
         {
             _cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             _cylinder.name = nameof(EnemyBeam);
             Object.Destroy(_cylinder.GetComponent<Collider>());
             var cylinderRenderer = _cylinder.GetComponent<MeshRenderer>();
-            cylinderRenderer.sharedMaterial = beamMaterial;
+            cylinderRenderer.sharedMaterial = material;
             cylinderRenderer.shadowCastingMode = ShadowCastingMode.Off;
             cylinderRenderer.receiveShadows = false;
             _cylinderTransform = _cylinder.transform;
             _cylinderTransform.SetParent(parent, false);
             _cylinder.SetActive(false);
-
-            if (decalPrefab != null)
-            {
-                _decal = Object.Instantiate(decalPrefab, parent);
-                _decal.gameObject.SetActive(false);
-            }
-        }
-
-        /// <summary>
-        /// 攻撃の範囲を示すデカールを、point を中心に下向きに出す。
-        /// </summary>
-        /// <param name="point">範囲の中心（ワールド座標）。ビームの止まる所</param>
-        /// <param name="radius">範囲の半径（m）</param>
-        public void ShowDecal(Vector3 point, float radius)
-        {
-            if (_decal == null) return;
-
-            _decal.transform.SetPositionAndRotation(point, Quaternion.LookRotation(Vector3.down, Vector3.forward));
-            _decal.size = new Vector3(radius * 2f, radius * 2f, _decal.size.z);
-            _decal.pivot = Vector3.zero;
-            _decal.gameObject.SetActive(true);
         }
 
         /// <summary>
@@ -78,20 +51,11 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 円柱を消す。デカールは残す。
-        /// </summary>
-        public void HideBeam()
-        {
-            _cylinder.SetActive(false);
-        }
-
-        /// <summary>
-        /// 円柱とデカールを消す。
+        /// 円柱を消す。
         /// </summary>
         public void Hide()
         {
             _cylinder.SetActive(false);
-            if (_decal != null) _decal.gameObject.SetActive(false);
         }
     }
 }
