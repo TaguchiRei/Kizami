@@ -14,7 +14,7 @@ namespace Kizami.EngineAdapter
     /// 設定はこのコンポーネントが持ち、1本ずつの状態と見た目は Shot が持つ。同時に攻撃するフィニッシャーの数だけ、EnemyFinisherAttack が Shot を作る。
     /// </summary>
     /// <remarks>
-    /// 撃つ所と傾ける中心は、フィニッシャーの体の根から一定の高さの点（pivot）。ビームは pivot から頭の位置の向きへ伸び、最初に当たった物で止まる。
+    /// 撃つ所と傾ける中心は、フィニッシャーの体の根から一定の高さの点（pivot）。ビームは pivot から頭の位置の向きへ伸びる。照射中は、範囲内のボクセルを手前から順に、素材によらず同じ速さと半径で溶かして進み、ボクセルでない物（装甲、地形）で止まる。溶かして進んだ所までの範囲にあるガラスの板は割る。
     /// 頭の位置は _aimDelay 秒前の位置を狙う。照準の間だけ狙い直し、予兆と照射では最後の向きを使う。
     /// </remarks>
     public sealed class EnemyFinisherBeams : MonoBehaviour
@@ -22,9 +22,26 @@ namespace Kizami.EngineAdapter
         /// <summary> ビームが何にも当たらないときの長さ（m） </summary>
         private const float MAX_BEAM_LENGTH = 1500f;
 
+        /// <summary>
+        /// 溶かす攻撃の、1m あたりに減る強さ。大きくして、素材の融点による穴の半径の差を 1mm 未満にする
+        /// </summary>
+        private const float MELT_FALLOFF = 1000f;
+
+        /// <summary> 射線の調べと、溶かす範囲に重なるコライダーを集めるときの上限 </summary>
+        private const int MAX_HIT_COUNT = 64;
+
         private static readonly int _tintId = Shader.PropertyToID("_Tint");
         private static readonly int _intensityId = Shader.PropertyToID("_Intensity");
         private static readonly int _ringIntensityId = Shader.PropertyToID("_RingIntensity");
+
+        /// <summary> 溶かす範囲とガラスを割る範囲に重なるコライダーを集める作業用の配列。Shot のあいだで使い回す </summary>
+        private readonly Collider[] _overlapBuffer = new Collider[MAX_HIT_COUNT];
+
+        /// <summary> 射線を調べる作業用の配列。Shot のあいだで使い回す </summary>
+        private readonly RaycastHit[] _castBuffer = new RaycastHit[MAX_HIT_COUNT];
+
+        /// <summary> 1 回で溶かすピース。同じピースを二度溶かさないように集める </summary>
+        private readonly HashSet<VoxelPiece> _meltPieces = new();
 
         [SerializeField]
         [Tooltip("ビームの外側のマテリアル。内側と重ねて描く")]
@@ -105,16 +122,12 @@ namespace Kizami.EngineAdapter
         private float _damageInterval = 0.1f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("ビームがボクセルを溶かして進む速さ（m/s）。ボクセルでない物（メッシュのままの建物、装甲、地形）は溶かさず、そこで止まる")]
+        [Tooltip("ビームがボクセルを溶かして進む速さ（m/s）。素材によらず同じ。ボクセルでない物（装甲、地形）は溶かさず、そこで止まる")]
         private float _meltSpeed = 4f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("溶かして開ける穴の半径（m）。普通の素材の場合。硬い素材は、これより小さくなる")]
+        [Tooltip("溶かして開ける穴の半径（m）。素材によらず同じ")]
         private float _meltRadius = 3f;
-
-        [SerializeField, Min(0.01f)]
-        [Tooltip("溶かす攻撃の、1m あたりに減る強さ。小さいほど、素材の強度による溶け方の差が大きい")]
-        private float _meltFalloff = 0.5f;
 
         [SerializeField, Min(0.01f)]
         [Tooltip("ボクセルを溶かす間隔（秒）。1 回で進む長さは「溶ける速さ × 間隔」")]
@@ -124,12 +137,27 @@ namespace Kizami.EngineAdapter
         [Tooltip("ビームを止める物のレイヤー。プレイヤー自身のレイヤーは外す")]
         private LayerMask _blockLayers;
 
+        [SerializeField]
+        [Tooltip("照射中に割るガラスの板のレイヤー。ビームの範囲（穴の半径）に入った板を割る")]
+        private LayerMask _glassLayers;
+
         private CapsuleCollider _targetCapsule;
         private Action<int> _applyDamage;
         private CinemachineImpulseSource _impulseSource;
         private MaterialPropertyBlock _glowProperties;
         private Transform _camera;
         private bool _isReady;
+
+        /// <summary>
+        /// ビームが溶かせる物か。ボクセルのピースか、手付かずの形のメッシュのまま置いたモデルなら溶かせる。
+        /// </summary>
+        private static bool IsVoxel(Collider target)
+        {
+            if (target.GetComponentInParent<VoxelPiece>() != null) return true;
+
+            var loader = target.GetComponentInParent<VoxelModelLoader>();
+            return loader != null && loader.IsStatic;
+        }
 
         /// <summary>
         /// ビームを撃つのに必要な物を確かめ、画面の揺れを作る。マテリアルかプレイヤーの当たり判定がなければ、警告を出して使えないままにする。
@@ -165,6 +193,34 @@ namespace Kizami.EngineAdapter
         public Shot CreateShot()
         {
             return _isReady ? new Shot(this) : null;
+        }
+
+        /// <summary>
+        /// _overlapBuffer の先頭 count 個のコライダーの持ち主のピースを _meltPieces に集めて返す。手付かずの形のメッシュのまま置いたモデルは、ボクセルにしてからパーツを集める。
+        /// </summary>
+        private HashSet<VoxelPiece> CollectPieces(int count)
+        {
+            _meltPieces.Clear();
+            for (var i = 0; i < count; i++)
+            {
+                var piece = _overlapBuffer[i].GetComponentInParent<VoxelPiece>();
+                if (piece != null)
+                {
+                    _meltPieces.Add(piece);
+                    continue;
+                }
+
+                var loader = _overlapBuffer[i].GetComponentInParent<VoxelModelLoader>();
+                if (loader == null || !loader.IsStatic) continue;
+
+                loader.Load();
+                foreach (var part in loader.Parts)
+                {
+                    _meltPieces.Add(part);
+                }
+            }
+
+            return _meltPieces;
         }
 
         /// <summary>
@@ -296,8 +352,8 @@ namespace Kizami.EngineAdapter
             /// <summary> 次にボクセルを溶かすまでの時間（秒） </summary>
             private float _meltTimer;
 
-            /// <summary> CastBeam で最初に当たったコライダー。当たらなければ null </summary>
-            private Collider _hitCollider;
+            /// <summary> 照射中に、溶かす先端が pivot から射線に沿って進んだ距離（m） </summary>
+            private float _meltFrontDistance;
 
             public Shot(EnemyFinisherBeams owner)
             {
@@ -415,18 +471,26 @@ namespace Kizami.EngineAdapter
                 _telegraph?.Hide();
                 _damageTimer = 0f;
                 _meltTimer = 0f;
+                _meltFrontDistance = 0f;
                 SetPhase(Phase.Firing);
                 _owner._impulseSource?.GenerateImpulseWithForce(_owner._shakeForce);
             }
 
             /// <summary>
-            /// ビームを pivot から最初に当たった物まで出し、当たった物がボクセルなら溶かす。プレイヤーが半径の中に入っていれば、間隔ごとにダメージを与える。
+            /// 溶かす先端を進め、ビームを pivot から先端か、ボクセルでない物の近いほうまで出す。プレイヤーが半径の中に入っていれば、間隔ごとにダメージを与える。
             /// </summary>
             private void UpdateFiring(Vector3 pivot, float3 capsuleStart, float3 capsuleEnd, float capsuleRadius,
                 float deltaTime)
             {
-                var stop = CastBeam(pivot, out var hasHit, out var normal);
-                Melt(stop, deltaTime);
+                var blockDistance = CastBlock(pivot, out var blockNormal);
+                Melt(pivot, blockDistance, deltaTime);
+
+                var isBlocked = blockDistance <= _meltFrontDistance;
+                var stopDistance = isBlocked ? blockDistance : _meltFrontDistance;
+                var stop = pivot + _aimDirection * stopDistance;
+                var hasHit = stopDistance < MAX_BEAM_LENGTH;
+                var normal = isBlocked ? blockNormal : -_aimDirection;
+
                 var flicker = 1f + 0.25f * Mathf.Sin(_phaseTime * 60f);
                 _owner.ShowGlow(_muzzleGlow, pivot, _owner._muzzleSize * flicker, _owner._glowColor, 2f, 1f);
                 ShowTipEffects(stop, normal, hasHit, _owner._glowColor, true);
@@ -444,7 +508,7 @@ namespace Kizami.EngineAdapter
             }
 
             /// <summary>
-            /// pivot から _aimDirection へ調べ、最初に当たった物の位置を返す。当たらなければ MAX_BEAM_LENGTH 先の位置を返す。
+            /// pivot から _aimDirection へ調べ、最初に当たった物の位置を返す。当たらなければ MAX_BEAM_LENGTH 先の位置を返す。照準と予兆の帯に使う。
             /// </summary>
             /// <param name="hasHit">何かに当たったか</param>
             /// <param name="normal">当たった面の向き。当たらなければ pivot へ戻る向き</param>
@@ -452,25 +516,115 @@ namespace Kizami.EngineAdapter
             {
                 hasHit = Physics.Raycast(pivot, _aimDirection, out var hit, MAX_BEAM_LENGTH, _owner._blockLayers,
                     QueryTriggerInteraction.Ignore);
-                _hitCollider = hasHit ? hit.collider : null;
                 normal = hasHit ? hit.normal : -_aimDirection;
                 return hasHit ? hit.point : pivot + _aimDirection * MAX_BEAM_LENGTH;
             }
 
             /// <summary>
-            /// 当たった物が VoxelPiece なら、_meltInterval ごとに、当たった面から射線に沿って溶ける速さ × 間隔の分だけ奥へ、穴の半径の球を動かして溶かす。
-            /// 球の中心は、先端が面から進む長さだけ奥に届く位置（面から穴の半径だけ手前）から動かす。1 回で面から奥へ進む深さが、溶ける速さ × 間隔に収まる。
-            /// VoxelPiece でない物（メッシュのままの建物、装甲、地形）は溶かさず、ビームはそこで止まる。
+            /// pivot から _aimDirection へ調べ、最初に当たったボクセルでない物（装甲、地形）までの距離を返す。当たらなければ MAX_BEAM_LENGTH を返す。
             /// </summary>
-            /// <param name="surface">ビームが最初に当たった面の位置</param>
-            private void Melt(Vector3 surface, float deltaTime)
+            /// <param name="normal">当たった面の向き。当たらなければ pivot へ戻る向き</param>
+            private float CastBlock(Vector3 pivot, out Vector3 normal)
+            {
+                var castBuffer = _owner._castBuffer;
+                var count = Physics.RaycastNonAlloc(pivot, _aimDirection, castBuffer, MAX_BEAM_LENGTH,
+                    _owner._blockLayers, QueryTriggerInteraction.Ignore);
+                var distance = MAX_BEAM_LENGTH;
+                normal = -_aimDirection;
+                for (var i = 0; i < count; i++)
+                {
+                    var hit = castBuffer[i];
+                    if (hit.distance >= distance || IsVoxel(hit.collider)) continue;
+
+                    distance = hit.distance;
+                    normal = hit.normal;
+                }
+
+                return distance;
+            }
+
+            /// <summary>
+            /// _meltInterval ごとに、溶かす先端を進める。先端から溶ける速さ × 間隔の分だけ先までの、穴の半径のカプセルにボクセルが重なれば、重なったピースを溶かして先端をその分進める。
+            /// 何も重ならなければ、先端から同じ半径の球を前へ飛ばし、最初に触れたボクセルの位置まで先端を一気に進める。触れなければ blockDistance まで進める。
+            /// 先端は blockDistance より先へ進めない。溶かす範囲は素材によらず同じ半径にする。
+            /// 進めたあと、pivot から先端までの範囲に入ったガラスの板を割る。
+            /// </summary>
+            /// <param name="pivot">ビームを撃つ所（ワールド座標）</param>
+            /// <param name="blockDistance">ボクセルでない物までの距離（m）</param>
+            private void Melt(Vector3 pivot, float blockDistance, float deltaTime)
             {
                 _meltTimer -= deltaTime;
                 if (_meltTimer > 0f) return;
 
                 _meltTimer += _owner._meltInterval;
-                VoxelBeamMelt.Melt(_hitCollider, surface, _aimDirection, _owner._meltRadius,
-                    _owner._meltSpeed * _owner._meltInterval, _owner._meltFalloff);
+                AdvanceMeltFront(pivot, blockDistance);
+                ShatterGlass(pivot, Mathf.Min(_meltFrontDistance, blockDistance));
+            }
+
+            /// <summary>
+            /// 溶かす先端を 1 回分進める。進め方は Melt を参照する。
+            /// </summary>
+            private void AdvanceMeltFront(Vector3 pivot, float blockDistance)
+            {
+                if (_meltFrontDistance >= blockDistance) return;
+
+                var meltRadius = _owner._meltRadius;
+                var step = _owner._meltSpeed * _owner._meltInterval;
+                var start = pivot + _aimDirection * _meltFrontDistance;
+                var end = start + _aimDirection * step;
+                var count = Physics.OverlapCapsuleNonAlloc(start, end, meltRadius, _owner._overlapBuffer,
+                    _owner._blockLayers, QueryTriggerInteraction.Ignore);
+                var pieces = _owner.CollectPieces(count);
+
+                if (pieces.Count == 0)
+                {
+                    _meltFrontDistance = FindNextVoxelDistance(start, blockDistance);
+                    return;
+                }
+
+                var shape = new CapsuleShape(start, end, meltRadius + VoxelThermalSettings.NORMAL_MELTING_POINT / MELT_FALLOFF);
+                foreach (var piece in pieces)
+                {
+                    piece.ApplyStrike(shape, MELT_FALLOFF, Space.World);
+                }
+
+                pieces.Clear();
+                _meltFrontDistance = Mathf.Min(_meltFrontDistance + step, blockDistance);
+            }
+
+            /// <summary>
+            /// pivot から射線に沿って distance までの、穴の半径のカプセルに入ったガラスの板を、pivot を起点に割る。
+            /// </summary>
+            private void ShatterGlass(Vector3 pivot, float distance)
+            {
+                var overlapBuffer = _owner._overlapBuffer;
+                var end = pivot + _aimDirection * distance;
+                var count = Physics.OverlapCapsuleNonAlloc(pivot, end, _owner._meltRadius, overlapBuffer,
+                    _owner._glassLayers, QueryTriggerInteraction.Ignore);
+                for (var i = 0; i < count; i++)
+                {
+                    var glass = overlapBuffer[i].GetComponentInParent<GlassPane>();
+                    if (glass != null) glass.Shatter(pivot);
+                }
+            }
+
+            /// <summary>
+            /// start から _aimDirection へ穴の半径の球を飛ばし、最初に触れたボクセルの、pivot からの距離を返す。触れなければ blockDistance を返す。
+            /// </summary>
+            private float FindNextVoxelDistance(Vector3 start, float blockDistance)
+            {
+                var castBuffer = _owner._castBuffer;
+                var maxDistance = blockDistance - _meltFrontDistance;
+                var count = Physics.SphereCastNonAlloc(start, _owner._meltRadius, _aimDirection, castBuffer,
+                    maxDistance, _owner._blockLayers, QueryTriggerInteraction.Ignore);
+                var distance = maxDistance;
+                for (var i = 0; i < count; i++)
+                {
+                    var hit = castBuffer[i];
+                    if (hit.distance < distance && IsVoxel(hit.collider)) distance = hit.distance;
+                }
+
+                return _meltFrontDistance + distance;
             }
 
             /// <summary>
