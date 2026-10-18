@@ -77,7 +77,7 @@ namespace Kizami.EngineAdapter
         private float _cooldownRemaining;
 
         /// <summary>
-        /// ダメージと弾く関数を受け取り、輪の見た目をプールに作る。
+        /// ダメージと弾く関数を受け取る。
         /// </summary>
         /// <param name="applyDamage">プレイヤーにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
         /// <param name="requestKnockback">プレイヤーを弾く関数（PlayerMovementService.RequestKnockback）。引数は打ち出し速度</param>
@@ -155,7 +155,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 位置 point の真下の高さを中心に、空いている輪を出す。空きがなければ出さない。
+        /// 位置 point を中心に、空いている輪を出す。空きがなければ出さない。
         /// </summary>
         private void Spawn(Vector3 point)
         {
