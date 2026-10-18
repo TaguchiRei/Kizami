@@ -11,7 +11,7 @@ namespace Kizami.Editor
     /// 区画は大通りと中通りに囲まれた長方形で、辺が SPLIT_THRESHOLD より長い区画は、小道で SUB_BLOCK_LENGTH 前後の小区画に分ける。
     /// 建物は小区画の道に面した辺に沿って、正面（モデルの +Z）を道へ向けて並べる。幅の広い道に面した辺から先に埋め、重なる位置・円の外へはみ出す位置・天照塔の脚にかかる位置には置かない。
     /// 中心から 100 m の中通りの内側は商業エリア、外側はビル街で、置く建物の種類を変える。ビル街の小道沿いには小さめの建物を置く。
-    /// 敵の生産施設は、建物より先に、ビル街の小道沿いの小区画へ、互いに離して置く。
+    /// 敵の生産施設は、建物より先に、敵の区画ごとに1つ置く。ビル街の小道沿いを優先し、置けなければ道路の上にも置く。
     /// 小物は、大通りと中通りの歩道に街灯（商業エリアではベンチも）、交差点に信号、崖の手前の道の端にガードレール、骨組みのビルの前に工事用のフェンスとバリケードを置く。
     /// 天照塔の通り穴の中とアーケードの屋根の下には、歩道の小物を置かない。
     /// </summary>
@@ -58,9 +58,6 @@ namespace Kizami.Editor
         private const float SITE_LENGTH = 18f;
         private const float SITE_WIDTH = 10f;
 
-        // 生産施設どうしを離す、中心どうしの最小の距離（m）
-        private const float FACTORY_SPACING = 120f;
-
         // 歩道の上面と車道の上面の高さ（m）。道路の部品に合わせる
         private const float SIDEWALK_TOP = 0.25f;
         private const float ROAD_TOP = 0.05f;
@@ -80,16 +77,8 @@ namespace Kizami.Editor
         public static readonly RoadKind Middle = new("Middle", 7.2f, 2.4f);
         public static readonly RoadKind Narrow = new("Narrow", 2.4f, 0f);
 
-        // 生産施設を置く順。大を先に置き、離した場所を取りやすくする
-        private static readonly BuildingType[] _factories =
-        {
-            new("EnemyFactory_Large", 14.4f, 14.4f),
-            new("EnemyFactory_Large", 14.4f, 14.4f),
-            new("EnemyFactory_Small", 8f, 8f),
-            new("EnemyFactory_Small", 8f, 8f),
-            new("EnemyFactory_Small", 8f, 8f),
-            new("EnemyFactory_Small", 8f, 8f),
-        };
+        private static readonly BuildingType _largeFactory = new("EnemyFactory_Large", 14.4f, 14.4f);
+        private static readonly BuildingType _smallFactory = new("EnemyFactory_Small", 8f, 8f);
 
         private static readonly BuildingType[] _commercial =
         {
@@ -119,7 +108,13 @@ namespace Kizami.Editor
             new("Frame", 24f, 24f),
         };
 
-        public static TownPlan Plan(int seed)
+        /// <summary>
+        /// 街の配置を決める。
+        /// </summary>
+        /// <param name="seed">乱数のシード</param>
+        /// <param name="sectionSize">敵の区画の大きさ（m）。生産施設を区画ごとに1つ置く</param>
+        /// <param name="skippedSections">生産施設を置かない区画の番号</param>
+        public static TownPlan Plan(int seed, float sectionSize, IReadOnlyCollection<Vector2Int> skippedSections)
         {
             var random = new Random(seed);
             var plan = new TownPlan();
@@ -140,7 +135,7 @@ namespace Kizami.Editor
             var occupied = new List<Rect>();
             var arcade = PlanArcade(plan, occupied);
             var crossings = PlanRoads(plan, lines);
-            PlanFactories(plan, subBlocks, occupied, random);
+            PlanFactories(plan, subBlocks, occupied, random, sectionSize, skippedSections);
             PlanCollapseSite(plan, subBlocks, occupied, random);
 
             // 幅の広い道に面した辺から先に埋める
@@ -414,9 +409,12 @@ namespace Kizami.Editor
         }
 
         /// <summary>
-        /// ビル街の小道に面した小区画へ、生産施設を小道の辺の真ん中に、正面を小道へ向けて置く。候補の小区画は乱数で並べ、既に置いた施設から FACTORY_SPACING 以上離れた所だけを使う。
+        /// 敵の区画ごとに生産施設を1つ置く。区画は原点を中心にした sectionSize 四方の格子で、EnemySpawnSystem の区画と同じ。skippedSections の区画には置かない。
+        /// 区画の番号の和が偶数なら大きい施設、奇数なら小さい施設を先に試す。
+        /// まず区画の中の、ビル街の小道に面した辺の真ん中に正面を小道へ向けて置く。置けなければ、道路の上も含めて区画の中心に近い所から探す。
         /// </summary>
-        private static void PlanFactories(TownPlan plan, List<SubBlock> subBlocks, List<Rect> occupied, Random random)
+        private static void PlanFactories(TownPlan plan, List<SubBlock> subBlocks, List<Rect> occupied, Random random,
+            float sectionSize, IReadOnlyCollection<Vector2Int> skippedSections)
         {
             var candidates = new List<(SubBlock Block, BlockSide Side)>();
             foreach (var subBlock in subBlocks)
@@ -429,23 +427,92 @@ namespace Kizami.Editor
             }
 
             Shuffle(candidates, random);
-            var placed = new List<Vector2>();
-            foreach (var type in _factories)
+            var count = Mathf.CeilToInt((MAP_RADIUS - sectionSize * 0.5f) / sectionSize);
+            for (var z = -count; z <= count; z++)
             {
-                foreach (var (block, side) in candidates)
+                for (var x = -count; x <= count; x++)
                 {
-                    var alongX = side.Edge is Edge.ZMin or Edge.ZMax;
-                    var middle = alongX ? block.Rect.center.x : block.Rect.center.y;
-                    var footprint = Footprint(block.Rect, side.Edge, middle - type.Width * 0.5f, type);
-                    if (placed.Exists(other => (other - footprint.center).magnitude < FACTORY_SPACING)) continue;
-                    if (!CanPlace(footprint, occupied)) continue;
+                    var section = new Vector2Int(x, z);
+                    if (Contains(skippedSections, section)) continue;
 
-                    occupied.Add(footprint);
-                    placed.Add(footprint.center);
-                    plan.Buildings.Add(new PartPlacement(type.Name, new Vector3(footprint.center.x, 0f, footprint.center.y), FrontYaw(side.Edge)));
-                    break;
+                    var center = new Vector2(x, z) * sectionSize;
+                    var area = new Rect(center - Vector2.one * (sectionSize * 0.5f), Vector2.one * sectionSize);
+                    var types = (x + z) % 2 == 0 ? new[] { _largeFactory, _smallFactory } : new[] { _smallFactory, _largeFactory };
+                    foreach (var type in types)
+                    {
+                        if (TryPlaceFactoryOnAlley(plan, candidates, occupied, area, type) ||
+                            TryPlaceFactoryNearCenter(plan, occupied, area, type)) break;
+                    }
                 }
             }
+        }
+
+        private static bool Contains(IReadOnlyCollection<Vector2Int> sections, Vector2Int section)
+        {
+            foreach (var other in sections)
+            {
+                if (other == section) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 区画 area の中にある、小道に面した辺の真ん中に施設を置く。施設の範囲が区画からはみ出す所は使わない。
+        /// </summary>
+        private static bool TryPlaceFactoryOnAlley(TownPlan plan, List<(SubBlock Block, BlockSide Side)> candidates,
+            List<Rect> occupied, Rect area, BuildingType type)
+        {
+            foreach (var (block, side) in candidates)
+            {
+                var alongX = side.Edge is Edge.ZMin or Edge.ZMax;
+                var middle = alongX ? block.Rect.center.x : block.Rect.center.y;
+                var footprint = Footprint(block.Rect, side.Edge, middle - type.Width * 0.5f, type);
+                if (!ContainsRect(area, footprint) || !CanPlace(footprint, occupied)) continue;
+
+                AddFactory(plan, occupied, footprint, type, FrontYaw(side.Edge));
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 区画 area の中を SCAN_STEP おきに、中心に近い位置から順に試して施設を置く。道路の上にも置く。
+        /// </summary>
+        private static bool TryPlaceFactoryNearCenter(TownPlan plan, List<Rect> occupied, Rect area, BuildingType type)
+        {
+            var points = new List<Vector2>();
+            var halfWidth = type.Width * 0.5f;
+            var halfDepth = type.Depth * 0.5f;
+            for (var z = area.yMin + halfDepth; z <= area.yMax - halfDepth; z += SCAN_STEP)
+            {
+                for (var x = area.xMin + halfWidth; x <= area.xMax - halfWidth; x += SCAN_STEP)
+                    points.Add(new Vector2(x, z));
+            }
+
+            points.Sort((a, b) => (a - area.center).sqrMagnitude.CompareTo((b - area.center).sqrMagnitude));
+            foreach (var point in points)
+            {
+                var footprint = new Rect(point.x - halfWidth, point.y - halfDepth, type.Width, type.Depth);
+                if (!CanPlace(footprint, occupied)) continue;
+
+                AddFactory(plan, occupied, footprint, type, 0f);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool ContainsRect(Rect outer, Rect inner)
+        {
+            return inner.xMin >= outer.xMin && inner.xMax <= outer.xMax && inner.yMin >= outer.yMin && inner.yMax <= outer.yMax;
+        }
+
+        private static void AddFactory(TownPlan plan, List<Rect> occupied, Rect footprint, BuildingType type, float yaw)
+        {
+            occupied.Add(footprint);
+            plan.Buildings.Add(new PartPlacement(type.Name, new Vector3(footprint.center.x, 0f, footprint.center.y), yaw));
         }
 
         /// <summary>

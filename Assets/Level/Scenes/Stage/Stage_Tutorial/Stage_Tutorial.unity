@@ -285,13 +285,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3965853983ecd0c4eb814f56e5f28101, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageSpawnOverride
-  _disabledSpawnPointIds:
-  - Spawn_Factory_01
-  - Spawn_Factory_02
-  - Spawn_Factory_03
-  - Spawn_Factory_04
-  - Spawn_Factory_05
-  - Spawn_Factory_06
+  _disabledSpawnPointIds: []
+  _disablesAll: 1
+  _keptSpawnPointIds:
+  - Spawn_TutorialDummy
+  _composition: {fileID: 11400000, guid: 4a19aec5439e66f40a8c38687e43c075, type: 2}
+  _compositionSpawnPointIds:
+  - Spawn_Factory_*
 --- !u!4 &894881685
 Transform:
   m_ObjectHideFlags: 0

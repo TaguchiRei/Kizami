@@ -13,7 +13,7 @@ namespace Kizami.Initialization
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
     public sealed class EnemyInitializer : InitializerBase, IInjectable<PlayerHealthService>,
-        IInjectable<PlayerMovementService>
+        IInjectable<PlayerMovementService>, IInjectable<GameProgressService>
     {
         private readonly StringBuilder _spawnPointText = new();
         private readonly EnemySquadService _squadService = new();
@@ -28,6 +28,7 @@ namespace Kizami.Initialization
 
         private PlayerHealthService _healthService;
         private PlayerMovementService _movementService;
+        private GameProgressService _progressService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -42,6 +43,10 @@ namespace Kizami.Initialization
             _spawnAdapter.Initialize(blackBoard, _fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit,
                 _healthService != null ? _healthService.ApplyDamage : null,
                 _movementService != null ? _movementService.RequestLaunch : null, _squadService.Step);
+            if (_progressService != null && _progressService.TryGetSelectedStage(out var stage))
+            {
+                _spawnAdapter.SetMaxAttacking(stage.MaxAttackingAttackers, stage.MaxAttackingFinishers);
+            }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             DebugGUI.ObserveVariable("Enemies",
                 () => $"{_spawnAdapter.SpawnedCount} / {_spawnAdapter.Capacity} (groups {_spawnAdapter.GroupCount})", this);
@@ -136,6 +141,11 @@ namespace Kizami.Initialization
         public void Inject(PlayerMovementService instance)
         {
             _movementService = instance;
+        }
+
+        public void Inject(GameProgressService instance)
+        {
+            _progressService = instance;
         }
     }
 }

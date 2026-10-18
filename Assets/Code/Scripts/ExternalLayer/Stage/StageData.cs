@@ -33,8 +33,20 @@ namespace Kizami.External
         private SkillData[] _fixedSkills = System.Array.Empty<SkillData>();
 
         [SerializeField]
-        [Tooltip("クリアの対象にするギミックの ID。空なら、読み込んだシーンの破壊対象をすべて対象にする")]
+        [Tooltip("クリアの対象にするギミックの ID。末尾を * にすると、その前までで始まる ID をすべて対象にする（Factory_* など）。空なら、読み込んだシーンの破壊対象をすべて対象にする")]
         private string[] _targetGimmickIds = System.Array.Empty<string>();
+
+        [SerializeField, Min(0)]
+        [Tooltip("クリアに必要な、破壊済みの対象の数。どの対象を壊してもよい。0 なら対象すべて")]
+        private int _requiredTargetCount;
+
+        [SerializeField, Min(-1)]
+        [Tooltip("同時に弾を撃つアタッカーの数の上限。-1 なら敵の設定の既定の値、0 なら撃たない")]
+        private int _maxAttackingAttackers = -1;
+
+        [SerializeField, Min(-1)]
+        [Tooltip("同時に攻撃するフィニッシャーの数の上限。-1 なら敵の設定の既定の値、0 なら攻撃しない")]
+        private int _maxAttackingFinishers = -1;
 
         [SerializeField]
         [Tooltip("すべてのスキルの破壊力を最大にする。どのスキルでも、強度が硬い素材を普通の素材と同じ範囲まで削れる")]
@@ -59,8 +71,17 @@ namespace Kizami.External
         /// <summary> このステージで使うスキルの固定。空なら固定しない </summary>
         public IReadOnlyList<SkillData> FixedSkills => _fixedSkills;
 
-        /// <summary> クリアの対象にするギミックの ID。空なら破壊対象をすべて対象にする </summary>
+        /// <summary> クリアの対象にするギミックの ID。末尾の * は前方一致。空なら破壊対象をすべて対象にする </summary>
         public IReadOnlyList<string> TargetGimmickIds => _targetGimmickIds;
+
+        /// <summary> クリアに必要な破壊済みの対象の数。0 なら対象すべて </summary>
+        public int RequiredTargetCount => _requiredTargetCount;
+
+        /// <summary> 同時に弾を撃つアタッカーの数の上限。負の値なら既定の値、0 なら撃たない </summary>
+        public int MaxAttackingAttackers => _maxAttackingAttackers;
+
+        /// <summary> 同時に攻撃するフィニッシャーの数の上限。負の値なら既定の値、0 なら攻撃しない </summary>
+        public int MaxAttackingFinishers => _maxAttackingFinishers;
 
         /// <summary> すべてのスキルの破壊力を最大にするか </summary>
         public bool IsMaxDestructionPower => _isMaxDestructionPower;
