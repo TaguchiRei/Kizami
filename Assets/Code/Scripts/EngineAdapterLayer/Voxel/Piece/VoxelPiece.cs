@@ -394,7 +394,7 @@ namespace Kizami.EngineAdapter.Voxel
         public int ApplyStrike<TShape>(in TShape reach, float falloff, Space space)
             where TShape : struct, ITransformableVoxelShape<TShape>
         {
-            if (IsProtected) return;
+            if (IsProtected) return 0;
 
             if (_volume == null)
             {
