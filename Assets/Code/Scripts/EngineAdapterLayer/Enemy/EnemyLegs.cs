@@ -5,10 +5,15 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 体を貸した敵の脚を、足を置く位置の切り替えと2本の骨の IK で歩かせる。敵の体のプレハブの根に付け、EnemySpawnAdapter が毎フレーム呼ぶ。
-    /// 歩かない体（宙に浮いて移動するフィニッシャー）は足を運ばず、足先を体から見て決めた位置（畳んだ位置）に置く。
+    /// Animator を設定した体（宙に浮いて移動するフィニッシャー）は IK を使わず、脚はアニメーションが動かす。歩いているかをアニメーターの Walking に書く。
     /// </summary>
     public sealed class EnemyLegs : MonoBehaviour
     {
+        /// <summary> 体の根がこの速さ（m/s）以上で動いていれば、歩いているとする </summary>
+        private const float WALKING_SPEED = 0.3f;
+
+        private static readonly int _walkingId = Animator.StringToHash("Walking");
+
         /// <summary> IK で脚を伸ばしきる・畳みきる手前にあける長さ（m）。向きが決まらなくならないようにする </summary>
         private const float REACH_MARGIN = 0.001f;
 
@@ -17,16 +22,8 @@ namespace Kizami.EngineAdapter
         private EnemyLeg[] _legs;
 
         [SerializeField]
-        [Tooltip("足を運んで歩くか。歩かない体は、足先を畳んだ位置に置く")]
-        private bool _walks = true;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("歩かない体の畳んだ足先の、体の根の軸から腰の水平の向きへの距離（m）")]
-        private float _foldedReach = 1f;
-
-        [SerializeField]
-        [Tooltip("歩かない体の畳んだ足先の、体の根からの高さ（m）")]
-        private float _foldedHeight = 3f;
+        [Tooltip("脚をアニメーションで動かす体の Animator。設定すると IK で足を運ばず、歩いているかを Walking に書く。未設定なら IK で歩く")]
+        private Animator _animator;
 
         [SerializeField, Range(0f, 1f)]
         [Tooltip("足を置く基準の位置を、腰から休みの姿勢の足先の水平の向きへ、その水平の距離のこの割合だけ離す")]
@@ -92,6 +89,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 脚の数 </summary>
         public int LegCount => _legs.Length;
 
+        /// <summary> 脚を動かす Animator。IK で歩く体では null </summary>
+        public Animator Animator => _animator;
+
         /// <summary>
         /// メッシュの範囲のうち、基準点から向き axis（単位ベクトル）へ最も遠い所までの長さ。メッシュがなければ0。
         /// </summary>
@@ -118,6 +118,12 @@ namespace Kizami.EngineAdapter
 
             _steppingPair = -1;
             _previousRootPosition = transform.position;
+            if (_animator != null)
+            {
+                _animator.SetBool(_walkingId, false);
+                return;
+            }
+
             Pose();
         }
 
@@ -132,7 +138,13 @@ namespace Kizami.EngineAdapter
             velocity.y = 0f;
             _previousRootPosition = transform.position;
 
-            if (_walks && _steppingPair < 0) TryStartStep(velocity, grid);
+            if (_animator != null)
+            {
+                _animator.SetBool(_walkingId, velocity.sqrMagnitude >= WALKING_SPEED * WALKING_SPEED);
+                return;
+            }
+
+            if (_steppingPair < 0) TryStartStep(velocity, grid);
             if (_steppingPair >= 0)
             {
                 _stepProgress += deltaTime / _stepDuration;
@@ -155,6 +167,12 @@ namespace Kizami.EngineAdapter
         /// </summary>
         public void ResetPose()
         {
+            if (_animator != null)
+            {
+                _animator.Rebind();
+                return;
+            }
+
             for (var i = 0; i < _legs.Length; i++)
             {
                 _isHeld[i] = false;
@@ -174,28 +192,6 @@ namespace Kizami.EngineAdapter
 
             _isHeld[leg] = true;
             _heldTargets[leg] = target;
-        }
-
-        /// <summary>
-        /// 体の根の軸から、脚 leg の腰の水平の向きへ reach、体の根から高さ height の位置（ワールド座標）を返す。HoldFoot に渡して足先の姿勢を作る。
-        /// </summary>
-        /// <param name="leg">脚の番号（設定の並び）</param>
-        /// <param name="reach">体の根の軸からの水平の距離（m）</param>
-        /// <param name="height">体の根からの高さ（m）</param>
-        public Vector3 GetFootPosition(int leg, float reach, float height)
-        {
-            var side = new Vector3(_hips[leg].x, 0f, _hips[leg].z);
-            side = side.sqrMagnitude > 0f ? side.normalized : Vector3.forward;
-            return transform.TransformPoint(side * reach + Vector3.up * height);
-        }
-
-        /// <summary>
-        /// 脚 leg の畳んだ足先の位置（ワールド座標）を返す。
-        /// </summary>
-        /// <param name="leg">脚の番号（設定の並び）</param>
-        public Vector3 GetFoldedFootPosition(int leg)
-        {
-            return GetFootPosition(leg, _foldedReach, _foldedHeight);
         }
 
         /// <summary>
@@ -319,7 +315,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 足の位置（留めた足は留める位置、歩かない体は畳んだ位置、運んでいる組は、運ぶ前と運ぶ先の間を、持ち上げながら進めた位置）へ、各脚を IK で向ける。腿を失った脚は動かさない。
+        /// 足の位置（留めた足は留める位置、運んでいる組は、運ぶ前と運ぶ先の間を、持ち上げながら進めた位置）へ、各脚を IK で向ける。腿を失った脚は動かさない。
         /// </summary>
         private void Pose()
         {
@@ -331,10 +327,6 @@ namespace Kizami.EngineAdapter
                 if (_isHeld[i])
                 {
                     foot = _heldTargets[i];
-                }
-                else if (!_walks)
-                {
-                    foot = GetFoldedFootPosition(i);
                 }
                 else if (_legs[i].Pair == _steppingPair)
                 {

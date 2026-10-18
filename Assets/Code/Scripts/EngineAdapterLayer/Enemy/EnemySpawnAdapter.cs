@@ -575,7 +575,7 @@ namespace Kizami.EngineAdapter
 
                 if (_finisherAttack != null)
                 {
-                    _finisherAttack.Tick(_agents, _groups, _bodyLenders, Time.deltaTime, _distanceField.Grid);
+                    _finisherAttack.Tick(_agents, _groups, _bodyLenders, Time.deltaTime);
                 }
 
                 using (_renderMarker.Auto())

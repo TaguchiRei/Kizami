@@ -1638,7 +1638,7 @@ MonoBehaviour:
   _openHeight: 4.5
   _grabDuration: 0.3
   _foldDuration: 0.3
-  _absorbDuration: 1
+  _absorbDuration: 0.75
   _cooldown: 10
   _firstCooldownMin: 10
   _firstCooldownMax: 15
