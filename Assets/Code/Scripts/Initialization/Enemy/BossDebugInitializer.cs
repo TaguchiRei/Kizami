@@ -17,10 +17,15 @@ namespace Kizami.Initialization
     public sealed class BossDebugInitializer : InitializerBase
     {
         private readonly StringBuilder _weaponText = new();
+        private readonly StringBuilder _battleText = new();
 
         [SerializeField]
         [Tooltip("ボスの武装")]
         private BossWeapons _weapons;
+
+        [SerializeField]
+        [Tooltip("ボスの直接戦闘。段階を画面に出す")]
+        private BossBattleAdapter _battle;
 
         [SerializeField]
         [Tooltip("ボスの上部タレット。6 キーで撃たせる")]
@@ -44,6 +49,11 @@ namespace Kizami.Initialization
             if (this.IsAssigned(_weapons, nameof(BossWeapons)))
             {
                 DebugGUI.ObserveVariable("Boss Weapons", GetWeaponText, this);
+            }
+
+            if (_battle != null)
+            {
+                DebugGUI.ObserveVariable("Boss Battle", GetBattleText, this);
             }
 #endif
             base.Initialize(blackBoard);
@@ -95,6 +105,13 @@ namespace Kizami.Initialization
             UsefulLogger.Log(_weapons.IsBroken(index)
                 ? $"{kind}{index} は壊れている為、撃たずにクールタイムだけを発生させます。"
                 : $"{kind}{index} を使います。", this);
+        }
+
+        private string GetBattleText()
+        {
+            _battleText.Clear();
+            _battle.AppendStatus(_battleText);
+            return _battleText.ToString();
         }
 
         private string GetWeaponText()
