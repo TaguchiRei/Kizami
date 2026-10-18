@@ -170,6 +170,27 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// カメラの正面に、水平の向きの横長のカプセルで削る。カメラの向きは水平に直して使い、装甲は扱わない。
+        /// </summary>
+        /// <param name="width">横幅（m）</param>
+        /// <param name="depth">奥行き（m）。カプセルの直径になり、カメラの位置から奥行きの分だけ前までを削る</param>
+        public void CarveSweep(float width, float depth)
+        {
+            if (!TryGetCameraTransform(out var cameraTransform)) return;
+
+            var forward = Vector3.ProjectOnPlane(cameraTransform.forward, Vector3.up);
+            if (forward.sqrMagnitude < 0.0001f) return;
+
+            forward.Normalize();
+            var right = Vector3.Cross(Vector3.up, forward);
+            var radius = depth * 0.5f;
+            var center = cameraTransform.position + forward * radius;
+            var halfAxis = Mathf.Max(width * 0.5f - radius, 0f);
+
+            CarveCapsuleAt(center - right * halfAxis, center + right * halfAxis, radius);
+        }
+
+        /// <summary>
         /// 指定した点を中心に球で削る。
         /// 球に入った装甲のパネルすべてに1回ずつ当て、中心から見て装甲の奥にあるピースは削らない。
         /// 遮断は中心から各ピースのバウンディングボックスの中心へのレイで判定するので、ピースの一部だけが装甲の陰にあっても、ピース全体を削るか削らないかのどちらかになる。

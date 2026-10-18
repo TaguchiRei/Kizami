@@ -36,6 +36,14 @@ namespace Kizami.External
         [Tooltip("爆弾を投げる距離（m）。爆弾でだけ使う")]
         private float _distance = 5f;
 
+        [SerializeField, Min(0.01f)]
+        [Tooltip("削る範囲の横幅（m）。衝波でだけ使う")]
+        private float _width = 4f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("削る範囲の奥行き（m）。衝波でだけ使う")]
+        private float _depth = 2f;
+
         [SerializeField, Min(0)]
         [Tooltip("回復する HP。回復でだけ使う")]
         private int _healAmount = 30;
@@ -80,6 +88,12 @@ namespace Kizami.External
 
         /// <summary> 爆弾を投げる距離（m） </summary>
         public float Distance => _distance;
+
+        /// <summary> 削る範囲の横幅（m） </summary>
+        public float Width => _width;
+
+        /// <summary> 削る範囲の奥行き（m） </summary>
+        public float Depth => _depth;
 
         /// <summary> 回復する HP </summary>
         public int HealAmount => _healAmount;
@@ -137,6 +151,9 @@ namespace Kizami.External
 
         /// <summary> 前後左右へ爆弾を1つずつ投げ、落ちた所で球で削る </summary>
         Bomb,
+
+        /// <summary> 正面の横長の範囲を、水平のカプセルで一度だけ削る </summary>
+        Sweep,
     }
 
     /// <summary>

@@ -100,7 +100,8 @@ namespace Kizami.Initialization
 
             _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService, _enhanceService,
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
-                _bombThrowAdapter != null ? _bombThrowAdapter.Throw : null, _actionEvents, sceneId);
+                _bombThrowAdapter != null ? _bombThrowAdapter.Throw : null,
+                _voxelDestructionAdapter.CarveSweep, _actionEvents, sceneId);
 
             _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake, _voxelDestructionAdapter.CarveExplosionAt);
 
