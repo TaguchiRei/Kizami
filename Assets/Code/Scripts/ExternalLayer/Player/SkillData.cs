@@ -63,6 +63,9 @@ namespace Kizami.External
         /// <summary> HUD に出す名前 </summary>
         public string DisplayName => _displayName;
 
+        /// <summary> 保存データでスキルを見分ける ID。未設定ならアセット名 </summary>
+        public string Id => string.IsNullOrEmpty(_id) ? name : _id;
+
         /// <summary> スキル一覧に出す説明文。なければ空 </summary>
         public string Description => _description;
 
