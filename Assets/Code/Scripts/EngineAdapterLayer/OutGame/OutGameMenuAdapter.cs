@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kizami.BlackBoard;
 using UnityEngine;
 using UnityEngine.UI;
 using UsefulToolkit.Initialization;
@@ -71,6 +72,7 @@ namespace Kizami.EngineAdapter
             Home,
             StageSelect,
             SkillEquip,
+            Config,
         }
 
         private const int SORTING_ORDER = 100;
@@ -119,6 +121,9 @@ namespace Kizami.EngineAdapter
         private Action<int> _startStage;
         private Action _quit;
         private Action<int, int> _equipSkill;
+        private IOperationSettingState _settingState;
+        private IOperationSettingController _settingController;
+        private InputRebindAdapter _rebindAdapter;
         private Text _title;
         private GameObject _toast;
         private Text _toastText;
@@ -129,6 +134,20 @@ namespace Kizami.EngineAdapter
         private IReadOnlyList<SkillEntry> _skills;
         private int[] _equippedSkillIndices;
         private int _selectedSlot;
+
+        /// <summary>
+        /// コンフィグの画面に渡すものを設定する。Initialize より前に呼ぶ。呼ばなければ、ホームのコンフィグのボタンは押せない。
+        /// </summary>
+        /// <param name="settingState">設定の値の取得元</param>
+        /// <param name="settingController">設定を変える窓口</param>
+        /// <param name="rebindAdapter">キーの割り当てを変える Adapter。なければキーの割り当ては出さない</param>
+        public void SetConfig(IOperationSettingState settingState, IOperationSettingController settingController,
+            InputRebindAdapter rebindAdapter)
+        {
+            _settingState = settingState;
+            _settingController = settingController;
+            _rebindAdapter = rebindAdapter;
+        }
 
         /// <summary>
         /// 画面を組み立てて、ホームかステージ選択を出す。
@@ -259,6 +278,7 @@ namespace Kizami.EngineAdapter
             BuildHome(canvas);
             BuildStageSelect(canvas, stages);
             BuildSkillEquip(canvas, ultimateSkillIndex);
+            BuildConfig(canvas);
 
             BuildNotices(canvas);
             UiBuilder.EnsureEventSystem(transform);
@@ -308,9 +328,9 @@ namespace Kizami.EngineAdapter
             var skillButton = CreateButton(panel, "SkillEquipButton", "Skill Equip", 1, 4, HOME_BUTTON_HEIGHT);
             skillButton.onClick.AddListener(() => ShowScreen(MenuScreen.SkillEquip));
 
-            // TODO: コンフィグの画面は区間4で作り、ボタンを押せるようにする
             var configButton = CreateButton(panel, "ConfigButton", "Config", 2, 4, HOME_BUTTON_HEIGHT);
-            configButton.interactable = false;
+            configButton.interactable = _settingState != null && _settingController != null;
+            configButton.onClick.AddListener(() => ShowScreen(MenuScreen.Config));
 
             var quitButton = CreateButton(panel, "QuitButton", "Quit", 3, 4, HOME_BUTTON_HEIGHT);
             quitButton.onClick.AddListener(() => _quit?.Invoke());
@@ -373,6 +393,15 @@ namespace Kizami.EngineAdapter
 
             var back = CreateButtonAt(panel, "BackButton", "Back", SLOT_X, 940f, SLOT_WIDTH, SLOT_HEIGHT * 0.8f, _buttonColor);
             back.onClick.AddListener(() => ShowScreen(MenuScreen.Home));
+        }
+
+        private void BuildConfig(Transform canvas)
+        {
+            var panel = CreatePanel(canvas, MenuScreen.Config);
+            if (_settingState == null || _settingController == null) return;
+
+            _ = new ConfigScreen(panel, _settingState, _settingController, _rebindAdapter, _buttonColor, _selectedColor,
+                () => ShowScreen(MenuScreen.Home));
         }
 
         private void SelectSlot(int slot)
@@ -472,7 +501,7 @@ namespace Kizami.EngineAdapter
                 pair.Value.SetActive(pair.Key == screen);
             }
 
-            _title.gameObject.SetActive(screen != MenuScreen.SkillEquip);
+            _title.gameObject.SetActive(screen == MenuScreen.Home || screen == MenuScreen.StageSelect);
         }
     }
 }

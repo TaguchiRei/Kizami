@@ -8,15 +8,18 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// アウトゲームの画面（OutGameMenuAdapter）を組み立て、ステージの開始、スキルの装備、ゲームの終了をつなぐ Initializer。アウトゲームの場面シーンへ置く。
+    /// アウトゲームの画面（OutGameMenuAdapter）を組み立て、ステージの開始、スキルの装備、コンフィグ、ゲームの終了をつなぐ Initializer。アウトゲームの場面シーンへ置く。
     /// インゲームから戻ってきたとき（選んだステージが残っているとき）は、ステージ選択から始める。
     /// </summary>
     public sealed class OutGameStartInitializer : InitializerBase, IInjectable<IGameSceneController>,
-        IInjectable<GameProgressService>
+        IInjectable<GameProgressService>, IInjectable<IOperationSettingController>, IInjectable<InputRebindAdapter>
     {
         private IGameSceneController _sceneController;
         private GameProgressService _progressService;
         private IGameProgressState _progressState;
+        private IOperationSettingController _settingController;
+        private IOperationSettingState _settingState;
+        private InputRebindAdapter _rebindAdapter;
         private OutGameMenuAdapter _menuAdapter;
         private bool _isTransitioning;
 
@@ -26,11 +29,13 @@ namespace Kizami.Initialization
         public override void Initialize(IBlackBoard blackBoard)
         {
             blackBoard.TryGetGameState<AppBoard, IGameProgressState>(out _progressState, this);
+            blackBoard.TryGetGameState<AppBoard, IOperationSettingState>(out _settingState, this);
             base.Initialize(blackBoard);
 
             if (_sceneController == null || _progressService == null || _progressState == null) return;
 
             _menuAdapter = gameObject.AddComponent<OutGameMenuAdapter>();
+            _menuAdapter.SetConfig(_settingState, _settingController, _rebindAdapter);
             _menuAdapter.Initialize(BuildStageEntries(), BuildSkillEntries(), _progressService.UltimateSkillIndex,
                 GetEquippedSkillIndices(), GoToStage, EquipSkill, Quit,
                 _progressState.SelectedStageIndex != GameProgressState.NO_STAGE);
@@ -135,6 +140,16 @@ namespace Kizami.Initialization
         public void Inject(GameProgressService instance)
         {
             _progressService = instance;
+        }
+
+        public void Inject(IOperationSettingController instance)
+        {
+            _settingController = instance;
+        }
+
+        public void Inject(InputRebindAdapter instance)
+        {
+            _rebindAdapter = instance;
         }
     }
 }
