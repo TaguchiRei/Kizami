@@ -179,9 +179,8 @@ namespace Kizami.EngineAdapter
         {
             var position = _target.position;
             var origin = position + Vector3.up * _groundRayHeight;
-            return Physics.Raycast(origin, Vector3.down, out var hit, _groundRayLength, _groundLayers,
-                QueryTriggerInteraction.Ignore)
-                ? hit.point
+            return BossGroundProbe.TryGetGround(transform, origin, _groundRayLength, _groundLayers, out var ground)
+                ? ground
                 : position;
         }
 

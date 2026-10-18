@@ -46,6 +46,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("輪の高さ（m）。プレイヤーの足元がこれより高ければ当たらない（飛び越えられる）")]
         private float _height = 1f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("プレイヤーの Transform の位置から足元までの高さ（m）。足元の高さで輪に当たるかを決める")]
+        private float _targetFootOffset = 1f;
+
         [SerializeField, Min(0)]
         [Tooltip("当たったときのダメージ量")]
         private int _damage = 5;
@@ -180,7 +184,7 @@ namespace Kizami.EngineAdapter
             if (_target == null) return;
 
             var offset = _target.position - _centers[i];
-            var height = offset.y;
+            var height = offset.y - _targetFootOffset;
             offset.y = 0f;
             var distance = offset.magnitude;
             if (distance < previousRadius || distance > _radii[i]) return;

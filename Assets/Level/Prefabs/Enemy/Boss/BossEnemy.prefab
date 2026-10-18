@@ -1,0 +1,366 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &8460663141006461598
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.00000003774895
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      propertyPath: m_Name
+      value: BossEnemy
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 911893961521659869}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4251914562420348333}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7341799750420490255}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4775852747039605853}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7619419835033456080}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1037717660923078475}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7579335390703154969}
+  m_SourcePrefab: {fileID: 100100000, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+--- !u!4 &23996862071713713 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -774881609740688081, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &452905137341747597 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -926797461511857389, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &1266353054388349988 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -1947616449834899782, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &2023621692504011474 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -1621566921397258164, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &2327410007469965494 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -3087552488425813464, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &2466830238886453705 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 6291987470358326103, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &3284023043435309076 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -2812109005897932150, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &4117073319374185729 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -3726561487760183393, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &4173880799502704776 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5514317126212577814, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &6665835191522296489 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3020681178128730167, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &8416598213760221222 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -9104146254460106056, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &8580368306681889062 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -9044978682675524680, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &8722140565303821621 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 892017209337696171, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &8767164447151323087 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+  m_PrefabInstance: {fileID: 8460663141006461598}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &911893961521659869
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8767164447151323087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f46df2ea00bddd4394ce7b4e0beeade, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelModelLoader
+  _model: {fileID: 11400000, guid: a277522dda119c8449d1dbb59f234274, type: 2}
+  _quality: {fileID: 11400000, guid: 0396039a37abb7d49880babbedf09c7f, type: 2}
+  _materialOverride: {fileID: 0}
+  _splittable: 1
+  _meltSystem: {fileID: 0}
+  _loadOnStart: 1
+--- !u!114 &4251914562420348333
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8767164447151323087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da89fc2efe5a46e1b852b61de9b43f06, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossBody
+  _target: {fileID: 0}
+  _legs:
+  - _upper: {fileID: 3284023043435309076}
+    _lower: {fileID: 2327410007469965494}
+    _foot: {fileID: 8416598213760221222}
+    _pair: 0
+  - _upper: {fileID: 452905137341747597}
+    _lower: {fileID: 2023621692504011474}
+    _foot: {fileID: 23996862071713713}
+    _pair: 1
+  - _upper: {fileID: 2466830238886453705}
+    _lower: {fileID: 8580368306681889062}
+    _foot: {fileID: 6665835191522296489}
+    _pair: 1
+  - _upper: {fileID: 1266353054388349988}
+    _lower: {fileID: 4117073319374185729}
+    _foot: {fileID: 8722140565303821621}
+    _pair: 0
+  _moveSpeed: 3
+  _turnSpeed: 30
+  _keepDistance: 20
+  _groundLayers:
+    serializedVersion: 2
+    m_Bits: 513
+  _groundRayHeight: 10
+  _stepThreshold: 2
+  _stepDuration: 0.6
+  _stepHeight: 1.5
+--- !u!114 &7341799750420490255
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8767164447151323087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b21e81ae65054f67be1fd9df55e99ae9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossWeapons
+  _weapons:
+  - _kind: 0
+    _partPaths:
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_TurretRing/MachineEnemy_Boss_Armor_L
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_TurretRing/MachineEnemy_Boss_Armor_L/MachineEnemy_Boss_Barrel_L
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_TurretRing/MachineEnemy_Boss_Armor_R
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_TurretRing/MachineEnemy_Boss_Armor_R/MachineEnemy_Boss_Barrel_R
+  - _kind: 1
+    _partPaths:
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_TurretRing/MachineEnemy_Boss_Core/MachineEnemy_Boss_BeamGun_Outer
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_TurretRing/MachineEnemy_Boss_Core/MachineEnemy_Boss_BeamGun_Outer/MachineEnemy_Boss_BeamGun_Inner
+  - _kind: 2
+    _partPaths:
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_FL/MachineEnemy_Boss_UpperLeg_Outer_FL/MachineEnemy_Boss_Hatch_A_FL
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_FL/MachineEnemy_Boss_UpperLeg_Outer_FL/MachineEnemy_Boss_Hatch_B_FL
+  - _kind: 2
+    _partPaths:
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_FR/MachineEnemy_Boss_UpperLeg_Outer_FR/MachineEnemy_Boss_Hatch_A_FR
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_FR/MachineEnemy_Boss_UpperLeg_Outer_FR/MachineEnemy_Boss_Hatch_B_FR
+  - _kind: 2
+    _partPaths:
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RL/MachineEnemy_Boss_UpperLeg_Outer_RL/MachineEnemy_Boss_Hatch_A_RL
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RL/MachineEnemy_Boss_UpperLeg_Outer_RL/MachineEnemy_Boss_Hatch_B_RL
+  - _kind: 2
+    _partPaths:
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RR/MachineEnemy_Boss_UpperLeg_Outer_RR/MachineEnemy_Boss_Hatch_A_RR
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RR/MachineEnemy_Boss_UpperLeg_Outer_RR/MachineEnemy_Boss_Hatch_B_RR
+  - _kind: 3
+    _partPaths:
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_FL/MachineEnemy_Boss_UpperLeg_Outer_FL/MachineEnemy_Boss_UpperLeg_Inner_FL/MachineEnemy_Boss_UnderLeg_Outer_FL/MachineEnemy_Boss_UnderLeg_Rod_FL/MachineEnemy_Boss_Pad_FL
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_FL/MachineEnemy_Boss_LiftCylinder_Outer_FL
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_FL/MachineEnemy_Boss_LiftCylinder_Outer_FL/MachineEnemy_Boss_LiftCylinder_Rod_FL
+  - _kind: 3
+    _partPaths:
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_FR/MachineEnemy_Boss_UpperLeg_Outer_FR/MachineEnemy_Boss_UpperLeg_Inner_FR/MachineEnemy_Boss_UnderLeg_Outer_FR/MachineEnemy_Boss_UnderLeg_Rod_FR/MachineEnemy_Boss_Pad_FR
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_FR/MachineEnemy_Boss_LiftCylinder_Outer_FR
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_FR/MachineEnemy_Boss_LiftCylinder_Outer_FR/MachineEnemy_Boss_LiftCylinder_Rod_FR
+  - _kind: 3
+    _partPaths:
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RL/MachineEnemy_Boss_UpperLeg_Outer_RL/MachineEnemy_Boss_UpperLeg_Inner_RL/MachineEnemy_Boss_UnderLeg_Outer_RL/MachineEnemy_Boss_UnderLeg_Rod_RL/MachineEnemy_Boss_Pad_RL
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RL/MachineEnemy_Boss_LiftCylinder_Outer_RL
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RL/MachineEnemy_Boss_LiftCylinder_Outer_RL/MachineEnemy_Boss_LiftCylinder_Rod_RL
+  - _kind: 3
+    _partPaths:
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RR/MachineEnemy_Boss_UpperLeg_Outer_RR/MachineEnemy_Boss_UpperLeg_Inner_RR/MachineEnemy_Boss_UnderLeg_Outer_RR/MachineEnemy_Boss_UnderLeg_Rod_RR/MachineEnemy_Boss_Pad_RR
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RR/MachineEnemy_Boss_LiftCylinder_Outer_RR
+    - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RR/MachineEnemy_Boss_LiftCylinder_Outer_RR/MachineEnemy_Boss_LiftCylinder_Rod_RR
+  _brokenRatio: 0.05
+--- !u!114 &4775852747039605853
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8767164447151323087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b9275dc0fbc46039c11d9d2c0872a19, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossShockwaves
+  _target: {fileID: 0}
+  _ringMaterial: {fileID: 2100000, guid: f1ee0f09a79d09a49809cb68c0313769, type: 2}
+  _capacity: 4
+  _cooldown: 3
+  _speed: 12
+  _maxRadius: 40
+  _height: 1
+  _damage: 5
+  _knockbackSpeed: 8
+  _knockbackUpSpeed: 3
+--- !u!114 &7619419835033456080
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8767164447151323087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a9fc9def09864488aff718aa5e30d73d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossLaser
+  _target: {fileID: 0}
+  _core: {fileID: 4173880799502704776}
+  _coreExposeOffset: {x: 0, y: -3, z: 0}
+  _coreMoveTime: 1
+  _beamMaterial: {fileID: 2100000, guid: f1ee0f09a79d09a49809cb68c0313769, type: 2}
+  _groundLayers:
+    serializedVersion: 2
+    m_Bits: 513
+  _cooldown: 4
+  _duration: 6
+  _turnSpeed: 30
+  _length: 30
+  _width: 0.3
+  _height: 0.6
+  _damage: 5
+  _damageInterval: 0.5
+--- !u!114 &1037717660923078475
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8767164447151323087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da1e37c2a5fc462da59eea34e577c6b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossMissiles
+  _target: {fileID: 0}
+  _missilePrefab: {fileID: 1919779931987556743, guid: 551edc452f05c524da6b8eebbbd7689f, type: 3}
+  _warningMaterial: {fileID: 2100000, guid: 3664c668533b4584195b4ecd27dca2ef, type: 2}
+  _groundLayers:
+    serializedVersion: 2
+    m_Bits: 513
+  _capacity: 8
+  _cooldown: 2
+  _flightTime: 2
+  _arcHeight: 15
+  _radius: 3
+  _damage: 10
+  _groundRayHeight: 5
+  _groundRayLength: 100
+--- !u!114 &7579335390703154969
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8767164447151323087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1db95596c1d4eddab63f0ccd22dc034, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossTurret
+  _target: {fileID: 0}
+  _bulletPrefab: {fileID: 2577724496080339399, guid: 449ddec0b477bb2449204e2392b4c5e1, type: 3}
+  _capacity: 16
+  _cooldown: 1
+  _speed: 20
+  _homingSpeed: 20
+  _lifetime: 6
+  _hitRadius: 1
+  _aimHeight: 1
+  _damage: 5

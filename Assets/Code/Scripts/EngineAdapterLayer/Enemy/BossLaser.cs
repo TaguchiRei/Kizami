@@ -64,6 +64,14 @@ namespace Kizami.EngineAdapter
         [Tooltip("レーザーの、地面からの高さ（m）。プレイヤーの足元がこれより高ければ当たらない")]
         private float _height = 0.6f;
 
+        [SerializeField, Min(0.1f)]
+        [Tooltip("地面を探すレイを、武装の位置からこの高さ（m）上から下へ撃つ。コアをせり出させた武装が地面の下に入っても、地面を見つけられる")]
+        private float _groundRayHeight = 10f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("プレイヤーの Transform の位置から足元までの高さ（m）。足元の高さでレーザーに当たるかを決める")]
+        private float _targetFootOffset = 1f;
+
         [SerializeField, Min(0)]
         [Tooltip("当たったときのダメージ量")]
         private int _damage = 5;
@@ -198,9 +206,10 @@ namespace Kizami.EngineAdapter
         private void UpdateBeam()
         {
             var origin = _weapons.GetPosition(_firingIndex);
-            if (Physics.Raycast(origin, Vector3.down, out var hit, 100f, _groundLayers, QueryTriggerInteraction.Ignore))
+            if (BossGroundProbe.TryGetGround(transform, origin + Vector3.up * _groundRayHeight,
+                    _groundRayHeight + 100f, _groundLayers, out var ground))
             {
-                origin.y = hit.point.y + _height;
+                origin.y = ground.y + _height;
             }
 
             var forward = transform.forward;
@@ -214,7 +223,7 @@ namespace Kizami.EngineAdapter
             if (_target == null || _damageCooldownRemaining > 0f) return;
 
             var player = _target.position;
-            if (player.y > origin.y) return;
+            if (player.y - _targetFootOffset > origin.y) return;
 
             var toPlayer = new Vector3(player.x - origin.x, 0f, player.z - origin.z);
             var along = Mathf.Clamp(Vector3.Dot(toPlayer, direction), 0f, _length);

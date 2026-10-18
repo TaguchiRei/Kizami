@@ -235,13 +235,9 @@ namespace Kizami.EngineAdapter
         private Vector3 GetGroundPosition(Vector3 position)
         {
             var origin = position + Vector3.up * _groundRayHeight;
-            if (Physics.Raycast(origin, Vector3.down, out var hit, _groundRayHeight * 2f, _groundLayers,
-                    QueryTriggerInteraction.Ignore))
-            {
-                return hit.point;
-            }
-
-            return position;
+            return BossGroundProbe.TryGetGround(transform, origin, _groundRayHeight * 2f, _groundLayers, out var ground)
+                ? ground
+                : position;
         }
 
         /// <summary>
