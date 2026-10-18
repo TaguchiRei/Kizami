@@ -1198,6 +1198,13 @@ MonoBehaviour:
   _loadedOffset: {x: 0.7, y: -0.6, z: 1.2}
   _flyingLifetime: 3
   _explosionRadius: 2
+  _wordGrabDistance: 80
+  _wordGrabAimRadius: 1
+  _wordHoldOffset: {x: 0.5, y: -0.3, z: 1.6}
+  _wordHoldLength: 1.2
+  _wordGrowDuration: 0.35
+  _wordGroundClearance: 0.5
+  _wordThrowSpeedScale: 2
 --- !u!4 &1258148393
 Transform:
   m_ObjectHideFlags: 0
@@ -1225,6 +1232,7 @@ GameObject:
   - component: {fileID: 1307013809}
   - component: {fileID: 1307013808}
   - component: {fileID: 1307013807}
+  - component: {fileID: 1307013811}
   m_Layer: 0
   m_Name: CameraPivot
   m_TagString: Untagged
@@ -1338,6 +1346,30 @@ Transform:
   m_Children: []
   m_Father: {fileID: 903436366}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1307013811
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1307013806}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00b2d199b96b516448144ab30fb26aed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Cinemachine::Unity.Cinemachine.CinemachineImpulseListener
+  ApplyAfter: 2
+  ChannelMask: 1
+  Gain: 1
+  Use2DDistance: 0
+  UseCameraSpace: 1
+  SignalCombinationMode: 0
+  ReactionSettings:
+    m_SecondaryNoise: {fileID: 0}
+    AmplitudeGain: 1
+    FrequencyGain: 1
+    Duration: 1
+    m_NoiseOffsets: {x: 0, y: 0, z: 0}
 --- !u!1 &1379823853
 GameObject:
   m_ObjectHideFlags: 0
@@ -1478,6 +1510,20 @@ MonoBehaviour:
   _timerAdapter: {fileID: 219009642}
   _guideLogMaxCount: 8
   _guideLogLifetime: 5
+  _brilliantSkillSettings:
+    _rampageDefeatCount: 10
+    _rampageInterval: 3
+    _collapseDefeatCount: 10
+    _collapseWindow: 4
+    _collapseMargin: 5
+    _shatterVolume: 30
+    _letterImpactRadius: 4
+    _rampageScore: 100
+    _collapseScore: 100
+    _shatterScore: 100
+    _rampageWord: RAMPAGE
+    _collapseWord: COLLAPSE
+    _shatterWord: SHATTER
 --- !u!114 &1452220892
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1586,15 +1632,15 @@ MonoBehaviour:
   _kindSettings:
   - _kind: 0
     _bodyPrefab: {fileID: 1602327258362906900, guid: abba11fae2f3aaa4a8b4ecdfe95fc600, type: 3}
-    _bodyCount: 32
+    _bodyCount: 100
   - _kind: 1
     _bodyPrefab: {fileID: 8335375518667144, guid: 49aeb642609d4ac4c973326c91ef79ab, type: 3}
     _bodyCount: 8
   - _kind: 2
     _bodyPrefab: {fileID: 7345064096527193169, guid: 383f2223f0e30584db715536b5f4d2ea, type: 3}
     _bodyCount: 8
-  _lendDistance: 12
-  _returnDistance: 18
+  _lendDistance: 50
+  _returnDistance: 56
   _reclaimDistance: 9
   _reclaimMargin: 3
   _shapeKeeperCapacity: 64
@@ -1609,7 +1655,7 @@ MonoBehaviour:
   _dropHeight: 2
   _groundLayers:
     serializedVersion: 2
-    m_Bits: 8705
+    m_Bits: 41473
   _drawDistanceField: 0
   _distanceGizmoRadius: 25
   _moveSpeed: 3
@@ -1685,7 +1731,7 @@ MonoBehaviour:
   _maxBullets: 4
   _blockLayers:
     serializedVersion: 2
-    m_Bits: 11777
+    m_Bits: 44545
 --- !u!114 &1539543161
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1708,7 +1754,7 @@ MonoBehaviour:
   _launchMargin: 2
   _ceilingLayers:
     serializedVersion: 2
-    m_Bits: 11777
+    m_Bits: 44545
 --- !u!114 &1539543162
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1730,8 +1776,11 @@ MonoBehaviour:
   _openHeight: 4.5
   _grabDuration: 0.3
   _foldDuration: 0.3
-  _absorbDuration: 1
-  _cooldown: 15
+  _absorbDuration: 0.75
+  _cooldown: 10
+  _firstCooldownMin: 10
+  _firstCooldownMax: 15
+  _pivotHeight: 2
   _graspSpread: 1
   _targetCenterHeight: 1.5
   _finisherCenterHeight: 5
@@ -1750,28 +1799,110 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 36b6c3ddb34b87844adb3289eeae309e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyFinisherBeams
-  _clonePrefab: {fileID: 7733473083201751770, guid: aeda01e63a8a04d4688a990727ab32de, type: 3}
-  _cloneCount: 4
   _beamMaterial: {fileID: 2100000, guid: f1ee0f09a79d09a49809cb68c0313769, type: 2}
-  _decalPrefab: {fileID: 6800740689205450650, guid: 781d0116b3e61944fb6b90e99c7294d7, type: 3}
-  _height: 25
-  _lockDistance: 3
-  _bodyCenterHeight: 5
-  _orbitRadius: 8
-  _orbitSpeed: 60
-  _spreadDuration: 1
-  _telegraphDuration: 2
-  _giantRadius: 4
-  _giantDamage: 40
-  _giantDuration: 0.5
-  _trackingRadius: 1
-  _trackingDamage: 10
-  _trackingInterval: 0.5
-  _trackingDuration: 4
-  _trackingSpeed: 4
+  _beamInnerMaterial: {fileID: 2100000, guid: 3351652a32aa23c40bc8913f9a4c8035, type: 2}
+  _telegraphMaterial: {fileID: 2100000, guid: 75145594f275da24eaabc61d61316f8c, type: 2}
+  _glowMaterial: {fileID: 2100000, guid: f665de0a18fffa2409bc87f9767ad42e, type: 2}
+  _glowColor: {r: 0.4, g: 1, b: 0.9, a: 1}
+  _telegraphGlowColor: {r: 2, g: 0.35, b: 0.1, a: 1}
+  _muzzleSize: 24
+  _tipSize: 60
+  _shakeForce: 0.5
+  _beamRadius: 14.14
+  _telegraphRadius: 16
+  _aimDuration: 3
+  _aimDelay: 2
+  _telegraphDuration: 1
+  _firingDuration: 1
+  _noiseLevelCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.167
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.667
+      value: 0.5
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.667
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  _tillingYCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.167
+      value: -4
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.167
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.667
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  _damage: 1
+  _damageInterval: 0.1
   _blockLayers:
     serializedVersion: 2
-    m_Bits: 11777
+    m_Bits: 44545
 --- !u!1 &1579939515
 GameObject:
   m_ObjectHideFlags: 0
@@ -2260,6 +2391,7 @@ MonoBehaviour:
   _fadeOutDuration: 1
   _scrollSharpness: 14
   _dialogueBackgroundColor: {r: 0, g: 0, b: 0, a: 0.5}
+  _keyCapColor: {r: 0.1, g: 0.1, b: 0.12, a: 0.85}
 --- !u!4 &1964745754
 Transform:
   m_ObjectHideFlags: 0

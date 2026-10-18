@@ -256,8 +256,8 @@ namespace Kizami.EngineAdapter
         /// <summary> 部隊の命令を決める関数（EnemySquadService.Step）。引数は経過時間（秒） </summary>
         private Action<float> _stepSquads;
 
-        /// <summary> 敵を倒したときに呼ぶ処理。引数は倒した数。吸収された敵は含めない </summary>
-        private Action<int> _onDefeated;
+        /// <summary> 敵を倒したときに呼ぶ処理。吸収された敵は含めない </summary>
+        private Action<EnemyDefeatNotice> _onDefeated;
 
         private IEnemySquadCommandState _commandState;
 
@@ -460,8 +460,8 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 敵を倒したときに呼ぶ処理を設定する。核を切って倒した敵と、崩落で倒した敵を通知する。フィニッシャーに吸収された敵は、プレイヤーが倒していないので通知しない。
         /// </summary>
-        /// <param name="onDefeated">倒したときに呼ぶ処理。引数は倒した数</param>
-        public void SetOnDefeated(Action<int> onDefeated)
+        /// <param name="onDefeated">倒したときに呼ぶ処理。同じ原因で同時に倒した敵をまとめて渡す</param>
+        public void SetOnDefeated(Action<EnemyDefeatNotice> onDefeated)
         {
             _onDefeated = onDefeated;
         }
@@ -476,6 +476,37 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 中心から半径の球の中にいる敵をすべて倒し、倒した数を通知する。敵の体の中心（足元から崩落の判定と同じ高さ）で距離を測り、倒した敵からはエネルギーを出す。
+        /// 体を貸している敵の体は、次の更新で返される。
+        /// </summary>
+        /// <param name="center">球の中心（ワールド空間）</param>
+        /// <param name="radius">球の半径（m）</param>
+        public void DefeatInRadius(Vector3 center, float radius)
+        {
+            if (!Initialized) return;
+
+            var radiusSq = radius * radius;
+            var defeatedCount = 0;
+            var positionSum = float3.zero;
+            for (var i = 0; i < _agents.Length; i++)
+            {
+                var agent = _agents[i];
+                if (!agent.IsAlive) continue;
+
+                var bodyCenter = (Vector3)agent.Position + Vector3.up * _crushBodyCenterHeight;
+                if ((bodyCenter - center).sqrMagnitude > radiusSq) continue;
+
+                agent.IsAlive = false;
+                _agents[i] = agent;
+                defeatedCount++;
+                positionSum += agent.Position;
+                _emitEnergy?.Invoke(bodyCenter);
+            }
+
+            NotifyDefeated(defeatedCount, EnemyDefeatCause.Impact, positionSum);
+        }
+
+        /// <summary>
         /// 切断の結果のうち、敵の部位を元の対象とするものを、その部位を持つ体へ渡し、体の部位の状態を敵の状態へ書き戻す。
         /// 体が倒れたら、敵をステージから消して体を空け、倒した数を通知する。
         /// </summary>
@@ -486,12 +517,13 @@ namespace Kizami.EngineAdapter
             if (!Initialized || results == null) return;
 
             var defeatedCount = 0;
+            var positionSum = float3.zero;
             foreach (var lender in _bodyLenders)
             {
-                if (lender != null) defeatedCount += lender.ReceiveCutResults(results, plane, _agents);
+                if (lender != null) defeatedCount += lender.ReceiveCutResults(results, plane, _agents, ref positionSum);
             }
 
-            if (defeatedCount > 0) _onDefeated?.Invoke(defeatedCount);
+            NotifyDefeated(defeatedCount, EnemyDefeatCause.Cut, positionSum);
         }
 
         private void Update()
@@ -543,7 +575,7 @@ namespace Kizami.EngineAdapter
 
                 if (_finisherAttack != null)
                 {
-                    _finisherAttack.Tick(_agents, _groups, _bodyLenders, Time.deltaTime, _distanceField.Grid);
+                    _finisherAttack.Tick(_agents, _groups, _bodyLenders, Time.deltaTime);
                 }
 
                 using (_renderMarker.Auto())
@@ -814,7 +846,7 @@ namespace Kizami.EngineAdapter
                 if (lacking[(int)kind] <= 0) continue;
 
                 lacking[(int)kind]--;
-                TrySpawn(g, kind, PickStandablePosition(point.GetSpawnPosition, center));
+                TrySpawn(g, kind, PickSpawnPosition(point, center));
             }
 
             _groups.Compact(g, _agents);
@@ -845,6 +877,7 @@ namespace Kizami.EngineAdapter
         private void CountCollapseDefeats()
         {
             var defeatedCount = 0;
+            var positionSum = float3.zero;
             for (var i = 0; i < _agents.Length; i++)
             {
                 var agent = _agents[i];
@@ -854,10 +887,21 @@ namespace Kizami.EngineAdapter
                 _agents[i] = agent;
                 CollapseDefeatCount++;
                 defeatedCount++;
+                positionSum += agent.Position;
                 _emitEnergy?.Invoke((Vector3)agent.Position + Vector3.up * _crushBodyCenterHeight);
             }
 
-            if (defeatedCount > 0) _onDefeated?.Invoke(defeatedCount);
+            NotifyDefeated(defeatedCount, EnemyDefeatCause.Collapse, positionSum);
+        }
+
+        /// <summary>
+        /// 倒した敵がいれば、数と原因と位置の平均を通知する。
+        /// </summary>
+        private void NotifyDefeated(int defeatedCount, EnemyDefeatCause cause, float3 positionSum)
+        {
+            if (defeatedCount <= 0) return;
+
+            _onDefeated?.Invoke(new EnemyDefeatNotice(defeatedCount, cause, positionSum / defeatedCount));
         }
 
         /// <summary>
@@ -928,8 +972,10 @@ namespace Kizami.EngineAdapter
             {
                 if (_bodyPrefabs[(int)kind] == null) continue;
 
-                TrySpawn(g, kind, PickStandablePosition(point.GetSpawnPosition, center));
+                TrySpawn(g, kind, PickSpawnPosition(point, center));
             }
+
+            if (point.IsOnStructure) point.Hold();
         }
 
         /// <summary>
@@ -959,6 +1005,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// スポーン位置から出す位置を選ぶ。固定する点は半径の中の位置をそのまま使い、そうでなければ立てる所を選ぶ。
+        /// </summary>
+        private Vector3 PickSpawnPosition(EnemySpawnPoint point, Vector3 center)
+        {
+            return point.IsPinned ? point.GetSpawnPosition() : PickStandablePosition(point.GetSpawnPosition, center);
+        }
+
+        /// <summary>
         /// pick で選んだ位置が立てる所に来るまで選び直し、見つからなければ fallback を返す。
         /// </summary>
         private Vector3 PickStandablePosition(Func<Vector3> pick, Vector3 fallback)
@@ -973,7 +1027,7 @@ namespace Kizami.EngineAdapter
         {
             foreach (var point in _activeSpawnPoints)
             {
-                if (IsStandable(point.transform.position)) continue;
+                if (point.IsPinned || IsStandable(point.transform.position)) continue;
 
                 UsefulLogger.LogWarning(
                     $"スポーン位置 {point.name} の中心に、敵が立てる所がありません。そこから出したグループは動けないので、床の上へ動かしてください。",
@@ -983,12 +1037,17 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 有効なスポーン位置を集め、出す敵の数（編成の人数の合計）を返す。
-        /// 1つの区画に置けるスポーン位置は1つで、位置の区画にすでに有効なスポーン位置があれば、Hierarchy で後ろのものは出さない。
+        /// 1つの区画に置けるスポーン位置は1つで、位置の区画にすでに有効なスポーン位置があれば、Hierarchy で後ろのものは出さない。構造物の上に置く点（IsOnStructure）は、生成システムの子でなくても集め、区画を調べない。
         /// 編成のないスポーン位置、編成に体の設定のない種類があるスポーン位置、区画の番号が位置と食い違うスポーン位置、区画が重なったスポーン位置は、名前つきで警告する。
         /// </summary>
         private int CollectSpawnPoints()
         {
             _spawnSystem.GetComponentsInChildren(true, _spawnPoints);
+            foreach (var structurePoint in EnemySpawnPoint.StructurePoints)
+            {
+                if (!_spawnPoints.Contains(structurePoint)) _spawnPoints.Add(structurePoint);
+            }
+
             _activeSpawnPoints.Clear();
             _usedSections.Clear();
             _fullMemberCounts.Clear();
@@ -1005,7 +1064,7 @@ namespace Kizami.EngineAdapter
                 }
 
                 var section = _spawnSystem.GetSection(point.transform.position);
-                if (!_usedSections.Add(section))
+                if (!point.IsOnStructure && !_usedSections.Add(section))
                 {
                     UsefulLogger.LogWarning(
                         $"スポーン位置 {point.name} の区画 {section} には、すでに別のスポーン位置がある為、敵を出しません。1 つの区画に置けるスポーン位置は 1 つです。",
@@ -1013,7 +1072,7 @@ namespace Kizami.EngineAdapter
                     continue;
                 }
 
-                if (section != point.Section)
+                if (!point.IsOnStructure && section != point.Section)
                 {
                     UsefulLogger.LogWarning(
                         $"スポーン位置 {point.name} の区画の番号 {point.Section} が、位置の区画 {section} と食い違っています。区画の番号か位置を直してください。",
@@ -1066,11 +1125,15 @@ namespace Kizami.EngineAdapter
                     Kind = kind,
                     BrokenMovePartLimit = bodyPrefab.BrokenMovePartLimit,
                     IsFloating = bodyPrefab.IsFloating,
+                    IsPinned = _activeSpawnPoints[g].IsPinned,
                     Position = position,
                     FallStartHeight = position.y,
                     Yaw = GetYawToTarget(position),
                     BodyIndex = -1,
-                    GroupIndex = -1
+                    GroupIndex = -1,
+                    AttackCooldown = kind == EnemyKind.Finisher && _finisherAttack != null
+                        ? _finisherAttack.RollFirstCooldown()
+                        : 0f
                 };
 
                 if (!_groups.TryAdd(g, i, ref agent)) return false;

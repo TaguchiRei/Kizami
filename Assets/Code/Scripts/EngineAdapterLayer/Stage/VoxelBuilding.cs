@@ -21,6 +21,7 @@ namespace Kizami.EngineAdapter
     /// 境目が切れたら、その上の階をまとめて1つの Rigidbody の子にして落とす。当たり判定は各階のチャンクの BoxCollider をそのまま使う。
     /// 落ちた Rigidbody が眠ったらキネマティックにして止め、地形として残す。落ちた階は、以後つながりを判定しない。
     /// 階ごとに、ガラスの板などボクセルにしない付属物のプレハブを、階の子として置く。階と一緒に落ち、倒れ始めたらガラスを割る。
+    /// 区間に遠景用のプレハブ（ベイクの元のモデル）があれば、手付かずの間は遠くでそれを描く（VoxelModelLoader.SetStaticProxy）。マテリアルは階ごとの複製に差し替え、模様を続ける。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/LargeObjectVoxel.md">説明ドキュメント: 巨大なオブジェクトへのボクセルの適用</seealso>
     public sealed class VoxelBuilding : MonoBehaviour
@@ -45,6 +46,7 @@ namespace Kizami.EngineAdapter
         private readonly List<Rigidbody> _fallingBodies = new();
         private readonly List<Rigidbody> _restingBodies = new();
         private readonly ActionChannel<Rigidbody> _collapsed = new();
+        private readonly ActionChannel<Transform> _collapsing = new();
 
         [SerializeField]
         [Tooltip("下から順に積む区間。区間ごとに、モデルと付属物を指定の回数だけ積む")]
@@ -75,12 +77,20 @@ namespace Kizami.EngineAdapter
         private float _collapseDensity = 500f;
 
         [SerializeField]
+        [Tooltip("倒れる階がメッシュのままのとき、ボクセルにしてから倒すか。しないと倒れる瞬間は軽いが、倒れたあとは削れず、質量にもその階の体積が入らない")]
+        private bool _loadOnCollapse = true;
+
+        [SerializeField]
         [Tooltip("差し替えの距離を測るプレイヤー。未設定なら MainCamera から測る")]
         private Transform _target;
 
         [SerializeField, Min(0f)]
         [Tooltip("プレイヤーからこの距離（m）の中にかかるメッシュのままの階を、ボクセルにする")]
         private float _swapDistance = 40f;
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("手付かずの階を、画面に対する高さの割合がこれを下回ったら遠景用のプレハブで描く")]
+        private float _proxyTransitionHeight = 0.3f;
 
         private float[] _initialAreas = Array.Empty<float>();
         private float[] _connectionRatios = Array.Empty<float>();
@@ -107,6 +117,8 @@ namespace Kizami.EngineAdapter
 
         private bool _hasRetainArea;
 
+        private float _lostVolumeRatio;
+
         /// <summary> 下から順の階。屋上を積んだ場合は最後の要素 </summary>
         public IReadOnlyList<VoxelModelLoader> Floors => _floors;
 
@@ -119,6 +131,29 @@ namespace Kizami.EngineAdapter
         public bool IsConnectionReady { get; private set; }
 
         /// <summary>
+        /// ボクセルにした階の、読み込んだ時点の体積のうち削れた割合（0〜1）の最大値。
+        /// 階はメッシュに戻されると体積を測れなくなる為、一度削れた割合は戻さずに持つ。測るのはこのプロパティを読んだときで、呼ばれない間に削れてメッシュに戻った分は数えない。
+        /// </summary>
+        public float LostVolumeRatio
+        {
+            get
+            {
+                var initialVolume = 0f;
+                var volume = 0f;
+                foreach (var floor in _floors)
+                {
+                    if (!floor.IsLoaded) continue;
+
+                    initialVolume += floor.InitialVolume;
+                    volume += floor.Volume;
+                }
+
+                if (initialVolume > 0f) _lostVolumeRatio = Mathf.Max(_lostVolumeRatio, 1f - volume / initialVolume);
+                return _lostVolumeRatio;
+            }
+        }
+
+        /// <summary>
         /// 境目が切れて上の階が倒れ始めたときに呼ぶ処理を登録する。引数は、倒れた階をまとめた Rigidbody。
         /// 倒れた階のピースは、その Rigidbody の子孫にある。
         /// </summary>
@@ -126,6 +161,30 @@ namespace Kizami.EngineAdapter
         public IDisposable RegisterOnCollapsed(Action<Rigidbody> callback)
         {
             return _collapsed.Register(callback);
+        }
+
+        /// <summary>
+        /// 階のまとまりを作って階を子に移したあと、Rigidbody を付ける前の通知を受け取る関数を登録する。
+        /// Rigidbody を付けるときの負荷は子のコライダーの数で決まる為、減らしたいコライダーをここで外す。
+        /// </summary>
+        /// <param name="callback">階のまとまりの Transform を受け取る関数</param>
+        /// <returns>Dispose すると登録を解除する</returns>
+        public IDisposable RegisterOnCollapsing(Action<Transform> callback)
+        {
+            return _collapsing.Register(callback);
+        }
+
+        /// <summary>
+        /// つながりの面積に関わらず、firstFloor 階から上の立っている階を倒す。倒れ始めた通知（RegisterOnCollapsed）も出る。
+        /// 境目の元の面積が測れる（IsConnectionReady）前や、すでに倒れた階には何もしない。
+        /// </summary>
+        /// <param name="firstFloor">倒す一番下の階の番号。0 なら建物全体</param>
+        public void ForceCollapse(int firstFloor)
+        {
+            if (!IsConnectionReady || firstFloor < 0 || firstFloor >= _standingFloorCount) return;
+
+            _connectionRatios[firstFloor] = 0f;
+            Collapse(firstFloor);
         }
 
         /// <summary>
@@ -188,7 +247,9 @@ namespace Kizami.EngineAdapter
             loader.SetQuality(_quality);
             loader.SetMeltSystem(_meltSystem);
             loader.SetLoadOnStart(false);
-            loader.SetMaterialEntries(CreateFloorMaterials(model, floorIndex));
+            var materials = CreateFloorMaterials(model, floorIndex);
+            loader.SetMaterialEntries(materials);
+            if (section.Proxy != null) loader.SetStaticProxy(CreateProxy(section.Proxy, floorObject.transform, model, materials), _proxyTransitionHeight);
             _subscriptions.Add(loader.RegisterOnPieceShapeChanged(_ => OnFloorShapeChanged(floorIndex)));
             _subscriptions.Add(loader.RegisterOnPieceSplit(pieces => AttachSeparatedPieces(floorIndex, pieces)));
             _subscriptions.Add(loader.RegisterOnPieceStruck(struck => Record(floorIndex, struck.Piece, FloorEdit.Strike(struck.Record))));
@@ -385,13 +446,14 @@ namespace Kizami.EngineAdapter
             for (var i = firstFloor; i < _standingFloorCount; i++)
             {
                 // メッシュのままの階もボクセルにし、敵の格子と崩落の判定がピースとして見張れるようにする
-                if (_floors[i].IsStatic) _floors[i].Load();
+                if (_loadOnCollapse && _floors[i].IsStatic) _floors[i].Load();
 
                 _floors[i].transform.SetParent(groupObject.transform, true);
             }
 
             _standingFloorCount = firstFloor;
 
+            _collapsing.Invoke(groupObject.transform);
             var body = AddGroupBody(groupObject);
             _fallingBodies.Add(body);
             ShatterGlass(groupObject.transform, body.worldCenterOfMass);
@@ -753,6 +815,33 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// モデルの素材のマテリアルを複製し、模様を階の高さだけずらす。同じマテリアルは階の中で1つの複製を使い回す。
         /// </summary>
+        /// <summary>
+        /// 遠景用のプレハブを階の子に置き、元のマテリアルを階ごとの複製に差し替える。複製の対応は、モデルの素材の一覧の元のマテリアルで取る。
+        /// </summary>
+        private static GameObject CreateProxy(GameObject prefab, Transform floor, VoxelModelAsset model, VoxelMaterialEntry[] floorMaterials)
+        {
+            var copies = new Dictionary<Material, Material>();
+            for (var i = 0; i < floorMaterials.Length; i++)
+            {
+                var source = model.Materials[i].Material;
+                if (source != null) copies[source] = floorMaterials[i].Material;
+            }
+
+            var proxy = Instantiate(prefab, floor, false);
+            foreach (var proxyRenderer in proxy.GetComponentsInChildren<Renderer>())
+            {
+                var shared = proxyRenderer.sharedMaterials;
+                for (var i = 0; i < shared.Length; i++)
+                {
+                    if (shared[i] != null && copies.TryGetValue(shared[i], out var copy)) shared[i] = copy;
+                }
+
+                proxyRenderer.sharedMaterials = shared;
+            }
+
+            return proxy;
+        }
+
         private VoxelMaterialEntry[] CreateFloorMaterials(VoxelModelAsset model, int floorIndex)
         {
             var offset = new Vector4(0f, floorIndex * _floorHeight, 0f, 0f);
@@ -856,12 +945,17 @@ namespace Kizami.EngineAdapter
             [Tooltip("階ごとに置く付属物（ガラスの板など）。未設定なら置かない")]
             private GameObject _attachments;
 
+            [SerializeField]
+            [Tooltip("手付かずの間に遠くで描くプレハブ（ベイクの元のモデル）。未設定なら手付かずの形のメッシュだけで描く")]
+            private GameObject _proxy;
+
             [SerializeField, Min(1)]
             [Tooltip("積む回数")]
             private int _count = 1;
 
             public VoxelModelAsset Model => _model;
             public GameObject Attachments => _attachments;
+            public GameObject Proxy => _proxy;
             public int Count => _count;
         }
 

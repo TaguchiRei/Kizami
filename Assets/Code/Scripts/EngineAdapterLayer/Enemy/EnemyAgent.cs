@@ -60,6 +60,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 宙に浮いているか。浮いている敵は、足場が壊れるとゆっくり落ち、落ちても倒れない。出すときに体のプレハブの値を書く </summary>
         public bool IsFloating;
 
+        /// <summary> その場に固定されているか。固定された敵は、歩かず、落ちず、取り残されたとも数えない。格子の外や構造物の上に出す敵が使う </summary>
+        public bool IsPinned;
+
         /// <summary> 次に攻撃できるまでの時間（秒）。0以下なら攻撃できる。アタッカー（弾）とフィニッシャー（吸収とビーム）が使う </summary>
         public float AttackCooldown;
 

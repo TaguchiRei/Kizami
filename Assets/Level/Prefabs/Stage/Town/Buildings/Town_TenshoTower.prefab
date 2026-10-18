@@ -1,0 +1,226 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2942322992185450764
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4243832406141132722}
+  - component: {fileID: 3411508671644658729}
+  - component: {fileID: 5441691548526361516}
+  - component: {fileID: 2375498321249676592}
+  - component: {fileID: 5754418414372584067}
+  m_Layer: 0
+  m_Name: Band
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4243832406141132722
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2942322992185450764}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 40, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3650743122958904397}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3411508671644658729
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2942322992185450764}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
+  _sections:
+  - _model: {fileID: 11400000, guid: 0eabfe3cef755614497aa571e9feb0a0, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 3534704694991030089, guid: 1c7088588f7c9c847af9183ff7fd5c7f, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: 99f494f007c15934da13747c60e39e79, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 2019564289726820770, guid: 79038fc142b41e343a655c0513f27959, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: 30b85f2a91852e34cbe7f9a0c7c0135a, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 1303239528459802211, guid: 754e4c1d9dfa1f54492e13825a122976, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: cd3d1ab36295c3642a271d420c65849c, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 7073781558793581155, guid: 5da003e7bd06daf4ca4c759aa0f9b6b6, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: c9693df8cac83344c90df5955251d402, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 4164407803577516826, guid: fb49a2367665f5543b4293836d06b53b, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: 078578d43cdf2e641a764a48e365b799, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 4616619017255776022, guid: 5af2afa768391ad4a9da6161a395af98, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: 886a47690c5888c44a3b6c9035cf35a7, type: 2}
+    _attachments: {fileID: 4090973175118212271, guid: ce5857d4fd2ac4141af447484e6a7178, type: 3}
+    _proxy: {fileID: 929837833781291176, guid: 9a53efc1bea87a04eadd56b7a34dd7c8, type: 3}
+    _count: 1
+  _floorHeight: 4
+  _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
+  _meltSystem: {fileID: 0}
+  _connectionThreshold: 0.05
+  _hardWeight: 4
+  _collapseDensity: 500
+  _loadOnCollapse: 0
+  _target: {fileID: 0}
+  _swapDistance: 40
+  _proxyTransitionHeight: 0.3
+--- !u!114 &5441691548526361516
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2942322992185450764}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5354509d0f2886148837db88808df1dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageGimmick
+  _id: Tower_Tensho
+--- !u!114 &2375498321249676592
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2942322992185450764}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6aedad469d65464a892f2a9bd7bf175, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuildingDestructionTarget
+  _requiredRatio: 0.3
+--- !u!114 &5754418414372584067
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2942322992185450764}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 507b4f23e771b9244a1d86fa0279f8ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.TowerTopple
+  _building: {fileID: 3411508671644658729}
+  _fallTarget: {fileID: 0}
+  _triggerRatio: 0.3
+  _toppleAngularSpeed: 0.05
+  _upperMass: 1000000
+--- !u!1 &3674525562075848975
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3650743122958904397}
+  m_Layer: 0
+  m_Name: Town_TenshoTower
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3650743122958904397
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3674525562075848975}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1337142534235060509}
+  - {fileID: 4243832406141132722}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &2509325685052860491
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 3650743122958904397}
+    m_Modifications:
+    - target: {fileID: 3484825578730918230, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3484825578730918230, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3484825578730918230, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3484825578730918230, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3484825578730918230, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3484825578730918230, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3484825578730918230, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3484825578730918230, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3484825578730918230, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3484825578730918230, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4257949806615579628, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+      propertyPath: m_Name
+      value: Stage_Tower_Tensho_Lower_01
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+--- !u!4 &1337142534235060509 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 3484825578730918230, guid: ab2bbde3495b30044a0a70b151a71f4e, type: 3}
+  m_PrefabInstance: {fileID: 2509325685052860491}
+  m_PrefabAsset: {fileID: 0}

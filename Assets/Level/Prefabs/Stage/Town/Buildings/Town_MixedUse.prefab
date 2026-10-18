@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &4952971626261109941
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7800685837156090404}
+  - component: {fileID: 5723157798630179997}
+  m_Layer: 0
+  m_Name: Town_MixedUse
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7800685837156090404
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4952971626261109941}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5723157798630179997
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4952971626261109941}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
+  _sections:
+  - _model: {fileID: 11400000, guid: 3ae66602670c35f43a9fa76d8be6d081, type: 2}
+    _attachments: {fileID: 7860300971024753909, guid: 614b13a9f8136214ca7cd1681dfbbd76, type: 3}
+    _proxy: {fileID: 2953058027787838607, guid: 33ca1f700cd524e48a2ee50cdfd324c0, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: 55436f5f50eaf784da44a42171ceb030, type: 2}
+    _attachments: {fileID: 309721069825277734, guid: afa947f0b6653344a93393b607fe5664, type: 3}
+    _proxy: {fileID: 2284462381761878583, guid: 61955e5039c4bff4f926b88624a3f0c6, type: 3}
+    _count: 4
+  - _model: {fileID: 11400000, guid: 8d0e619c5e64afc4c911d03b38bb2c76, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 1574384995741186716, guid: 4876dee14078b154bb900760ab68aee3, type: 3}
+    _count: 1
+  _floorHeight: 4
+  _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
+  _meltSystem: {fileID: 0}
+  _connectionThreshold: 0.05
+  _hardWeight: 4
+  _collapseDensity: 500
+  _target: {fileID: 0}
+  _swapDistance: 40
+  _proxyTransitionHeight: 0.3

@@ -11,10 +11,10 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// フィニッシャーの攻撃を扱う。EnemySpawnAdapter と同じ GameObject に置き、EnemySpawnAdapter が初期化と毎フレームの更新を呼ぶ。
     /// 攻撃するのはマップ全体で1体まで。グループが螺旋に並んでいて（EnemyGroup.HasArrived）、プレイヤーが射程の中にいる、冷却を終えたフィニッシャーが始める。
-    /// 同じグループの最も近いメンバーを吸収の対象に選んで止め、その上へ飛んで、畳んでいた腕を開いてから閉じてつかみ、対象をディゾルブで消しながら粒を吸い込む。
-    /// つかむとき以外、腕は畳んでおく（EnemyLegs の畳んだ位置）。
-    /// 吸収された敵はオーブもチャージも出さない。吸収したあとは分身してビームを撃ち（EnemyFinisherBeams）、撃ち終えたら冷却に入って、飛び立った位置へ戻る。
-    /// 吸収する前に対象が倒れるか、グループの並びが解けたら、冷却に入って戻る。フィニッシャーが倒れたら、対象を放し、分身・ビーム・デカールを消してやめる。
+    /// 同じグループの最も近いメンバーを吸収の対象に選んで止め、その上へ飛んで、Animator の grab を立てて吸収の姿勢（旧作の Absorption → BeamStance → Aiming）にし、対象をディゾルブで消しながら粒を吸い込む。
+    /// 構えのアニメーションは、対象が消えて照準が始まったあとも続く。
+    /// 吸収された敵はオーブもチャージも出さない。吸収したあとはその場で体を傾けてプレイヤーを狙い、ビームを撃ち（EnemyFinisherBeams）、撃ち終えたら冷却に入って、飛び立った位置へ戻る。
+    /// 吸収する前に対象が倒れるか、グループの並びが解けたら、冷却に入って戻る。フィニッシャーが倒れたら、対象を放し、ビームと危険範囲の帯を消してやめる。
     /// 吸収を始めたあとにフィニッシャーが倒れたときは、対象もそのまま消す。消えかけた体を元に戻して歩かせることはしない。
     /// </summary>
     /// <remarks>
@@ -26,27 +26,22 @@ namespace Kizami.EngineAdapter
         /// <summary> 飛ぶ先にこの距離（m）まで近づいたら、着いたとみなす </summary>
         private const float ARRIVE_DISTANCE = 0.1f;
 
-        /// <summary> フィニッシャーの腕の数の上限。つかんだ位置を覚えておく配列の長さ </summary>
-        private const int MAX_ARMS = 8;
-
         private static readonly int _energyEventId = Shader.PropertyToID("OnEnergy");
         private static readonly int _positionsId = Shader.PropertyToID("EnergyPositions");
         private static readonly int _positionCountId = Shader.PropertyToID("EnergyPositionCount");
         private static readonly int _targetId = Shader.PropertyToID("EnergyTarget");
         private static readonly int _spawnCountId = Shader.PropertyToID("spawnCount");
+        private static readonly int _grabId = Animator.StringToHash("grab");
 
-        /// <summary> 吸収の対象の、残っている部位の中心。腕を伸ばす先と、粒を出す位置に使う作業用の一覧 </summary>
+        /// <summary> 吸収の対象の、残っている部位の中心。粒を出す位置に使う作業用の一覧 </summary>
         private readonly List<Vector3> _partCenters = new();
-
-        /// <summary> 腕ごとの、最後につかんでいた位置（フィニッシャーの体の根の空間）。吸収のあと、ここから畳む </summary>
-        private readonly Vector3[] _graspLocals = new Vector3[MAX_ARMS];
 
         [SerializeField]
         [Tooltip("吸収の粒を出す VisualEffect。VFX Graph は崩落のエネルギーと同じ EnemyEnergy.vfx")]
         private VisualEffect _effect;
 
         [SerializeField]
-        [Tooltip("吸収したあとの分身とビームを扱う EnemyFinisherBeams。未設定なら吸収したあとすぐに戻る")]
+        [Tooltip("吸収したあとのビームを扱う EnemyFinisherBeams。未設定なら吸収したあとすぐに戻る")]
         private EnemyFinisherBeams _beams;
 
         [SerializeField, Min(0f)]
@@ -57,37 +52,25 @@ namespace Kizami.EngineAdapter
         [Tooltip("吸収するときの、フィニッシャーの体の根の、対象の体の根からの高さ（m）")]
         private float _hoverHeight = 1f;
 
-        [SerializeField, Min(0f)]
-        [Tooltip("対象の上に着いてから、畳んだ腕を開ききるまでの時間（秒）")]
-        private float _openDuration = 0.4f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("腕を開いた足先の、体の根の軸から腕の付け根の水平の向きへの距離（m）")]
-        private float _openReach = 3.5f;
-
-        [SerializeField]
-        [Tooltip("腕を開いた足先の、体の根からの高さ（m）")]
-        private float _openHeight = 4.5f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("開いた腕を閉じて、対象をつかむまでの時間（秒）")]
-        private float _grabDuration = 0.3f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("吸収したあと、つかんでいた腕を畳むまでの時間（秒）")]
-        private float _foldDuration = 0.3f;
-
         [SerializeField, Min(0.01f)]
-        [Tooltip("腕でつかんでから、対象が消えきるまでの時間（秒）")]
-        private float _absorbDuration = 1f;
+        [Tooltip("対象の上に着いて吸収の姿勢を始めてから、対象が消えきるまでの時間（秒）。旧作の Absorption で敵を食べるイベントは 0.75 秒")]
+        private float _absorbDuration = 0.75f;
 
         [SerializeField, Min(0f)]
         [Tooltip("攻撃を終えるかやめてから、次に攻撃できるまでの時間（秒）")]
-        private float _cooldown = 15f;
+        private float _cooldown = 10f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("腕の先を、対象の体の中心から各腕の側へ離す長さ（m）")]
-        private float _graspSpread = 1f;
+        [Tooltip("出てから最初の攻撃までの時間（秒）の下限。上限との間でランダムに決める")]
+        private float _firstCooldownMin = 10f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("出てから最初の攻撃までの時間（秒）の上限")]
+        private float _firstCooldownMax = 15f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ビームを撃つ所と体を傾ける中心の、体の根からの高さ（m）")]
+        private float _pivotHeight = 2f;
 
         [SerializeField, Min(0f)]
         [Tooltip("体を貸していない対象の、体の中心の体の根からの高さ（m）")]
@@ -130,10 +113,10 @@ namespace Kizami.EngineAdapter
         /// <summary> フィニッシャーが飛び立った位置。戻るときはここへ降りる </summary>
         private float3 _homePosition;
 
-        /// <summary> つかんでいた腕を畳む進み具合（0〜1）。1で畳みきっている </summary>
-        private float _foldProgress = 1f;
+        /// <summary> grab を立てている Animator。立てていなければ null </summary>
+        private Animator _grabAnimator;
 
-        /// <summary> 分身とビームを使えるか </summary>
+        /// <summary> ビームを使えるか </summary>
         private bool _hasBeams;
 
         private bool _isReady;
@@ -206,6 +189,27 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 体の上向きがビームの向きと逆になるように、pivot を中心に体を傾ける。体の位置と向きは EnemySpawnAdapter が毎フレーム合わせ直すので、傾けるのも毎フレーム。
+        /// </summary>
+        private static void TiltBody(EnemyBody body, Vector3 pivot, Vector3 aimDirection)
+        {
+            if (body == null) return;
+
+            var tilt = Quaternion.FromToRotation(Vector3.up, -aimDirection);
+            var bodyTransform = body.transform;
+            bodyTransform.SetPositionAndRotation(pivot + tilt * (bodyTransform.position - pivot),
+                tilt * bodyTransform.rotation);
+        }
+
+        /// <summary>
+        /// 出てから最初の攻撃までの時間（秒）を、_firstCooldownMin から _firstCooldownMax の間でランダムに決めて返す。
+        /// </summary>
+        public float RollFirstCooldown()
+        {
+            return UnityEngine.Random.Range(_firstCooldownMin, _firstCooldownMax);
+        }
+
+        /// <summary>
         /// 粒を出す GraphicsBuffer を作る。プレイヤーがなければ、警告を出して攻撃しないままにする。
         /// VisualEffect か吸収のプロパティがなければ、警告を出して粒を出さずに攻撃する。
         /// </summary>
@@ -225,7 +229,7 @@ namespace Kizami.EngineAdapter
 
             if (_beams == null)
             {
-                UsefulLogger.LogWarning("EnemyFinisherBeams が設定されていない為、フィニッシャーは吸収したあと分身せずに戻ります。", this);
+                UsefulLogger.LogWarning("EnemyFinisherBeams が設定されていない為、フィニッシャーは吸収したあとビームを撃たずに戻ります。", this);
             }
             else
             {
@@ -257,9 +261,8 @@ namespace Kizami.EngineAdapter
         /// <param name="groups">グループ。並びが解けていないかを読む</param>
         /// <param name="lenders">種類ごとの体の貸し借り。並びは EnemyKind と同じで、設定のない種類は null</param>
         /// <param name="deltaTime">経過時間（秒）</param>
-        /// <param name="grid">戻って放した腕を置く高さを読む経路の格子</param>
         public void Tick(NativeArray<EnemyAgent> agents, EnemyGroups groups, EnemyBodyLender[] lenders,
-            float deltaTime, in EnemyNavigationGrid grid)
+            float deltaTime)
         {
             if (!_isReady) return;
 
@@ -278,20 +281,17 @@ namespace Kizami.EngineAdapter
             }
 
             _phaseTime += deltaTime;
-            var finisherLegs = GetLegs(agents[_finisher], lenders);
 
             switch (_phase)
             {
                 case Phase.Approaching:
-                case Phase.Opening:
-                case Phase.Grabbing:
                     if (!IsTargetValid(agents, groups))
                     {
                         StartReturn(agents);
                         break;
                     }
 
-                    UpdateGrab(agents, lenders, finisherLegs);
+                    UpdateApproach(agents, lenders);
                     break;
                 case Phase.Absorbing:
                     if (!agents[_absorbTarget].IsAlive)
@@ -300,15 +300,13 @@ namespace Kizami.EngineAdapter
                         break;
                     }
 
-                    UpdateAbsorb(agents, lenders, finisherLegs, deltaTime);
+                    UpdateAbsorb(agents, lenders, deltaTime);
                     break;
-                case Phase.Barrage:
-                    FoldArms(finisherLegs, deltaTime);
-                    UpdateBarrage(agents, deltaTime);
+                case Phase.Beam:
+                    UpdateBeam(agents, lenders, deltaTime);
                     break;
                 case Phase.Returning:
-                    FoldArms(finisherLegs, deltaTime);
-                    UpdateReturn(agents, finisherLegs, grid);
+                    UpdateReturn(agents);
                     break;
             }
 
@@ -364,7 +362,6 @@ namespace Kizami.EngineAdapter
 
             _finisher = finisher;
             _absorbTarget = absorbTarget;
-            _foldProgress = 1f;
             SetPhase(Phase.Approaching);
         }
 
@@ -380,33 +377,20 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 腕を畳んだまま対象の上へ飛び、着いたら腕を開き、開ききったら閉じて対象をつかむ。つかみきったら吸収を始める。
+        /// 対象の上へ飛び、着いたら吸収の姿勢（Animator の grab）を始める。
         /// </summary>
-        private void UpdateGrab(NativeArray<EnemyAgent> agents, EnemyBodyLender[] lenders, EnemyLegs finisherLegs)
+        private void UpdateApproach(NativeArray<EnemyAgent> agents, EnemyBodyLender[] lenders)
         {
             var target = agents[_absorbTarget];
             var agent = agents[_finisher];
             agent.FlyTarget = target.Position + new float3(0f, _hoverHeight, 0f);
             agents[_finisher] = agent;
 
-            if (_phase == Phase.Approaching)
-            {
-                if (math.distance(agent.Position, agent.FlyTarget) <= ARRIVE_DISTANCE) SetPhase(Phase.Opening);
-                return;
-            }
+            if (math.distance(agent.Position, agent.FlyTarget) > ARRIVE_DISTANCE) return;
 
-            if (_phase == Phase.Opening)
-            {
-                var open = GetProgress(_openDuration);
-                PoseArms(finisherLegs, open, 0f);
-                if (open >= 1f) SetPhase(Phase.Grabbing);
-                return;
-            }
-
-            var grab = GetProgress(_grabDuration);
-            CollectTargetCenters(target, lenders);
-            PoseArms(finisherLegs, 1f, grab);
-            if (grab < 1f) return;
+            var legs = GetLegs(agent, lenders);
+            _grabAnimator = legs != null ? legs.Animator : null;
+            if (_grabAnimator != null) _grabAnimator.SetBool(_grabId, true);
 
             _burstTimer = 0f;
             SetPhase(Phase.Absorbing);
@@ -416,8 +400,7 @@ namespace Kizami.EngineAdapter
         /// 対象をつかんだまま、ディゾルブで消し、粒を吸い込ませる。消えきったら対象をステージから消し、冷却に入って戻る。
         /// 対象に体がなければ、ディゾルブせずに粒だけ出す。
         /// </summary>
-        private void UpdateAbsorb(NativeArray<EnemyAgent> agents, EnemyBodyLender[] lenders, EnemyLegs finisherLegs,
-            float deltaTime)
+        private void UpdateAbsorb(NativeArray<EnemyAgent> agents, EnemyBodyLender[] lenders, float deltaTime)
         {
             var target = agents[_absorbTarget];
             var body = GetBody(target, lenders);
@@ -429,7 +412,6 @@ namespace Kizami.EngineAdapter
             }
 
             CollectTargetCenters(target, lenders);
-            PoseArms(finisherLegs, 1f, 1f);
 
             _burstTimer -= deltaTime;
             if (_burstTimer <= 0f)
@@ -444,7 +426,6 @@ namespace Kizami.EngineAdapter
             target.IsAlive = false;
             agents[_absorbTarget] = target;
             _absorbTarget = -1;
-            _foldProgress = 0f;
 
             if (!_hasBeams)
             {
@@ -452,30 +433,33 @@ namespace Kizami.EngineAdapter
                 return;
             }
 
-            _beams.Begin(agents[_finisher].Position);
-            SetPhase(Phase.Barrage);
+            _beams.Begin();
+            SetPhase(Phase.Beam);
         }
 
         /// <summary>
-        /// 分身とビームの段階を進め、本体を EnemyFinisherBeams の示す位置へ飛ばす。撃ち終えたら冷却に入って戻る。
+        /// その場に浮いたまま、ビームの段階を進め、体をビームの向きに傾ける。撃ち終えたら冷却に入って戻る。
         /// </summary>
-        private void UpdateBarrage(NativeArray<EnemyAgent> agents, float deltaTime)
+        private void UpdateBeam(NativeArray<EnemyAgent> agents, EnemyBodyLender[] lenders, float deltaTime)
         {
             var agent = agents[_finisher];
-            if (!_beams.Tick(agent.Position, deltaTime, out var flyTarget))
+            agent.FlyTarget = agent.Position;
+            agents[_finisher] = agent;
+
+            var pivot = (Vector3)agent.Position + Vector3.up * _pivotHeight;
+            if (!_beams.Tick(pivot, deltaTime, out var aimDirection))
             {
                 StartReturn(agents);
                 return;
             }
 
-            agent.FlyTarget = flyTarget;
-            agents[_finisher] = agent;
+            TiltBody(GetBody(agent, lenders), pivot, aimDirection);
         }
 
         /// <summary>
-        /// 飛び立った位置へ飛んで戻り、着いたら隊列の動きに戻して、留めていた腕を放す（歩かない体なので、腕は畳んだまま）。
+        /// 飛び立った位置へ飛んで戻り、着いたら隊列の動きに戻す。
         /// </summary>
-        private void UpdateReturn(NativeArray<EnemyAgent> agents, EnemyLegs finisherLegs, in EnemyNavigationGrid grid)
+        private void UpdateReturn(NativeArray<EnemyAgent> agents)
         {
             var agent = agents[_finisher];
             if (math.distance(agent.Position, agent.FlyTarget) > ARRIVE_DISTANCE) return;
@@ -487,14 +471,6 @@ namespace Kizami.EngineAdapter
             agent.FallStartHeight = agent.Position.y;
             agents[_finisher] = agent;
 
-            if (finisherLegs != null)
-            {
-                for (var i = 0; i < finisherLegs.LegCount; i++)
-                {
-                    finisherLegs.ReleaseFoot(i, grid);
-                }
-            }
-
             _finisher = -1;
             SetPhase(Phase.Idle);
         }
@@ -505,6 +481,7 @@ namespace Kizami.EngineAdapter
         private void StartReturn(NativeArray<EnemyAgent> agents)
         {
             ReleaseTarget(agents);
+            ReleaseGrab();
 
             var agent = agents[_finisher];
             agent.FlyTarget = _homePosition;
@@ -514,7 +491,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// フィニッシャーが倒れたときに呼ぶ。吸収の対象を放してやめる。吸収を始めていれば、対象も消す。分身・ビーム・デカールを消す。
+        /// フィニッシャーが倒れたときに呼ぶ。吸収の対象を放してやめる。吸収を始めていれば、対象も消す。ビームと危険範囲の帯を消す。
         /// </summary>
         private void Abort(NativeArray<EnemyAgent> agents)
         {
@@ -528,6 +505,7 @@ namespace Kizami.EngineAdapter
             }
 
             ReleaseTarget(agents);
+            ReleaseGrab();
             _finisher = -1;
             SetPhase(Phase.Idle);
         }
@@ -549,18 +527,19 @@ namespace Kizami.EngineAdapter
             _absorbTarget = -1;
         }
 
+        /// <summary>
+        /// 吸収の姿勢をやめ、待機か移動の姿勢に戻す。
+        /// </summary>
+        private void ReleaseGrab()
+        {
+            if (_grabAnimator != null) _grabAnimator.SetBool(_grabId, false);
+            _grabAnimator = null;
+        }
+
         private void SetPhase(Phase phase)
         {
             _phase = phase;
             _phaseTime = 0f;
-        }
-
-        /// <summary>
-        /// 今の段階に入ってからの時間を、duration に対する割合（0〜1）で返す。duration が0なら1。
-        /// </summary>
-        private float GetProgress(float duration)
-        {
-            return duration > 0f ? Mathf.Clamp01(_phaseTime / duration) : 1f;
         }
 
         /// <summary>
@@ -572,56 +551,6 @@ namespace Kizami.EngineAdapter
             var body = GetBody(target, lenders);
             if (body != null) body.CollectPartCenters(_partCenters);
             if (_partCenters.Count == 0) _partCenters.Add((Vector3)target.Position + Vector3.up * _targetCenterHeight);
-        }
-
-        /// <summary>
-        /// フィニッシャーの腕の先を、畳んだ位置から開いた位置へ割合 open だけ、さらにそこから対象をつかむ位置へ割合 grab だけ動かす。
-        /// つかむ位置は、対象の体の中心（_partCenters の平均）から、各腕の付け根の側へ _graspSpread 離した位置。grab が0なら対象を読まない。
-        /// つかむ位置へ動かした腕の位置は、吸収のあとに畳み始める位置として覚えておく。
-        /// </summary>
-        private void PoseArms(EnemyLegs legs, float open, float grab)
-        {
-            if (legs == null) return;
-
-            var center = Vector3.zero;
-            if (grab > 0f)
-            {
-                foreach (var partCenter in _partCenters)
-                {
-                    center += partCenter;
-                }
-
-                center /= _partCenters.Count;
-            }
-
-            var root = legs.transform.position;
-            for (var i = 0; i < legs.LegCount && i < MAX_ARMS; i++)
-            {
-                var foot = Vector3.Lerp(legs.GetFoldedFootPosition(i), legs.GetFootPosition(i, _openReach, _openHeight), open);
-                if (grab > 0f)
-                {
-                    var side = legs.GetFootPosition(i, 1f, 0f) - root;
-                    foot = Vector3.Lerp(foot, center + side * _graspSpread, grab);
-                    _graspLocals[i] = legs.transform.InverseTransformPoint(foot);
-                }
-
-                legs.HoldFoot(i, foot);
-            }
-        }
-
-        /// <summary>
-        /// 吸収のあと、つかんでいた位置から畳んだ位置へ、_foldDuration をかけて腕を畳む。畳みきったあとは畳んだ位置に留める。
-        /// </summary>
-        private void FoldArms(EnemyLegs legs, float deltaTime)
-        {
-            _foldProgress = _foldDuration > 0f ? Mathf.Min(_foldProgress + deltaTime / _foldDuration, 1f) : 1f;
-            if (legs == null) return;
-
-            for (var i = 0; i < legs.LegCount && i < MAX_ARMS; i++)
-            {
-                var grasp = legs.transform.TransformPoint(_graspLocals[i]);
-                legs.HoldFoot(i, Vector3.Lerp(grasp, legs.GetFoldedFootPosition(i), _foldProgress));
-            }
         }
 
         /// <summary>
@@ -652,20 +581,14 @@ namespace Kizami.EngineAdapter
             /// <summary> 攻撃していない </summary>
             Idle,
 
-            /// <summary> 腕を畳んだまま、吸収の対象の上へ飛んでいる </summary>
+            /// <summary> 吸収の対象の上へ飛んでいる </summary>
             Approaching,
 
-            /// <summary> 対象の上に浮いて、腕を開いている </summary>
-            Opening,
-
-            /// <summary> 開いた腕を閉じて、対象をつかんでいる </summary>
-            Grabbing,
-
-            /// <summary> 腕でつかんで、対象を消している </summary>
+            /// <summary> 吸収の姿勢で、対象を消している </summary>
             Absorbing,
 
-            /// <summary> 分身してプレイヤーの上へ向かい、ビームを撃っている </summary>
-            Barrage,
+            /// <summary> その場でプレイヤーを狙い、ビームを撃っている </summary>
+            Beam,
 
             /// <summary> 冷却に入り、飛び立った位置へ戻っている </summary>
             Returning

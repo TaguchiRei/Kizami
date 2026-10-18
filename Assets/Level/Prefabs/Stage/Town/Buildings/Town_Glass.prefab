@@ -1,0 +1,72 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &4651493545515812132
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8007929373429505407}
+  - component: {fileID: 8281541896232082982}
+  m_Layer: 0
+  m_Name: Town_Glass
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8007929373429505407
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4651493545515812132}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8281541896232082982
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4651493545515812132}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 049a5e3ba6a3061439d71287f37ce0e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
+  _sections:
+  - _model: {fileID: 11400000, guid: 27eb7895e48333a438b1f5e632a3afc3, type: 2}
+    _attachments: {fileID: 7720203426462631845, guid: f225d069f3331244aaa2706d9baa3388, type: 3}
+    _proxy: {fileID: 6166466225619337166, guid: ee5c0498f0426ce4eb380f44e4a782d2, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: a350264c32821d04da03dfdde033f73f, type: 2}
+    _attachments: {fileID: 2136494680529178027, guid: f9b9ecc24d7da684799da0f1390eefe5, type: 3}
+    _proxy: {fileID: 770014234596617838, guid: f8df561a05ecf46449e64e44d0bf99c4, type: 3}
+    _count: 6
+  - _model: {fileID: 11400000, guid: 02c049d59f551de4694254a077f75cf2, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 3817859237517460899, guid: 0ec6538b612d3274380421e543fc9236, type: 3}
+    _count: 2
+  - _model: {fileID: 11400000, guid: 0fe3baa212a31da40a61ef9d592ff1cc, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 6029909446281431388, guid: c30b7c3e1039144449464f17f2589721, type: 3}
+    _count: 1
+  _floorHeight: 4
+  _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
+  _meltSystem: {fileID: 0}
+  _connectionThreshold: 0.05
+  _hardWeight: 4
+  _collapseDensity: 500
+  _target: {fileID: 0}
+  _swapDistance: 40
+  _proxyTransitionHeight: 0.3
