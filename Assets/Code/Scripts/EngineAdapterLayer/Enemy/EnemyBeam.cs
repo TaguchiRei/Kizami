@@ -1,58 +1,42 @@
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal;
 
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// フィニッシャーのビーム1本の見た目。ビームの円柱と、攻撃の範囲を地面に示すデカールを持つ。
-    /// EnemyFinisherAttack が初期化のときに作って使い回す。当たりの判定は持たない。
+    /// フィニッシャーのビームや危険範囲の帯 1 本の見た目。円柱を持つ。
+    /// EnemyFinisherBeams が初期化のときに作って使い回す。当たりの判定は持たない。
     /// </summary>
     /// <remarks>
-    /// デカールは URP の Decal Projector で、描くには Renderer に Decal Renderer Feature が要る。
+    /// 円柱の長さと半径、ビームの模様の値は MaterialPropertyBlock で書く。マテリアルは共有のままなので、ビームと帯を同じシェーダーで何本出しても複製しない。
     /// </remarks>
     public sealed class EnemyBeam
     {
+        private static readonly int _beamLengthId = Shader.PropertyToID("_BeamLength");
+        private static readonly int _beamRadiusId = Shader.PropertyToID("_BeamRadius");
+        private static readonly int _noiseLevelId = Shader.PropertyToID("_NoiseLevel");
+        private static readonly int _tillingId = Shader.PropertyToID("_Tilling");
+
         private readonly GameObject _cylinder;
         private readonly Transform _cylinderTransform;
-        private readonly DecalProjector _decal;
+        private readonly Renderer _renderer;
+        private readonly MaterialPropertyBlock _properties = new();
 
-        /// <param name="parent">円柱とデカールを置く親。拡大率を1に保つこと</param>
-        /// <param name="beamMaterial">円柱のマテリアル</param>
-        /// <param name="decalPrefab">デカールのプレハブ。投影の向きと奥行き（size の z）はプレハブのものを使い、幅だけを半径に合わせる</param>
-        public EnemyBeam(Transform parent, Material beamMaterial, DecalProjector decalPrefab)
+        /// <param name="parent">円柱を置く親。拡大率を1に保つこと</param>
+        /// <param name="materials">円柱のマテリアル。複数あれば同じ円柱に重ねて描く</param>
+        public EnemyBeam(Transform parent, params Material[] materials)
         {
             _cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             _cylinder.name = nameof(EnemyBeam);
             Object.Destroy(_cylinder.GetComponent<Collider>());
             var cylinderRenderer = _cylinder.GetComponent<MeshRenderer>();
-            cylinderRenderer.sharedMaterial = beamMaterial;
+            cylinderRenderer.sharedMaterials = materials;
             cylinderRenderer.shadowCastingMode = ShadowCastingMode.Off;
             cylinderRenderer.receiveShadows = false;
+            _renderer = cylinderRenderer;
             _cylinderTransform = _cylinder.transform;
             _cylinderTransform.SetParent(parent, false);
             _cylinder.SetActive(false);
-
-            if (decalPrefab != null)
-            {
-                _decal = Object.Instantiate(decalPrefab, parent);
-                _decal.gameObject.SetActive(false);
-            }
-        }
-
-        /// <summary>
-        /// 攻撃の範囲を示すデカールを、point を中心に下向きに出す。
-        /// </summary>
-        /// <param name="point">範囲の中心（ワールド座標）。ビームの止まる所</param>
-        /// <param name="radius">範囲の半径（m）</param>
-        public void ShowDecal(Vector3 point, float radius)
-        {
-            if (_decal == null) return;
-
-            _decal.transform.SetPositionAndRotation(point, Quaternion.LookRotation(Vector3.down, Vector3.forward));
-            _decal.size = new Vector3(radius * 2f, radius * 2f, _decal.size.z);
-            _decal.pivot = Vector3.zero;
-            _decal.gameObject.SetActive(true);
         }
 
         /// <summary>
@@ -74,24 +58,29 @@ namespace Kizami.EngineAdapter
             // Unity の円柱は高さ2・半径0.5で、Y 軸に沿って立つ
             _cylinderTransform.SetPositionAndRotation((from + to) * 0.5f, Quaternion.FromToRotation(Vector3.up, axis));
             _cylinderTransform.localScale = new Vector3(radius * 2f, length * 0.5f, radius * 2f);
+            _properties.SetFloat(_beamLengthId, length);
+            _properties.SetFloat(_beamRadiusId, radius);
+            _renderer.SetPropertyBlock(_properties);
             _cylinder.SetActive(true);
         }
 
         /// <summary>
-        /// 円柱を消す。デカールは残す。
+        /// ビームの模様の値を書く。次に ShowBeam を呼んだときから効く。
         /// </summary>
-        public void HideBeam()
+        /// <param name="noiseLevel">ノイズのしきい値。大きいほど濃く映る</param>
+        /// <param name="tillingY">射線に沿った方向の模様の細かさ。符号で流れる向きが変わる</param>
+        public void SetPattern(float noiseLevel, float tillingY)
         {
-            _cylinder.SetActive(false);
+            _properties.SetFloat(_noiseLevelId, noiseLevel);
+            _properties.SetVector(_tillingId, new Vector4(1f, tillingY, 0f, 0f));
         }
 
         /// <summary>
-        /// 円柱とデカールを消す。
+        /// 円柱を消す。
         /// </summary>
         public void Hide()
         {
             _cylinder.SetActive(false);
-            if (_decal != null) _decal.gameObject.SetActive(false);
         }
     }
 }

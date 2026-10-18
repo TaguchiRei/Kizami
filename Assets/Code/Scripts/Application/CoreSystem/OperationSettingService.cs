@@ -12,18 +12,26 @@ namespace Kizami.Application
 
         /// <param name="blackBoard">OperationSettingState の登録先</param>
         /// <param name="sprintInputMode">ダッシュ入力の受け付け方の初期値</param>
+        /// <param name="grabInputMode">つかむ入力の受け付け方の初期値</param>
         /// <param name="cutRotateStepAngle">切断面の回転入力1回あたりの回転角度（度）の初期値</param>
         public OperationSettingService(IBlackBoard blackBoard, SprintInputMode sprintInputMode,
-            float cutRotateStepAngle)
+            GrabInputMode grabInputMode, float cutRotateStepAngle)
         {
             // TODO: 保存済みの設定を ExternalLayer から読み出して流し込む
             _state.SetSprintInputMode(sprintInputMode);
+            _state.SetGrabInputMode(grabInputMode);
             _state.SetCutRotateStepAngle(cutRotateStepAngle);
 
             if (!blackBoard.TryGetBoard<AppBoard>(out var appBoard, this)) return;
 
             appBoard.RegisterGameState<IOperationSettingState>(_state);
         }
+
+        /// <summary>
+        /// つかむ入力の受け付け方を変更する。
+        /// </summary>
+        /// <param name="mode">つかむ入力の受け付け方</param>
+        public void SetGrabInputMode(GrabInputMode mode) => _state.SetGrabInputMode(mode);
 
         /// <summary>
         /// 左右の視点操作の感度倍率を変更する。

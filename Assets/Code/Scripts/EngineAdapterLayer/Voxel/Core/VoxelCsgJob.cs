@@ -22,6 +22,7 @@ namespace Kizami.EngineAdapter.Voxel
     /// 形状の距離にはずらし量を足す。UseMaterials ならサンプルの素材ごとの値、そうでなければ UniformOffset を足す。
     /// 強さと減衰率で削る攻撃では、ずらし量を「融点 ÷ 減衰率」にして、素材ごとに削れる半径を変える。
     /// MarkRoundness なら、距離が RoundnessChangeThreshold より変わったサンプルの丸みを最大にする。
+    /// 内側から外側になったサンプル1つにつき、RemovedSamples へ1件積む。
     /// 具象の形状ごとに [assembly: RegisterGenericJobType(typeof(VoxelCsgJob&lt;形状&gt;))] で登録すること。
     /// 登録が無いと Burst でコンパイルされない。
     /// </summary>
@@ -54,6 +55,9 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> MarkRoundness のときに印を書く、サンプルごとの丸み </summary>
         [NativeDisableParallelForRestriction] public NativeArray<byte> Roundness;
 
+        /// <summary> 内側から外側になったサンプルの数を数える為に、1件ずつ積む先 </summary>
+        [WriteOnly] public NativeQueue<byte>.ParallelWriter RemovedSamples;
+
         public void Execute(int index)
         {
             var offset = new int3(
@@ -73,6 +77,8 @@ namespace Kizami.EngineAdapter.Voxel
 
             result = Layout.EnforceBoundary(sample, result);
             Samples[sampleIndex] = result;
+
+            if (current < 0f && result >= 0f) RemovedSamples.Enqueue(0);
 
             if (MarkRoundness && math.abs(result - current) > RoundnessChangeThreshold)
             {

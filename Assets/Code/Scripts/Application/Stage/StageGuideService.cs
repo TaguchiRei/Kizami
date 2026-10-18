@@ -10,7 +10,7 @@ namespace Kizami.Application
     /// <summary>
     /// ステージの案内（StageGuideState）の唯一の書き手。プレイヤーの出来事と敵を倒した数を、プレイ中のときだけログにする。
     /// 通常攻撃と敵を倒した通知は、間に別のログが入らずに続いたら1行にまとめて回数を増やす。まとめるのは、ログを出しておく時間の間だけ。
-    /// 大目標・小目標・会話は、呼ばれた値をそのまま State へ書く。
+    /// 大目標・小目標・会話・操作説明は、呼ばれた値をそのまま State へ書く。
     /// </summary>
     public sealed class StageGuideService : IDisposable
     {
@@ -76,6 +76,15 @@ namespace Kizami.Application
         public void SetDialogue(string dialogue)
         {
             _state.SetDialogue(dialogue);
+        }
+
+        /// <summary>
+        /// 操作説明を設定する。
+        /// </summary>
+        /// <param name="hint">操作説明の文。空なら出さない</param>
+        public void SetHint(string hint)
+        {
+            _state.SetHint(hint);
         }
 
         /// <summary>

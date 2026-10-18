@@ -378,7 +378,7 @@ namespace Kizami.EngineAdapter
         public void Execute(int index)
         {
             var agent = Agents[index];
-            if (!agent.IsAlive) return;
+            if (!agent.IsAlive || agent.IsPinned) return;
 
             // 追跡範囲の外で待機して処理を止めたグループの、立って歩くメンバーはその場に置いたままにする。飛んでいる・落ちている途中の敵は、着くまで動かす
             if (agent.GroupIndex >= 0 && Groups[agent.GroupIndex].IsDormant && agent.IsGrounded

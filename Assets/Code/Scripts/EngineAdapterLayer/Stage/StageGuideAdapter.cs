@@ -8,7 +8,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// ステージの案内を画面に出す Adapter。左上に大目標・小目標・プレイヤーのやったことのログ、右上に会話を出す。インゲームのシーンへ置く。
+    /// ステージの案内を画面に出す Adapter。左上に大目標・小目標・プレイヤーのやったことのログ、中央よりやや上に操作説明、右上に会話を出す。インゲームのシーンへ置く。
     /// ログは、新しい行が下に入り、古い行が上へ滑らかに流れる。出しておく時間が近づくか、上限を超えて消える行は、だんだん半透明になって消える。
     /// プレイ中のときだけ出す。位置と大きさは、基準の解像度（1920x1080）での px で決める。
     /// </summary>
@@ -35,6 +35,16 @@ namespace Kizami.EngineAdapter
         private const float DIALOGUE_HEIGHT = 220f;
         private const float DIALOGUE_PADDING = 16f;
 
+        /// <summary> 操作説明の、画面中央から上への距離。視線の邪魔にならない、中央よりやや上にする </summary>
+        private const float HINT_OFFSET_Y = 120f;
+        private const float HINT_HEIGHT = 48f;
+        private const float HINT_SPACING = 10f;
+        private const int HINT_FONT_SIZE = 24;
+        private const float KEY_MIN_WIDTH = 44f;
+        private const float KEY_CHAR_WIDTH = 15f;
+        private const float KEY_WIDE_CHAR_WIDTH = 26f;
+        private const float KEY_PADDING = 24f;
+
         [SerializeField, Min(0f)]
         [Tooltip("行が現れるとき、不透明になるまでの時間（秒）")]
         private float _fadeInDuration = 0.2f;
@@ -51,6 +61,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("会話の枠の色")]
         private Color _dialogueBackgroundColor = new(0f, 0f, 0f, 0.5f);
 
+        [SerializeField]
+        [Tooltip("操作説明のキーの枠の色")]
+        private Color _keyCapColor = new(0.1f, 0.1f, 0.12f, 0.85f);
+
         private readonly List<LogRow> _rows = new();
         private readonly Dictionary<int, LogRow> _rowsById = new();
 
@@ -63,6 +77,8 @@ namespace Kizami.EngineAdapter
         private Text _subObjectiveText;
         private GameObject _dialogueBox;
         private Text _dialogueText;
+        private RectTransform _hintRow;
+        private string _builtHint = string.Empty;
 
         /// <summary>
         /// 親の隅を基準に、その隅と同じ側を軸にして、位置と大きさを決める。
@@ -104,7 +120,81 @@ namespace Kizami.EngineAdapter
             if (_dialogueBox.activeSelf != hasDialogue) _dialogueBox.SetActive(hasDialogue);
             if (hasDialogue) _dialogueText.text = _guideState.Dialogue;
 
+            UpdateHint();
             UpdateLogs(Time.unscaledTime, Time.unscaledDeltaTime);
+        }
+
+        /// <summary>
+        /// 操作説明が変わったら、キーの枠と操作名を並べ直す。[W] のように角括弧で囲んだ語がキーの枠になり、それ以外の語は操作名になる。
+        /// </summary>
+        private void UpdateHint()
+        {
+            var hint = _guideState.Hint;
+            if (hint == _builtHint) return;
+
+            _builtHint = hint;
+            for (var i = _hintRow.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_hintRow.GetChild(i).gameObject);
+            }
+
+            var label = new System.Text.StringBuilder();
+            var index = 0;
+            while (index < hint.Length)
+            {
+                var open = hint[index] == '[' ? index : -1;
+                var close = open >= 0 ? hint.IndexOf(']', open) : -1;
+                if (close < 0)
+                {
+                    label.Append(hint[index++]);
+                    continue;
+                }
+
+                AddHintLabel(label);
+                AddKeyCap(hint.Substring(open + 1, close - open - 1));
+                index = close + 1;
+            }
+
+            AddHintLabel(label);
+        }
+
+        private void AddHintLabel(System.Text.StringBuilder label)
+        {
+            var text = label.ToString().Trim();
+            label.Clear();
+            if (text.Length == 0) return;
+
+            var labelText = UiBuilder.CreateText(_hintRow, "Label", HINT_FONT_SIZE);
+            labelText.text = text;
+            labelText.gameObject.AddComponent<Shadow>().effectColor = new Color(0f, 0f, 0f, 0.8f);
+            labelText.gameObject.AddComponent<LayoutElement>().minHeight = HINT_HEIGHT;
+        }
+
+        /// <summary>
+        /// キーの名前の文字幅の合計。全角の文字は半角より広く数える。
+        /// </summary>
+        private static float MeasureKeyWidth(string key)
+        {
+            var width = 0f;
+            foreach (var character in key)
+            {
+                width += character < 256 ? KEY_CHAR_WIDTH : KEY_WIDE_CHAR_WIDTH;
+            }
+
+            return width;
+        }
+
+        private void AddKeyCap(string key)
+        {
+            var cap = UiBuilder.CreateImage(_hintRow, "Key", _keyCapColor);
+            cap.gameObject.AddComponent<Outline>().effectColor = Color.white;
+            var element = cap.gameObject.AddComponent<LayoutElement>();
+            element.minHeight = HINT_HEIGHT;
+            element.preferredWidth = Mathf.Max(KEY_MIN_WIDTH, MeasureKeyWidth(key) + KEY_PADDING);
+
+            var text = UiBuilder.CreateText(cap.transform, "Text", HINT_FONT_SIZE);
+            text.text = key;
+            UiBuilder.SetAnchors(text.rectTransform, Vector2.zero, Vector2.one);
         }
 
         /// <summary>
@@ -240,6 +330,19 @@ namespace Kizami.EngineAdapter
             _logContainer = logs.rectTransform;
             Place(_logContainer, topLeft, new Vector2(LEFT_MARGIN, -logTop),
                 new Vector2(COLUMN_WIDTH, (_guideState.LogMaxCount + 1) * LOG_ROW_HEIGHT));
+
+            var hintRow = UiBuilder.CreateImage(canvas, "Hint", Color.clear);
+            _hintRow = hintRow.rectTransform;
+            Place(_hintRow, new Vector2(0.5f, 0.5f), new Vector2(0f, HINT_OFFSET_Y), new Vector2(0f, HINT_HEIGHT));
+            var layout = hintRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+            layout.spacing = HINT_SPACING;
+            layout.childAlignment = TextAnchor.MiddleCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = false;
+            var fitter = hintRow.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             var dialogue = UiBuilder.CreateImage(canvas, "Dialogue", _dialogueBackgroundColor);
             _dialogueBox = dialogue.gameObject;

@@ -13,6 +13,8 @@ namespace Kizami.EngineAdapter
     /// 持っているかけらはランチャーに1つだけ装填でき、装填したかけらは重力なしでまっすぐ撃ち出す。
     /// 投げたかけらと撃ったかけらは、何かにぶつかるか、寿命が来るとプールへ返す。飛ばした瞬間に重なっている相手にも当たったものとする。オーブにもチャージにもならない。
     /// 装甲のパネルにぶつかったら、粉砕タイプとしてそのパネルだけを一撃で壊す。爆発させて飛ばしたかけらは、ぶつかった所で爆発する。
+    /// かけらと同じ操作で、Brilliant Skill の言葉（BrilliantWord）もつかんで投げられる。言葉は全体を 1 つの的にして、丸ごとつかむ。
+    /// 言葉はかけらの装填はできず、重力を無視してまっすぐ、かけらの投擲の _wordThrowSpeedScale 倍の速さで飛ぶ。
     /// </summary>
     /// <remarks>
     /// かけらのプールは空きがなくなると古いかけらを使い回すので、運んでいるかけらと飛んでいるかけらが回収されたら手放し、物理の設定を戻す。
@@ -23,6 +25,9 @@ namespace Kizami.EngineAdapter
     {
         /// <summary> 実行順。CinemachineBrain（既定の0）より後 </summary>
         private const int EXECUTION_ORDER = 100;
+
+        /// <summary> 言葉を狙う視線の円柱を、周りで調べるレイの数（中心のレイを除く） </summary>
+        private const int AIM_RAY_COUNT = 8;
 
         /// <summary> つかむ範囲から一度に集めるコライダーの最大数。かけら1つが球のコライダーを10個持つので、かけら約25個ぶん </summary>
         private const int MAX_HIT_COUNT = 256;
@@ -74,13 +79,43 @@ namespace Kizami.EngineAdapter
         [Tooltip("爆発するかけらが当たったときの爆発の半径（m）")]
         private float _explosionRadius = 2f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("言葉をつかめる距離（m）。言葉は遠くに大きく出る為、かけらより長い")]
+        private float _wordGrabDistance = 80f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("言葉を狙う視線の太さ（半径, m）。視線を中心にこの半径の円柱が言葉の箱に当たればつかめる")]
+        private float _wordGrabAimRadius = 1f;
+
+        [SerializeField]
+        [Tooltip("持っている言葉の中心を置く位置（カメラのローカル座標、m）")]
+        private Vector3 _wordHoldOffset = new(0.5f, -0.3f, 1.6f);
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("持っている間の言葉の長さ（m）。箱の最も長い辺がこの長さになる大きさにする。投げた言葉は飛びながら出たときの大きさに戻る")]
+        private float _wordHoldLength = 1.2f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("投げた言葉が出たときの大きさに戻るまでの時間（秒）。戻る間は当たり判定がない")]
+        private float _wordGrowDuration = 0.35f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("投げた言葉の下端を、真下の面から空ける高さ（m）。地面に重ならないよう、戻る間に持ち上げる")]
+        private float _wordGroundClearance = 0.5f;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("言葉を投げる速さの、かけらの投擲の速さに対する倍率")]
+        private float _wordThrowSpeedScale = 2f;
+
         private Func<CuttableObject, bool> _tryTake;
         private Action<Vector3, float> _onExplode;
         private CarriedFragment _held;
         private CarriedFragment _loaded;
+        private BrilliantSkillTextAdapter _wordSource;
+        private BrilliantWord _heldWord;
 
-        /// <summary> かけらを持っているか </summary>
-        public bool IsHolding => _held.Fragment != null;
+        /// <summary> かけらか言葉を持っているか </summary>
+        public bool IsHolding => _held.Fragment != null || _heldWord != null;
 
         /// <summary> ランチャーにかけらを装填しているか </summary>
         public bool IsLoaded => _loaded.Fragment != null;
@@ -91,6 +126,15 @@ namespace Kizami.EngineAdapter
         private static Vector3 GetCenter(CuttableObject fragment)
         {
             return fragment.Renderer != null ? fragment.Renderer.bounds.center : fragment.transform.position;
+        }
+
+        /// <summary>
+        /// つかめる言葉の取得元を設定する。設定するまで、言葉はつかめない。
+        /// </summary>
+        /// <param name="wordSource">言葉を出している Adapter</param>
+        public void SetWordSource(BrilliantSkillTextAdapter wordSource)
+        {
+            _wordSource = wordSource;
         }
 
         /// <param name="tryTake">かけらを、オーブにする管理から外す関数。外せたかけらだけをつかむ</param>
@@ -137,14 +181,52 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 持っているかけらを、視線の先へ重力ありで投げる。
+        /// 視線の先にある言葉を、全体を 1 つの的として丸ごとつかむ。視線を中心にした太さ _wordGrabAimRadius の円柱を、
+        /// カメラから _wordGrabDistance まで飛ばし、言葉の箱の当たり判定に最も近く当たった言葉をつかむ。投げられて飛んでいる言葉はつかめない。
         /// </summary>
-        /// <param name="speed">初速（m/s）</param>
-        /// <param name="isExplosive">当たった所で爆発させるか</param>
+        /// <returns>つかめたら true。既に持っているときと、つかめる言葉がないときは false</returns>
+        public bool TryGrabWord()
+        {
+            if (!Initialized || _wordSource == null || IsHolding) return false;
+
+            var cameraMain = Camera.main;
+            if (cameraMain == null) return false;
+
+            var cameraTransform = cameraMain.transform;
+            BrilliantWord nearest = null;
+            var nearestDistance = float.MaxValue;
+            foreach (var word in _wordSource.Words)
+            {
+                if (word == null || word.IsThrown || word.IsCarried) continue;
+                if (!TryHitAim(word.Box, cameraTransform, out var distance) || distance >= nearestDistance) continue;
+
+                nearest = word;
+                nearestDistance = distance;
+            }
+
+            if (nearest == null) return false;
+
+            nearest.BeginCarry(_wordHoldLength);
+            nearest.FollowCamera(cameraTransform, _wordHoldOffset);
+            _heldWord = nearest;
+            return true;
+        }
+
+        /// <summary>
+        /// 持っているかけらか言葉を、視線の先へ投げる。かけらは重力ありで、言葉は重力なしで速く飛ぶ。言葉は爆発しない。
+        /// </summary>
+        /// <param name="speed">かけらの初速（m/s）。言葉は _wordThrowSpeedScale 倍で飛ぶ</param>
+        /// <param name="isExplosive">かけらを当たった所で爆発させるか</param>
         /// <returns>投げたら true。持っていないときは false</returns>
         public bool TryThrow(float speed, bool isExplosive)
         {
             if (!Initialized || !IsHolding) return false;
+
+            if (_heldWord != null)
+            {
+                ThrowWord(speed * _wordThrowSpeedScale);
+                return true;
+            }
 
             Launch(_held, speed, true, isExplosive);
             _held = default;
@@ -157,7 +239,7 @@ namespace Kizami.EngineAdapter
         /// <returns>装填できたら true。持っていないか、既に装填しているときは false</returns>
         public bool TryLoad()
         {
-            if (!Initialized || !IsHolding || IsLoaded) return false;
+            if (!Initialized || _held.Fragment == null || IsLoaded) return false;
 
             _loaded = _held;
             _held = default;
@@ -194,8 +276,9 @@ namespace Kizami.EngineAdapter
             if (cameraMain == null) return;
 
             var cameraTransform = cameraMain.transform;
-            if (IsHolding) FollowCamera(_held, cameraTransform, _holdOffset);
+            if (_held.Fragment != null) FollowCamera(_held, cameraTransform, _holdOffset);
             if (IsLoaded) FollowCamera(_loaded, cameraTransform, _loadedOffset);
+            if (_heldWord != null) _heldWord.FollowCamera(cameraTransform, _wordHoldOffset);
         }
 
         /// <summary>
@@ -288,6 +371,51 @@ namespace Kizami.EngineAdapter
             rigidbody.angularVelocity = Vector3.zero;
 
             _flyingFragments[fragment] = (Time.time, carried.CollisionMode, isExplosive);
+        }
+
+        /// <summary>
+        /// 持っている言葉を、中心から視線の先の狙った点へ向けて飛ばす。
+        /// </summary>
+        private void ThrowWord(float speed)
+        {
+            var word = _heldWord;
+            _heldWord = null;
+
+            var cameraMain = Camera.main;
+            var direction = cameraMain != null
+                ? (GetAimPoint(cameraMain.transform) - word.Center).normalized
+                : word.transform.forward;
+            word.Launch(direction, speed, _flyingLifetime, _wordGrowDuration, _wordGroundClearance);
+        }
+
+        /// <summary>
+        /// カメラの視線を中心にした円柱（太さ _wordGrabAimRadius、長さ _wordGrabDistance）が、箱に当たるか。
+        /// 視線と、視線に垂直な 8 方向へ半径だけずらした平行なレイの、計 9 本で調べ、最も近い当たりまでの距離を返す。
+        /// </summary>
+        private bool TryHitAim(BoxCollider box, Transform cameraTransform, out float distance)
+        {
+            distance = float.MaxValue;
+            var forward = cameraTransform.forward;
+            var found = false;
+
+            for (var i = -1; i < AIM_RAY_COUNT; i++)
+            {
+                var offset = Vector3.zero;
+                if (i >= 0)
+                {
+                    var angle = i * Mathf.PI * 2f / AIM_RAY_COUNT;
+                    offset = (cameraTransform.right * Mathf.Cos(angle) + cameraTransform.up * Mathf.Sin(angle)) *
+                             _wordGrabAimRadius;
+                }
+
+                var ray = new Ray(cameraTransform.position + offset, forward);
+                if (!box.Raycast(ray, out var hit, _wordGrabDistance) || hit.distance >= distance) continue;
+
+                distance = hit.distance;
+                found = true;
+            }
+
+            return found;
         }
 
         /// <summary>

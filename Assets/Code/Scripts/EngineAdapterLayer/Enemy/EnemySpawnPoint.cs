@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -15,6 +16,9 @@ namespace Kizami.EngineAdapter
     /// </summary>
     public sealed class EnemySpawnPoint : MonoBehaviour
     {
+        /// <summary> 構造物の上に置く点。構造物は敵の生成システムの子ではない為、ここから集める </summary>
+        private static readonly List<EnemySpawnPoint> _structurePoints = new();
+
         /// <summary> シーンビューのアイコンの画像。Assets/Gizmos/ からの相対パス </summary>
         private const string ICON_NAME = "EnemySpawnPoint.png";
 
@@ -45,6 +49,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("スポーン位置の建物。壊れたら補充と出し直しの敵を出さない。未設定なら壊れない")]
         private VoxelModelLoader _structure;
 
+        [SerializeField]
+        [Tooltip("スポーン位置の建物が階ごとのボクセルの建物（VoxelBuilding）のとき、その建物。壊れたとみなす割合は下と同じ。未設定なら使わない")]
+        private VoxelBuilding _structureBuilding;
+
         [SerializeField, Range(0f, 1f)]
         [Tooltip("建物の、読み込んだ時点の体積のうち、この割合以上が削れたら壊れたとみなす")]
         private float _brokenLossRatio = 0.05f;
@@ -56,6 +64,14 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("動かないか。追跡範囲に入っても追わず、持ち場で待機したまま攻撃する")]
         private bool _isStationary;
+
+        [SerializeField]
+        [Tooltip("構造物（倒れる塔など）の上に置く点か。初期化のときの位置は仮なので、区画の重複を調べず、出すときの位置から出す")]
+        private bool _isOnStructure;
+
+        [SerializeField]
+        [Tooltip("出す敵をその場に固定するか。固定された敵は歩かず落ちず、立ったまま攻撃する。格子の外や構造物の上に出す敵に使う")]
+        private bool _isPinned;
 
         [SerializeField]
         [Tooltip("出現を保留するか。初期化では置き場所だけ確保して敵を出さず、Release のあとに出す。解放から出るまでは、出し直しの間隔の残りを待つ")]
@@ -83,11 +99,21 @@ namespace Kizami.EngineAdapter
         {
             get
             {
+                if (_structureBuilding != null) return _structureBuilding.LostVolumeRatio >= _brokenLossRatio;
                 if (_structure == null || _initialVolume <= 0f) return false;
 
                 return _structure.Volume <= _initialVolume * (1f - _brokenLossRatio);
             }
         }
+
+        /// <summary> 構造物の上に置く点か </summary>
+        public bool IsOnStructure => _isOnStructure;
+
+        /// <summary> 有効な、構造物の上に置く点 </summary>
+        public static IReadOnlyList<EnemySpawnPoint> StructurePoints => _structurePoints;
+
+        /// <summary> 出す敵をその場に固定するか </summary>
+        public bool IsPinned => _isPinned;
 
         /// <summary> 動かないか </summary>
         public bool IsStationary => _isStationary;
@@ -110,6 +136,12 @@ namespace Kizami.EngineAdapter
             _isEnabled = false;
         }
 
+        /// <summary> 出現を保留する。構造物の上に置く点は、一度出したあと保留に戻り、倒されても出し直さない </summary>
+        public void Hold()
+        {
+            _isHeld = true;
+        }
+
         /// <summary> 出現の保留を解く </summary>
         public void Release()
         {
@@ -121,6 +153,16 @@ namespace Kizami.EngineAdapter
         {
             var offset = Random.insideUnitCircle * _radius;
             return transform.position + new Vector3(offset.x, 0f, offset.y);
+        }
+
+        private void OnEnable()
+        {
+            if (_isOnStructure) _structurePoints.Add(this);
+        }
+
+        private void OnDisable()
+        {
+            _structurePoints.Remove(this);
         }
 
         private void Awake()
