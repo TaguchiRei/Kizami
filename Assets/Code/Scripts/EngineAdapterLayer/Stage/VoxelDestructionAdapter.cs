@@ -310,8 +310,9 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// _armorHitBuffer に集めたコライダーのうち、装甲のパネルを _armorPanels に集める。
+        /// _armorHitBuffer に集めた装甲のコライダーから、装甲のパネルを _armorPanels に集める。
         /// </summary>
+        /// <param name="hitCount">_armorHitBuffer に集めたコライダーの数</param>
         private void CollectArmorPanels(int hitCount)
         {
             _armorPanels.Clear();
