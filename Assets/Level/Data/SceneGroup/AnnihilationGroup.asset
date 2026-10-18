@@ -15,10 +15,10 @@ MonoBehaviour:
   _hasMainScene: 1
   _groupData:
     <HasMainScene>k__BackingField: 1
-    _sceneIds: 090000000600000002000000
+    _sceneIds: 080000000500000002000000
   _mainSceneName: TownMap
   _additionalSceneNames:
   - Stage_Annihilation
   - InGame
-  _mainScene: 9
-  _additionalScenes: 0600000002000000
+  _mainScene: 8
+  _additionalScenes: 0500000002000000

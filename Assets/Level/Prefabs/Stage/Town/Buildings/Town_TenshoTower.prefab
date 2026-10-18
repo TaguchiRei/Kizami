@@ -82,6 +82,7 @@ MonoBehaviour:
   _connectionThreshold: 0.05
   _hardWeight: 4
   _collapseDensity: 500
+  _loadOnCollapse: 0
   _target: {fileID: 0}
   _swapDistance: 40
   _proxyTransitionHeight: 0.3

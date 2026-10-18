@@ -36,6 +36,10 @@ namespace Kizami.External
         [Tooltip("クリアの対象にするギミックの ID。空なら、読み込んだシーンの破壊対象をすべて対象にする")]
         private string[] _targetGimmickIds = System.Array.Empty<string>();
 
+        [SerializeField]
+        [Tooltip("すべてのスキルの破壊力を最大にする。どのスキルでも、強度が硬い素材を普通の素材と同じ範囲まで削れる")]
+        private bool _isMaxDestructionPower;
+
         [SerializeReference, SubclassSelector]
         [Tooltip("失敗条件。どれか 1 つを満たしたら失敗にする。空ならこのステージでは失敗しない")]
         private StageFailCondition[] _failConditions = { new PlayerDeathFailCondition() };
@@ -57,6 +61,9 @@ namespace Kizami.External
 
         /// <summary> クリアの対象にするギミックの ID。空なら破壊対象をすべて対象にする </summary>
         public IReadOnlyList<string> TargetGimmickIds => _targetGimmickIds;
+
+        /// <summary> すべてのスキルの破壊力を最大にするか </summary>
+        public bool IsMaxDestructionPower => _isMaxDestructionPower;
 
         /// <summary> 失敗条件。どれか1つを満たしたら失敗にする </summary>
         public IReadOnlyList<StageFailCondition> FailConditions => _failConditions;

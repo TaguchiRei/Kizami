@@ -20,6 +20,7 @@ MonoBehaviour:
   _targetGimmickIds:
   - Tower_Tensho
   - Escape_Arrival
+  _isMaxDestructionPower: 1
   _failConditions:
   - rid: 8226038394822328408
   - rid: 8226038394822328409
@@ -32,4 +33,4 @@ MonoBehaviour:
     - rid: 8226038394822328409
       type: {class: TimeLimitFailCondition, ns: Kizami.External, asm: Kizami.External.Runtime}
       data:
-        _seconds: 300
+        _seconds: 100000000

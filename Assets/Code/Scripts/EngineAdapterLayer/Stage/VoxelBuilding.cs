@@ -46,6 +46,7 @@ namespace Kizami.EngineAdapter
         private readonly List<Rigidbody> _fallingBodies = new();
         private readonly List<Rigidbody> _restingBodies = new();
         private readonly ActionChannel<Rigidbody> _collapsed = new();
+        private readonly ActionChannel<Transform> _collapsing = new();
 
         [SerializeField]
         [Tooltip("下から順に積む区間。区間ごとに、モデルと付属物を指定の回数だけ積む")]
@@ -74,6 +75,10 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0.001f)]
         [Tooltip("倒れる階のまとまりの密度（kg/m³）。質量は ピースの体積の合計 × 密度")]
         private float _collapseDensity = 500f;
+
+        [SerializeField]
+        [Tooltip("倒れる階がメッシュのままのとき、ボクセルにしてから倒すか。しないと倒れる瞬間は軽いが、倒れたあとは削れず、質量にもその階の体積が入らない")]
+        private bool _loadOnCollapse = true;
 
         [SerializeField]
         [Tooltip("差し替えの距離を測るプレイヤー。未設定なら MainCamera から測る")]
@@ -156,6 +161,17 @@ namespace Kizami.EngineAdapter
         public IDisposable RegisterOnCollapsed(Action<Rigidbody> callback)
         {
             return _collapsed.Register(callback);
+        }
+
+        /// <summary>
+        /// 階のまとまりを作って階を子に移したあと、Rigidbody を付ける前の通知を受け取る関数を登録する。
+        /// Rigidbody を付けるときの負荷は子のコライダーの数で決まる為、減らしたいコライダーをここで外す。
+        /// </summary>
+        /// <param name="callback">階のまとまりの Transform を受け取る関数</param>
+        /// <returns>Dispose すると登録を解除する</returns>
+        public IDisposable RegisterOnCollapsing(Action<Transform> callback)
+        {
+            return _collapsing.Register(callback);
         }
 
         /// <summary>
@@ -430,13 +446,14 @@ namespace Kizami.EngineAdapter
             for (var i = firstFloor; i < _standingFloorCount; i++)
             {
                 // メッシュのままの階もボクセルにし、敵の格子と崩落の判定がピースとして見張れるようにする
-                if (_floors[i].IsStatic) _floors[i].Load();
+                if (_loadOnCollapse && _floors[i].IsStatic) _floors[i].Load();
 
                 _floors[i].transform.SetParent(groupObject.transform, true);
             }
 
             _standingFloorCount = firstFloor;
 
+            _collapsing.Invoke(groupObject.transform);
             var body = AddGroupBody(groupObject);
             _fallingBodies.Add(body);
             ShatterGlass(groupObject.transform, body.worldCenterOfMass);

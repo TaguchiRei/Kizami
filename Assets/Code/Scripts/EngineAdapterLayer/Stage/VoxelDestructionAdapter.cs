@@ -20,7 +20,13 @@ namespace Kizami.EngineAdapter
         /// <summary> 削る範囲から一度に集めるコライダーの最大数 </summary>
         private const int MAX_HIT_COUNT = 64;
 
-        private readonly Collider[] _hitBuffer = new Collider[MAX_HIT_COUNT];
+        /// <summary> 削る範囲から集めるコライダーの数の上限。1つのピースが数千個の箱を持つので、足りなければここまで増やす </summary>
+        private const int MAX_GROWN_HIT_COUNT = 16384;
+
+        /// <summary> 破壊力を最大にしたときに強さへ足す値。硬い素材の融点 2 と普通の素材の融点 1 の差 </summary>
+        private const float MAX_POWER_BONUS = 1f;
+
+        private Collider[] _hitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly Collider[] _armorHitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly Collider[] _glassHitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly HashSet<VoxelPiece> _pieces = new();
@@ -61,13 +67,24 @@ namespace Kizami.EngineAdapter
         /// <summary> 1回の攻撃で壊したボクセルの体積（m3）を受け取る処理 </summary>
         private Action<float> _onCarved;
 
+        /// <summary> 強さに足す値。破壊力を最大にしていなければ 0 </summary>
+        private float _powerBonus;
+
         /// <summary>
         /// 普通の強度の素材を radius で削る強さのとき、融点0の素材まで届く半径。
         /// 強さ P は 普通の融点 + 減衰率 × radius で、届く半径は P ÷ 減衰率。
         /// </summary>
-        private static float ReachRadius(float radius, float falloff)
+        private float ReachRadius(float radius, float falloff)
         {
-            return radius + VoxelThermalSettings.NORMAL_MELTING_POINT / falloff;
+            return radius + (VoxelThermalSettings.NORMAL_MELTING_POINT + _powerBonus) / falloff;
+        }
+
+        /// <summary>
+        /// 破壊力を最大にするかを設定する。最大にすると、強さに硬い素材と普通の素材の融点の差を足し、硬い素材も普通の素材と同じ半径まで削れる。
+        /// </summary>
+        public void SetMaxPower(bool isMax)
+        {
+            _powerBonus = isMax ? MAX_POWER_BONUS : 0f;
         }
 
         /// <summary>
@@ -103,8 +120,7 @@ namespace Kizami.EngineAdapter
                 QueryTriggerInteraction.Ignore), hit.point);
 
             var reach = ReachRadius(_radius, _aimFalloff);
-            var hitCount = Physics.OverlapSphereNonAlloc(hit.point, reach, _hitBuffer, _targetLayers,
-                QueryTriggerInteraction.Ignore);
+            var hitCount = QuerySphere(hit.point, reach);
             Carve(new SphereShape(hit.point, reach), _aimFalloff, hitCount);
         }
 
@@ -138,8 +154,7 @@ namespace Kizami.EngineAdapter
                 QueryTriggerInteraction.Ignore), start);
 
             var reach = ReachRadius(radius, _beamFalloff);
-            var hitCount = Physics.OverlapCapsuleNonAlloc(start, end, reach, _hitBuffer, _targetLayers,
-                QueryTriggerInteraction.Ignore);
+            var hitCount = QueryCapsule(start, end, reach);
             Carve(new CapsuleShape(start, end, reach), _beamFalloff, hitCount);
         }
 
@@ -168,8 +183,7 @@ namespace Kizami.EngineAdapter
                 QueryTriggerInteraction.Ignore), center);
 
             var reach = ReachRadius(radius, _explosionFalloff);
-            var hitCount = Physics.OverlapSphereNonAlloc(center, reach, _hitBuffer, _targetLayers,
-                QueryTriggerInteraction.Ignore);
+            var hitCount = QuerySphere(center, reach);
 
             // 遮断の判定は、当てて壊れる前のパネルで行う
             Carve(new SphereShape(center, reach), _explosionFalloff, hitCount, _armorPanels.Count > 0, center);
@@ -194,6 +208,53 @@ namespace Kizami.EngineAdapter
 
             cameraTransform = cameraMain.transform;
             return true;
+        }
+
+        /// <summary>
+        /// 指定した2点を結ぶカプセルで削る。ガラスの板は割る。装甲は扱わない。倒れた塔が通った跡を削るのに使う。
+        /// </summary>
+        /// <param name="start">カプセルの一方の端（ワールド空間）</param>
+        /// <param name="end">カプセルのもう一方の端（ワールド空間）</param>
+        /// <param name="radius">カプセルの半径（m）。普通の強度の素材がちょうどこの半径で削れる</param>
+        public void CarveCapsuleAt(Vector3 start, Vector3 end, float radius)
+        {
+            ShatterGlass(Physics.OverlapCapsuleNonAlloc(start, end, radius + _glassMargin, _glassHitBuffer, _targetLayers,
+                QueryTriggerInteraction.Ignore), start);
+
+            var reach = ReachRadius(radius, _explosionFalloff);
+            var hitCount = QueryCapsule(start, end, reach);
+            Carve(new CapsuleShape(start, end, reach), _explosionFalloff, hitCount);
+        }
+
+        /// <summary>
+        /// 球の範囲のコライダーを _hitBuffer に集める。バッファが埋まったら、上限まで倍にして集め直す。
+        /// 上限が小さいと、1つのピースの箱だけで埋まり、範囲内の別のピースを削り損ねる為。
+        /// </summary>
+        private int QuerySphere(Vector3 center, float radius)
+        {
+            while (true)
+            {
+                var count = Physics.OverlapSphereNonAlloc(center, radius, _hitBuffer, _targetLayers,
+                    QueryTriggerInteraction.Ignore);
+                if (count < _hitBuffer.Length || _hitBuffer.Length >= MAX_GROWN_HIT_COUNT) return count;
+
+                Array.Resize(ref _hitBuffer, _hitBuffer.Length * 2);
+            }
+        }
+
+        /// <summary>
+        /// カプセルの範囲のコライダーを _hitBuffer に集める。バッファの増やし方は QuerySphere と同じ。
+        /// </summary>
+        private int QueryCapsule(Vector3 start, Vector3 end, float radius)
+        {
+            while (true)
+            {
+                var count = Physics.OverlapCapsuleNonAlloc(start, end, radius, _hitBuffer, _targetLayers,
+                    QueryTriggerInteraction.Ignore);
+                if (count < _hitBuffer.Length || _hitBuffer.Length >= MAX_GROWN_HIT_COUNT) return count;
+
+                Array.Resize(ref _hitBuffer, _hitBuffer.Length * 2);
+            }
         }
 
         /// <summary>
@@ -243,7 +304,7 @@ namespace Kizami.EngineAdapter
         {
             if (hitCount == _hitBuffer.Length)
             {
-                UsefulLogger.LogWarning($"削る範囲内のコライダーが上限（{MAX_HIT_COUNT}）に達しました。", this);
+                UsefulLogger.LogWarning($"削る範囲内のコライダーが上限（{_hitBuffer.Length}）に達しました。", this);
             }
 
             _pieces.Clear();
