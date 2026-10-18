@@ -211,6 +211,22 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 指定した2点を結ぶカプセルで削る。ガラスの板は割る。装甲は扱わない。倒れた塔が通った跡を削るのに使う。
+        /// </summary>
+        /// <param name="start">カプセルの一方の端（ワールド空間）</param>
+        /// <param name="end">カプセルのもう一方の端（ワールド空間）</param>
+        /// <param name="radius">カプセルの半径（m）。普通の強度の素材がちょうどこの半径で削れる</param>
+        public void CarveCapsuleAt(Vector3 start, Vector3 end, float radius)
+        {
+            ShatterGlass(Physics.OverlapCapsuleNonAlloc(start, end, radius + _glassMargin, _glassHitBuffer, _targetLayers,
+                QueryTriggerInteraction.Ignore), start);
+
+            var reach = ReachRadius(radius, _explosionFalloff);
+            var hitCount = QueryCapsule(start, end, reach);
+            Carve(new CapsuleShape(start, end, reach), _explosionFalloff, hitCount);
+        }
+
+        /// <summary>
         /// 球の範囲のコライダーを _hitBuffer に集める。バッファが埋まったら、上限まで倍にして集め直す。
         /// 上限が小さいと、1つのピースの箱だけで埋まり、範囲内の別のピースを削り損ねる為。
         /// </summary>

@@ -49,6 +49,18 @@ namespace Kizami.EngineAdapter
         [Tooltip("倒れた塔の足場の箱の角に埋める、地面と接する球の半径（m）。箱の半分より大きいときは、箱に収まる大きさにする")]
         private float _footSphereRadius = 2f;
 
+        [SerializeField, Min(0.1f)]
+        [Tooltip("倒れた塔が止まったあと、塔の下になったビルを削る半径の、根元での値（m）。塔の半幅に合わせる")]
+        private float _crushRadiusBase = 20f;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("倒れた塔の下になったビルを削る半径の、先端での値（m）")]
+        private float _crushRadiusTip = 8f;
+
+        [SerializeField, Min(1f)]
+        [Tooltip("倒れた塔の下になったビルを、塔の軸に沿って削る区間の長さ（m）。区間ごとに 1 フレームずつ削る")]
+        private float _crushSegmentLength = 40f;
+
         [SerializeField, Min(0f)]
         [Tooltip("塔の上の部分の質量（kg）。倒れた階のまとまりの質量に足す")]
         private float _upperMass = 1000000f;
@@ -78,6 +90,8 @@ namespace Kizami.EngineAdapter
         private Transform _upperRoot;
         private Mesh _upperHullMesh;
         private float _settledTime;
+        private int _crushIndex = -1;
+        private VoxelDestructionAdapter _crushAdapter;
         private bool _hasToppled;
         private bool _hasReleasedSpawns;
 
@@ -101,7 +115,34 @@ namespace Kizami.EngineAdapter
             {
                 _hasReleasedSpawns = true;
                 ReleaseTopFaceSpawns();
+                _crushAdapter = FindFirstObjectByType<VoxelDestructionAdapter>();
+                if (_crushAdapter != null) _crushIndex = 0;
             }
+
+            CrushNextSegment();
+        }
+
+        /// <summary>
+        /// 止まった塔の軸に沿って、塔の下になったビルを区間ごとに 1 フレームずつ削る。削る半径は根元から先端へ線形に細くする。
+        /// 倒れる間は塔がビルと接触しない為、止まったあとに、塔が重なった部分を削って潰す。
+        /// </summary>
+        private void CrushNextSegment()
+        {
+            if (_crushIndex < 0) return;
+
+            var length = _upperHullMesh.bounds.max.y;
+            var start = _crushIndex * _crushSegmentLength;
+            if (start >= length || _crushAdapter == null || _toppledBody == null)
+            {
+                _crushIndex = -1;
+                return;
+            }
+
+            var end = Mathf.Min(start + _crushSegmentLength, length);
+            var radius = Mathf.Lerp(_crushRadiusBase, _crushRadiusTip, (start + end) * 0.5f / length);
+            var axis = _toppledBody.transform;
+            _crushAdapter.CarveCapsuleAt(axis.TransformPoint(Vector3.up * start), axis.TransformPoint(Vector3.up * end), radius);
+            _crushIndex++;
         }
 
         /// <summary>
@@ -209,27 +250,27 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 階のまとまり group の子のコライダーをすべて消し、倒れた塔用の当たり判定に置き換える。
         /// 塔の上の部分は凸包の MeshCollider 1つ（プレイヤー・敵・地面と接触）。
-        /// 帯の階は、階ごとに足場の箱（プレイヤー・敵と接触）と、箱の内側の角に埋めた球（地面とだけ接触）を付ける。
+        /// 帯は、全体で足場の箱 1 つ（プレイヤー・敵と接触）と、箱の内側の角に埋めた球（地面とだけ接触）を付ける。
         /// 地面以外のコライダー（建物のボクセルなど）とは接触せず、倒れる向きが乱れない。
         /// </summary>
         private void ReplaceWithHull(Transform group)
         {
-            var floorBounds = new Dictionary<Transform, Bounds>();
+            var hasBounds = false;
+            var bandBounds = new Bounds();
             foreach (var collider in group.GetComponentsInChildren<Collider>())
             {
                 if (collider is BoxCollider box)
                 {
-                    // 箱の角をすべて使うと数万点になるので、階ごとに階の空間の範囲へまとめる
-                    var floor = box.GetComponentInParent<VoxelModelLoader>().transform;
+                    // 箱の角をすべて使うと数万点になるので、帯全体の 1 つの範囲（まとまりの空間）にまとめる
                     var half = box.size * 0.5f;
                     for (var i = 0; i < 8; i++)
                     {
                         var corner = box.center + new Vector3(
                             (i & 1) == 0 ? -half.x : half.x, (i & 2) == 0 ? -half.y : half.y, (i & 4) == 0 ? -half.z : half.z);
-                        var local = floor.InverseTransformPoint(box.transform.TransformPoint(corner));
-                        if (floorBounds.TryGetValue(floor, out var bounds)) bounds.Encapsulate(local);
-                        else bounds = new Bounds(local, Vector3.zero);
-                        floorBounds[floor] = bounds;
+                        var local = group.InverseTransformPoint(box.transform.TransformPoint(corner));
+                        if (hasBounds) bandBounds.Encapsulate(local);
+                        else bandBounds = new Bounds(local, Vector3.zero);
+                        hasBounds = true;
                     }
                 }
 
@@ -240,10 +281,7 @@ namespace Kizami.EngineAdapter
 
             var groundMask = 1 << LayerMask.NameToLayer(GROUND_LAYER);
             var peopleMask = (1 << LayerMask.NameToLayer(PLAYER_LAYER)) | (1 << LayerMask.NameToLayer(ENEMY_LAYER));
-            foreach (var (floor, bounds) in floorBounds)
-            {
-                AddFootColliders(floor, bounds, groundMask, peopleMask);
-            }
+            if (hasBounds) AddFootColliders(group, bandBounds, groundMask, peopleMask);
 
             var upperObject = new GameObject("TowerHull_Upper") { layer = group.gameObject.layer };
             upperObject.transform.SetParent(group, false);
@@ -254,13 +292,13 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 階 floor の範囲 bounds に、足場の箱と、地面と接する球を付ける。球は箱の8つの角の内側に、箱の面に接するよう埋める。
+        /// 帯全体の範囲 bounds に、足場の箱と、地面と接する球を付ける。球は箱の8つの角の内側に、箱の面に接するよう埋める。
         /// どの面を下にして倒れても、その面の4つの球が地面に乗り、箱の面が地面の高さに揃う。
         /// </summary>
-        private void AddFootColliders(Transform floor, Bounds bounds, int groundMask, int peopleMask)
+        private void AddFootColliders(Transform group, Bounds bounds, int groundMask, int peopleMask)
         {
-            var footObject = new GameObject("TowerFoot") { layer = floor.gameObject.layer };
-            footObject.transform.SetParent(floor, false);
+            var footObject = new GameObject("TowerFoot") { layer = group.gameObject.layer };
+            footObject.transform.SetParent(group, false);
 
             var box = footObject.AddComponent<BoxCollider>();
             box.center = bounds.center;
