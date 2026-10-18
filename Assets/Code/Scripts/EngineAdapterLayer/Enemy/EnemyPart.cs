@@ -23,6 +23,18 @@ namespace Kizami.EngineAdapter
         [Tooltip("部位が壊れたときの処理。空なら、壊れても体に何も起きない")]
         private EnemyPartRole _role;
 
+        [SerializeField]
+        [Tooltip("遠くの敵（体を貸していない敵）を描くときの待機姿勢を持っているか。持っていなければ、体のプレハブの姿勢で描く")]
+        private bool _hasIdlePose;
+
+        [SerializeField]
+        [Tooltip("待機姿勢の、体の根から見た部位の位置。エディタの焼き込みで書く")]
+        private Vector3 _idlePosition;
+
+        [SerializeField]
+        [Tooltip("待機姿勢の、体の根から見た部位の回転。エディタの焼き込みで書く")]
+        private Quaternion _idleRotation = Quaternion.identity;
+
         /// <summary> 部位の切断対象 </summary>
         public CuttableObject Cuttable => _cuttable;
 
@@ -31,5 +43,14 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 部位の役割。Inspector で空にした部位では null </summary>
         public EnemyPartRole Role => _role;
+
+        /// <summary> 遠くの敵を描くときの待機姿勢を持っているか </summary>
+        public bool HasIdlePose => _hasIdlePose;
+
+        /// <summary> 待機姿勢の、体の根から見た部位の位置 </summary>
+        public Vector3 IdlePosition => _idlePosition;
+
+        /// <summary> 待機姿勢の、体の根から見た部位の回転 </summary>
+        public Quaternion IdleRotation => _idleRotation;
     }
 }

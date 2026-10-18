@@ -21,18 +21,17 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: FinisherBeam
-  m_Shader: {fileID: 4800000, guid: 650dd9526735d5b46b79224bc6e94025, type: 3}
+  m_Shader: {fileID: 4800000, guid: e5f2a16c242482c458bd6c18c107184c, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords:
+  m_ValidKeywords: []
+  m_InvalidKeywords:
   - _SURFACE_TYPE_TRANSPARENT
-  m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: 3000
-  stringTagMap:
-    RenderType: Transparent
+  stringTagMap: {}
   disabledShaderPasses:
   - MOTIONVECTORS
   - DepthOnly
@@ -54,21 +53,34 @@ Material:
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 0
     - _AlphaToMask: 0
+    - _BeamLength: 1489.6
     - _Blend: 0
     - _BlendOp: 0
+    - _CoreAmount: 0.6
+    - _CoreSharpness: 3
     - _Cull: 2
     - _Cutoff: 0.5
     - _DstBlend: 10
     - _DstBlendAlpha: 10
+    - _EdgeSoftness: 0.35
+    - _Emission: 10
+    - _NoiseLevel: 0.295
     - _QueueOffset: 0
     - _SampleGI: 0
+    - _ScrollSpeed: 0.3
+    - _SoftDistance: 3
     - _SrcBlend: 5
     - _SrcBlendAlpha: 1
     - _Surface: 1
     - _XRMotionVectorsPass: 1
-    - _ZWrite: 0
+    - _ZWrite: 1
     m_Colors:
     - _BaseColor: {r: 1, g: 0.35, b: 0.85, a: 0.6}
     - _Color: {r: 1, g: 0.34999996, b: 0.85, a: 0.6}
+    - _Color1: {r: 1, g: 0, b: 0, a: 1}
+    - _Color2: {r: 0, g: 1, b: 0.0422513, a: 1}
+    - _Color3: {r: 0, g: 1, b: 0.9911962, a: 1}
+    - _Offset: {r: 0, g: 0, b: 0, a: 0}
+    - _Tilling: {r: 1, g: -6.9, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

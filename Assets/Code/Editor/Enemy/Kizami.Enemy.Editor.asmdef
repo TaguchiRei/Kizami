@@ -1,0 +1,19 @@
+{
+    "name": "Kizami.Enemy.Editor",
+    "rootNamespace": "Kizami.EditorTools",
+    "references": [
+        "Kizami.EngineAdapter.Runtime",
+        "UsefulToolkit.MeshCut.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
