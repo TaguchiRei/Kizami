@@ -14,6 +14,9 @@ namespace Kizami.Application
     /// </summary>
     public sealed class GameProgressService
     {
+        /// <summary> 初めから装備しているスキルの数。装備できるスキルの先頭から数える </summary>
+        private const int INITIAL_EQUIPPED_COUNT = 2;
+
         private readonly GameProgressState _state = new(SkillService.SLOT_COUNT);
 
         private StageData[] _stages = Array.Empty<StageData>();
@@ -31,7 +34,7 @@ namespace Kizami.Application
 
         // TODO: スキルの購入を作るときに、装備できるスキルを購入済みのものに絞る
         /// <summary>
-        /// GameProgressState を AppBoard へ登録し、装備できるスキルの先頭から順に、装備枠へ装備しておく。
+        /// GameProgressState を AppBoard へ登録し、装備できるスキルの先頭から INITIAL_EQUIPPED_COUNT 個を、順に装備枠へ装備しておく。
         /// </summary>
         /// <param name="blackBoard">GameProgressState の登録先</param>
         /// <param name="stages">選べるステージ。番号はこの並びの位置</param>
@@ -43,7 +46,7 @@ namespace Kizami.Application
             _skills = skills ?? Array.Empty<SkillData>();
             _firstClearReward = firstClearReward;
 
-            for (var slot = 0; slot < Math.Min(_state.SlotCount, _skills.Length); slot++)
+            for (var slot = 0; slot < Math.Min(Math.Min(_state.SlotCount, _skills.Length), INITIAL_EQUIPPED_COUNT); slot++)
             {
                 _state.SetEquippedSkillIndex(slot, slot);
             }

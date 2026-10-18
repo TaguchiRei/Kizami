@@ -29,7 +29,7 @@ namespace Kizami.Initialization
         private StageData[] _stages;
 
         [SerializeField]
-        [Tooltip("アウトゲームで装備できるスキル。スキルの番号はこの並びの位置。初めは先頭から順に装備枠へ装備する。")]
+        [Tooltip("アウトゲームで装備できるスキル。スキルの番号はこの並びの位置。初めは先頭の 2 つを順に装備枠へ装備する。")]
         private SkillData[] _skills;
 
         [SerializeField, Min(0)]
