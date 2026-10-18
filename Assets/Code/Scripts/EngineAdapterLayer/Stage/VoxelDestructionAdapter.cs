@@ -20,6 +20,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 削る範囲から一度に集めるコライダーの最大数 </summary>
         private const int MAX_HIT_COUNT = 64;
 
+        /// <summary> 破壊力を最大にしたときに強さへ足す値。硬い素材の融点 2 と普通の素材の融点 1 の差 </summary>
+        private const float MAX_POWER_BONUS = 1f;
+
         private readonly Collider[] _hitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly Collider[] _armorHitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly Collider[] _glassHitBuffer = new Collider[MAX_HIT_COUNT];
@@ -61,13 +64,24 @@ namespace Kizami.EngineAdapter
         /// <summary> 1回の攻撃で壊したボクセルの体積（m3）を受け取る処理 </summary>
         private Action<float> _onCarved;
 
+        /// <summary> 強さに足す値。破壊力を最大にしていなければ 0 </summary>
+        private float _powerBonus;
+
         /// <summary>
         /// 普通の強度の素材を radius で削る強さのとき、融点0の素材まで届く半径。
         /// 強さ P は 普通の融点 + 減衰率 × radius で、届く半径は P ÷ 減衰率。
         /// </summary>
-        private static float ReachRadius(float radius, float falloff)
+        private float ReachRadius(float radius, float falloff)
         {
-            return radius + VoxelThermalSettings.NORMAL_MELTING_POINT / falloff;
+            return radius + (VoxelThermalSettings.NORMAL_MELTING_POINT + _powerBonus) / falloff;
+        }
+
+        /// <summary>
+        /// 破壊力を最大にするかを設定する。最大にすると、強さに硬い素材と普通の素材の融点の差を足し、硬い素材も普通の素材と同じ半径まで削れる。
+        /// </summary>
+        public void SetMaxPower(bool isMax)
+        {
+            _powerBonus = isMax ? MAX_POWER_BONUS : 0f;
         }
 
         /// <summary>

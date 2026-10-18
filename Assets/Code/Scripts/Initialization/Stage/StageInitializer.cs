@@ -91,6 +91,7 @@ namespace Kizami.Initialization
                 kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)));
             _enemySpawnAdapter.SetOnDefeated(OnDefeated);
             ConnectBrilliantSkillSources();
+            if (_voxelDestructionAdapter != null) _voxelDestructionAdapter.SetMaxPower(stage.IsMaxDestructionPower);
             PlacePlayerAtStartPoint();
 
             // 台本はステージシーンにあり、置いていないステージでは案内の文とログだけを出す
