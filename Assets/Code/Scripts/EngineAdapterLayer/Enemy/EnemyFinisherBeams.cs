@@ -13,7 +13,7 @@ namespace Kizami.EngineAdapter
     /// 照準（プレイヤーの頭の少し前の位置を追う）、予兆（向きを固定）、照射の順に進める。照準と予兆の間は射線に沿って危険範囲の帯を出し、照射の間は射線にいるプレイヤーへ間隔ごとにダメージを与える。
     /// </summary>
     /// <remarks>
-    /// 撃つ所と傾ける中心は、フィニッシャーの体の根から一定の高さの点（pivot）。ビームは pivot から頭の位置の向きへ伸びる。照射中は、範囲内のボクセルを手前から順に、素材によらず同じ速さと半径で溶かして進み、ボクセルでない物（装甲、地形）で止まる。
+    /// 撃つ所と傾ける中心は、フィニッシャーの体の根から一定の高さの点（pivot）。ビームは pivot から頭の位置の向きへ伸びる。照射中は、範囲内のボクセルを手前から順に、素材によらず同じ速さと半径で溶かして進み、ボクセルでない物（装甲、地形）で止まる。溶かして進んだ所までの範囲にあるガラスの板は割る。
     /// 頭の位置は _aimDelay 秒前の位置を狙う。照準の間だけ狙い直し、予兆と照射では最後の向きを使う。
     /// </remarks>
     public sealed class EnemyFinisherBeams : MonoBehaviour
@@ -135,6 +135,10 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("ビームを止める物のレイヤー。プレイヤー自身のレイヤーは外す")]
         private LayerMask _blockLayers;
+
+        [SerializeField]
+        [Tooltip("照射中に割るガラスの板のレイヤー。ビームの範囲（穴の半径）に入った板を割る")]
+        private LayerMask _glassLayers;
 
         private CapsuleCollider _targetCapsule;
         private Action<int> _applyDamage;
@@ -396,6 +400,7 @@ namespace Kizami.EngineAdapter
         /// _meltInterval ごとに、溶かす先端を進める。先端から溶ける速さ × 間隔の分だけ先までの、穴の半径のカプセルにボクセルが重なれば、重なったピースを溶かして先端をその分進める。
         /// 何も重ならなければ、先端から同じ半径の球を前へ飛ばし、最初に触れたボクセルの位置まで先端を一気に進める。触れなければ blockDistance まで進める。
         /// 先端は blockDistance より先へ進めない。溶かす範囲は素材によらず同じ半径にする。
+        /// 進めたあと、pivot から先端までの範囲に入ったガラスの板を割る。
         /// </summary>
         /// <param name="pivot">ビームを撃つ所（ワールド座標）</param>
         /// <param name="blockDistance">ボクセルでない物までの距離（m）</param>
@@ -405,6 +410,15 @@ namespace Kizami.EngineAdapter
             if (_meltTimer > 0f) return;
 
             _meltTimer += _meltInterval;
+            AdvanceMeltFront(pivot, blockDistance);
+            ShatterGlass(pivot, Mathf.Min(_meltFrontDistance, blockDistance));
+        }
+
+        /// <summary>
+        /// 溶かす先端を 1 回分進める。進め方は Melt を参照する。
+        /// </summary>
+        private void AdvanceMeltFront(Vector3 pivot, float blockDistance)
+        {
             if (_meltFrontDistance >= blockDistance) return;
 
             var step = _meltSpeed * _meltInterval;
@@ -428,6 +442,21 @@ namespace Kizami.EngineAdapter
 
             _meltPieces.Clear();
             _meltFrontDistance = Mathf.Min(_meltFrontDistance + step, blockDistance);
+        }
+
+        /// <summary>
+        /// pivot から射線に沿って distance までの、穴の半径のカプセルに入ったガラスの板を、pivot を起点に割る。
+        /// </summary>
+        private void ShatterGlass(Vector3 pivot, float distance)
+        {
+            var end = pivot + _aimDirection * distance;
+            var count = Physics.OverlapCapsuleNonAlloc(pivot, end, _meltRadius, _overlapBuffer, _glassLayers,
+                QueryTriggerInteraction.Ignore);
+            for (var i = 0; i < count; i++)
+            {
+                var glass = _overlapBuffer[i].GetComponentInParent<GlassPane>();
+                if (glass != null) glass.Shatter(pivot);
+            }
         }
 
         /// <summary>

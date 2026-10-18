@@ -1594,6 +1594,9 @@ MonoBehaviour:
   _blockLayers:
     serializedVersion: 2
     m_Bits: 44545
+  _glassLayers:
+    serializedVersion: 2
+    m_Bits: 16384
 --- !u!114 &1539543161
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1765,6 +1768,9 @@ MonoBehaviour:
   _blockLayers:
     serializedVersion: 2
     m_Bits: 44545
+  _glassLayers:
+    serializedVersion: 2
+    m_Bits: 16384
 --- !u!1 &1579939515
 GameObject:
   m_ObjectHideFlags: 0
