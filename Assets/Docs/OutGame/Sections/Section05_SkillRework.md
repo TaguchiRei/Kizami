@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手（着手前にこの計画を見直す） |
+| 状態 | 作業計画まで済み（2026-10-18）。実装は未着手 |
 | 目安の時期 | 未定 |
 | 前提となる区間 | ―（インゲーム区間 6・10・17 の成果の上に作る） |
 | 全体計画 | [OutGameOverallPlan.md](../OutGameOverallPlan.md) |
@@ -31,7 +31,7 @@
 |---|---|---|---|
 | 5-1 | 刃術 3 種 | Application / External | 砕剣＝破壊タイプ、壊剣＝粉砕タイプ、覇剣＝範囲と速度。どれも 10 回振るまで。重ねがけで両立し、同じ刃術の再発動で回数を 10 に戻す |
 | 5-2 | 火術・崩爆 | Application / EngineAdapter | 前後左右に爆弾を 1 つずつ投げ、落ちた所で爆発させる（破壊タイプ） |
-| 5-3 | 体術・衝波、体術・攻走 | ― | インゲーム区間17の作業を、この区間で行う |
+| 5-3 | 体術・衝波、体術・攻走 | External / Application / EngineAdapter | インゲーム区間17のうち、削る形・突進・発動の共有を、この区間で行う。ボロノイ破砕と破壊の重心は区間17に残す（決定 1） |
 | 5-4 | 既存のスキルの整理 | External | 7 種に入らないスキルをアウトゲームの一覧から外す |
 
 ## 完了条件
@@ -39,22 +39,51 @@
 - 7 種のうち羽天轟号以外の 6 種を装備して発動でき、仕様どおりに効く
 - 刃術を 2 つ重ねると、両方の効果が同時にかかり、それぞれ 10 回で切れる
 
-## 詳細仕様で決めること
+## 詳細仕様で決めること（2026-10-18、ユーザーが案のとおりに決定）
 
-| # | 項目 | 案 |
+| # | 項目 | 決定 |
 |---|---|---|
-| 1 | 覇剣の倍率 | 範囲 ×1.5、攻撃間隔 ×0.5（今の範囲アップ・速さアップの値） |
-| 2 | 崩爆の飛距離・半径・強さ | 飛距離 5m、半径 2.5m |
-| 3 | 外すスキルのアセットとコード | 消すか、デバッグ用に残すか |
-| 4 | 区間17の初期装備 | 「頑拳 1 つ」をやめ、衝波と攻走を初期にする |
+| 1 | ボロノイ破砕と破壊の重心 | この区間では作らない。インゲーム区間17に残す。衝波・攻走は削る形だけを出す |
+| 2 | 覇剣の倍率 | 範囲 ×1.5、攻撃間隔 ×0.5（今の範囲アップ・速さアップの値） |
+| 3 | 崩爆の値 | 飛距離 5m、爆発の半径 2.5m（仮） |
+| 4 | 衝波・攻走の範囲、攻走の距離・時間・無敵 | 仮の値で作り、ローカルで調整する |
+| 5 | 発動の共有 | 間隔は通常攻撃の攻撃間隔（`PlayerParameterData.MeleeAttackInterval`）と同じ。後隙のキャンセルは作らない |
+| 6 | 外すスキル | 一覧（`GameSceneInitializer._skills`）から外すだけ。アセットと効果のコードはデバッグ用に残す |
+| 7 | 初期装備 | 衝波と攻走（区間17の「頑拳 1 つ」を置き換える） |
+| 8 | 攻走の向き | Notion のとおり入力方向（移動入力がなければ正面）。区間17の「正面へ」は区間の終わりに直す |
 
-## 既存コードの確認結果
+## 既存コードの確認結果（2026-10-18）
 
-着手する直前に書く。
+| 対象 | 今の状態 | 対応 |
+|---|---|---|
+| [PlayerEnhanceService](../../../Code/Scripts/Application/Player/PlayerEnhanceService.cs) | 回数で切れる強化、種類が違えば同時にかかる、同じ種類の再発動で数え直す、を持つ。倍率は 1 つだけ | 刃術の共通ルールはそのまま満たせる。覇剣用に攻撃間隔の倍率を足す |
+| [MeleeCutService](../../../Code/Scripts/Application/Player/MeleeCutService.cs) `OnAttack` | 1 回振るたびに強化の `TryUse` を呼ぶ。攻撃間隔は実時間で `_lastSwingTime` と比べる | 刃術の 10 回はこの数え方を使う。発動の共有もここに足す |
+| [SkillService](../../../Code/Scripts/Application/Player/SkillService.cs) | 1〜3 キーでチャージを消費し、効果の関数（`Action`）を呼ぶ。発動を止める条件はない | 効果の関数を足す。発動の共有を足す |
+| [SkillData](../../../Code/Scripts/ExternalLayer/Player/SkillData.cs) | `SkillEffect` は 8 種。`IsEnhancement` は `>= EnhanceDestroy` | 新しい効果は enum の末尾に足す（アセットの数値を変えない為）。強化型でないものを足すときは `IsEnhancement` を直す |
+| [VoxelDestructionAdapter](../../../Code/Scripts/EngineAdapterLayer/Stage/VoxelDestructionAdapter.cs) | `CarveExplosionAt`（179 行）、`CarveCapsuleAt`（220 行）がある | 崩爆・衝波・攻走の削りに使う |
+| [PlayerInitializer](../../../Code/Scripts/Initialization/Player/PlayerInitializer.cs) | `SkillService` に効果の関数を渡して生成する（95 行） | 新しい効果の関数をここで配線する |
+| `Assets/Level/Data/Player/Skill_*.asset` | 8 種のアセット | 新しいアセットはここに置く |
+
+## 作業計画（コミットの分け方）
+
+各コミットで止めて報告する。クラウドで実装したときは、コンパイルと実機の確認をローカルで行う。
+
+| # | 内容 | 変更 | 確かめ方 |
+|---|---|---|---|
+| 1 | 刃術 3 種 | `SkillEffect` の末尾に `EnhanceRangeSpeed`（覇剣）を足す。`SkillData` に攻撃間隔の倍率 `_enhanceIntervalScale` を足す。`PlayerEnhanceService` の `Enhancement` に攻撃間隔の倍率を持たせ、`IsActive(effect, out scale, out intervalScale)` を足す。`MeleeCutService.OnAttack` で、覇剣の攻撃間隔の倍率を攻撃間隔に、範囲の倍率を `rangeScale` に掛ける。アセット 3 つ：砕剣（`EnhanceDestroy`、消費 30）、壊剣（`EnhanceArmorBreak`、消費 25）、覇剣（`EnhanceRangeSpeed`、消費 40、範囲 1.5・間隔 0.5）。どれも回数で切れて 10 回 | 砕剣と壊剣を重ねて、両方の効果がかかり、それぞれ 10 回振ると切れる。効果中に同じ刃術を使うと 10 回に戻る。覇剣で刃が広がり、振る間隔が短くなる |
+| 2 | 火術・崩爆 | `SkillEffect` に `Bomb` を足す。`SkillData` に飛距離を足す（半径は `_radius`）。EngineAdapter に爆弾を投げる Adapter を 1 つ作る（前後左右へ Rigidbody の爆弾を投げ、何かに当たったら `CarveExplosionAt` を呼んで消える）。`SkillService` に爆弾の関数を足し、`PlayerInitializer` で配線する | 4 方向に飛び、落ちた所が半径 2.5m で削れる。敵は削られない |
+| 3 | 体術・衝波 | `SkillEffect` に `Sweep` を足す。`SkillData` に横幅と奥行きを足す。カメラの前方に、横向きのカプセル（`CarveCapsuleAt`）で削る | 正面の横長の範囲が削れる。消費 10 で連打できる |
+| 4 | 体術・攻走 | `SkillEffect` に `Rush` を足す。移動入力の向き（なければ正面）へ一定時間突進し、通った経路を `CarveCapsuleAt` で削る。突進は `PlayerMovementService` のダッシュを読んでから、流用できるか決める | 入力方向へ進み、通った所が削れる |
+| 5 | 発動の共有 | 最後に通常攻撃かスキルを出した時刻を、`MeleeCutService` と `SkillService` で共有する。どちらも、攻撃間隔が経つまで出せない。共有の持ち方（`MeleeCutService` に時刻を持たせて `SkillService` に渡す、など）は既存の配線に合わせる | スキルの直後に、通常攻撃もスキルも出ない |
+| 6 | 整理と初期装備 | `GameSceneInitializer._skills` を 6 種にする（羽天轟号は区間6で足す）。初期装備を衝波と攻走にする（`GameProgressService.Initialize` の初期の装備の決め方を読んでから直す） | アウトゲームの一覧が 6 種になり、衝波と攻走を装備して始まる |
+
+新しい型は、`SkillEffect` の値（`EnhanceRangeSpeed`・`Bomb`・`Sweep`・`Rush`）と、崩爆の爆弾の Adapter 1 つ（利用者は `SkillService`）だけにする。
 
 ## 実装結果
 
 区間を終えるときに書く。
 
 ## 見つけた問題（今回は扱わない）
+
+- インゲーム区間17の計画書は、攻走を「正面へ突進」、初期装備を「頑拳 1 つ」と書いている。Notion は「入力方向」「衝波と攻走が初期」。区間の終わりに区間17の計画書を直す
 
