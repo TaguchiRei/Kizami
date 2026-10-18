@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手（着手前にこの計画を見直す） |
+| 状態 | 実装中（コードはクラウドで先に書いた。確認はローカルでまとめて行う） |
 | 目安の時期 | 未定 |
 | 前提となる区間 | 12A, 9, 11 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -36,10 +36,44 @@
 
 - 直接戦闘を 2 回通し、総攻撃 → 停止 → 剣でコアを削ってクリアになる
 
+## 既存コードの確認結果と食い違い(2026-10-18)
+
+| 対象 | 状態 | 対応 |
+|---|---|---|
+| 遠距離アタッカーのビーム(確定 8) | 遠距離アタッカーは `EnemyShooter`(弾、ダメージ 5)で、ビームは吸収型の `EnemyFinisherBeams`(追跡ビーム 10 / 0.5 秒、特大ビーム 40)にある | 円形の空間の境界は、追跡ビームの 10 / 0.5 秒に合わせた(`BossArena._damage`) |
+| `EnemyFinisherBeams` | 真下の特大ビームと周回する分身の一連の攻撃で、円を作る用途には合わない | 部品の `EnemyBeam`(円柱)だけを使った |
+| 停止まで武装以外を壊せなくする仕組み | なかった。当たり判定を切ると、プレイヤーがボスの体をすり抜ける | `VoxelPiece.SetProtected` を足し、編集・切断・加熱の入口で何もせず返すようにした |
+| `StageClearAdapter` | シーンの `DestructionTarget` を自動で集める | ボスの根の `DestructionTarget` に重要パーツ `Core` を設定すれば、クリア判定は新規コードなしで使える |
+
+## 確定した詳細仕様(2026-10-18、ユーザーが提案どおりでよいとした)
+
+| # | 内容 |
+|---|---|
+| 1 | 直接戦闘 1 周:足踏み 3 回 → コアを出してレーザーとミサイルで攻撃 → 隙(周の始めより武装が 1 つ多く壊れるまで)。2 周したら総攻撃(10 秒)→ 停止 |
+| 2 | 円形の空間の境界のダメージは追跡ビームに合わせる(10 / 0.5 秒) |
+| 3 | 武装以外のパーツは、止まるまで `VoxelPiece.SetProtected` で保護する |
+| 4 | 戦闘の段階は `BossBattleState`(EnemyBoard)を正本にし、`BossBattleService` が進める |
+| 5 | 直接戦闘の間、ボスは動かさない(`BossBody.SetMoving(false)`)。円形の空間の中心はボスの位置 |
+
+## 実装の状況(2026-10-18、クラウドでの静的確認まで)
+
+| # | 作ったもの |
+|---|---|
+| 12B-1 | `BossBattleState` / `BossBattleService` / `BossBattleAdapter`。段階は Idle → Stomping → CoreExposed → Opening →(周の数だけ繰り返し)→ AllOutAttack → Stopped |
+| 12B-2 | `BossArena`。円周に見た目だけのユニット(仮)を浮かべ、真下へレーザーを撃つ。柵に触れるか外へ出るとダメージ |
+| 12B-3 | `BossMissiles.FireAll`、`BossShockwaves.ForceStomp` / `HasActiveRing`、`BossLaser.FireFor` / `Cancel` / `HoldCoreExposed` |
+| 12B-4 | `MeleeCutService` が `IBossBattleState.IsStopped` を読んで `DamageType.Destroy` を足す。`BossBattleAdapter` が停止で保護を外す |
+| 12B-5 | コードの追加なし。ボスの根に `DestructionTarget`(重要パーツ `Core`、0.7)を付ける |
+
+### ローカルで行うこと
+
+1. `Kizami.EngineAdapter.Runtime`、`Kizami.Application.Runtime`、`Kizami.Initialization.Runtime` をコンパイルする
+2. `BossEnemy.prefab` / `Stage_Boss` に配線する:ボスの根に `BossBattleAdapter` と `DestructionTarget`(重要パーツのパスは `Core` の `MachineEnemy_Boss_Body/...` の形、0.7)を付け、`BossInitializer` に `_arena` と `_battleAdapter` を割り当てる。`BossArena` は別の GameObject に置いてプレイヤーを `_target` に、レーザーのマテリアルを設定する(ユニットのプレハブは任意)。`BossDebugInitializer._battle` にも割り当てる
+3. 確認:Stage_Boss を開始すると足踏み 3 回 → コアが出てレーザーとミサイル → 隙(武装を削る)→ 2 周目 → 総攻撃 10 秒 → 停止、と進む / 止まるまで武装以外が削れない / 止まったあと、強化なしの通常攻撃でボクセルが割れる / `Core` を 0.7 削るとクリア / 円の柵に触れるとダメージ
+
 ## 詳細仕様で決めること
 
 | # | 項目 | 案 |
 |---|---|---|
-| 1 | 直接戦闘 1 回の区切り（親の計画書の「仮定」） | 着手前に確かめる |
-| 2 | 吸収型ユニットの数と、円形の空間の半径 | 仮の値で作ってプレイで決める |
-| 3 | 戦闘の段階を State にするか | HUD・`MeleeCutService`・ステージの流れが読むなら State にする |
+| 1 | 吸収型ユニットの数と、円形の空間の半径 | 仮の値(12 体、半径 30m)で作ってプレイで決める |
+| 2 | ユニットを吸収型の敵そのものにするか | 今は見た目だけの仮のプレハブ。敵の仕組みに乗せるかは、プレイで見て決める |
