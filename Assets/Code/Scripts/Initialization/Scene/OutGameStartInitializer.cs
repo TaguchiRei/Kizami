@@ -34,6 +34,7 @@ namespace Kizami.Initialization
             _menuAdapter.Initialize(BuildStageEntries(), BuildSkillEntries(), _progressService.UltimateSkillIndex,
                 GetEquippedSkillIndices(), GoToStage, EquipSkill, Quit,
                 _progressState.SelectedStageIndex != GameProgressState.NO_STAGE);
+            QueueUnlockNotices();
         }
 
         private static void Quit()
@@ -80,6 +81,21 @@ namespace Kizami.Initialization
             }
 
             return entries;
+        }
+
+        /// <summary>
+        /// 解放の演出をまだ出していないスキルを演出の順番待ちに加え、出したものとして記録する。
+        /// 記録は順番待ちに加えた時点で行う為、演出の途中で閉じても二度は出ない。
+        /// </summary>
+        private void QueueUnlockNotices()
+        {
+            var ultimateIndex = _progressService.UltimateSkillIndex;
+            foreach (var skill in _progressService.GetPendingUnlockSkills())
+            {
+                var isUltimate = ultimateIndex >= 0 && _progressService.Skills[ultimateIndex] == skill;
+                _menuAdapter.QueueUnlockNotice(skill.DisplayName, isUltimate);
+                _progressService.MarkUnlockShown(skill);
+            }
         }
 
         private int[] GetEquippedSkillIndices()

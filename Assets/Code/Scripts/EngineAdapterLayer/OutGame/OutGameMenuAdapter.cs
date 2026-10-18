@@ -80,6 +80,7 @@ namespace Kizami.EngineAdapter
         private const float STAGE_BUTTON_HEIGHT = 110f;
         private const float HOME_BUTTON_HEIGHT = 90f;
         private const int NO_SKILL = -1;
+        private const float TOAST_SECONDS = 3f;
         private const int DETAIL_FONT_SIZE = 28;
         private const float SLOT_X = 100f;
         private const float SLOT_WIDTH = 460f;
@@ -96,6 +97,7 @@ namespace Kizami.EngineAdapter
         private readonly List<Text> _slotLabels = new();
         private readonly List<Button> _skillButtons = new();
         private readonly List<Text> _skillLabels = new();
+        private readonly Queue<(string SkillName, bool IsUltimate)> _notices = new();
 
         [SerializeField]
         [Tooltip("背景の色")]
@@ -118,6 +120,11 @@ namespace Kizami.EngineAdapter
         private Action _quit;
         private Action<int, int> _equipSkill;
         private Text _title;
+        private GameObject _toast;
+        private Text _toastText;
+        private GameObject _overlay;
+        private Text _overlaySkillText;
+        private float _toastTimer;
         private Text _detailText;
         private IReadOnlyList<SkillEntry> _skills;
         private int[] _equippedSkillIndices;
@@ -165,11 +172,48 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 解放の演出を順番待ちに加える。通常のスキルは画面の端に小さな通知を数秒出し、専用の枠のスキルは全画面で見せて、ボタンを押すまで閉じない。
+        /// </summary>
+        /// <param name="skillName">解放されたスキルの名前</param>
+        /// <param name="isUltimate">専用の枠のスキルか</param>
+        public void QueueUnlockNotice(string skillName, bool isUltimate)
+        {
+            _notices.Enqueue((skillName, isUltimate));
+        }
+
+        /// <summary>
         /// ボタンを押せるかを切り替える。ステージへ遷移している間は押せなくする。
         /// </summary>
         public void SetInteractable(bool isInteractable)
         {
             if (_canvasGroup != null) _canvasGroup.interactable = isInteractable;
+        }
+
+        private void Update()
+        {
+            if (!Initialized) return;
+
+            if (_toast.activeSelf)
+            {
+                _toastTimer -= Time.unscaledDeltaTime;
+                if (_toastTimer <= 0f) _toast.SetActive(false);
+                return;
+            }
+
+            if (_overlay.activeSelf || _notices.Count == 0) return;
+
+            var notice = _notices.Dequeue();
+            if (notice.IsUltimate)
+            {
+                _overlaySkillText.text = notice.SkillName;
+                _overlay.SetActive(true);
+            }
+            else
+            {
+                _toastText.text = $"Skill unlocked: {notice.SkillName}";
+                _toastTimer = TOAST_SECONDS;
+                _toast.SetActive(true);
+            }
         }
 
         private static string GetSlotText(int slot, string skillName)
@@ -216,7 +260,42 @@ namespace Kizami.EngineAdapter
             BuildStageSelect(canvas, stages);
             BuildSkillEquip(canvas, ultimateSkillIndex);
 
+            BuildNotices(canvas);
             UiBuilder.EnsureEventSystem(transform);
+        }
+
+        /// <summary>
+        /// 解放の演出の部品を、ほかの画面より手前に組み立てて非表示にしておく。
+        /// </summary>
+        private void BuildNotices(Transform canvas)
+        {
+            var toast = UiBuilder.CreateImage(canvas, "UnlockToast", _selectedColor);
+            UiBuilder.SetAnchors(toast.rectTransform, new Vector2(0.62f, 0.9f), new Vector2(0.98f, 0.98f));
+            _toast = toast.gameObject;
+            _toastText = UiBuilder.CreateText(toast.transform, "Label", DETAIL_FONT_SIZE);
+            UiBuilder.SetAnchors(_toastText.rectTransform, Vector2.zero, Vector2.one);
+            _toast.SetActive(false);
+
+            var overlay = UiBuilder.CreateImage(canvas, "UltimateUnlockOverlay", new Color(0f, 0f, 0f, 0.9f));
+            overlay.raycastTarget = true;
+            UiBuilder.SetAnchors(overlay.rectTransform, Vector2.zero, Vector2.one);
+            _overlay = overlay.gameObject;
+
+            var heading = UiBuilder.CreateText(overlay.transform, "Heading", BUTTON_FONT_SIZE);
+            heading.text = "ULTIMATE SKILL UNLOCKED";
+            heading.color = _ultimateColor + new Color(0.3f, 0.3f, 0.3f, 0f);
+            UiBuilder.SetAnchors(heading.rectTransform, new Vector2(0f, 0.6f), new Vector2(1f, 0.7f));
+
+            _overlaySkillText = UiBuilder.CreateText(overlay.transform, "SkillName", TITLE_FONT_SIZE);
+            UiBuilder.SetAnchors(_overlaySkillText.rectTransform, new Vector2(0f, 0.42f), new Vector2(1f, 0.58f));
+
+            var okButton = UiBuilder.CreateButton(overlay.transform, "OkButton", "OK", BUTTON_FONT_SIZE, _ultimateColor);
+            var okRect = (RectTransform)okButton.transform;
+            okRect.anchorMin = okRect.anchorMax = new Vector2(0.5f, 0.28f);
+            okRect.sizeDelta = new Vector2(320f, SLOT_HEIGHT);
+            okRect.anchoredPosition = Vector2.zero;
+            okButton.onClick.AddListener(() => _overlay.SetActive(false));
+            _overlay.SetActive(false);
         }
 
         private void BuildHome(Transform canvas)
