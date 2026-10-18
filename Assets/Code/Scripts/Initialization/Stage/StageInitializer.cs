@@ -115,7 +115,7 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// ステージシーンに開始位置の目印があれば、プレイヤーをその位置へ置く。置いていないステージでは動かさない。
+        /// ステージシーンに開始位置の目印があれば、プレイヤーをその位置へ置き、視点を目印の向きにする。置いていないステージでは動かさない。
         /// </summary>
         private void PlacePlayerAtStartPoint()
         {
@@ -130,6 +130,9 @@ namespace Kizami.Initialization
             }
 
             movementAdapter.PlaceAt(startPoint.transform.position);
+
+            var cameraAdapter = FindFirstObjectByType<PlayerCameraAdapterBase>();
+            if (cameraAdapter != null) cameraAdapter.FaceYaw(startPoint.transform.eulerAngles.y);
         }
 
         /// <summary>
@@ -155,7 +158,7 @@ namespace Kizami.Initialization
         {
             _flowService.AddDefeats(notice.Count);
             _guideService.AddDefeats(notice.Count);
-            if (!_isResolvingWordImpact) _brilliantSkillService.OnDefeated(notice);
+            if (!_isResolvingWordImpact && notice.Cause != EnemyDefeatCause.Boss) _brilliantSkillService.OnDefeated(notice);
         }
 
         /// <summary>

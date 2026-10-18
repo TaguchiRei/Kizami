@@ -6,11 +6,12 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// ボスとの直接戦闘で、プレイヤーを閉じ込める円形の空間を作る。ボスとは別の GameObject に置き、拡大率は 1 にする。
-    /// 円周に等間隔でユニットを上空に浮かべ、各ユニットから真下の地面へレーザーを撃って、円周に光の柵を作る。
+    /// 円周に等間隔でユニットを上空に浮かべ、各ユニットから真下の地面へフィニッシャーと同じ見た目のビームを撃って、円周に光の柵を作る。
     /// プレイヤーが柵に触れるか外へ出ると、決めた間隔ごとにダメージを与える。
     /// </summary>
     /// <remarks>
-    /// ユニットは見た目だけの仮のプレハブで、吸収型の敵そのものではない。
+    /// ユニットはフィニッシャーのモデルを見た目だけ置いたもので、吸収型の敵そのものではない。
+    /// ビームは EnemyFinisherBeams と同じく内側と外側のマテリアルを重ねて描き、模様は照射中の一定の値で止めておく。
     /// 柵の当たりは、プレイヤーの水平の位置が円の中心から「半径 − レーザーの半径」以上離れているかで決め、レーザーの高さは見ない。
     /// </remarks>
     public sealed class BossArena : MonoBehaviour
@@ -24,8 +25,20 @@ namespace Kizami.EngineAdapter
         private GameObject _unitPrefab;
 
         [SerializeField]
-        [Tooltip("レーザーの円柱のマテリアル")]
+        [Tooltip("ビームの外側のマテリアル。フィニッシャーのビームと同じものにする")]
         private Material _beamMaterial;
+
+        [SerializeField]
+        [Tooltip("ビームの内側のマテリアル。未設定なら外側だけで描く")]
+        private Material _beamInnerMaterial;
+
+        [SerializeField]
+        [Tooltip("ビームのノイズのしきい値。大きいほど濃く映る")]
+        private float _noiseLevel = 0.8f;
+
+        [SerializeField]
+        [Tooltip("ビームの射線に沿った模様の細かさ。符号で流れる向きが変わる")]
+        private float _tillingY = -4f;
 
         [SerializeField]
         [Tooltip("レーザーの止まる地面を探すレイヤー")]
@@ -73,6 +86,14 @@ namespace Kizami.EngineAdapter
         public bool IsOpen { get; private set; }
 
         /// <summary>
+        /// 閉じ込める相手を target にする。ボスとプレイヤーが別のシーンにあるときに、初期化で渡す。
+        /// </summary>
+        public void SetTarget(Transform target)
+        {
+            _target = target;
+        }
+
+        /// <summary>
         /// ダメージの関数を受け取る。
         /// </summary>
         /// <param name="applyDamage">プレイヤーにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
@@ -103,6 +124,7 @@ namespace Kizami.EngineAdapter
                     _units[i].gameObject.SetActive(true);
                 }
 
+                _beams[i].SetPattern(_noiseLevel, _tillingY);
                 _beams[i].ShowBeam(emitter, ground, _beamRadius);
             }
 
@@ -136,7 +158,9 @@ namespace Kizami.EngineAdapter
 
             for (var i = 0; i < _unitCount; i++)
             {
-                _beams[i] = new EnemyBeam(transform, _beamMaterial, null);
+                _beams[i] = _beamInnerMaterial != null
+                    ? new EnemyBeam(transform, _beamInnerMaterial, _beamMaterial)
+                    : new EnemyBeam(transform, _beamMaterial);
 
                 if (_unitPrefab == null) continue;
 

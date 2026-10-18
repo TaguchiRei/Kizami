@@ -139,10 +139,10 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 同時に撃つ敵の数を変える。弾の器の数を超える値は、器の数にする。
         /// </summary>
-        /// <param name="maxShooters">同時に撃つ敵の数。1 以上</param>
+        /// <param name="maxShooters">同時に撃つ敵の数。0 なら撃たない</param>
         public void SetMaxShooters(int maxShooters)
         {
-            _maxShooters = Mathf.Clamp(maxShooters, 1, _maxBullets);
+            _maxShooters = Mathf.Clamp(maxShooters, 0, _maxBullets);
         }
 
         /// <summary>

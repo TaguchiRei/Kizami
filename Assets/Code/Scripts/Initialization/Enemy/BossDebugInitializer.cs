@@ -10,7 +10,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// ボスの武装の状態の画面表示と、武装を順番に使わせる操作（6：タレット、7：レーザー、8：ミサイル、9：アウトリガー。それぞれの武装の攻撃のコンポーネントがあれば撃たせる）を行うデバッグ用の Initializer。ボスを置いたシーンへ置く。
+    /// ボスの武装の状態の画面表示と、武装を順番に使わせる操作（6：タレット、7：レーザー、8：ミサイル、9：アウトリガー。それぞれの武装の攻撃のコンポーネントがあれば撃たせる）を行うデバッグ用の Initializer。インゲームのシーンへ置き、ボスはステージシーンから探す。
     /// 操作はデバッグ専用の為、入力マップに Action を足さず Keyboard.current を直接読む。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動く。
     /// </summary>
@@ -19,34 +19,29 @@ namespace Kizami.Initialization
         private readonly StringBuilder _weaponText = new();
         private readonly StringBuilder _battleText = new();
 
-        [SerializeField]
-        [Tooltip("ボスの武装")]
+        /// <summary> ボスの武装。ボスのいないステージでは null </summary>
         private BossWeapons _weapons;
 
-        [SerializeField]
-        [Tooltip("ボスの直接戦闘。段階を画面に出す")]
+        /// <summary> ボスの直接戦闘。段階を画面に出す </summary>
         private BossBattleAdapter _battle;
 
-        [SerializeField]
-        [Tooltip("ボスの上部タレット。6 キーで撃たせる")]
+        /// <summary> ボスの上部タレット。6 キーで撃たせる </summary>
         private BossTurret _turret;
 
-        [SerializeField]
-        [Tooltip("ボスの下部レーザー。7 キーで撃たせる")]
+        /// <summary> ボスの下部レーザー。7 キーで撃たせる </summary>
         private BossLaser _laser;
 
-        [SerializeField]
-        [Tooltip("ボスの脚のミサイル。8 キーで撃たせる")]
+        /// <summary> ボスの脚のミサイル。8 キーで撃たせる </summary>
         private BossMissiles _missiles;
 
-        [SerializeField]
-        [Tooltip("ボスのアウトリガーの衝撃波。9 キーで足踏みさせる")]
+        /// <summary> ボスのアウトリガーの衝撃波。9 キーで足踏みさせる </summary>
         private BossShockwaves _shockwaves;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (this.IsAssigned(_weapons, nameof(BossWeapons)))
+            FindBoss();
+            if (_weapons != null)
             {
                 DebugGUI.ObserveVariable("Boss Weapons", GetWeaponText, this);
             }
@@ -60,6 +55,22 @@ namespace Kizami.Initialization
         }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
+        /// <summary>
+        /// ステージシーンに置いたボスから、武装と攻撃のコンポーネントを集める。
+        /// </summary>
+        private void FindBoss()
+        {
+            _weapons = FindFirstObjectByType<BossWeapons>();
+            if (_weapons == null) return;
+
+            var boss = _weapons.gameObject;
+            _battle = boss.GetComponentInChildren<BossBattleAdapter>(true);
+            _turret = boss.GetComponentInChildren<BossTurret>(true);
+            _laser = boss.GetComponentInChildren<BossLaser>(true);
+            _missiles = boss.GetComponentInChildren<BossMissiles>(true);
+            _shockwaves = boss.GetComponentInChildren<BossShockwaves>(true);
+        }
+
         private void Update()
         {
             if (_weapons == null) return;

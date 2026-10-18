@@ -15,9 +15,10 @@ MonoBehaviour:
   _hasMainScene: 1
   _groupData:
     <HasMainScene>k__BackingField: 1
-    _sceneIds: 0900000002000000
-  _mainSceneName: Stage_Boss
+    _sceneIds: 080000000900000002000000
+  _mainSceneName: TownMap
   _additionalSceneNames:
+  - Stage_Boss
   - InGame
-  _mainScene: 9
-  _additionalScenes: 02000000
+  _mainScene: 8
+  _additionalScenes: 0900000002000000

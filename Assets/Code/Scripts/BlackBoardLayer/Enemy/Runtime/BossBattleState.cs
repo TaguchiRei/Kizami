@@ -66,17 +66,17 @@ namespace Kizami.BlackBoard
     }
 
     /// <summary>
-    /// ボス戦の段階。1 周は Crystal → Arriving → Stomping → CoreExposed → Opening。Stopped からは変わらない。
+    /// ボス戦の段階。1 周は Crystal → Arriving → Stomping → CoreExposed → Opening で、1 周目だけ Arriving から始める。Stopped からは変わらない。
     /// </summary>
     public enum BossBattlePhase
     {
         /// <summary> 始まる前 </summary>
         Idle,
 
-        /// <summary> 水晶を置き、遠くから攻撃している。水晶をすべて壊すまで続く </summary>
+        /// <summary> 遠くへ飛び去って水晶を置き、遠くから攻撃している。水晶をすべて壊すまで続く </summary>
         Crystal,
 
-        /// <summary> 水晶のあった所へ飛んできている </summary>
+        /// <summary> 飛んできている。1 周目はプレイヤーの正面、2 周目からは水晶のあった所へ </summary>
         Arriving,
 
         /// <summary> 足踏みしている </summary>

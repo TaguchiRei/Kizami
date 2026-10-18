@@ -14,3 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.StageData
   _displayName: Boss
   _sceneGroup: {fileID: 11400000, guid: f1fba560df13b33499a3985be4cc90d3, type: 2}
+  _clearScore: 1000
+  _initialCharge: 100
+  _fixedSkills: []
+  _targetGimmickIds:
+  - Core_Boss
+  _requiredTargetCount: 0
+  _maxAttackingAttackers: 0
+  _maxAttackingFinishers: 0
+  _isMaxDestructionPower: 0
+  _failConditions:
+  - rid: 8226038445078478950
+  references:
+    version: 2
+    RefIds:
+    - rid: 8226038445078478950
+      type: {class: PlayerDeathFailCondition, ns: Kizami.External, asm: Kizami.External.Runtime}
+      data: 

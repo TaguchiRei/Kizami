@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter
@@ -7,7 +8,8 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// ボスの脚のミサイルを扱う。BossWeapons と同じ GameObject に付ける。
     /// 撃つときに、プレイヤーのいる地点の真下の地面を狙いとして決め、ミサイルの武装の位置から放物線で飛ばす。
-    /// 着弾したとき、狙いを中心とする半径の中にプレイヤーがいればダメージを与える。飛んでいる間は、狙いに予兆の輪を出す。
+    /// 着弾したとき、狙いを中心とする半径の中にプレイヤーがいればダメージを与える。飛んでいる間は、狙いに予兆のデカールを出す。
+    /// 撃った所に煙を、着弾した所に爆発を出す。ミサイルの見た目に TrailRenderer があれば、撃つたびに軌跡を消してから飛ばす。
     /// </summary>
     /// <remarks>
     /// 撃った後にプレイヤーが動いても狙いは変えないので、予兆の輪から出れば避けられる。
@@ -16,8 +18,8 @@ namespace Kizami.EngineAdapter
     [RequireComponent(typeof(BossWeapons))]
     public sealed class BossMissiles : MonoBehaviour
     {
-        /// <summary> 予兆の輪の円を描く頂点の数 </summary>
-        private const int RING_SEGMENTS = 48;
+        /// <summary> 予兆のデカールを地面へ投影する奥行き（m）。段差のある地面にも映るよう厚めに取る </summary>
+        private const float WARNING_DEPTH = 6f;
 
         [SerializeField]
         [Tooltip("狙う相手（プレイヤー）")]
@@ -28,8 +30,24 @@ namespace Kizami.EngineAdapter
         private GameObject _missilePrefab;
 
         [SerializeField]
-        [Tooltip("予兆の輪のマテリアル")]
+        [Tooltip("予兆のデカールのマテリアル（URP の Decal シェーダー）")]
         private Material _warningMaterial;
+
+        [SerializeField]
+        [Tooltip("撃ったときに煙を出すパーティクル。ワールド空間でシミュレーションする。未設定なら出さない")]
+        private ParticleSystem _launchSmoke;
+
+        [SerializeField, Min(0)]
+        [Tooltip("撃つたびに出す煙の粒の数")]
+        private int _launchSmokeCount = 20;
+
+        [SerializeField]
+        [Tooltip("着弾したときに爆発を出すパーティクル。ワールド空間でシミュレーションする。未設定なら出さない")]
+        private ParticleSystem _impactBurst;
+
+        [SerializeField, Min(0)]
+        [Tooltip("着弾するたびに出す爆発の粒の数")]
+        private int _impactBurstCount = 30;
 
         [SerializeField]
         [Tooltip("狙いを決める地面のレイヤー")]
@@ -80,10 +98,19 @@ namespace Kizami.EngineAdapter
         private float[] _progress;
 
         private Transform[] _missiles;
-        private LineRenderer[] _warnings;
+        private TrailRenderer[] _trails;
+        private DecalProjector[] _warnings;
 
         /// <summary> 次に撃てるまでの時間（秒） </summary>
         private float _cooldownRemaining;
+
+        /// <summary>
+        /// 狙う相手を target にする。ボスとプレイヤーが別のシーンにあるときに、初期化で渡す。
+        /// </summary>
+        public void SetTarget(Transform target)
+        {
+            _target = target;
+        }
 
         /// <summary>
         /// ダメージの関数を受け取る。
@@ -140,7 +167,8 @@ namespace Kizami.EngineAdapter
             _aims = new Vector3[_capacity];
             _progress = new float[_capacity];
             _missiles = new Transform[_capacity];
-            _warnings = new LineRenderer[_capacity];
+            _trails = new TrailRenderer[_capacity];
+            _warnings = new DecalProjector[_capacity];
 
             if (_missilePrefab == null)
             {
@@ -154,16 +182,15 @@ namespace Kizami.EngineAdapter
                 if (_missilePrefab != null)
                 {
                     _missiles[i] = Instantiate(_missilePrefab, transform).transform;
+                    _trails[i] = _missiles[i].GetComponentInChildren<TrailRenderer>();
                     _missiles[i].gameObject.SetActive(false);
                 }
 
-                var warning = new GameObject($"MissileWarning{i}").AddComponent<LineRenderer>();
-                warning.transform.SetParent(transform, false);
-                warning.useWorldSpace = true;
-                warning.loop = true;
-                warning.positionCount = RING_SEGMENTS;
-                warning.widthMultiplier = 0.2f;
-                warning.sharedMaterial = _warningMaterial;
+                // ボスが動いても狙いに残るよう、デカールはボスの子にせずシーンに置く
+                var warning = new GameObject($"MissileWarning{i}").AddComponent<DecalProjector>();
+                warning.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+                warning.material = _warningMaterial;
+                warning.size = new Vector3(_radius * 2f, _radius * 2f, WARNING_DEPTH);
                 warning.enabled = false;
                 _warnings[i] = warning;
             }
@@ -223,10 +250,12 @@ namespace Kizami.EngineAdapter
                 {
                     _missiles[i].position = origin;
                     _missiles[i].gameObject.SetActive(true);
+                    if (_trails[i] != null) _trails[i].Clear();
                 }
 
-                DrawWarning(i);
+                _warnings[i].transform.position = aim + Vector3.up * (WARNING_DEPTH * 0.5f);
                 _warnings[i].enabled = true;
+                Emit(_launchSmoke, origin, _launchSmokeCount);
                 return true;
             }
 
@@ -241,6 +270,7 @@ namespace Kizami.EngineAdapter
             _progress[i] = -1f;
             if (_missiles[i] != null) _missiles[i].gameObject.SetActive(false);
             _warnings[i].enabled = false;
+            Emit(_impactBurst, _aims[i], _impactBurstCount);
 
             if (_target == null) return;
             if ((_target.position - _aims[i]).sqrMagnitude <= _radius * _radius) _applyDamage?.Invoke(_damage);
@@ -255,16 +285,23 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// ミサイル i の狙いに、ダメージの半径の円を描く。
+        /// パーティクル effect の粒を、位置 position に count 個出す。
         /// </summary>
-        private void DrawWarning(int i)
+        private static void Emit(ParticleSystem effect, Vector3 position, int count)
         {
-            var warning = _warnings[i];
-            var center = _aims[i] + Vector3.up * 0.1f;
-            for (var s = 0; s < RING_SEGMENTS; s++)
+            if (effect == null || count <= 0) return;
+
+            var emitParams = new ParticleSystem.EmitParams { position = position, applyShapeToPosition = true };
+            effect.Emit(emitParams, count);
+        }
+
+        private void OnDestroy()
+        {
+            if (_warnings == null) return;
+
+            foreach (var warning in _warnings)
             {
-                var angle = s * Mathf.PI * 2f / RING_SEGMENTS;
-                warning.SetPosition(s, center + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * _radius);
+                if (warning != null) Destroy(warning.gameObject);
             }
         }
     }

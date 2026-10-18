@@ -344,12 +344,12 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 同時に攻撃するアタッカーとフィニッシャーの数を変える。Initialize のあとに呼ぶ。0 以下の値は、それぞれの既定の値のままにする。
+        /// 同時に攻撃するアタッカーとフィニッシャーの数を変える。Initialize のあとに呼ぶ。負の値は、それぞれの既定の値のままにする。0 なら攻撃しない。
         /// </summary>
         public void SetMaxAttacking(int maxAttackers, int maxFinishers)
         {
-            if (maxAttackers > 0 && _shooter != null) _shooter.SetMaxShooters(maxAttackers);
-            if (maxFinishers > 0 && _finisherAttack != null) _finisherAttack.SetMaxAttacks(maxFinishers);
+            if (maxAttackers >= 0 && _shooter != null) _shooter.SetMaxShooters(maxAttackers);
+            if (maxFinishers >= 0 && _finisherAttack != null) _finisherAttack.SetMaxAttacks(maxFinishers);
         }
 
         /// <summary>
@@ -492,7 +492,18 @@ namespace Kizami.EngineAdapter
         /// <param name="radius">球の半径（m）</param>
         public void DefeatInRadius(Vector3 center, float radius)
         {
-            RemoveInRadius(center, radius, true);
+            DefeatInRadius(center, radius, EnemyDefeatCause.Impact);
+        }
+
+        /// <summary>
+        /// DefeatInRadius と同じく球の中の敵をすべて倒し、倒した原因を cause として通知する。
+        /// </summary>
+        /// <param name="center">球の中心（ワールド空間）</param>
+        /// <param name="radius">球の半径（m）</param>
+        /// <param name="cause">通知する倒した原因</param>
+        public void DefeatInRadius(Vector3 center, float radius, EnemyDefeatCause cause)
+        {
+            RemoveInRadius(center, radius, true, cause);
         }
 
         /// <summary>
@@ -503,7 +514,7 @@ namespace Kizami.EngineAdapter
         /// <returns>消した敵の数</returns>
         public int AbsorbInRadius(Vector3 center, float radius)
         {
-            return RemoveInRadius(center, radius, false);
+            return RemoveInRadius(center, radius, false, EnemyDefeatCause.Impact);
         }
 
         /// <summary>
@@ -528,10 +539,10 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 中心から半径の球の中にいる敵をすべて消す。敵の体の中心（足元から崩落の判定と同じ高さ）で距離を測る。
-        /// isDefeat なら、倒したものとしてエネルギーを出し、倒した数を通知する。
+        /// isDefeat なら、倒したものとしてエネルギーを出し、倒した数を原因 cause で通知する。
         /// </summary>
         /// <returns>消した敵の数</returns>
-        private int RemoveInRadius(Vector3 center, float radius, bool isDefeat)
+        private int RemoveInRadius(Vector3 center, float radius, bool isDefeat, EnemyDefeatCause cause)
         {
             if (!Initialized) return 0;
 
@@ -553,7 +564,7 @@ namespace Kizami.EngineAdapter
                 if (isDefeat) _emitEnergy?.Invoke(bodyCenter);
             }
 
-            if (isDefeat) NotifyDefeated(removedCount, EnemyDefeatCause.Impact, positionSum);
+            if (isDefeat) NotifyDefeated(removedCount, cause, positionSum);
             return removedCount;
         }
 

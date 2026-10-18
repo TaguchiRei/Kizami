@@ -338,142 +338,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &465010202
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 1037717660923078475, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: _target
-      value: 
-      objectReference: {fileID: 903436366}
-    - target: {fileID: 4251914562420348333, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: _target
-      value: 
-      objectReference: {fileID: 903436366}
-    - target: {fileID: 4775852747039605853, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: _target
-      value: 
-      objectReference: {fileID: 903436366}
-    - target: {fileID: 7579335390703154969, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: _target
-      value: 
-      objectReference: {fileID: 903436366}
-    - target: {fileID: 7619419835033456080, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: _target
-      value: 
-      objectReference: {fileID: 903436366}
-    - target: {fileID: 8277872514543332725, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8277872514543332725, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8277872514543332725, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8277872514543332725, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 8277872514543332725, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: -0.00000003774895
-      objectReference: {fileID: 0}
-    - target: {fileID: 8277872514543332725, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8277872514543332725, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8277872514543332725, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8277872514543332725, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8277872514543332725, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 8767164447151323087, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: m_Name
-      value: BossEnemy
-      objectReference: {fileID: 0}
-    - target: {fileID: 8767164447151323087, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
---- !u!114 &465010203 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4775852747039605853, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-  m_PrefabInstance: {fileID: 465010202}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2b9275dc0fbc46039c11d9d2c0872a19, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossShockwaves
---- !u!114 &465010204 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 1037717660923078475, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-  m_PrefabInstance: {fileID: 465010202}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: da1e37c2a5fc462da59eea34e577c6b0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossMissiles
---- !u!114 &465010205 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7619419835033456080, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-  m_PrefabInstance: {fileID: 465010202}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a9fc9def09864488aff718aa5e30d73d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossLaser
---- !u!114 &465010206 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7579335390703154969, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-  m_PrefabInstance: {fileID: 465010202}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b1db95596c1d4eddab63f0ccd22dc034, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossTurret
---- !u!114 &465010207 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7341799750420490255, guid: db22466c05ae97d42a03cc31b7a68ddd, type: 3}
-  m_PrefabInstance: {fileID: 465010202}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b21e81ae65054f67be1fd9df55e99ae9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossWeapons
 --- !u!1 &608286023
 GameObject:
   m_ObjectHideFlags: 0
@@ -1733,9 +1597,6 @@ MonoBehaviour:
   _blockLayers:
     serializedVersion: 2
     m_Bits: 44545
-  _glassLayers:
-    serializedVersion: 2
-    m_Bits: 16384
 --- !u!114 &1539543161
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1774,7 +1635,6 @@ MonoBehaviour:
   _effect: {fileID: 63719071}
   _beams: {fileID: 1539543163}
   _maxAttacks: 1
-  _range: 100
   _hoverHeight: 1
   _absorbDuration: 0.75
   _cooldown: 10
@@ -1901,7 +1761,6 @@ MonoBehaviour:
   _damageInterval: 0.1
   _meltSpeed: 10
   _meltRadius: 14
-  _meltFalloff: 0.1
   _meltInterval: 0.05
   _blockLayers:
     serializedVersion: 2
@@ -2443,12 +2302,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3da3687221c466d8ffad8b0f1bf5b29, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.BossDebugInitializer
-  _weapons: {fileID: 465010207}
-  _battle: {fileID: 0}
-  _turret: {fileID: 465010206}
-  _laser: {fileID: 465010205}
-  _missiles: {fileID: 465010204}
-  _shockwaves: {fileID: 465010203}
 --- !u!114 &1964918682
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2461,14 +2314,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 57fe2b3b426d422b8956c2c9fea01cad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.BossInitializer
-  _shockwaves: {fileID: 465010203}
-  _missiles: {fileID: 465010204}
-  _laser: {fileID: 465010205}
-  _turret: {fileID: 465010206}
-  _headLaser: {fileID: 0}
-  _arena: {fileID: 0}
-  _battleAdapter: {fileID: 0}
-  _enemySpawnAdapter: {fileID: 0}
+  _enemySpawnAdapter: {fileID: 1539543158}
   _stompsPerRound: 3
   _roundCount: 2
   _beginOnInitialize: 1
@@ -2506,5 +2352,4 @@ SceneRoots:
   - {fileID: 60550493}
   - {fileID: 1964745754}
   - {fileID: 219009643}
-  - {fileID: 465010202}
   - {fileID: 1964918683}

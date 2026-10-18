@@ -9,7 +9,8 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// ボス戦で、BossBattleState の段階に合わせてボスの武装を動かし、段階が進む出来事を報告する。ボスのボクセルのモデル（VoxelModelLoader）と同じ GameObject に付ける。
-    /// 水晶の段階は水晶を投げて置き、上部タレット・ミサイル・頭部のレーザーで遠くから攻撃する。水晶がすべて壊れたら、飛来の段階で水晶のあった所へ飛ぶ。
+    /// 1 周目の飛来は、プレイヤーの正面の着地点へ降りてくる。
+    /// 水晶の段階は、退く所へ飛び去ってから水晶を投げて置き、上部タレット・ミサイル・頭部のレーザーで遠くから攻撃する。水晶がすべて壊れたら、飛来の段階で水晶のあった所へ飛ぶ。
     /// 足踏みの段階はアウトリガーで足踏みし、コアを出す段階は下部レーザーとミサイルで攻撃する。隙の段階はコアを出したまま、武装が壊れるのを待つ。
     /// 総攻撃は、レーザーを撃ち続け、ミサイルを撃ち切り、衝撃波を消えるたびに出す。止まったあとは攻撃をやめる。
     /// </summary>
@@ -61,6 +62,18 @@ namespace Kizami.EngineAdapter
         [Tooltip("プレイヤーを閉じ込める円形の空間。なければ閉じ込めない")]
         private BossArena _arena;
 
+        [SerializeField]
+        [Tooltip("1 周目の飛来で降りる所。なければ今の位置に降りる")]
+        private Transform _openingLandingPoint;
+
+        [SerializeField]
+        [Tooltip("水晶の段階の初めに飛び去る先。なければその場で水晶を投げる")]
+        private Transform _retreatPoint;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("飛来で着いてから、足踏みを始めるまでの時間（秒）。脚が足を置き直す間は攻撃しない")]
+        private float _landingPause = 1f;
+
         [SerializeField, Min(0.1f)]
         [Tooltip("総攻撃を続ける時間（秒）")]
         private float _allOutDuration = 10f;
@@ -86,6 +99,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 武装以外のパーツを保護したか </summary>
         private bool _isProtected;
+
+        /// <summary> 今の水晶の段階で、水晶を投げたか </summary>
+        private bool _isCrystalThrown;
+
+        /// <summary> 飛来で着いてからの時間（秒） </summary>
+        private float _landedTime;
 
         /// <summary>
         /// ボス戦の State と、段階が進む出来事を報告する関数を受け取る。
@@ -159,7 +178,7 @@ namespace Kizami.EngineAdapter
                     TickCrystal();
                     break;
                 case BossBattlePhase.Arriving:
-                    if (_arrival == null || !_arrival.IsArriving) _reportArrived?.Invoke();
+                    TickArriving(Time.deltaTime);
                     break;
                 case BossBattlePhase.Stomping:
                     TickStomping();
@@ -187,11 +206,13 @@ namespace Kizami.EngineAdapter
                     _body.SetMoving(false);
                     _laser.HoldCoreExposed(false);
                     if (_arena != null) _arena.Close();
-                    if (_crystals != null) _crystals.Throw();
+                    _isCrystalThrown = false;
+                    if (_arrival != null && _retreatPoint != null) _arrival.Begin(_retreatPoint.position);
                     break;
                 case BossBattlePhase.Arriving:
                     if (_headLaser != null) _headLaser.Cancel();
-                    if (_arrival != null) _arrival.Begin(_crystals != null ? _crystals.PlacedCenter : transform.position);
+                    _landedTime = 0f;
+                    if (_arrival != null) _arrival.Begin(GetArrivalDestination());
                     break;
                 case BossBattlePhase.Stomping:
                     _body.SetMoving(false);
@@ -222,10 +243,19 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 上部タレット・ミサイル・頭部のレーザーを、それぞれのクールタイムごとに撃つ。水晶がすべて壊れたら報告する。
+        /// 飛び去り終えたら水晶を投げ、上部タレット・ミサイル・頭部のレーザーを、それぞれのクールタイムごとに撃つ。水晶がすべて壊れたら報告する。
         /// </summary>
         private void TickCrystal()
         {
+            if (_arrival != null && _arrival.IsArriving) return;
+
+            if (!_isCrystalThrown)
+            {
+                _isCrystalThrown = true;
+                if (_crystals != null) _crystals.Throw();
+                return;
+            }
+
             if (_crystals == null || _crystals.IsCleared)
             {
                 _reportCrystalsCleared?.Invoke();
@@ -235,6 +265,27 @@ namespace Kizami.EngineAdapter
             if (_turret != null) _turret.TryFire();
             _missiles.TryFire();
             if (_headLaser != null) _headLaser.TryFire();
+        }
+
+        /// <summary>
+        /// 着くまで待ち、着いてから決めた時間が過ぎたら報告する。飛んでいる間と着いた直後は攻撃しない。
+        /// </summary>
+        private void TickArriving(float deltaTime)
+        {
+            if (_arrival != null && _arrival.IsArriving) return;
+
+            _landedTime += deltaTime;
+            if (_landedTime >= _landingPause) _reportArrived?.Invoke();
+        }
+
+        /// <summary>
+        /// 飛来の着く所。1 周目はプレイヤーの正面の着地点、2 周目からは水晶を置いた場所の中心。
+        /// </summary>
+        private Vector3 GetArrivalDestination()
+        {
+            if (_state.Round <= 1) return _openingLandingPoint != null ? _openingLandingPoint.position : transform.position;
+
+            return _crystals != null ? _crystals.PlacedCenter : transform.position;
         }
 
         /// <summary>

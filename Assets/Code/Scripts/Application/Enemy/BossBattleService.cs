@@ -6,6 +6,7 @@ namespace Kizami.Application
     /// <summary>
     /// ボス戦の段階を進めるユースケース。
     /// 水晶の段階（水晶をすべて壊すまで）→ 飛来 → 足踏み 3 回 → コアを出して攻撃 → 隙（武装を 1 つ壊すまで）を 1 周とし、決めた周数を終えたら総攻撃、総攻撃を終えたら止まる。
+    /// 1 周目は水晶の段階を飛ばし、プレイヤーの正面への飛来から始める。
     /// 段階の進みは、EngineAdapterLayer（BossBattleAdapter）が起きたことを報告して進める。報告が今の段階に合わなければ捨てる。
     /// </summary>
     public sealed class BossBattleService
@@ -29,13 +30,15 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// ボス戦を始める。始まる前のときだけ、1 周目の水晶の段階から始める。
+        /// ボス戦を始める。始まる前のときだけ、1 周目の飛来から始める。
         /// </summary>
         public void Begin()
         {
             if (_state.Phase != BossBattlePhase.Idle) return;
 
-            StartRound(1);
+            _state.SetRound(1);
+            _state.SetStompCount(0);
+            _state.SetPhase(BossBattlePhase.Arriving);
         }
 
         /// <summary>

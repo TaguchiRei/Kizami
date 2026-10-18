@@ -216,14 +216,15 @@ namespace Kizami.EngineAdapter
         /// <param name="start">カプセルの一方の端（ワールド空間）</param>
         /// <param name="end">カプセルのもう一方の端（ワールド空間）</param>
         /// <param name="radius">カプセルの半径（m）。普通の強度の素材がちょうどこの半径で削れる</param>
-        public void CarveCapsuleAt(Vector3 start, Vector3 end, float radius)
+        /// <param name="notifiesCarved">削った体積を SetOnCarved の通知先へ伝えるか。ボスの演出のように、プレイヤーの手柄にしない破壊では false</param>
+        public void CarveCapsuleAt(Vector3 start, Vector3 end, float radius, bool notifiesCarved = true)
         {
             ShatterGlass(Physics.OverlapCapsuleNonAlloc(start, end, radius + _glassMargin, _glassHitBuffer, _targetLayers,
                 QueryTriggerInteraction.Ignore), start);
 
             var reach = ReachRadius(radius, _explosionFalloff);
             var hitCount = QueryCapsule(start, end, reach);
-            Carve(new CapsuleShape(start, end, reach), _explosionFalloff, hitCount);
+            Carve(new CapsuleShape(start, end, reach), _explosionFalloff, hitCount, notifiesCarved: notifiesCarved);
         }
 
         /// <summary>
@@ -299,7 +300,7 @@ namespace Kizami.EngineAdapter
         /// <param name="checkArmor">true なら、origin から見て装甲の奥にあるピースを削らない</param>
         /// <param name="origin">装甲の遮断を判定するレイの始点</param>
         private void Carve<TShape>(in TShape reach, float falloff, int hitCount, bool checkArmor = false,
-            Vector3 origin = default)
+            Vector3 origin = default, bool notifiesCarved = true)
             where TShape : struct, ITransformableVoxelShape<TShape>
         {
             if (hitCount == _hitBuffer.Length)
@@ -337,7 +338,7 @@ namespace Kizami.EngineAdapter
             }
 
             _pieces.Clear();
-            if (carvedVolume > 0f) _onCarved?.Invoke(carvedVolume);
+            if (notifiesCarved && carvedVolume > 0f) _onCarved?.Invoke(carvedVolume);
         }
 
         /// <summary>

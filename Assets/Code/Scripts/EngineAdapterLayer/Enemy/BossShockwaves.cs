@@ -95,6 +95,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 弾く相手を target にする。ボスとプレイヤーが別のシーンにあるときに、初期化で渡す。
+        /// </summary>
+        public void SetTarget(Transform target)
+        {
+            _target = target;
+        }
+
+        /// <summary>
         /// ダメージと弾く関数を受け取る。
         /// </summary>
         /// <param name="applyDamage">プレイヤーにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>

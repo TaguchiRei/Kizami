@@ -32,6 +32,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Level/Scenes/Town/TownMap.unity
     guid: 25203d0fd7050284789d0111fa6de060
+  - enabled: 1
+    path: Assets/Level/Scenes/Stage/Stage_Boss/Stage_Boss.unity
+    guid: e2e966d4635b96d428590c4c26dd8bdb
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: edfbb3cacf0b2034987abf17624ed979, type: 2}

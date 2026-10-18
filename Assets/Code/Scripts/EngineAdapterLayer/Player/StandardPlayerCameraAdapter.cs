@@ -48,6 +48,13 @@ namespace Kizami.EngineAdapter
             SetCursorLocked(false);
         }
 
+        public override void FaceYaw(float yaw)
+        {
+            if (_panTilt == null) return;
+
+            _panTilt.PanAxis.Value = _panTilt.PanAxis.ClampValue(yaw);
+        }
+
         protected override void OnLookInputChanged(Vector2 lookInput)
         {
             if (_panTilt == null) return;

@@ -205,10 +205,10 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 同時に攻撃するフィニッシャーの数を変える。今の攻撃は続け、新しく始める数だけを抑える。
         /// </summary>
-        /// <param name="maxAttacks">同時に攻撃する数。1 以上</param>
+        /// <param name="maxAttacks">同時に攻撃する数。0 なら攻撃しない</param>
         public void SetMaxAttacks(int maxAttacks)
         {
-            _maxAttacks = Mathf.Max(1, maxAttacks);
+            _maxAttacks = Mathf.Max(0, maxAttacks);
         }
 
         /// <summary>

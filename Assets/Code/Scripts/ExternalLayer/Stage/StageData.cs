@@ -40,13 +40,13 @@ namespace Kizami.External
         [Tooltip("クリアに必要な、破壊済みの対象の数。どの対象を壊してもよい。0 なら対象すべて")]
         private int _requiredTargetCount;
 
-        [SerializeField, Min(0)]
-        [Tooltip("同時に弾を撃つアタッカーの数の上限。0 なら敵の設定の既定の値")]
-        private int _maxAttackingAttackers;
+        [SerializeField, Min(-1)]
+        [Tooltip("同時に弾を撃つアタッカーの数の上限。-1 なら敵の設定の既定の値、0 なら撃たない")]
+        private int _maxAttackingAttackers = -1;
 
-        [SerializeField, Min(0)]
-        [Tooltip("同時に攻撃するフィニッシャーの数の上限。0 なら敵の設定の既定の値")]
-        private int _maxAttackingFinishers;
+        [SerializeField, Min(-1)]
+        [Tooltip("同時に攻撃するフィニッシャーの数の上限。-1 なら敵の設定の既定の値、0 なら攻撃しない")]
+        private int _maxAttackingFinishers = -1;
 
         [SerializeField]
         [Tooltip("すべてのスキルの破壊力を最大にする。どのスキルでも、強度が硬い素材を普通の素材と同じ範囲まで削れる")]
@@ -77,10 +77,10 @@ namespace Kizami.External
         /// <summary> クリアに必要な破壊済みの対象の数。0 なら対象すべて </summary>
         public int RequiredTargetCount => _requiredTargetCount;
 
-        /// <summary> 同時に弾を撃つアタッカーの数の上限。0 なら既定の値 </summary>
+        /// <summary> 同時に弾を撃つアタッカーの数の上限。負の値なら既定の値、0 なら撃たない </summary>
         public int MaxAttackingAttackers => _maxAttackingAttackers;
 
-        /// <summary> 同時に攻撃するフィニッシャーの数の上限。0 なら既定の値 </summary>
+        /// <summary> 同時に攻撃するフィニッシャーの数の上限。負の値なら既定の値、0 なら攻撃しない </summary>
         public int MaxAttackingFinishers => _maxAttackingFinishers;
 
         /// <summary> すべてのスキルの破壊力を最大にするか </summary>

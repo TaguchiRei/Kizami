@@ -3,24 +3,18 @@ using Kizami.BlackBoard;
 using Kizami.EngineAdapter;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
+using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// ボスの攻撃に、プレイヤーへダメージを与える関数と弾く関数、敵を吸収・撃破する関数を渡し、ボス戦の段階を進める BossBattleService と BossBattleAdapter を繋ぐ配線役。ボスを置いたシーンへ置く。
+    /// ステージシーンに置いたボスを探し、攻撃に、プレイヤーへダメージを与える関数と弾く関数、敵を吸収・撃破する関数と狙う相手を渡し、ボス戦の段階を進める BossBattleService と BossBattleAdapter を繋ぐ配線役。インゲームのシーンへ置く。
+    /// ボスはボス戦のステージシーンにだけ置き、ボスのいないステージでは何もしない。
     /// </summary>
     public sealed class BossInitializer : InitializerBase, IInjectable<PlayerHealthService>,
         IInjectable<PlayerMovementService>
     {
-        [SerializeField] private BossShockwaves _shockwaves;
-        [SerializeField] private BossMissiles _missiles;
-        [SerializeField] private BossLaser _laser;
-        [SerializeField] private BossTurret _turret;
-        [SerializeField] private BossHeadLaser _headLaser;
-        [SerializeField] private BossArena _arena;
-        [SerializeField] private BossBattleAdapter _battleAdapter;
-
         [SerializeField]
         [Tooltip("頭部のレーザーで敵を吸収・撃破する先。なければ敵を巻き込まない")]
         private EnemySpawnAdapter _enemySpawnAdapter;
@@ -42,54 +36,106 @@ namespace Kizami.Initialization
 
         public override void Initialize(IBlackBoard blackBoard)
         {
-            if (this.IsAssigned(_shockwaves, nameof(BossShockwaves)))
+            var battleAdapter = FindFirstObjectByType<BossBattleAdapter>();
+            if (battleAdapter == null)
             {
-                _shockwaves.Initialize(_healthService != null ? _healthService.ApplyDamage : null,
+                base.Initialize(blackBoard);
+                return;
+            }
+
+            var boss = battleAdapter.gameObject;
+            var applyDamage = _healthService != null ? (System.Action<int>)_healthService.ApplyDamage : null;
+            var target = FindPlayerTransform();
+
+            var body = boss.GetComponentInChildren<BossBody>(true);
+            if (body != null) body.SetTarget(target);
+
+            var shockwaves = boss.GetComponentInChildren<BossShockwaves>(true);
+            if (shockwaves != null)
+            {
+                shockwaves.SetTarget(target);
+                shockwaves.Initialize(applyDamage,
                     _movementService != null ? _movementService.RequestKnockback : null);
             }
 
-            if (this.IsAssigned(_missiles, nameof(BossMissiles)))
+            var missiles = boss.GetComponentInChildren<BossMissiles>(true);
+            if (missiles != null)
             {
-                _missiles.Initialize(_healthService != null ? _healthService.ApplyDamage : null);
+                missiles.SetTarget(target);
+                missiles.Initialize(applyDamage);
             }
 
-            if (this.IsAssigned(_laser, nameof(BossLaser)))
+            var laser = boss.GetComponentInChildren<BossLaser>(true);
+            if (laser != null)
             {
-                _laser.Initialize(_healthService != null ? _healthService.ApplyDamage : null);
+                laser.SetTarget(target);
+                laser.Initialize(applyDamage);
             }
 
-            if (this.IsAssigned(_turret, nameof(BossTurret)))
+            var turret = boss.GetComponentInChildren<BossTurret>(true);
+            if (turret != null)
             {
-                _turret.Initialize(_healthService != null ? _healthService.ApplyDamage : null);
+                turret.SetTarget(target);
+                turret.Initialize(applyDamage);
             }
 
-            if (this.IsAssigned(_headLaser, nameof(BossHeadLaser)))
+            var headLaser = boss.GetComponentInChildren<BossHeadLaser>(true);
+            if (headLaser != null)
             {
-                _headLaser.Initialize(_healthService != null ? _healthService.ApplyDamage : null,
+                headLaser.SetTarget(target);
+                headLaser.Initialize(applyDamage,
                     _enemySpawnAdapter != null ? _enemySpawnAdapter.AbsorbInRadius : null,
-                    _enemySpawnAdapter != null ? _enemySpawnAdapter.DefeatInRadius : null);
+                    _enemySpawnAdapter != null
+                        ? (center, radius) => _enemySpawnAdapter.DefeatInRadius(center, radius, EnemyDefeatCause.Boss)
+                        : null);
             }
 
-            if (this.IsAssigned(_arena, nameof(BossArena)))
+            var arrival = boss.GetComponentInChildren<BossArrival>(true);
+            if (arrival != null)
             {
-                _arena.Initialize(_healthService != null ? _healthService.ApplyDamage : null);
+                var voxelDestruction = FindFirstObjectByType<VoxelDestructionAdapter>();
+                // ボスによる破壊と撃破は、Brilliant Skill の判定に伝えない
+                arrival.Initialize(
+                    voxelDestruction != null
+                        ? (start, end, radius) => voxelDestruction.CarveCapsuleAt(start, end, radius, false)
+                        : null,
+                    _enemySpawnAdapter != null
+                        ? (center, radius) => _enemySpawnAdapter.DefeatInRadius(center, radius, EnemyDefeatCause.Boss)
+                        : null);
             }
 
-            if (this.IsAssigned(_battleAdapter, nameof(BossBattleAdapter)))
+            // 円形の空間はボスの子にしなくてもよいので、ステージシーン全体から探す
+            var arena = FindFirstObjectByType<BossArena>(FindObjectsInactive.Include);
+            if (arena != null)
             {
-                var battleService = new BossBattleService(blackBoard, _stompsPerRound, _roundCount,
-                    gameObject.scene.buildIndex);
-                if (blackBoard.TryGetSceneState<EnemyBoard, IBossBattleState>(out var battleState, this))
-                {
-                    _battleAdapter.Initialize(battleState, battleService.ReportCrystalsCleared,
-                        battleService.ReportArrived, battleService.ReportStomp,
-                        battleService.ReportCoreAttackFinished, battleService.ReportWeaponBroken,
-                        battleService.ReportAllOutFinished);
-                    if (_beginOnInitialize) battleService.Begin();
-                }
+                arena.SetTarget(target);
+                arena.Initialize(applyDamage);
+            }
+
+            var battleService = new BossBattleService(blackBoard, _stompsPerRound, _roundCount,
+                gameObject.scene.buildIndex);
+            if (blackBoard.TryGetSceneState<EnemyBoard, IBossBattleState>(out var battleState, this))
+            {
+                battleAdapter.Initialize(battleState, battleService.ReportCrystalsCleared,
+                    battleService.ReportArrived, battleService.ReportStomp,
+                    battleService.ReportCoreAttackFinished, battleService.ReportWeaponBroken,
+                    battleService.ReportAllOutFinished);
+                if (_beginOnInitialize) battleService.Begin();
             }
 
             base.Initialize(blackBoard);
+        }
+
+        /// <summary>
+        /// ボスが狙うプレイヤーの Transform を返す。見つからなければ null で、ボスは誰も狙わない。
+        /// </summary>
+        private Transform FindPlayerTransform()
+        {
+            var movementAdapter = FindFirstObjectByType<PlayerMovementAdapterBase>();
+            if (movementAdapter != null) return movementAdapter.transform;
+
+            UsefulLogger.LogError("PlayerMovementAdapterBase が見つからない為、ボスが狙う相手を渡せません。", this);
+            return null;
         }
 
         public void Inject(PlayerHealthService instance)

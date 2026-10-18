@@ -96,6 +96,14 @@ namespace Kizami.EngineAdapter
         private bool _isMoving = true;
 
         /// <summary>
+        /// 向かう先を target にする。ボスとプレイヤーが別のシーンにあるときに、初期化で渡す。
+        /// </summary>
+        public void SetTarget(Transform target)
+        {
+            _target = target;
+        }
+
+        /// <summary>
         /// 胴体の移動と旋回を切り替える。止めている間も、脚は今の胴体に合わせて足を運ぶ。
         /// </summary>
         /// <param name="isMoving">動かすなら true</param>

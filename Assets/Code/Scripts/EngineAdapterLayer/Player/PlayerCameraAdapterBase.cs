@@ -28,6 +28,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 視点を、ワールドの Y 軸まわりの角度 yaw の向きにする。頭の向きで視点が決まる操作系では何もしない。
+        /// </summary>
+        /// <param name="yaw">向ける角度（度）。0 が +Z</param>
+        public virtual void FaceYaw(float yaw)
+        {
+        }
+
+        /// <summary>
         /// 視点操作の入力値が変化した際に呼ばれる。
         /// </summary>
         /// <param name="lookInput">感度適用済みの入力値。x が右向き、y が上向きを正とする</param>

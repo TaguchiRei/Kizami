@@ -136,6 +136,14 @@ namespace Kizami.EngineAdapter
         public bool IsFiring => _phase != Phase.Idle;
 
         /// <summary>
+        /// 狙う相手を target にする。ボスとプレイヤーが別のシーンにあるときに、初期化で渡す。
+        /// </summary>
+        public void SetTarget(Transform target)
+        {
+            _target = target;
+        }
+
+        /// <summary>
         /// ダメージの関数と、敵を吸収する関数・倒す関数を受け取る。
         /// </summary>
         /// <param name="applyDamage">プレイヤーにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
