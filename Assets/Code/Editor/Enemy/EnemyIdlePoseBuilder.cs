@@ -24,8 +24,8 @@ namespace Kizami.EditorTools
         public static void Bake()
         {
             BakeFinisher();
-            BakeWalker("AttackerEnemy", "AttakkerEnemy.fbx", "EnemyAnimation/AttackerIdle.anim");
-            BakeWalker("DefenderEnemy", "DefenderEnemy.fbx", "EnemyAnimation/DefenderIdle.anim");
+            BakeWalker("AttackerEnemy", "Assets/Art/Models/EnemyModels/AttakkerEnemy.fbx", SAMPLE_DIRECTORY + "EnemyAnimation/AttackerIdle.anim");
+            BakeWalker("DefenderEnemy", SAMPLE_DIRECTORY + "DefenderEnemy.fbx", SAMPLE_DIRECTORY + "EnemyAnimation/DefenderIdle.anim");
             AssetDatabase.SaveAssets();
         }
 
@@ -38,9 +38,9 @@ namespace Kizami.EditorTools
             });
         }
 
-        private static void BakeWalker(string prefabName, string modelFile, string clipFile)
+        private static void BakeWalker(string prefabName, string modelPath, string clipPath)
         {
-            var oldFeet = GetOldFootPositions(SAMPLE_DIRECTORY + modelFile, SAMPLE_DIRECTORY + clipFile);
+            var oldFeet = GetOldFootPositions(modelPath, clipPath);
 
             Bake(prefabName, root =>
             {

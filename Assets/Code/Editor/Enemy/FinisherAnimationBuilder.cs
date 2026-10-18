@@ -22,6 +22,18 @@ namespace Kizami.EditorTools
         private const string CONTROLLER_PATH = OUTPUT_DIRECTORY + "FinisherEnemy.controller";
         private const string PREFAB_PATH = "Assets/Level/Prefabs/Enemy/FinisherEnemy.prefab";
         private const string SAMPLE_MODEL_PATH = "Assets/Art/sample/FinisherEnemy.fbx";
+        private const string CADAVER_MODEL_PATH = "Assets/Art/Models/EnemyModels/AttakkerEnemy.fbx";
+        private const string CADAVER_MATERIAL_DIRECTORY = "Assets/Art/Materials/";
+        private const string CADAVER_SHADER = "Kizami/FinisherCadaver";
+
+        /// <summary> 旧作の死骸（食べた敵）の GameObject の名前。旧作と kizami のクリップの経路で、Body の下に置く </summary>
+        private const string CADAVER = "AttakkerEnemyCadaver";
+
+        /// <summary> 旧作の死骸の Body の、死骸の根から見た位置 </summary>
+        private static readonly Vector3 CadaverBodyPosition = new(0f, -3.17f, 0f);
+
+        /// <summary> 死骸の脚の名前（旧作の名前のまま。死骸は旧作のアタッカーのモデルなので、左右は逆にしない） </summary>
+        private static readonly string[] CadaverLegNames = { "BuckLeft", "BuckRight", "FrontLeft", "FrontRight" };
 
         /// <summary> 旧作の Body の初期の高さ（旧作のモデルの Body） </summary>
         private const string OLD_BODY = "FinisherEnemy/Body";
@@ -105,8 +117,31 @@ namespace Kizami.EditorTools
                 }
             }
 
+            CopyCadaverCurves(oldClip, clip);
+            SetConstant(clip, CADAVER, "m_LocalPosition.x", 0f);
+            SetConstant(clip, CADAVER, "m_LocalPosition.z", 0f);
+            AnimationUtility.SetEditorCurve(clip, Binding(CADAVER, "m_LocalPosition.y"), Shifted(bodyY, bodyOffset));
             AnimationUtility.SetAnimationClipSettings(clip, AnimationUtility.GetAnimationClipSettings(oldClip));
             return clip;
+        }
+
+        /// <summary>
+        /// 旧作のクリップの死骸のキー（表示・位置・回転・拡大・マテリアルの値）を、そのまま kizami の死骸の経路へ写す。
+        /// </summary>
+        private static void CopyCadaverCurves(AnimationClip source, AnimationClip target)
+        {
+            const string oldPrefix = OLD_BODY + "/" + CADAVER;
+            const string newPrefix = CADAVER;
+
+            foreach (var binding in AnimationUtility.GetCurveBindings(source))
+            {
+                if (!binding.path.StartsWith(oldPrefix)) continue;
+
+                var curve = AnimationUtility.GetEditorCurve(source, binding);
+                var newBinding = binding;
+                newBinding.path = newPrefix + binding.path.Substring(oldPrefix.Length);
+                AnimationUtility.SetEditorCurve(target, newBinding, new AnimationCurve(curve.keys));
+            }
         }
 
         private static EditorCurveBinding Binding(string path, string property)
@@ -198,6 +233,7 @@ namespace Kizami.EditorTools
         /// </summary>
         private static void ApplyToPrefab()
         {
+            var cadaverMaterials = BuildCadaverMaterials();
             var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(CONTROLLER_PATH);
             var root = PrefabUtility.LoadPrefabContents(PREFAB_PATH);
             try
@@ -207,6 +243,8 @@ namespace Kizami.EditorTools
                 animator.runtimeAnimatorController = controller;
                 animator.applyRootMotion = false;
                 animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+
+                BuildCadaver(root.transform, cadaverMaterials.Upper, cadaverMaterials.Lower);
 
                 var legs = root.GetComponent<EnemyLegs>();
                 var serialized = new SerializedObject(legs);
@@ -218,6 +256,86 @@ namespace Kizami.EditorTools
             {
                 PrefabUtility.UnloadPrefabContents(root);
             }
+        }
+
+        /// <summary>
+        /// 死骸のマテリアルを作る（なければ作り、あれば値を直す）。体と脚の上の骨は灰色、下の骨は黒に近い色で、縁の光る色が違う。
+        /// 色と _NoiseLevel はアニメーションが書くので、ここの値は旧作の初期の値。
+        /// </summary>
+        private static (Material Upper, Material Lower) BuildCadaverMaterials()
+        {
+            var upper = LoadOrCreateMaterial("FinisherCadaverUpper", new Color(0.33f, 0.33f, 0.33f, 1f),
+                new Color(1f, 0.0965f, 0f, 1f));
+            var lower = LoadOrCreateMaterial("FinisherCadaverLower", new Color(0.0283f, 0.0283f, 0.0283f, 1f),
+                new Color(1f, 0f, 0f, 1f));
+            return (upper, lower);
+        }
+
+        private static Material LoadOrCreateMaterial(string name, Color baseColor, Color emissionColor)
+        {
+            var path = CADAVER_MATERIAL_DIRECTORY + name + ".mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(Shader.Find(CADAVER_SHADER));
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.shader = Shader.Find(CADAVER_SHADER);
+            material.SetColor("_BaseColor", baseColor);
+            material.SetColor("_DissolveEmissionColor", emissionColor);
+            material.SetFloat("_NoiseLevel", -0.2f);
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>
+        /// 体の根の下に、旧作のアタッカーのモデルの死骸（体と 4 本の脚）を、非表示で置く。すでにあれば作り直す。
+        /// 死骸の表示・位置・拡大・色は、クリップが書く。当たり判定は付けない。
+        /// </summary>
+        private static void BuildCadaver(Transform prefabRoot, Material upperMaterial, Material lowerMaterial)
+        {
+            var old = prefabRoot.Find(CADAVER);
+            if (old != null) Object.DestroyImmediate(old.gameObject);
+
+            var model = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(CADAVER_MODEL_PATH));
+            try
+            {
+                var root = new GameObject(CADAVER);
+                root.transform.SetParent(prefabRoot, false);
+                root.SetActive(false);
+
+                var cadaverBody = CreatePart("Body", root.transform, model.transform.Find("Body"), upperMaterial);
+                cadaverBody.localPosition = CadaverBodyPosition;
+
+                foreach (var legName in CadaverLegNames)
+                {
+                    var sourceUpper = model.transform.Find(legName + "UpperLeg");
+                    var sourceLower = sourceUpper.Find(legName + "UnderLeg");
+                    var upper = CreatePart(legName + "UpperLeg", cadaverBody, sourceUpper, upperMaterial);
+                    CreatePart(legName + "UnderLeg", upper, sourceLower, lowerMaterial);
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(model);
+            }
+        }
+
+        /// <summary>
+        /// source のメッシュを持つ部位を parent の下に作る。位置は旧作の初期の値で、クリップが上書きする。
+        /// </summary>
+        private static Transform CreatePart(string name, Transform parent, Transform source, Material material)
+        {
+            var part = new GameObject(name);
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = source.localPosition;
+            part.AddComponent<MeshFilter>().sharedMesh = source.GetComponent<MeshFilter>().sharedMesh;
+            var meshRenderer = part.AddComponent<MeshRenderer>();
+            meshRenderer.sharedMaterial = material;
+            meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            meshRenderer.receiveShadows = false;
+            return part.transform;
         }
 
         /// <summary>
