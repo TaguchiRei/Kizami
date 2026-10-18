@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u5D29\u7206"
   _effect: 9
-  _cost: 30
+  _cost: 50
   _radius: 2.5
   _length: 0
   _healAmount: 0

@@ -133,6 +133,9 @@ namespace Kizami.Application
             _isHoldingWord = isHolding;
         }
 
+        /// <summary> 突進を始められるか。突進中と、突進の要求を受け付け済みのときと、言葉をつかんでいる間は false </summary>
+        public bool CanRush => !_isHoldingWord && !_isRushRequested && _state.Mode != PlayerMoveMode.Warping;
+
         /// <summary>
         /// 突進する向きを返す。水平な移動入力があればその向き、なければ水平な視線の向き。
         /// </summary>
@@ -143,7 +146,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 次の Step で、direction の向きへ決めた距離を決めた時間で突進するよう要求する。突進中と言葉をつかんでいる間の要求は捨てる。
+        /// 次の Step で、direction の向きへ決めた距離を決めた時間で突進するよう要求する。CanRush が false のときに呼ぶと、言葉をつかんでいる間は捨て、突進中は Step で捨てる。
         /// </summary>
         /// <param name="direction">突進の向き（水平）</param>
         /// <param name="distance">進む距離（m）</param>

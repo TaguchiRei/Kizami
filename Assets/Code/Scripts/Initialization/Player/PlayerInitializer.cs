@@ -38,7 +38,7 @@ namespace Kizami.Initialization
         [SerializeField] private FragmentThrowAdapter _fragmentThrowAdapter;
 
         [SerializeField]
-        [Tooltip("火術・崩爆の爆弾を投げる Adapter。崩爆を装備しないシーンでは未設定でよい")]
+        [Tooltip("火術・崩爆の爆弾を投げる Adapter。未設定なら、既定の値でこの GameObject に付ける")]
         private BombThrowAdapter _bombThrowAdapter;
 
         [SerializeField]
@@ -96,12 +96,12 @@ namespace Kizami.Initialization
             _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, _actionEvents, sceneId);
-            if (_bombThrowAdapter != null) _bombThrowAdapter.Initialize(_voxelDestructionAdapter.CarveExplosionAt);
+            if (_bombThrowAdapter == null) _bombThrowAdapter = gameObject.AddComponent<BombThrowAdapter>();
+            _bombThrowAdapter.Initialize(_voxelDestructionAdapter.CarveExplosionAt);
 
             _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService, _enhanceService,
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
-                _bombThrowAdapter != null ? _bombThrowAdapter.Throw : null,
-                _voxelDestructionAdapter.CarveSweep, Rush,
+                _bombThrowAdapter.Throw, _voxelDestructionAdapter.CarveSweep, Rush, () => _movementService.CanRush,
                 _meleeCutService.CanAct, _meleeCutService.MarkActed, _actionEvents, sceneId);
 
             _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake, _voxelDestructionAdapter.CarveExplosionAt);
@@ -127,12 +127,13 @@ namespace Kizami.Initialization
 
         /// <summary>
         /// 移動入力の向き（なければ正面）へ突進を要求し、通る経路を先に削る。経路を先に削るので、途中の壁で止まらずに通り抜ける。
+        /// 経路は足元から半径の分だけ上げ、足場を削らないようにする。
         /// </summary>
         private void Rush(float distance, float duration, float radius)
         {
             var direction = _movementService.GetRushDirection();
-            var start = _movementAdapter.transform.position;
-            _voxelDestructionAdapter.CarveCapsuleAt(start, start + direction * distance, radius);
+            var start = _movementAdapter.transform.position + Vector3.up * radius;
+            _voxelDestructionAdapter.CarveCapsuleWithArmor(start, start + direction * distance, radius, start);
             _movementService.RequestRush(direction, distance, duration);
         }
 

@@ -27,6 +27,7 @@ namespace Kizami.Application
         private readonly Action<float, float> _onSweep;
         private readonly Action<float, float, float> _onRush;
         private readonly Func<bool> _canAct;
+        private readonly Func<bool> _canRush;
         private readonly Action _onActed;
         private readonly List<IDisposable> _subscriptions = new();
         private readonly PlayerActionEvents _actionEvents;
@@ -42,6 +43,7 @@ namespace Kizami.Application
         /// <param name="onBomb">爆弾を投げる関数。引数は投げる距離（m）と爆発の半径（m）</param>
         /// <param name="onSweep">正面を横長に削る関数。引数は横幅（m）と奥行き（m）</param>
         /// <param name="onRush">突進する関数。引数は距離（m）、所要時間（秒）、削る半径（m）</param>
+        /// <param name="canRush">突進を始められるかを返す関数。攻走でだけ使う</param>
         /// <param name="canAct">スキルを出せる攻撃間隔が経っているかを返す関数。通常攻撃と共有する</param>
         /// <param name="onActed">スキルを出したときに呼ぶ関数。通常攻撃と共有する攻撃間隔を数え直す</param>
         /// <param name="actionEvents">スキルの発動とチャージの消費を流す先</param>
@@ -49,7 +51,7 @@ namespace Kizami.Application
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
             ChargeService chargeService, PlayerEnhanceService enhanceService, Action<float, float> onBeam,
             Action<float> onExplosion, Action<int> onHeal, Action<float, float> onBomb, Action<float, float> onSweep,
-            Action<float, float, float> onRush, Func<bool> canAct, Action onActed, PlayerActionEvents actionEvents,
+            Action<float, float, float> onRush, Func<bool> canRush, Func<bool> canAct, Action onActed, PlayerActionEvents actionEvents,
             int sceneId)
         {
             _actionEvents = actionEvents;
@@ -61,6 +63,7 @@ namespace Kizami.Application
             _onBomb = onBomb;
             _onSweep = onSweep;
             _onRush = onRush;
+            _canRush = canRush;
             _canAct = canAct;
             _onActed = onActed;
 
@@ -87,7 +90,7 @@ namespace Kizami.Application
 
         /// <summary>
         /// 枠にスキルがあり、通常攻撃と共有する攻撃間隔が経っていて、その消費量だけチャージを消費できたら、スキルの発動とチャージの消費を通知して、効果を出す。
-        /// 回復は、HP が0のときと最大のときは発動せず、チャージも消費しない。
+        /// 回復は、HP が0のときと最大のときは発動せず、チャージも消費しない。攻走は、突進を始められないときは発動せず、チャージも消費しない。
         /// </summary>
         private void OnSkill(InputContext<float> context, int slot)
         {
@@ -97,6 +100,7 @@ namespace Kizami.Application
             if (skill == null) return;
             if (_canAct != null && !_canAct()) return;
             if (skill.Effect == SkillEffect.Heal && !CanHeal()) return;
+            if (skill.Effect == SkillEffect.Rush && _canRush != null && !_canRush()) return;
             if (!_chargeService.TryConsume(skill.Cost)) return;
 
             _onActed?.Invoke();

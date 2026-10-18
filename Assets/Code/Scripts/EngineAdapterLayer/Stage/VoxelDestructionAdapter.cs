@@ -170,7 +170,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// カメラの正面に、水平の向きの横長のカプセルで削る。カメラの向きは水平に直して使い、装甲は扱わない。
+        /// カメラの正面に、水平の向きの横長のカプセルで削る。カメラの向きは水平に直して使う。装甲への当て方は CarveCapsuleWithArmor と同じ。
         /// </summary>
         /// <param name="width">横幅（m）</param>
         /// <param name="depth">奥行き（m）。カプセルの直径になり、カメラの位置から奥行きの分だけ前までを削る</param>
@@ -187,7 +187,36 @@ namespace Kizami.EngineAdapter
             var center = cameraTransform.position + forward * radius;
             var halfAxis = Mathf.Max(width * 0.5f - radius, 0f);
 
-            CarveCapsuleAt(center - right * halfAxis, center + right * halfAxis, radius);
+            CarveCapsuleWithArmor(center - right * halfAxis, center + right * halfAxis, radius, cameraTransform.position);
+        }
+
+        /// <summary>
+        /// 指定した2点を結ぶカプセルで削る。ガラスの板は割る。
+        /// カプセルに入った装甲のパネルすべてに1回ずつ当て、origin から見て装甲の奥にあるピースは削らない。
+        /// </summary>
+        /// <param name="start">カプセルの一方の端（ワールド空間）</param>
+        /// <param name="end">カプセルのもう一方の端（ワールド空間）</param>
+        /// <param name="radius">カプセルの半径（m）</param>
+        /// <param name="origin">装甲の遮断を判定するレイの始点</param>
+        public void CarveCapsuleWithArmor(Vector3 start, Vector3 end, float radius, Vector3 origin)
+        {
+            CollectArmorPanels(Physics.OverlapCapsuleNonAlloc(start, end, radius, _armorHitBuffer, _armorLayers,
+                QueryTriggerInteraction.Ignore));
+            ShatterGlass(Physics.OverlapCapsuleNonAlloc(start, end, radius + _glassMargin, _glassHitBuffer, _targetLayers,
+                QueryTriggerInteraction.Ignore), origin);
+
+            var reach = ReachRadius(radius, _explosionFalloff);
+            var hitCount = QueryCapsule(start, end, reach);
+
+            // 遮断の判定は、当てて壊れる前のパネルで行う
+            Carve(new CapsuleShape(start, end, reach), _explosionFalloff, hitCount, _armorPanels.Count > 0, origin);
+
+            foreach (var armorPanel in _armorPanels)
+            {
+                armorPanel.ApplyDamage(DamageType.Destroy);
+            }
+
+            _armorPanels.Clear();
         }
 
         /// <summary>
@@ -199,7 +228,8 @@ namespace Kizami.EngineAdapter
         /// <param name="radius">球の半径（m）</param>
         public void CarveExplosionAt(Vector3 center, float radius)
         {
-            CollectArmorPanels(center, radius);
+            CollectArmorPanels(Physics.OverlapSphereNonAlloc(center, radius, _armorHitBuffer, _armorLayers,
+                QueryTriggerInteraction.Ignore));
             ShatterGlass(Physics.OverlapSphereNonAlloc(center, radius + _glassMargin, _glassHitBuffer, _targetLayers,
                 QueryTriggerInteraction.Ignore), center);
 
@@ -280,14 +310,11 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 球に入った装甲のパネルを _armorPanels に集める。
+        /// _armorHitBuffer に集めたコライダーのうち、装甲のパネルを _armorPanels に集める。
         /// </summary>
-        private void CollectArmorPanels(Vector3 center, float radius)
+        private void CollectArmorPanels(int hitCount)
         {
             _armorPanels.Clear();
-
-            var hitCount = Physics.OverlapSphereNonAlloc(center, radius, _armorHitBuffer, _armorLayers,
-                QueryTriggerInteraction.Ignore);
 
             if (hitCount == _armorHitBuffer.Length)
             {
