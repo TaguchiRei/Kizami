@@ -5,7 +5,7 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// アウトゲームとインゲームの間で受け渡す進行（選んだステージ、装備したスキル、クリア済みのステージ）を保持するゲームステート。シーンを跨いで保たれる。
+    /// アウトゲームとインゲームの間で受け渡す進行（選んだステージ、装備したスキル、クリア済みのステージ、解放済みのスキル）を保持するゲームステート。シーンを跨いで保たれる。
     /// ステージとスキルは番号で持ち、番号と定義の対応は Application が持つ。BlackBoard から External を参照できない為。
     /// </summary>
     [RegisterBoard(typeof(AppBoard))]
@@ -19,6 +19,7 @@ namespace Kizami.BlackBoard
 
         private readonly int[] _equippedSkillIndices;
         private readonly HashSet<int> _clearedStageIndices = new();
+        private readonly HashSet<int> _unlockedSkillIndices = new();
 
         public int SelectedStageIndex { get; private set; } = NO_STAGE;
         public int SlotCount => _equippedSkillIndices.Length;
@@ -33,7 +34,8 @@ namespace Kizami.BlackBoard
         {
             return $"SelectedStageIndex: {SelectedStageIndex}  \n" +
                    $"EquippedSkills: {string.Join(", ", _equippedSkillIndices)}  \n" +
-                   $"ClearedStages: {string.Join(", ", _clearedStageIndices.OrderBy(i => i))}";
+                   $"ClearedStages: {string.Join(", ", _clearedStageIndices.OrderBy(i => i))}  \n" +
+                   $"UnlockedSkills: {string.Join(", ", _unlockedSkillIndices.OrderBy(i => i))}";
         }
 
         /// <summary>
@@ -64,6 +66,15 @@ namespace Kizami.BlackBoard
             _clearedStageIndices.Add(stageIndex);
         }
 
+        /// <summary>
+        /// スキルを解放済みにする。
+        /// </summary>
+        /// <param name="skillIndex">スキルの番号（0から）</param>
+        public void UnlockSkill(int skillIndex)
+        {
+            _unlockedSkillIndices.Add(skillIndex);
+        }
+
         public int GetEquippedSkillIndex(int slot)
         {
             return _equippedSkillIndices[slot];
@@ -72,6 +83,16 @@ namespace Kizami.BlackBoard
         public bool IsStageCleared(int stageIndex)
         {
             return _clearedStageIndices.Contains(stageIndex);
+        }
+
+        public bool IsStageUnlocked(int stageIndex)
+        {
+            return stageIndex == 0 || IsStageCleared(stageIndex - 1);
+        }
+
+        public bool IsSkillUnlocked(int skillIndex)
+        {
+            return _unlockedSkillIndices.Contains(skillIndex);
         }
     }
 
@@ -93,5 +114,13 @@ namespace Kizami.BlackBoard
         /// <summary> ステージをクリアしたことがあるか </summary>
         /// <param name="stageIndex">ステージの番号（0から）</param>
         bool IsStageCleared(int stageIndex);
+
+        /// <summary> ステージを選べるか。先頭のステージは初めから選べ、それ以降は前のステージをクリアすると選べる </summary>
+        /// <param name="stageIndex">ステージの番号（0から）</param>
+        bool IsStageUnlocked(int stageIndex);
+
+        /// <summary> スキルを解放済みか </summary>
+        /// <param name="skillIndex">スキルの番号（0から）</param>
+        bool IsSkillUnlocked(int skillIndex);
     }
 }

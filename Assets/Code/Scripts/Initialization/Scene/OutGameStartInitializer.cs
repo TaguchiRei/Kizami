@@ -8,7 +8,7 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// 仮のアウトゲームに、スキルの装備枠、ステージのボタンを並べる Initializer。仮のアウトゲームの場面シーンへ置く。
-    /// 装備枠のボタンを押すと装備できるスキルを順に替え、ステージのボタンを押すとそのステージのインゲームへ遷移する。
+    /// 装備枠のボタンを押すと装備できるスキルを順に替え、ステージのボタンを押すとそのステージのインゲームへ遷移する。まだ選べないステージのボタンは押せなくする。
     /// </summary>
     // TODO: アウトゲーム本来の流れ（ホーム、ステージ選択、装備の画面）に置き換える
     public sealed class OutGameStartInitializer : InitializerBase, IInjectable<IGameSceneController>,
@@ -68,7 +68,7 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// ステージのボタンを並べる。クリアしたことのあるステージには印を付ける。
+        /// ステージのボタンを並べる。クリアしたことのあるステージと、まだ選べないステージには印を付ける。
         /// </summary>
         private void DrawStages()
         {
@@ -78,11 +78,18 @@ namespace Kizami.Initialization
                 if (stages[i] == null) continue;
 
                 var isCleared = _progressState != null && _progressState.IsStageCleared(i);
-                var label = isCleared ? $"{stages[i].DisplayName} (cleared)" : stages[i].DisplayName;
+                var isUnlocked = _progressState == null || _progressState.IsStageUnlocked(i);
+                var label = isCleared ? $"{stages[i].DisplayName} (cleared)"
+                    : isUnlocked ? stages[i].DisplayName
+                    : $"{stages[i].DisplayName} (locked)";
+
+                GUI.enabled = isUnlocked;
                 if (GUILayout.Button(label, GUILayout.Height(BUTTON_HEIGHT)))
                 {
                     GoToStage(i);
                 }
+
+                GUI.enabled = true;
             }
         }
 

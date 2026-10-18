@@ -25,12 +25,16 @@ namespace Kizami.Initialization
         private SceneGroupDataBase _outGameGroup;
 
         [SerializeField]
-        [Tooltip("アウトゲームで選べるステージ。ステージの番号はこの並びの位置。")]
+        [Tooltip("アウトゲームで選べるステージ。ステージの番号はこの並びの位置で、前のステージをクリアすると次を選べる。")]
         private StageData[] _stages;
 
         [SerializeField]
-        [Tooltip("アウトゲームで装備できるスキル。スキルの番号はこの並びの位置。初めは先頭から順に装備枠へ装備する。")]
+        [Tooltip("アウトゲームで装備できるスキル。スキルの番号はこの並びの位置。保存データがなければ、解放済みのものを先頭から順に装備枠へ装備する。")]
         private SkillData[] _skills;
+
+        [SerializeField]
+        [Tooltip("初めから解放しておくスキル。装備できるスキルに含まれるもの。")]
+        private SkillData[] _initialUnlockedSkills;
 
         [SerializeField]
         [Tooltip("起動時にアウトゲームへ自動で遷移する。")]
@@ -44,7 +48,7 @@ namespace Kizami.Initialization
                 return;
             }
 
-            _progressService.Initialize(blackBoard, _stages, _skills);
+            _progressService.Initialize(blackBoard, _stages, _skills, _initialUnlockedSkills);
             if (!_sceneController.Initialize(blackBoard, _outGameGroup.GroupData, _progressService)) return;
 
             base.Initialize(blackBoard);
