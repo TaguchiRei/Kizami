@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手（区間0の実装後に見直し済み。着手するときは「既存コードの確認結果」が今のコードと合っているかだけ確かめる） |
+| 状態 | 実装済み・ローカルでの確認待ち |
 | 目安の時期 | 未定 |
 | 前提となる区間 | 0, 1 |
 | 全体計画 | [OutGameOverallPlan.md](../OutGameOverallPlan.md) |
@@ -61,7 +61,41 @@
 
 ## 実装結果
 
-区間を終えるときに書く。
+決めたこと
+
+| # | 項目 | 決定 |
+|---|---|---|
+| 1 | 割り当て直せる操作 | Player マップのキーボード・マウスの割り当て（Move の上下左右の各 2 つ、Attack、Interact、Jump、Sprint、Warp、SlowMode、Throw、LoadLauncher、FireLauncher、Skill1〜3）。Look と CutRotate は動きの入力なので対象外 |
+| 2 | 重複した割り当て | 入れ替える（重なった相手に元のキーを譲る） |
+| 3 | 音量 | 0〜100、初期値 80（マスター・BGM・SE） |
+| 4 | ポーズから開くか | 今回は見送り（インゲームのポーズの画面に手を入れる為）。必要になった区間で足す |
+| 5 | ダッシュの受け付け方と回転角度 | 画面に出した（ダッシュ・つかむの切り替え、回転角度 1〜90、視点感度 0.1〜5） |
+
+`InputActionAsset` の取り方：`InputDispatcher`（UsefulToolkit.Input）は、シリアライズされたアセットを複製せずそのまま使う。同じアセットを `OperationSettingInitializer` に割り当てれば、割り当ての変更がインゲームの操作へそのまま効く。
+
+作ったもの
+
+- `IOperationSettingController`（BlackBoardLayer）：設定の書き込み面。`OperationSettingService` が実装し、常駐シーンの Awake で `TryRegisterContent` して配る（`IInputController` と同じ作り）。`OperationSettingState` には音量 3 つを足した
+- `OperationSettingSaveData`：音量 3 つ、`HasVolume`（0 も有効な音量の為、保存済みかを別に持つ）、`BindingOverridesJson`
+- `InputRebindAdapter`（EngineAdapterLayer/OutGame）：割り当て直し、入れ替え、初期値に戻す、保存と起動時の当て直し
+- `ConfigScreen` と `UiBuilder.CreateSlider`：コンフィグの画面。`OutGameMenuAdapter` のホームの Config ボタンから開く
+- `AudioVolumeAdapter`（EngineAdapterLayer/CoreSystem）：音量を AudioMixer の Exposed Parameter へ反映する。Mixer が未設定なら何もしない
+
+完了条件の確認結果
+
+- 未確認（クラウドで Unity が動かない為）。静的な確認として、asmdef の参照、命名、メンバー順は見た
+- ローカルでの準備（必須）
+  1. `OutGame.unity` を開いて `UsefulToolkit/Generate/Scene Compositor` で `OutGameCompositor` を作り直す（`OutGameStartInitializer` に注入する型が 2 つ増えた。作り直さないと Config ボタンは押せないまま）
+  2. `UsefulToolkitPersistent.unity` の `OperationSettingInitializer` に、`InputDispatcher` と同じ `InputSystem_Actions` を `_inputActions` へ割り当てる
+  3. AudioMixer を作り（マスター・BGM・SE のグループ）、グループごとの Volume を `MasterVolume`・`BgmVolume`・`SeVolume` として Expose し、`OperationSettingInitializer._audioMixer` へ割り当てる
+- ローカルで確かめること：`Kizami.BlackBoard.Runtime`・`Kizami.Application.Runtime`・`Kizami.EngineAdapter.Runtime`・`Kizami.Initialization.Runtime` のコンパイル。ホームの Config を開き、切り替えとスライダーを動かして再起動しても残ること。キーを割り当て直し（Esc で取り消し、重なったキーは入れ替わる）、インゲームでそのキーで動くこと、再起動しても残ること、「Reset Keys」で戻ること。音量はスライダーを動かすと Mixer の Exposed Parameter が変わること（Audio Mixer ウィンドウで確認できる）
+
+次の区間へ持ち越すこと
+
+- 音量を実際の音で確かめるのは、音を入れるインゲーム区間 13 に回す（ユーザー確認済み）
+- ポーズの画面からコンフィグを開く導線
+- スライダーは動かしている間、値が変わるたびに `setting.json` へ保存する。重く感じたら、離したときだけ保存に変える
+- 見た目の作り込み
 
 ## 見つけた問題（今回は扱わない）
 
