@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手（区間0の実装後に見直し済み。着手するときは「既存コードの確認結果」が今のコードと合っているかだけ確かめる） |
+| 状態 | 実装済み・ローカルでの確認待ち |
 | 目安の時期 | 未定 |
 | 前提となる区間 | 0 |
 | 全体計画 | [OutGameOverallPlan.md](../OutGameOverallPlan.md) |
@@ -64,7 +64,31 @@
 
 ## 実装結果
 
-区間を終えるときに書く。
+決めたこと
+
+| # | 項目 | 決定 |
+|---|---|---|
+| 1 | ホームのボタン | ステージ選択・スキル装備・コンフィグ（区間4まで押せない）・ゲームの終了 |
+| 2・5 | 戻ったときの画面 | `SelectedStageIndex` が `NO_STAGE` 以外ならステージ選択から始める。起動直後はホーム |
+| 3 | ステージ選択の情報 | 名前、`[CLEARED]` / `[LOCKED]`、解放されるスキル名（空なら出さない） |
+| 4 | UI の作り方 | `UiBuilder` でコードから組み立てる |
+| 6 | 装備の仮の画面 | ホームの「Skill Equip」から、枠のボタン（`CycleEquippedSkill`）を出す |
+
+作ったもの
+
+- `OutGameMenuAdapter`（EngineAdapterLayer/OutGame）：ホーム・ステージ選択・スキル装備の 3 画面を 1 つの Canvas に組み立てて切り替える。どの画面を出しているかはこの中だけで持ち、State は足していない。EngineAdapterLayer は External と Application を参照できないので、ステージの表示内容は `StageEntry`、装備枠は文字列で受け取る
+- `OutGameStartInitializer`：OnGUI を消し、`gameObject.AddComponent` で Adapter を足してつなぐ。Adapter はシーンに置かず、Initializer が実行時に足すので、`OutGame.unity` と `OutGameCompositor` は変わらない
+- ステージ開始中は `CanvasGroup.interactable` を切ってボタンを押せなくする
+
+完了条件の確認結果
+
+- 未確認（クラウドで Unity が動かない為）。静的な確認として、asmdef の参照、命名、メンバー順は見た
+- ローカルで確かめること：`Kizami.EngineAdapter.Runtime` と `Kizami.Initialization.Runtime` のコンパイル、`OutGame` シーンを開いて再生し、ホーム → ステージ選択 → ステージ開始 → リザルトの Back to Menu でステージ選択に戻ることと、ロック中のボタンが押せないこと、「Skill Equip」で枠が替わること、Quit でエディタの再生が止まることを確かめる
+
+次の区間へ持ち越すこと
+
+- 装備の画面は仮のまま（区間2）。コンフィグのボタンは押せないまま（区間4）
+- 見た目の作り込みと、プレハブへの置き換え（`UiBuilder` を消す）
 
 ## 見つけた問題（今回は扱わない）
 
