@@ -42,6 +42,9 @@ namespace Kizami.Editor
         // チュートリアルのダミーのスポーン位置。東の大通りの上
         private static readonly Vector3 _tutorialDummyPosition = new(135f, 0f, 0f);
 
+        // 地面の当たり判定のレイヤー。倒れた塔の接地用の球は、このレイヤーとだけ接触する
+        private const string GROUND_LAYER = "Ground";
+
         // 奈落のフォグの板を置く高さ（m）
         private const float ABYSS_FOG_HEIGHT = -40f;
 
@@ -100,9 +103,60 @@ namespace Kizami.Editor
             foreach (var prop in plan.Props)
                 Pose(Instantiate($"{PROP_FOLDER}/Stage_Prop_{prop.Name}_01.prefab", props), prop);
 
+            ApplyGroundLayer();
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
             Debug.Log($"街のマップを組み立てました。道路の部品 {plan.Roads.Count} 個、建物 {plan.Buildings.Count} 棟、小物 {plan.Props.Count} 個。");
+        }
+
+        /// <summary>
+        /// 開いている街のマップの、地面・道・外殻の地面・塔の土台を Ground レイヤーにする。
+        /// </summary>
+        [MenuItem("Kizami/Stage/Apply Ground Layer")]
+        public static void ApplyGroundLayer()
+        {
+            var layer = LayerMask.NameToLayer(GROUND_LAYER);
+            if (layer < 0)
+            {
+                Debug.LogError($"{GROUND_LAYER} レイヤーがありません。");
+                return;
+            }
+
+            var count = 0;
+            var root = GameObject.Find(ROOT_NAME);
+            if (root != null)
+            {
+                foreach (var name in new[] { "Roads", "FarGroundColliders" })
+                {
+                    var group = root.transform.Find(name);
+                    if (group != null) count += SetLayerRecursively(group.gameObject, layer);
+                }
+
+                foreach (var collider in root.GetComponentsInChildren<MeshCollider>(true))
+                {
+                    if (collider.name.StartsWith("Stage_Tower_Tensho_Lower_01")) count += SetLayerRecursively(collider.gameObject, layer);
+                }
+            }
+
+            foreach (var island in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (island.name.StartsWith("Stage_Terrain_Island_01")) count += SetLayerRecursively(island.gameObject, layer);
+            }
+
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            Debug.Log($"{count} 個の GameObject を {GROUND_LAYER} レイヤーにしました。");
+        }
+
+        private static int SetLayerRecursively(GameObject target, int layer)
+        {
+            var count = 0;
+            foreach (var transform in target.GetComponentsInChildren<Transform>(true))
+            {
+                transform.gameObject.layer = layer;
+                count++;
+            }
+
+            return count;
         }
 
         private static void SetMeltSystem(VoxelBuilding building, VoxelMeltSystem meltSystem)
