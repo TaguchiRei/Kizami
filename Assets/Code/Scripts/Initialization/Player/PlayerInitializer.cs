@@ -38,6 +38,10 @@ namespace Kizami.Initialization
         [SerializeField] private FragmentThrowAdapter _fragmentThrowAdapter;
 
         [SerializeField]
+        [Tooltip("火術・崩爆の爆弾を投げる Adapter。崩爆を装備しないシーンでは未設定でよい")]
+        private BombThrowAdapter _bombThrowAdapter;
+
+        [SerializeField]
         [Tooltip("アウトゲームを通さずに始めたとき（インゲームのシーンから直接再生したときなど）に、スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
         private SkillData[] _equippedSkills = new SkillData[SkillService.SLOT_COUNT];
 
@@ -92,9 +96,11 @@ namespace Kizami.Initialization
             _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, _actionEvents, sceneId);
+            if (_bombThrowAdapter != null) _bombThrowAdapter.Initialize(_voxelDestructionAdapter.CarveExplosionAt);
+
             _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService, _enhanceService,
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
-                _actionEvents, sceneId);
+                _bombThrowAdapter != null ? _bombThrowAdapter.Throw : null, _actionEvents, sceneId);
 
             _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake, _voxelDestructionAdapter.CarveExplosionAt);
 

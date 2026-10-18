@@ -32,6 +32,10 @@ namespace Kizami.External
         [Tooltip("ビームの長さ（m）。ビームでだけ使う")]
         private float _length = 30f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("爆弾を投げる距離（m）。爆弾でだけ使う")]
+        private float _distance = 5f;
+
         [SerializeField, Min(0)]
         [Tooltip("回復する HP。回復でだけ使う")]
         private int _healAmount = 30;
@@ -74,6 +78,9 @@ namespace Kizami.External
         /// <summary> ビームの長さ（m） </summary>
         public float Length => _length;
 
+        /// <summary> 爆弾を投げる距離（m） </summary>
+        public float Distance => _distance;
+
         /// <summary> 回復する HP </summary>
         public int HealAmount => _healAmount;
 
@@ -93,7 +100,7 @@ namespace Kizami.External
         public float EnhanceIntervalScale => _enhanceIntervalScale;
 
         /// <summary> 強化型スキルか </summary>
-        public bool IsEnhancement => _effect >= SkillEffect.EnhanceDestroy;
+        public bool IsEnhancement => _effect >= SkillEffect.EnhanceDestroy && _effect <= SkillEffect.EnhanceRangeSpeed;
     }
 
     /// <summary>
@@ -127,6 +134,9 @@ namespace Kizami.External
 
         /// <summary> 強化型。剣の切断の範囲に倍率を掛け、攻撃間隔にも倍率を掛ける </summary>
         EnhanceRangeSpeed,
+
+        /// <summary> 前後左右へ爆弾を1つずつ投げ、落ちた所で球で削る </summary>
+        Bomb,
     }
 
     /// <summary>

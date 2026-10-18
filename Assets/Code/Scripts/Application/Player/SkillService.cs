@@ -23,6 +23,7 @@ namespace Kizami.Application
         private readonly Action<float, float> _onBeam;
         private readonly Action<float> _onExplosion;
         private readonly Action<int> _onHeal;
+        private readonly Action<float, float> _onBomb;
         private readonly List<IDisposable> _subscriptions = new();
         private readonly PlayerActionEvents _actionEvents;
         private readonly IPlayerHealthState _healthState;
@@ -34,11 +35,13 @@ namespace Kizami.Application
         /// <param name="onBeam">ビームを出す関数。引数は長さ（m）と半径（m）</param>
         /// <param name="onExplosion">爆発を出す関数。引数は半径（m）</param>
         /// <param name="onHeal">HP を回復する関数。引数は回復量</param>
+        /// <param name="onBomb">爆弾を投げる関数。引数は投げる距離（m）と爆発の半径（m）</param>
         /// <param name="actionEvents">スキルの発動とチャージの消費を流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
             ChargeService chargeService, PlayerEnhanceService enhanceService, Action<float, float> onBeam,
-            Action<float> onExplosion, Action<int> onHeal, PlayerActionEvents actionEvents, int sceneId)
+            Action<float> onExplosion, Action<int> onHeal, Action<float, float> onBomb, PlayerActionEvents actionEvents,
+            int sceneId)
         {
             _actionEvents = actionEvents;
             _chargeService = chargeService;
@@ -46,6 +49,7 @@ namespace Kizami.Application
             _onBeam = onBeam;
             _onExplosion = onExplosion;
             _onHeal = onHeal;
+            _onBomb = onBomb;
 
             var count = Math.Min(equippedSkills.Count, SLOT_COUNT);
             for (var i = 0; i < count; i++)
@@ -100,6 +104,9 @@ namespace Kizami.Application
                     break;
                 case SkillEffect.Heal:
                     _onHeal?.Invoke(skill.HealAmount);
+                    break;
+                case SkillEffect.Bomb:
+                    _onBomb?.Invoke(skill.Distance, skill.Radius);
                     break;
             }
         }
