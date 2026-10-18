@@ -45,7 +45,9 @@
 
 ### 区間の進め方
 
-インゲームの全体計画書の 0 章「区間の進め方」と同じ。確認は uloop のスキルでコンパイルし、プレイモードで画面を操作して確かめる（`uloop-simulate-mouse-ui` でボタンを押す）。
+インゲームの全体計画書の 0 章「区間の進め方」と同じ。確認は uloop のスキルでコンパイルし、プレイモードで画面を操作して確かめる（`uloop-simulate-mouse-ui` でボタンを押す）。クラウドで作業するときは `.claude/docs/CloudSession.md` に従い、確認できなかったことと、ローカルで確かめる手順を報告に書く。
+
+各区間の計画書の「既存コードの確認結果」は、区間0の実装後に書いてある。着手するときは、それが今のコードと合っているかを確かめてから作業計画を立てる。
 
 ## 1. 技術前提
 
@@ -60,21 +62,21 @@
 
 PC を先に作る。スマホと VR の対応は、インゲームと同じく後で行う。ボタンの操作は uGUI の EventSystem に任せ、入力の違いは EventSystem の入力モジュールに閉じ込める。キーコンフィグは PC（キーボードとマウス）の割り当てから作る。
 
-## 3. 現状（2026-10-19 時点）
+## 3. 現状（区間0の実装後）
 
 | 分野 | 状態 |
 |---|---|
-| アウトゲームの画面 | 一部あり。`OutGameStartInitializer` が OnGUI で、通貨・装備枠 3 つ（押すとスキルを順に替える）・ステージのボタンを並べる仮の画面 |
-| ステージの選択と遷移 | あり。`GameSceneController.GoToStageAsync`。ステージの定義は `Assets/Level/Data/Stage/*StageData.asset`（チュートリアル・殲滅・崩壊・ボス戦・到達・テスト） |
-| クリアの記録 | 一部あり。`GameProgressState.MarkStageCleared`。保存しないので、アプリを閉じると消える。ロックはない |
-| 通貨 | あり（初回クリアで加算）。今回の仕様でなくす |
-| スキルの装備 | 一部あり。装備枠 3（`SkillService.SLOT_COUNT`）。装備できるスキルは全部で、解放の判定はない |
+| アウトゲームの画面 | 一部あり。`OutGameStartInitializer` が OnGUI で、装備枠 3 つ（押すとスキルを順に替える）・ステージのボタン（ロック中は押せない）を並べる仮の画面 |
+| ステージの選択と遷移 | あり。`GameSceneController.GoToStageAsync`。一覧はチュートリアル・殲滅・崩壊・ボス戦・到達の 5 つ（テストは外した） |
+| クリアの記録 | あり（区間0）。`progress.json` に保存する。前のステージをクリアすると次を選べる |
+| 通貨 | なし（区間0で削除） |
+| スキルの装備 | 一部あり。装備枠 3。解放済みのスキルだけ、同じスキルは 1 枠だけ（区間0）。各ステージの解放するスキルは区間5まで空で、初期解放は仮にビームと爆発 |
 | スキルの中身 | 一部あり。`SkillData` の効果はビーム・爆発・回復・強化型 5 種（区間6・10）。衝波・攻走はインゲームの区間17で計画済み（未着手）。崩爆・羽天轟号はない |
 | 背景映像 | なし。Cinemachine 3.1.7 と Timeline 1.8.10 は導入済み。Unity Recorder は未導入 |
-| コンフィグ | 一部あり。`OperationSettingState`（ダッシュ・つかむの受け付け方、切断面の回転角度、視点感度）。設定の画面と保存はない |
+| コンフィグ | 一部あり。`OperationSettingState`（ダッシュ・つかむの受け付け方、切断面の回転角度、視点感度）。`setting.json` への保存はある（区間0）。設定の画面はない |
 | キーコンフィグ | なし。Input System 1.19.0 は導入済み（`Assets/Level/Data/InputSystem_Actions.inputactions`） |
 | 音量 | なし。AudioMixer もない |
-| セーブ | なし |
+| セーブ | あり（区間0）。`JsonSaveStore<T>` で `persistentDataPath/Save/` に書く。消すのはエディタのメニュー `Kizami/Delete Save` |
 
 ## 4. 進め方
 
@@ -87,7 +89,7 @@ PC を先に作る。スマホと VR の対応は、インゲームと同じく�
 
 | # | 区間 | 主な内容 | 前提 | 目安の時期 | 状態 | 計画書 |
 |---|---|---|---|---|---|---|
-| 0 | 進行のセーブと解放 | 進行（クリア済みのステージ、装備）とコンフィグの保存・読み込み、通貨の削除、ステージのロック、スキルの解放の判定 | ― | 未定 | 未着手 | [Section00](Sections/Section00_ProgressSave.md) |
+| 0 | 進行のセーブと解放 | 進行（クリア済みのステージ、装備）とコンフィグの保存・読み込み、通貨の削除、ステージのロック、スキルの解放の判定 | ― | 未定 | 実装済み（ローカルでの確認待ち） | [Section00](Sections/Section00_ProgressSave.md) |
 | 1 | ホームとステージ選択 | uGUI のホーム、画面の切り替え、ステージ選択（ロック表示） | 0 | 未定 | 未着手 | [Section01](Sections/Section01_HomeStageSelect.md) |
 | 2 | スキル装備 | 装備枠 3、スキル一覧（羽天轟号は専用の枠を上に置く）、解放の演出（羽天轟号は特別） | 0, 1 | 未定 | 未着手 | [Section02](Sections/Section02_SkillEquip.md) |
 | 3 | 背景映像 | マップを周回するカメラの撮影と書き出し、アウトゲームでのループ再生 | ― | 未定 | 未着手 | [Section03](Sections/Section03_BackgroundVideo.md) |
@@ -119,7 +121,7 @@ flowchart LR
 | 背景の再生 | `VideoPlayer` → `RenderTexture` → `RawImage` |
 | キーコンフィグ | Input System の `PerformInteractiveRebinding`、`SaveBindingOverridesAsJson` / `LoadBindingOverridesFromJson`。公式サンプル「Rebinding UI」を参考にする |
 | 音量 | `AudioMixer` の Exposed Parameter（スライダーの値を dB にして渡す） |
-| 保存 | 区間0で決める（`JsonUtility` と `Application.persistentDataPath` のファイル、または `PlayerPrefs`） |
+| 保存 | `JsonSaveStore<T>`（`JsonUtility` と `Application.persistentDataPath/Save/` のファイル。区間0） |
 | シーン遷移 | `GameSceneController`（UsefulToolkit の SceneGroup / SceneLoadService） |
 
 ## 7. 確定した仕様（2026-10-19）
