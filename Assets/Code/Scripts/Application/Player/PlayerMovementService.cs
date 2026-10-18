@@ -52,17 +52,23 @@ namespace Kizami.Application
         /// <summary> 次の Step で処理する打ち上げの水平の打ち出し速度（m/s）。要求がなければゼロ </summary>
         private Vector3 _launchHorizontalVelocity;
 
-        /// <summary> 次の Step で処理するワープ入力があるか </summary>
-        private bool _isWarpRequested;
+        /// <summary> 次の Step で処理する突進の要求があるか </summary>
+        private bool _isRushRequested;
 
-        /// <summary> 実行中のワープの速度（m/s） </summary>
+        /// <summary> 要求された突進の向き（水平、正規化済み） </summary>
+        private Vector3 _rushDirection;
+
+        /// <summary> 要求された突進の距離（m） </summary>
+        private float _rushDistance;
+
+        /// <summary> 要求された突進の所要時間（秒） </summary>
+        private float _rushDuration;
+
+        /// <summary> 実行中の突進の速度（m/s） </summary>
         private Vector3 _warpVelocity;
 
-        /// <summary> 実行中のワープの残りの所要時間（秒） </summary>
+        /// <summary> 実行中の突進の残りの所要時間（秒） </summary>
         private float _warpTimeRemaining;
-
-        /// <summary> 次のワープができるまでの残り時間（秒） </summary>
-        private float _warpCooldownRemaining;
 
         /// <summary> 言葉をつかんでいる間は true になり、その間は移動モードを Aiming にして静止する </summary>
         private bool _isHoldingWord;
@@ -116,16 +122,41 @@ namespace Kizami.Application
             _subscriptions.Add(inputState.RegisterInput<Vector2>(ActionMaps.Player, PlayerActions.Move, OnMove));
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Sprint, OnSprint));
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Jump, OnJump));
-            _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Warp, OnWarp));
         }
 
         /// <summary>
-        /// 言葉をつかんでいるかを設定する。つかんでいる間は、次の Step から移動モードを Aiming にして、移動・ジャンプ・ワープ・打ち上げの要求を捨てる。
+        /// 言葉をつかんでいるかを設定する。つかんでいる間は、次の Step から移動モードを Aiming にして、移動・ジャンプ・突進・打ち上げの要求を捨てる。
         /// </summary>
         /// <param name="isHolding">言葉をつかんでいるか</param>
         public void SetHoldingWord(bool isHolding)
         {
             _isHoldingWord = isHolding;
+        }
+
+        /// <summary>
+        /// 突進する向きを返す。水平な移動入力があればその向き、なければ水平な視線の向き。
+        /// </summary>
+        public Vector3 GetRushDirection()
+        {
+            var worldInput = ToWorldDirection(_moveInput);
+            return worldInput.sqrMagnitude > Mathf.Epsilon ? worldInput.normalized : _viewForward;
+        }
+
+        /// <summary>
+        /// 次の Step で、direction の向きへ決めた距離を決めた時間で突進するよう要求する。突進中と言葉をつかんでいる間の要求は捨てる。
+        /// </summary>
+        /// <param name="direction">突進の向き（水平）</param>
+        /// <param name="distance">進む距離（m）</param>
+        /// <param name="duration">所要時間（秒）</param>
+        public void RequestRush(Vector3 direction, float distance, float duration)
+        {
+            direction.y = 0f;
+            if (direction.sqrMagnitude <= Mathf.Epsilon || distance <= 0f || duration <= 0f) return;
+
+            _isRushRequested = true;
+            _rushDirection = direction.normalized;
+            _rushDistance = distance;
+            _rushDuration = duration;
         }
 
         /// <summary>
@@ -153,8 +184,8 @@ namespace Kizami.Application
         /// <summary>
         /// EngineAdapterLayer の FixedUpdate から物理の1ステップごとに呼ばれ、記録済みの入力と視線の向き、
         /// 触れている物から移動モードと目標速度を決めて State に書き込む。
-        /// ジャンプ入力・ワープ入力・打ち上げの要求はこのステップで処理し、行えなければ捨てる。
-        /// ワープ中はジャンプ入力も打ち上げも壁走りに入る判定も無視する。打ち上げは壁走りとジャンプより優先する。
+        /// ジャンプ入力・突進と打ち上げの要求はこのステップで処理し、行えなければ捨てる。
+        /// 突進中はジャンプ入力も打ち上げも壁走りに入る判定も無視する。打ち上げは壁走りとジャンプより優先する。
         /// </summary>
         /// <param name="viewDirection">ワールド空間の視線の向き</param>
         /// <param name="deltaTime">このステップの経過時間（秒）</param>
@@ -176,8 +207,8 @@ namespace Kizami.Application
             var worldInput = ToWorldDirection(_moveInput);
             var isJumpRequested = _isJumpRequested;
             _isJumpRequested = false;
-            var isWarpRequested = _isWarpRequested;
-            _isWarpRequested = false;
+            var isRushRequested = _isRushRequested;
+            _isRushRequested = false;
             var launchSpeed = _launchSpeed;
             _launchSpeed = 0f;
             var launchHorizontalVelocity = _launchHorizontalVelocity;
@@ -192,18 +223,12 @@ namespace Kizami.Application
                 }
 
                 _state.SetMode(PlayerMoveMode.Normal);
-                _warpCooldownRemaining = _parameters.WarpCooldown;
             }
-            else
+            else if (isRushRequested)
             {
-                _warpCooldownRemaining = Mathf.Max(0f, _warpCooldownRemaining - deltaTime);
-
-                if (isWarpRequested && _warpCooldownRemaining <= 0f)
-                {
-                    StartWarp(viewDirection, worldInput);
-                    AdvanceWarp(deltaTime);
-                    return null;
-                }
+                StartRush();
+                AdvanceWarp(deltaTime);
+                return null;
             }
 
             var speed = IsSprinting ? _parameters.SprintSpeed : _parameters.WalkSpeed;
@@ -265,12 +290,12 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 言葉をつかんでいる間の Step。進行中のワープは打ち切り、受け付けた要求を捨てて、移動モードを Aiming にして目標速度を0にする。
+        /// 言葉をつかんでいる間の Step。進行中の突進は打ち切り、受け付けた要求を捨てて、移動モードを Aiming にして目標速度を0にする。
         /// </summary>
         private void HoldStill()
         {
             _isJumpRequested = false;
-            _isWarpRequested = false;
+            _isRushRequested = false;
             _launchSpeed = 0f;
             _warpTimeRemaining = 0f;
             _state.SetMode(PlayerMoveMode.Aiming);
@@ -343,27 +368,18 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// ワープを始める。移動モードを Warping にし、向きと速度、所要時間を決める。
-        /// 向きは、視線の向き ＋ ワールド空間の入力 × WarpInputInfluence を正規化したもの。
-        /// 視線の向きがほぼ0のときは、水平な視線の向きを使う。
+        /// 突進を始める。移動モードを Warping にし、要求された向きと距離、所要時間から速度を決める。
         /// </summary>
-        private void StartWarp(Vector3 viewDirection, Vector3 worldInput)
+        private void StartRush()
         {
-            var view = viewDirection.sqrMagnitude > 1e-6f ? viewDirection.normalized : _viewForward;
-            var direction = (view + worldInput * _parameters.WarpInputInfluence).normalized;
-            if (direction.sqrMagnitude <= Mathf.Epsilon)
-            {
-                direction = view;
-            }
-
-            _warpVelocity = direction * (_parameters.WarpDistance / _parameters.WarpDuration);
-            _warpTimeRemaining = _parameters.WarpDuration;
+            _warpVelocity = _rushDirection * (_rushDistance / _rushDuration);
+            _warpTimeRemaining = _rushDuration;
             _state.SetMode(PlayerMoveMode.Warping);
         }
 
         /// <summary>
-        /// ワープを1ステップ分進める。目標速度にワープの速度を書き込み、残りの所要時間を減らす。
-        /// 残りの所要時間がステップの経過時間より短いときは、進む距離が WarpDistance に揃うよう速度をその割合だけ落とす。
+        /// 突進を1ステップ分進める。目標速度に突進の速度を書き込み、残りの所要時間を減らす。
+        /// 残りの所要時間がステップの経過時間より短いときは、進む距離が揃うよう速度をその割合だけ落とす。
         /// </summary>
         private void AdvanceWarp(float deltaTime)
         {
@@ -411,14 +427,6 @@ namespace Kizami.Application
             if (context.Phase == InputPhase.Performed)
             {
                 _isJumpRequested = true;
-            }
-        }
-
-        private void OnWarp(InputContext<float> context)
-        {
-            if (context.Phase == InputPhase.Performed)
-            {
-                _isWarpRequested = true;
             }
         }
 

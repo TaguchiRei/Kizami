@@ -25,6 +25,7 @@ namespace Kizami.Application
         private readonly Action<int> _onHeal;
         private readonly Action<float, float> _onBomb;
         private readonly Action<float, float> _onSweep;
+        private readonly Action<float, float, float> _onRush;
         private readonly List<IDisposable> _subscriptions = new();
         private readonly PlayerActionEvents _actionEvents;
         private readonly IPlayerHealthState _healthState;
@@ -38,12 +39,13 @@ namespace Kizami.Application
         /// <param name="onHeal">HP を回復する関数。引数は回復量</param>
         /// <param name="onBomb">爆弾を投げる関数。引数は投げる距離（m）と爆発の半径（m）</param>
         /// <param name="onSweep">正面を横長に削る関数。引数は横幅（m）と奥行き（m）</param>
+        /// <param name="onRush">突進する関数。引数は距離（m）、所要時間（秒）、削る半径（m）</param>
         /// <param name="actionEvents">スキルの発動とチャージの消費を流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
             ChargeService chargeService, PlayerEnhanceService enhanceService, Action<float, float> onBeam,
             Action<float> onExplosion, Action<int> onHeal, Action<float, float> onBomb, Action<float, float> onSweep,
-            PlayerActionEvents actionEvents, int sceneId)
+            Action<float, float, float> onRush, PlayerActionEvents actionEvents, int sceneId)
         {
             _actionEvents = actionEvents;
             _chargeService = chargeService;
@@ -53,6 +55,7 @@ namespace Kizami.Application
             _onHeal = onHeal;
             _onBomb = onBomb;
             _onSweep = onSweep;
+            _onRush = onRush;
 
             var count = Math.Min(equippedSkills.Count, SLOT_COUNT);
             for (var i = 0; i < count; i++)
@@ -113,6 +116,9 @@ namespace Kizami.Application
                     break;
                 case SkillEffect.Sweep:
                     _onSweep?.Invoke(skill.Width, skill.Depth);
+                    break;
+                case SkillEffect.Rush:
+                    _onRush?.Invoke(skill.Distance, skill.Duration, skill.Radius);
                     break;
             }
         }

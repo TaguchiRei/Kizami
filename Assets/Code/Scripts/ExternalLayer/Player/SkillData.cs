@@ -44,6 +44,10 @@ namespace Kizami.External
         [Tooltip("削る範囲の奥行き（m）。衝波でだけ使う")]
         private float _depth = 2f;
 
+        [SerializeField, Min(0.01f)]
+        [Tooltip("突進の所要時間（秒）。攻走でだけ使う。進む距離は飛距離、削る半径は半径を使う")]
+        private float _duration = 0.3f;
+
         [SerializeField, Min(0)]
         [Tooltip("回復する HP。回復でだけ使う")]
         private int _healAmount = 30;
@@ -94,6 +98,9 @@ namespace Kizami.External
 
         /// <summary> 削る範囲の奥行き（m） </summary>
         public float Depth => _depth;
+
+        /// <summary> 突進の所要時間（秒） </summary>
+        public float Duration => _duration;
 
         /// <summary> 回復する HP </summary>
         public int HealAmount => _healAmount;
@@ -154,6 +161,9 @@ namespace Kizami.External
 
         /// <summary> 正面の横長の範囲を、水平のカプセルで一度だけ削る </summary>
         Sweep,
+
+        /// <summary> 移動入力の向き（なければ正面）へ突進し、通る経路を削る </summary>
+        Rush,
     }
 
     /// <summary>

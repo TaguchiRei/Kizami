@@ -101,7 +101,7 @@ namespace Kizami.Initialization
             _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService, _enhanceService,
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
                 _bombThrowAdapter != null ? _bombThrowAdapter.Throw : null,
-                _voxelDestructionAdapter.CarveSweep, _actionEvents, sceneId);
+                _voxelDestructionAdapter.CarveSweep, Rush, _actionEvents, sceneId);
 
             _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake, _voxelDestructionAdapter.CarveExplosionAt);
 
@@ -122,6 +122,17 @@ namespace Kizami.Initialization
             _meleeCutPreviewAdapter.Initialize(blackBoard);
 
             base.Initialize(blackBoard);
+        }
+
+        /// <summary>
+        /// 移動入力の向き（なければ正面）へ突進を要求し、通る経路を先に削る。経路を先に削るので、途中の壁で止まらずに通り抜ける。
+        /// </summary>
+        private void Rush(float distance, float duration, float radius)
+        {
+            var direction = _movementService.GetRushDirection();
+            var start = _movementAdapter.transform.position;
+            _voxelDestructionAdapter.CarveCapsuleAt(start, start + direction * distance, radius);
+            _movementService.RequestRush(direction, distance, duration);
         }
 
         /// <summary>
