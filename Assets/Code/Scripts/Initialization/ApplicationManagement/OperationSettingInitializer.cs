@@ -2,6 +2,7 @@ using Kizami.Application;
 using Kizami.BlackBoard;
 using Kizami.EngineAdapter;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.InputSystem;
 using UsefulToolkit.Attributes;
 using UsefulToolkit.BlackBoard.BlackBoard;
@@ -33,11 +34,16 @@ namespace Kizami.Initialization
         [Tooltip("キーの割り当てを変える InputActionAsset。常駐シーンの InputDispatcher に割り当てているものと同じ物。空ならキーコンフィグを使えない")]
         private InputActionAsset _inputActions;
 
+        [SerializeField]
+        [Tooltip("音量を反映する AudioMixer。MasterVolume・BgmVolume・SeVolume の Exposed Parameter（dB）が必要。空なら音量は反映しない")]
+        private AudioMixer _audioMixer;
+
         private OperationSettingService _settingService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
             _settingService.Initialize(blackBoard);
+            if (_audioMixer != null) gameObject.AddComponent<AudioVolumeAdapter>().Initialize(blackBoard, _audioMixer);
 
             base.Initialize(blackBoard);
         }
