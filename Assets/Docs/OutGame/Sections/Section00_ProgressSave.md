@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手（着手前にこの計画を見直す） |
+| 状態 | 実装済み・ローカルでの確認待ち |
 | 目安の時期 | 未定 |
 | 前提となる区間 | ― |
 | 全体計画 | [OutGameOverallPlan.md](../OutGameOverallPlan.md) |
@@ -51,11 +51,30 @@
 
 ## 既存コードの確認結果
 
-着手する直前に書く。
+- 通貨を使っていたのは `GameProgressState`、`GameProgressService`、`GameSceneInitializer`（`_firstClearReward`）、`OutGameStartInitializer` の表示の 4 か所
+- 常駐シーンのステージ一覧は、テスト・チュートリアル・殲滅・崩壊・到達・ボス戦の順で、仕様の順と違っていた
+- 衝波・攻走のスキルの定義はまだない（区間5で作る）
 
 ## 実装結果
 
-区間を終えるときに書く。
+決めたこと
+
+| # | 項目 | 決定 |
+|---|---|---|
+| 1 | 保存の方式 | `JsonUtility` で `persistentDataPath/Save/` に書く。進行は `progress.json`、設定は `setting.json` |
+| 2 | 識別 | `StageData` と `SkillData` に `_id` を足し、ID で保存する。空ならアセットの名前を使う |
+| 3 | テスト用ステージ | 一覧から外した |
+| 4 | セーブデータの初期化 | エディタのメニュー `Kizami/Delete Save` だけにした |
+
+作ったもの
+
+- `JsonSaveStore<T>`、`SaveDirectory`（ExternalLayer/Save）。保存データの型の `ProgressSaveData`、`OperationSettingSaveData`（Application/CoreSystem）。設定の enum が BlackBoard 層にあるので、データの型は Application に置いた
+- 解放済みのスキルは保存しない。初期の解放とクリア済みのステージから決まる為
+- 装備の制約は `CycleEquippedSkill` の中で、解放していないスキルとほかの枠のスキルを飛ばす形で入れた
+- 初期解放のスキルは `GameSceneInitializer._initialUnlockedSkills`。衝波・攻走ができるまでは、仮にビームと爆発を入れている
+- 各ステージの `_unlockSkill` は空のまま（砕剣などの定義ができる区間5で入れる）
 
 ## 見つけた問題（今回は扱わない）
+
+- `OperationSettingService` の設定を変える窓口は、どこからも呼ばれていない。区間4で画面とつなぐ
 
