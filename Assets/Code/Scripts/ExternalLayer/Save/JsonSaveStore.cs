@@ -11,13 +11,16 @@ namespace Kizami.External
     /// <typeparam name="T">保存するデータ。JsonUtility で書き出せる型</typeparam>
     public sealed class JsonSaveStore<T> where T : class, new()
     {
-        private readonly string _path;
+        private readonly string _fileName;
 
         /// <param name="fileName">保存先のファイル名（拡張子を含む）</param>
         public JsonSaveStore(string fileName)
         {
-            _path = Path.Combine(SaveDirectory.Path, fileName);
+            _fileName = fileName;
         }
+
+        /// <summary> 保存先のパス。persistentDataPath は MonoBehaviour のフィールド初期化子から呼べない為、使うときに組み立てる </summary>
+        private string FilePath => Path.Combine(SaveDirectory.Path, _fileName);
 
         /// <summary>
         /// 保存データを読み込む。
@@ -27,15 +30,16 @@ namespace Kizami.External
         public bool TryLoad(out T data)
         {
             data = null;
-            if (!File.Exists(_path)) return false;
+            var path = FilePath;
+            if (!File.Exists(path)) return false;
 
             try
             {
-                data = JsonUtility.FromJson<T>(File.ReadAllText(_path));
+                data = JsonUtility.FromJson<T>(File.ReadAllText(path));
             }
             catch (Exception e)
             {
-                Debug.LogError($"保存データ {_path} を読み込めません。{e.Message}");
+                Debug.LogError($"保存データ {path} を読み込めません。{e.Message}");
             }
 
             return data != null;
@@ -47,14 +51,15 @@ namespace Kizami.External
         /// <param name="data">書き出すデータ</param>
         public void Save(T data)
         {
+            var path = FilePath;
             try
             {
                 Directory.CreateDirectory(SaveDirectory.Path);
-                File.WriteAllText(_path, JsonUtility.ToJson(data, true));
+                File.WriteAllText(path, JsonUtility.ToJson(data, true));
             }
             catch (Exception e)
             {
-                Debug.LogError($"保存データ {_path} を書き出せません。{e.Message}");
+                Debug.LogError($"保存データ {path} を書き出せません。{e.Message}");
             }
         }
     }
