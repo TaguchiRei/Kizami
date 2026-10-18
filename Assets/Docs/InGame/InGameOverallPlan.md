@@ -246,6 +246,9 @@ flowchart LR
 | 破壊属性の切断 | `VoxelPiece.Slice`（厚みゼロの平面で切り分ける） |
 | 破壊後の重心の偏り | Unity 標準の `Rigidbody.centerOfMass` と `ResetCenterOfMass()`（区間17の予定。独自の物理は作らない） |
 | 大きな建物 | 区間15の `VoxelBuilding`。攻撃は `VoxelPiece.ApplyStrike`（強さと減衰率）で当てると、素材の強度と傷の記録が効く。使い方は [Section15](Sections/Section15_LargeVoxelBuilding.md) の「実装結果」 |
+| フィニッシャーの姿勢 | Unity 標準の Animator とクリップ（区間18）。旧作のクリップをエディタのメニュー（Kizami/Finisher/Build Animations）で kizami の体用に変換する。IK は使わない |
+| 遠くの敵の待機姿勢 | 部位ごとの待機姿勢（`EnemyPart`）を、エディタのメニュー（Kizami/Enemy/Bake Idle Poses）で焼き込む（区間18） |
+| ビームの見た目 | URP の HLSL シェーダー（`Assets/Code/Shader/FinisherBeam/`）、`MaterialPropertyBlock`、`ParticleSystem`（火花）、Cinemachine の `CinemachineImpulseSource`（画面の揺れ。カメラに `CinemachineImpulseListener`）（区間18） |
 | 破壊スキルの演出 | 既存のボクセルの融解（Thermal / Melt）が候補。区間6では使わず、区間13（または区間10）で決める。`VoxelMeltSystem` は InGame にも TestStage にも置かれていない |
 
 ## 7. 未確定の仕様と、決める区間

@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 進行中（2026-10-18 時点で 18-1・18-4・18-5・18-6 が完了。18-2・18-3 は未着手。18-5 は実装済みでプレイでの確認待ち） |
+| 状態 | 完了（2026-10-18。18-5 の溶け方は、ユーザーがプレイで確認する） |
 | 目安の時期 | 未定（区間14C の街のマップとは独立。どちらを先にしてもよい） |
 | 前提となる区間 | 9, 15 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -137,7 +137,7 @@
 - 旧作の骨と kizami の部位は、名前の対応（Leg → Arm、Buck → Back、UnderLeg → Forearm）で 1 対 1 に結べる
 - 旧作の攻撃する敵とシールドを持つ敵のモデルの骨も、kizami の `MachineEnemy_Attacker`、`MachineEnemy_Defender` と対応する
 
-## 実装結果（2026-10-18、18-1・18-4・18-6）
+## 実装結果（2026-10-18）
 
 ### 決めたこと
 
@@ -154,6 +154,18 @@
 - 止まる物の判定は、当たったコライダーの親に `VoxelPiece` があるかだけ。`VoxelPiece` でない物（メッシュのままの建物・装甲・地形）は溶かさずに止まる
 - 溶かした体積は `VoxelDestructionAdapter` を通さないので、削った体積の通知（`_onCarved`）には入らない
 
+### 18-2・18-3 の決めたこと
+
+- FK の再現方法（決めること #3）：Unity の Animator とクリップ。`Assets/Code/Editor/Enemy/FinisherAnimationBuilder.cs`（メニュー Kizami/Finisher/Build Animations）が、`Assets/Art/sample/EnemyAnimation/` の旧作のクリップを kizami の体用に変換して `Assets/Art/Animation/Finisher/` に書き出し、旧作の遷移と同じコントローラー（`Walking`・`grab`）を作り、フィニッシャーのプレハブに Animator を付ける
+- 骨の対応は位置で結ぶ（旧作の Left/Right は kizami と逆）。旧作の `Body` の高さの動きは、kizami の `Body` の高さ（5.021m）に足し、腕の付け根の高さにも足す。体の高さは旧作の 5.744m に揃えず、動き幅だけを旧作どおりにした
+- 変換したクリップと旧作のモデルにかけた姿勢の突き合わせは、5 クリップ × 21 時刻で、ずれが 0.00000m（`FinisherAnimationBuilder.Verify`）
+- フィニッシャーの体では `EnemyLegs` の IK を使わない（Animator を設定すると IK を切り、`Walking` を体の速さから書く）。吸収は旧作の Absorption（`grab`）に置き換え、腕を開いて閉じる IK は削除した。ディゾルブと粒はそのまま
+- 吸収の長さは旧作の「敵を食べるイベント」（Absorption の 0.75 秒）に合わせて 0.75 秒にした。構えは照準と同時に流れる（吸収のあと BeamStance → Aiming）
+- 待機姿勢のデータの持ち方（決めること #1）：`EnemyPart` に待機姿勢（体の根から見た位置と回転）を持たせ、`EnemyCrowdRenderer` がそれで描く。持っていない部位は、これまでどおりプレハブの姿勢
+- 待機姿勢の焼き込み：`EnemyIdlePoseBuilder.cs`（メニュー Kizami/Enemy/Bake Idle Poses）。フィニッシャーは変換した FinisherStay の姿勢。アタッカーとシールドを持つ敵は、旧作の待機姿勢で脛のメッシュが最も低い点（足先）へ、kizami の脚を IK（`EnemyLegs.PoseFeet`）で向けた姿勢。足先の最低点は 0.02m 台で地面に付く
+- 食べた敵の死骸（決めること #2）：再現することにした。旧作は BeamStance で死骸が表示され、4 本の脚が外へ広がって 2.1〜3.4 倍になり、ビームを抱えるように見える。体の根の下に非表示の `AttakkerEnemyCadaver` を置き、表示・位置・拡大・色のキーも同じクリップに写した。旧作のアタッカーのモデル（`AttakkerEnemy.fbx`）を `Assets/Art/Models/EnemyModels/` へ移して使う。当たり判定は付けない
+- 死骸の色と現れ方は `Kizami/FinisherCadaver`（旧作の `Dissolve.shadergraph` と同じ計算。`_NoiseLevel` で現れ、縁が `_DissolveEmissionColor` で光る）。マテリアルは `FinisherCadaverUpper`・`FinisherCadaverLower`
+
 ### 作った主なもの
 
 - `EnemyFinisherBeams`：分身と上空への移動を削除し、照準・予兆・照射の 3 段階に作り直した。照射中は、当たった面から球を射線に沿って動かし、ボクセルを溶かして進む（`Melt`）。射線は pivot（体の根から 2m）から最初に当たった物まで。継続ダメージは 0.1 秒ごとに 1。プレイヤーの頭の位置の履歴を持つ
@@ -163,6 +175,10 @@
 - マテリアル：`FinisherBeam`（外側）、`FinisherBeamInner`（内側）、`FinisherTelegraph`、`FinisherGlow`
 - 旧作の `BeamBeam` の動きは、`AnimationCurve` 2 本（ノイズのしきい値、模様の細かさ）に写した
 - 発射口の光（予兆の間に育つ）、先端の光と火花、照射中の画面の揺れ（`CinemachineImpulseSource` と、カメラの `CinemachineImpulseListener`）
+- `EnemyLegs`：Animator を設定した体は IK を使わず、`Walking` を書く。`PoseFeet`（待機姿勢の焼き込み用）を追加
+- `EnemyFinisherAttack`：吸収は Animator の `grab` を立てる段階（`Approaching` → `Absorbing`）に置き換えた
+- `EnemyPart`：待機姿勢の位置と回転。`EnemyCrowdRenderer`：待機姿勢で描く
+- エディタのツール：`Assets/Code/Editor/Enemy/`（asmdef は `Kizami.Enemy.Editor`）
 - 資料：[FinisherReference.md](../FinisherReference.md)
 
 ### 完了条件の確認
@@ -174,12 +190,14 @@
 | 冷却は 10 秒、最初の 1 回は 10〜15 秒 | コードで確認（プレイでの計測はしていない） |
 | ビームと警告の見た目 | ユーザーが確認 |
 | ボクセルの建物を溶かして進む。メッシュの建物と装甲で止まる | 実装済み（18-5）。コンパイルとコンソールのエラーなしまでは確認。`VoxelBuildingTest` での溶け方はユーザーが確認する |
-| 遠くの敵とフィニッシャーの待機姿勢、FK の再現 | 未実装（18-2、18-3） |
+| 遠くの敵が 3 種類とも旧作の待機姿勢で描かれる（攻撃する敵とシールドを持つ敵は足が地面に付く） | 足先の最低点で確認（0.02m 台）。見た目はユーザーが確認 |
+| フィニッシャーが浮いたまま移動し、待機・移動・吸収・照準・構えの姿勢が旧作と同じに見える | 変換した姿勢と旧作の姿勢の突き合わせでずれ 0m。見た目はユーザーが確認（死骸の脚も含む） |
 
 ### 次へ持ち越すこと
 
-- 18-2・18-3：待機姿勢と FK。構えのアニメーション（BeamStance）は照準と同時に流す
-- 体の高さが旧作と 0.723m 違う（旧作 5.744m、kizami 5.021m）。18-3 で合わせるか決める
+- ビームの円柱は、溶けた穴より太い（半径 14.14m に対して穴 3m）ので、穴の中へ入り込まず、面の手前で止まって見える。穴に沿った見た目は必要になったら扱う
+- 体を貸していない遠くのフィニッシャーは、待機の姿勢だけで描く（移動の上下の揺れは描かない）
+- 旧作の資料（`Assets/Art/sample/`）は、旧作との見比べや変換のやり直しに使う。`AttakkerEnemy.fbx` だけは、死骸のメッシュとして `Assets/Art/Models/EnemyModels/` へ移した
 - `EnemyFinisherAttack` の `_pivotHeight`（2m）は、旧作の内側の `FinisherEnemy`（根から 2.723m）の位置を kizami の体の高さに換算した値
 
 ## 見つけた問題（今回は扱わない）
