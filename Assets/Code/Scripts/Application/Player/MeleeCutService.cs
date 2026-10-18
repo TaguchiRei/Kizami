@@ -12,6 +12,7 @@ namespace Kizami.Application
     /// <summary>
     /// 近接切断の入力を解釈して MeleeCutState へ書き込み、振ったことを切断の実行役へ伝えるユースケース。
     /// 速さアップの強化は攻撃間隔に、範囲アップの強化は振ったときの範囲に倍率を掛ける。範囲と速さの強化（覇剣）は両方に掛ける。
+    /// 通常攻撃とスキルは攻撃間隔を共有し、どちらかを出してから攻撃間隔が経つまで、どちらも出せない。
     /// 切断は攻撃タイプで、ボクセル破壊の強化中は破壊タイプを、シルブレの強化中は粉砕タイプを足す。ボスが止まったあとは、強化がなくても常に破壊タイプを足す。
     /// </summary>
     public sealed class MeleeCutService : IDisposable
@@ -31,8 +32,8 @@ namespace Kizami.Application
         private IDisposable _bossBattleStateWaiter;
         private IBossBattleState _bossBattleState;
 
-        /// <summary> 前回振った時刻（unscaled の秒） </summary>
-        private double _lastSwingTime = double.NegativeInfinity;
+        /// <summary> 前回、通常攻撃かスキルを出した時刻（unscaled の秒） </summary>
+        private double _lastActionTime = double.NegativeInfinity;
 
         /// <param name="blackBoard">MeleeCutState の登録先と、入力・回転角度の設定の取得元</param>
         /// <param name="parameters">攻撃間隔の取得元</param>
@@ -76,6 +77,25 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// 前回、通常攻撃かスキルを出してから、今の攻撃間隔が経っているかを返す。スローモード中も攻撃間隔は実時間で数える。
+        /// </summary>
+        public bool CanAct()
+        {
+            _enhanceService.IsActive(SkillEffect.EnhanceSpeed, out var intervalScale);
+            _enhanceService.IsActive(SkillEffect.EnhanceRangeSpeed, out _, out var rangeSpeedIntervalScale);
+            intervalScale *= rangeSpeedIntervalScale;
+            return Time.unscaledTimeAsDouble - _lastActionTime >= _parameters.MeleeAttackInterval * intervalScale;
+        }
+
+        /// <summary>
+        /// 通常攻撃かスキルを出した時刻を、今にする。
+        /// </summary>
+        public void MarkActed()
+        {
+            _lastActionTime = Time.unscaledTimeAsDouble;
+        }
+
+        /// <summary>
         /// 回転入力の符号の向きへ、1回分の角度だけ切断面を回す。正の入力（ホイールを上へ回す）で角度が増える。
         /// </summary>
         private void OnCutRotate(InputContext<float> context)
@@ -94,12 +114,7 @@ namespace Kizami.Application
         {
             if (context.Phase != InputPhase.Performed) return;
 
-            // スローモード中も攻撃間隔は実時間で数える
-            var now = Time.unscaledTimeAsDouble;
-            _enhanceService.IsActive(SkillEffect.EnhanceSpeed, out var intervalScale);
-            _enhanceService.IsActive(SkillEffect.EnhanceRangeSpeed, out _, out var rangeSpeedIntervalScale);
-            intervalScale *= rangeSpeedIntervalScale;
-            if (now - _lastSwingTime < _parameters.MeleeAttackInterval * intervalScale) return;
+            if (!CanAct()) return;
             if (_tryUseCut != null && !_tryUseCut()) return;
 
             _enhanceService.TryUse(SkillEffect.EnhanceSpeed, out _);
@@ -112,7 +127,7 @@ namespace Kizami.Application
             if (isDestroyEnhanced || (_bossBattleState != null && _bossBattleState.IsStopped)) damageType |= DamageType.Destroy;
             if (_enhanceService.TryUse(SkillEffect.EnhanceArmorBreak, out _)) damageType |= DamageType.Shatter;
 
-            _lastSwingTime = now;
+            MarkActed();
             _onSwing?.Invoke(_state.Angle, rangeScale, damageType);
             _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.MeleeSwung));
         }
