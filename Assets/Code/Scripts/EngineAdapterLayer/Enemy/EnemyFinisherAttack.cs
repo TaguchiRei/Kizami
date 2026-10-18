@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kizami.BlackBoard;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
@@ -10,11 +11,11 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// フィニッシャーの攻撃を扱う。EnemySpawnAdapter と同じ GameObject に置き、EnemySpawnAdapter が初期化と毎フレームの更新を呼ぶ。
-    /// 同時に攻撃するのはマップ全体で上限の数まで。上限はステージごとに変えられる。グループが螺旋に並んでいて（EnemyGroup.HasArrived）、プレイヤーが射程の中にいる、冷却を終えたフィニッシャーが始める。
+    /// 同時に攻撃するのはマップ全体で上限の数まで。上限はステージごとに変えられる。グループがプレイヤーを追跡していて（EnemyGroupState.Tracking）、冷却を終えたフィニッシャーが始める。冷却は敵ごとに EnemyAgent.AttackCooldown で持つ。
     /// 同じグループの最も近いメンバーを吸収の対象に選んで止め、その上へ飛んで、Animator の grab を立てて吸収の姿勢（旧作の Absorption → BeamStance → Aiming）にし、対象をディゾルブで消しながら粒を吸い込む。
     /// 構えのアニメーションは、対象が消えて照準が始まったあとも続く。
     /// 吸収された敵はオーブもチャージも出さない。吸収したあとはその場で体を傾けてプレイヤーを狙い、ビームを撃ち（EnemyFinisherBeams）、撃ち終えたら冷却に入って、飛び立った位置へ戻る。
-    /// 吸収する前に対象が倒れるか、グループの並びが解けたら、冷却に入って戻る。フィニッシャーが倒れたら、対象を放し、ビームと危険範囲の帯を消してやめる。
+    /// 吸収する前に対象が倒れるか、グループが追跡をやめたら、冷却に入って戻る。フィニッシャーが倒れたら、対象を放し、ビームと危険範囲の帯を消してやめる。
     /// 吸収を始めたあとにフィニッシャーが倒れたときは、対象もそのまま消す。消えかけた体を元に戻して歩かせることはしない。
     /// 攻撃1回分の状態は Attack が持つ。飛んでいるフィニッシャーと止めた対象は行動を始められない為、ほかの攻撃と同じ敵を選ぶことはない。
     /// </summary>
@@ -51,10 +52,6 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(1)]
         [Tooltip("同時に攻撃するフィニッシャーの数の既定の値。ステージが上限を決めていればそちらを使う")]
         private int _maxAttacks = 1;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("プレイヤーがこの距離（m）以内にいると、攻撃を始める")]
-        private float _range = 50f;
 
         [SerializeField, Min(0f)]
         [Tooltip("吸収するときの、フィニッシャーの体の根の、対象の体の根からの高さ（m）")]
@@ -100,7 +97,6 @@ namespace Kizami.EngineAdapter
         [Tooltip("1 回に粒を出す位置（対象の部位）の数の上限")]
         private int _maxBurstPositions = 32;
 
-        private Transform _target;
         private Material _dissolveMaterial;
         private GraphicsBuffer _positionBuffer;
         private VFXEventAttribute _eventAttribute;
@@ -169,6 +165,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// グループがプレイヤーを追跡しているか。待機・帰還・退却のグループは攻撃しない。
+        /// </summary>
+        private static bool IsTracking(in EnemyGroup group)
+        {
+            return group.IsActive && group.State == EnemyGroupState.Tracking;
+        }
+
+        /// <summary>
         /// 敵に貸している体を返す。体を貸していなければ null。
         /// </summary>
         private static EnemyBody GetBody(in EnemyAgent agent, EnemyBodyLender[] lenders)
@@ -222,7 +226,6 @@ namespace Kizami.EngineAdapter
                 return;
             }
 
-            _target = target;
             _dissolveMaterial = dissolveMaterial;
 
             if (_beams == null)
@@ -278,13 +281,11 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 攻撃を始められるフィニッシャーと、その吸収の対象を探し、見つかれば空いた枠で始める。
-        /// 始められるのは、地面に立って歩ける状態で、冷却中でなく、グループが螺旋に並んでいて、プレイヤーが射程の中にいるフィニッシャー。
+        /// 始められるのは、地面に立って歩ける状態で、冷却中でなく、グループがプレイヤーを追跡しているフィニッシャー。
         /// </summary>
         /// <returns>始めたか</returns>
         private bool TryStart(NativeArray<EnemyAgent> agents, EnemyGroups groups)
         {
-            var player = (float3)_target.position;
-            var rangeSq = _range * _range;
             var groupStates = groups.Groups;
 
             for (var i = 0; i < agents.Length; i++)
@@ -293,8 +294,7 @@ namespace Kizami.EngineAdapter
                 if (!agent.IsAlive || agent.Kind != EnemyKind.Finisher || agent.AttackCooldown > 0f ||
                     !CanAct(agent) || agent.GroupIndex < 0) continue;
 
-                var group = groupStates[agent.GroupIndex];
-                if (!group.IsActive || !group.HasArrived || math.distancesq(agent.Position, player) > rangeSq) continue;
+                if (!IsTracking(groupStates[agent.GroupIndex])) continue;
 
                 var absorbTarget = FindAbsorbTarget(agents, i);
                 if (absorbTarget < 0) continue;
@@ -459,14 +459,14 @@ namespace Kizami.EngineAdapter
             }
 
             /// <summary>
-            /// 吸収の対象が生きていて、フィニッシャーのグループが螺旋に並んだままか。
+            /// 吸収の対象が生きていて、フィニッシャーのグループが追跡を続けているか。
             /// </summary>
             private bool IsTargetValid(NativeArray<EnemyAgent> agents, EnemyGroups groups)
             {
                 if (!agents[_absorbTarget].IsAlive) return false;
 
                 var groupIndex = agents[_finisher].GroupIndex;
-                return groupIndex >= 0 && groups.Groups[groupIndex].IsActive && groups.Groups[groupIndex].HasArrived;
+                return groupIndex >= 0 && IsTracking(groups.Groups[groupIndex]);
             }
 
             /// <summary>
