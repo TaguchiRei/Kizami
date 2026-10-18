@@ -19,15 +19,20 @@ namespace Kizami.Application
 
         private readonly GameProgressState _state = new(SkillService.SLOT_COUNT);
         private readonly JsonSaveStore<ProgressSaveData> _saveStore = new(SAVE_FILE_NAME);
+        private readonly HashSet<string> _shownUnlockSkillIds = new();
 
         private StageData[] _stages = Array.Empty<StageData>();
         private SkillData[] _skills = Array.Empty<SkillData>();
+        private int _ultimateSkillIndex = GameProgressState.NO_SKILL;
 
         /// <summary> 選べるステージ。番号はこの並びの位置 </summary>
         public IReadOnlyList<StageData> Stages => _stages;
 
         /// <summary> 装備できるスキル。番号はこの並びの位置 </summary>
         public IReadOnlyList<SkillData> Skills => _skills;
+
+        /// <summary> スキル装備の画面で専用の枠に置くスキルの番号。なければ GameProgressState.NO_SKILL </summary>
+        public int UltimateSkillIndex => _ultimateSkillIndex;
 
         /// <summary> 選んだステージの番号。選んでいなければ GameProgressState.NO_STAGE </summary>
         public int SelectedStageIndex => _state.SelectedStageIndex;
@@ -40,11 +45,13 @@ namespace Kizami.Application
         /// <param name="stages">選べるステージ。番号はこの並びの位置で、この順に解放する</param>
         /// <param name="skills">装備できるスキル。番号はこの並びの位置</param>
         /// <param name="initialUnlockedSkills">初めから解放しておくスキル。skills に含まれるもの</param>
+        /// <param name="ultimateSkill">専用の枠に置くスキル。skills に含まれるもの。なければ null</param>
         public void Initialize(IBlackBoard blackBoard, StageData[] stages, SkillData[] skills,
-            SkillData[] initialUnlockedSkills)
+            SkillData[] initialUnlockedSkills, SkillData ultimateSkill)
         {
             _stages = stages ?? Array.Empty<StageData>();
             _skills = skills ?? Array.Empty<SkillData>();
+            _ultimateSkillIndex = ultimateSkill != null ? Array.IndexOf(_skills, ultimateSkill) : GameProgressState.NO_SKILL;
 
             foreach (var skill in initialUnlockedSkills ?? Array.Empty<SkillData>())
             {
@@ -101,21 +108,61 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 装備枠のスキルを、装備できるスキルの次のものに替えて保存する。
-        /// 解放していないスキルと、ほかの枠に装備しているスキルは飛ばす。最後のスキルの次は空きにし、空きの次は最初のスキルにする。
+        /// 装備枠にスキルを装備して保存する。解放していないスキルと範囲外の指定は無視する。
+        /// ほかの枠に装備しているスキルを指定したときは、その枠と入れ替える。
         /// </summary>
         /// <param name="slot">枠の番号（0から）</param>
-        public void CycleEquippedSkill(int slot)
+        /// <param name="skillIndex">スキルの番号（0から）。空きにするなら GameProgressState.NO_SKILL</param>
+        /// <returns>装備を変えたか</returns>
+        public bool EquipSkill(int slot, int skillIndex)
         {
-            if (slot < 0 || slot >= _state.SlotCount) return;
+            if (slot < 0 || slot >= _state.SlotCount) return false;
+            if (skillIndex != GameProgressState.NO_SKILL &&
+                (skillIndex < 0 || skillIndex >= _skills.Length || !_state.IsSkillUnlocked(skillIndex))) return false;
 
-            var next = _state.GetEquippedSkillIndex(slot) + 1;
-            while (next < _skills.Length && !CanEquip(slot, next))
+            var previous = _state.GetEquippedSkillIndex(slot);
+            if (previous == skillIndex) return false;
+
+            for (var other = 0; other < _state.SlotCount; other++)
             {
-                next++;
+                if (other != slot && skillIndex != GameProgressState.NO_SKILL &&
+                    _state.GetEquippedSkillIndex(other) == skillIndex)
+                {
+                    _state.SetEquippedSkillIndex(other, previous);
+                }
             }
 
-            _state.SetEquippedSkillIndex(slot, next < _skills.Length ? next : GameProgressState.NO_SKILL);
+            _state.SetEquippedSkillIndex(slot, skillIndex);
+            Save();
+            return true;
+        }
+
+        /// <summary>
+        /// ステージの初回クリアで解放されたスキルのうち、解放の演出をまだ出していないものを、ステージの並び順で返す。
+        /// </summary>
+        public List<SkillData> GetPendingUnlockSkills()
+        {
+            var pending = new List<SkillData>();
+            for (var i = 0; i < _stages.Length; i++)
+            {
+                var skill = _stages[i] != null && _state.IsStageCleared(i) ? _stages[i].UnlockSkill : null;
+                if (skill != null && Array.IndexOf(_skills, skill) >= 0 && !_shownUnlockSkillIds.Contains(skill.Id))
+                {
+                    pending.Add(skill);
+                }
+            }
+
+            return pending;
+        }
+
+        /// <summary>
+        /// 解放の演出を出したスキルとして記録して保存する。
+        /// </summary>
+        /// <param name="skill">演出を出したスキル</param>
+        public void MarkUnlockShown(SkillData skill)
+        {
+            if (skill == null || !_shownUnlockSkillIds.Add(skill.Id)) return;
+
             Save();
         }
 
@@ -226,6 +273,11 @@ namespace Kizami.Application
                 if (index >= 0) MarkStageCleared(index);
             }
 
+            foreach (var skillId in saveData.ShownUnlockSkillIds ?? Array.Empty<string>())
+            {
+                _shownUnlockSkillIds.Add(skillId);
+            }
+
             var equippedIds = saveData.EquippedSkillIds ?? Array.Empty<string>();
             for (var slot = 0; slot < _state.SlotCount && slot < equippedIds.Length; slot++)
             {
@@ -255,6 +307,7 @@ namespace Kizami.Application
                     .Select(index => _stages[index].Id)
                     .ToArray(),
                 EquippedSkillIds = equippedIds,
+                ShownUnlockSkillIds = _shownUnlockSkillIds.ToArray(),
             });
         }
     }

@@ -14,5 +14,8 @@ namespace Kizami.Application
 
         /// <summary> 装備枠ごとのスキルの ID。空きの枠は空文字 </summary>
         public string[] EquippedSkillIds = Array.Empty<string>();
+
+        /// <summary> 解放の演出を出したスキルの ID </summary>
+        public string[] ShownUnlockSkillIds = Array.Empty<string>();
     }
 }

@@ -12,6 +12,10 @@ namespace Kizami.External
         [Tooltip("HUD に出す名前")]
         private string _displayName = "Skill";
 
+        [SerializeField, TextArea(2, 4)]
+        [Tooltip("スキル一覧に出す説明文。空なら出さない")]
+        private string _description;
+
         [SerializeField]
         [Tooltip("保存データでスキルを見分ける ID。並びを変えても装備が残るよう、番号ではなく ID で保存する。空ならアセットの名前を使う")]
         private string _id;
@@ -58,6 +62,9 @@ namespace Kizami.External
 
         /// <summary> HUD に出す名前 </summary>
         public string DisplayName => _displayName;
+
+        /// <summary> スキル一覧に出す説明文。なければ空 </summary>
+        public string Description => _description;
 
         /// <summary> HUD に出すアイコン </summary>
         public Texture2D Icon => _icon;

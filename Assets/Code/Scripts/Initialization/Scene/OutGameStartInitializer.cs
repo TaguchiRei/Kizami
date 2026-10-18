@@ -8,14 +8,12 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// アウトゲームの画面（OutGameMenuAdapter）を組み立て、ステージの開始、スキルの装備枠の変更、ゲームの終了をつなぐ Initializer。アウトゲームの場面シーンへ置く。
+    /// アウトゲームの画面（OutGameMenuAdapter）を組み立て、ステージの開始、スキルの装備、ゲームの終了をつなぐ Initializer。アウトゲームの場面シーンへ置く。
     /// インゲームから戻ってきたとき（選んだステージが残っているとき）は、ステージ選択から始める。
     /// </summary>
     public sealed class OutGameStartInitializer : InitializerBase, IInjectable<IGameSceneController>,
         IInjectable<GameProgressService>
     {
-        private const string EMPTY_SLOT_TEXT = "(empty)";
-
         private IGameSceneController _sceneController;
         private GameProgressService _progressService;
         private IGameProgressState _progressState;
@@ -33,7 +31,8 @@ namespace Kizami.Initialization
             if (_sceneController == null || _progressService == null || _progressState == null) return;
 
             _menuAdapter = gameObject.AddComponent<OutGameMenuAdapter>();
-            _menuAdapter.Initialize(BuildStageEntries(), BuildSlotLabels(), GoToStage, CycleSlot, Quit,
+            _menuAdapter.Initialize(BuildStageEntries(), BuildSkillEntries(), _progressService.UltimateSkillIndex,
+                GetEquippedSkillIndices(), GoToStage, EquipSkill, Quit,
                 _progressState.SelectedStageIndex != GameProgressState.NO_STAGE);
         }
 
@@ -67,30 +66,36 @@ namespace Kizami.Initialization
             return entries;
         }
 
-        private List<string> BuildSlotLabels()
-        {
-            var labels = new List<string>(_progressState.SlotCount);
-            for (var slot = 0; slot < _progressState.SlotCount; slot++)
-            {
-                labels.Add(GetSlotSkillName(slot));
-            }
-
-            return labels;
-        }
-
-        private string GetSlotSkillName(int slot)
+        private List<OutGameMenuAdapter.SkillEntry> BuildSkillEntries()
         {
             var skills = _progressService.Skills;
-            var index = _progressState.GetEquippedSkillIndex(slot);
-            return index >= 0 && index < skills.Count && skills[index] != null
-                ? skills[index].DisplayName
-                : EMPTY_SLOT_TEXT;
+            var entries = new List<OutGameMenuAdapter.SkillEntry>(skills.Count);
+            for (var i = 0; i < skills.Count; i++)
+            {
+                var skill = skills[i];
+                entries.Add(skill == null
+                    ? new OutGameMenuAdapter.SkillEntry(string.Empty, 0, string.Empty, false)
+                    : new OutGameMenuAdapter.SkillEntry(skill.DisplayName, skill.Cost, skill.Description,
+                        _progressState.IsSkillUnlocked(i)));
+            }
+
+            return entries;
         }
 
-        private void CycleSlot(int slot)
+        private int[] GetEquippedSkillIndices()
         {
-            _progressService.CycleEquippedSkill(slot);
-            _menuAdapter.SetSlotLabel(slot, GetSlotSkillName(slot));
+            var indices = new int[_progressState.SlotCount];
+            for (var slot = 0; slot < indices.Length; slot++)
+            {
+                indices[slot] = _progressState.GetEquippedSkillIndex(slot);
+            }
+
+            return indices;
+        }
+
+        private void EquipSkill(int slot, int skillIndex)
+        {
+            if (_progressService.EquipSkill(slot, skillIndex)) _menuAdapter.SetEquipped(GetEquippedSkillIndices());
         }
 
         private async void GoToStage(int stageIndex)

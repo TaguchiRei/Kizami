@@ -40,6 +40,32 @@ namespace Kizami.EngineAdapter
             }
         }
 
+        /// <summary>
+        /// スキル装備に出す、スキル 1 つ分の表示内容。
+        /// </summary>
+        public readonly struct SkillEntry
+        {
+            /// <summary> スキルの名前 </summary>
+            public readonly string Name;
+
+            /// <summary> 発動に使うチャージ量 </summary>
+            public readonly int Cost;
+
+            /// <summary> 説明文。なければ空 </summary>
+            public readonly string Description;
+
+            /// <summary> 解放済みか </summary>
+            public readonly bool IsUnlocked;
+
+            public SkillEntry(string name, int cost, string description, bool isUnlocked)
+            {
+                Name = name;
+                Cost = cost;
+                Description = description;
+                IsUnlocked = isUnlocked;
+            }
+        }
+
         private enum MenuScreen
         {
             Home,
@@ -53,10 +79,23 @@ namespace Kizami.EngineAdapter
         private const float BUTTON_GAP = 20f;
         private const float STAGE_BUTTON_HEIGHT = 110f;
         private const float HOME_BUTTON_HEIGHT = 90f;
+        private const int NO_SKILL = -1;
+        private const int DETAIL_FONT_SIZE = 28;
+        private const float SLOT_X = 100f;
+        private const float SLOT_WIDTH = 460f;
+        private const float SLOT_HEIGHT = 90f;
+        private const float SKILL_X = 640f;
+        private const float SKILL_WIDTH = 780f;
+        private const float SKILL_HEIGHT = 70f;
+        private const float ULTIMATE_HEIGHT = 110f;
+        private const float ROW_GAP = 10f;
         private static readonly Vector2 _buttonSize = new(720f, 90f);
 
         private readonly Dictionary<MenuScreen, GameObject> _panels = new();
+        private readonly List<Button> _slotButtons = new();
         private readonly List<Text> _slotLabels = new();
+        private readonly List<Button> _skillButtons = new();
+        private readonly List<Text> _skillLabels = new();
 
         [SerializeField]
         [Tooltip("背景の色")]
@@ -66,42 +105,63 @@ namespace Kizami.EngineAdapter
         [Tooltip("ボタンの色")]
         private Color _buttonColor = new(0.2f, 0.2f, 0.25f, 0.95f);
 
+        [SerializeField]
+        [Tooltip("選んでいる装備枠のボタンの色")]
+        private Color _selectedColor = new(0.35f, 0.45f, 0.7f, 0.95f);
+
+        [SerializeField]
+        [Tooltip("専用の枠のスキルのボタンの色")]
+        private Color _ultimateColor = new(0.6f, 0.45f, 0.1f, 0.95f);
+
         private CanvasGroup _canvasGroup;
         private Action<int> _startStage;
         private Action _quit;
-        private Action<int> _cycleSlot;
+        private Action<int, int> _equipSkill;
+        private Text _title;
+        private Text _detailText;
+        private IReadOnlyList<SkillEntry> _skills;
+        private int[] _equippedSkillIndices;
+        private int _selectedSlot;
 
         /// <summary>
         /// 画面を組み立てて、ホームかステージ選択を出す。
         /// </summary>
         /// <param name="stages">ステージ選択に出すステージ。番号はこの並びの位置</param>
-        /// <param name="slotLabels">スキル装備に出す、装備枠ごとのスキルの名前</param>
+        /// <param name="skills">スキル装備に出すスキル。番号はこの並びの位置</param>
+        /// <param name="ultimateSkillIndex">専用の枠に置くスキルの番号。なければ -1</param>
+        /// <param name="equippedSkillIndices">装備枠ごとのスキルの番号。空きは -1</param>
         /// <param name="startStage">ステージのボタンを押したときに呼ぶ処理。引数はステージの番号</param>
-        /// <param name="cycleSlot">装備枠のボタンを押したときに呼ぶ処理。引数は枠の番号</param>
+        /// <param name="equipSkill">スキルのボタンを押したときに呼ぶ処理。引数は枠の番号とスキルの番号（空きにするなら -1）</param>
         /// <param name="quit">ゲームの終了ボタンを押したときに呼ぶ処理</param>
         /// <param name="startOnStageSelect">ステージ選択から始めるか。false ならホームから始める</param>
-        public void Initialize(IReadOnlyList<StageEntry> stages, IReadOnlyList<string> slotLabels,
-            Action<int> startStage, Action<int> cycleSlot, Action quit, bool startOnStageSelect)
+        public void Initialize(IReadOnlyList<StageEntry> stages, IReadOnlyList<SkillEntry> skills,
+            int ultimateSkillIndex, IReadOnlyList<int> equippedSkillIndices, Action<int> startStage,
+            Action<int, int> equipSkill, Action quit, bool startOnStageSelect)
         {
             _startStage = startStage;
-            _cycleSlot = cycleSlot;
+            _equipSkill = equipSkill;
             _quit = quit;
+            _skills = skills;
+            _equippedSkillIndices = new int[equippedSkillIndices.Count];
 
-            BuildView(stages, slotLabels);
+            BuildView(stages, ultimateSkillIndex);
+            SetEquipped(equippedSkillIndices);
             ShowScreen(startOnStageSelect ? MenuScreen.StageSelect : MenuScreen.Home);
             base.Initialize();
         }
 
         /// <summary>
-        /// 装備枠に出すスキルの名前を替える。
+        /// 装備枠ごとのスキルの番号を受け取り、枠とスキルの表示を更新する。
         /// </summary>
-        /// <param name="slot">枠の番号（0から）</param>
-        /// <param name="label">スキルの名前</param>
-        public void SetSlotLabel(int slot, string label)
+        /// <param name="equippedSkillIndices">装備枠ごとのスキルの番号。空きは -1</param>
+        public void SetEquipped(IReadOnlyList<int> equippedSkillIndices)
         {
-            if (slot < 0 || slot >= _slotLabels.Count) return;
+            for (var slot = 0; slot < _equippedSkillIndices.Length && slot < equippedSkillIndices.Count; slot++)
+            {
+                _equippedSkillIndices[slot] = equippedSkillIndices[slot];
+            }
 
-            _slotLabels[slot].text = GetSlotText(slot, label);
+            RefreshSkillEquip();
         }
 
         /// <summary>
@@ -112,9 +172,9 @@ namespace Kizami.EngineAdapter
             if (_canvasGroup != null) _canvasGroup.interactable = isInteractable;
         }
 
-        private static string GetSlotText(int slot, string label)
+        private static string GetSlotText(int slot, string skillName)
         {
-            return $"Skill {slot + 1}: {label}";
+            return $"Slot {slot + 1}: {skillName}";
         }
 
         private static string GetStageText(StageEntry stage)
@@ -140,7 +200,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 背景、題、3 つの画面の順に、全画面の Canvas へ組み立てる。
         /// </summary>
-        private void BuildView(IReadOnlyList<StageEntry> stages, IReadOnlyList<string> slotLabels)
+        private void BuildView(IReadOnlyList<StageEntry> stages, int ultimateSkillIndex)
         {
             var canvas = UiBuilder.CreateCanvas(transform, "OutGameMenu", SORTING_ORDER, true);
             _canvasGroup = canvas.gameObject.AddComponent<CanvasGroup>();
@@ -148,13 +208,13 @@ namespace Kizami.EngineAdapter
             var background = UiBuilder.CreateImage(canvas, "Background", _backgroundColor);
             UiBuilder.SetAnchors(background.rectTransform, Vector2.zero, Vector2.one);
 
-            var title = UiBuilder.CreateText(canvas, "Title", TITLE_FONT_SIZE);
-            title.text = "KIZAMI";
-            UiBuilder.SetAnchors(title.rectTransform, new Vector2(0f, 0.8f), new Vector2(1f, 0.95f));
+            _title = UiBuilder.CreateText(canvas, "Title", TITLE_FONT_SIZE);
+            _title.text = "KIZAMI";
+            UiBuilder.SetAnchors(_title.rectTransform, new Vector2(0f, 0.8f), new Vector2(1f, 0.95f));
 
             BuildHome(canvas);
             BuildStageSelect(canvas, stages);
-            BuildSkillEquip(canvas, slotLabels);
+            BuildSkillEquip(canvas, ultimateSkillIndex);
 
             UiBuilder.EnsureEventSystem(transform);
         }
@@ -194,21 +254,114 @@ namespace Kizami.EngineAdapter
             CreateBackButton(panel, stages.Count, count, STAGE_BUTTON_HEIGHT);
         }
 
-        private void BuildSkillEquip(Transform canvas, IReadOnlyList<string> slotLabels)
+        private void BuildSkillEquip(Transform canvas, int ultimateSkillIndex)
         {
             var panel = CreatePanel(canvas, MenuScreen.SkillEquip);
-            var count = slotLabels.Count + 1;
 
-            for (var slot = 0; slot < slotLabels.Count; slot++)
+            for (var slot = 0; slot < _equippedSkillIndices.Length; slot++)
             {
                 var slotIndex = slot;
-                var button = CreateButton(panel, $"Slot{slot}Button", GetSlotText(slot, slotLabels[slot]), slot, count,
-                    HOME_BUTTON_HEIGHT);
+                var button = CreateButtonAt(panel, $"Slot{slot}Button", string.Empty, SLOT_X, 60f + slot * (SLOT_HEIGHT + ROW_GAP),
+                    SLOT_WIDTH, SLOT_HEIGHT, _buttonColor);
+                _slotButtons.Add(button);
                 _slotLabels.Add(button.GetComponentInChildren<Text>());
-                button.onClick.AddListener(() => _cycleSlot?.Invoke(slotIndex));
+                button.onClick.AddListener(() => SelectSlot(slotIndex));
             }
 
-            CreateBackButton(panel, slotLabels.Count, count, HOME_BUTTON_HEIGHT);
+            var unequipY = 60f + _equippedSkillIndices.Length * (SLOT_HEIGHT + ROW_GAP);
+            var unequipButton = CreateButtonAt(panel, "UnequipButton", "Unequip", SLOT_X, unequipY, SLOT_WIDTH, SLOT_HEIGHT * 0.8f,
+                _buttonColor);
+            unequipButton.onClick.AddListener(() => _equipSkill?.Invoke(_selectedSlot, NO_SKILL));
+
+            _detailText = UiBuilder.CreateText(panel, "Detail", DETAIL_FONT_SIZE, TextAnchor.UpperLeft);
+            _detailText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            PlaceAtTopLeft(_detailText.rectTransform, SLOT_X, unequipY + SLOT_HEIGHT + 40f, SLOT_WIDTH, 360f);
+
+            var listTop = ultimateSkillIndex >= 0 ? 60f + ULTIMATE_HEIGHT + ROW_GAP * 2f : 60f;
+            for (var i = 0; i < _skills.Count; i++)
+            {
+                var skillIndex = i;
+                var isUltimate = i == ultimateSkillIndex;
+                var y = isUltimate ? 60f : listTop;
+                var button = CreateButtonAt(panel, $"Skill{i}Button", string.Empty, SKILL_X, y, SKILL_WIDTH,
+                    isUltimate ? ULTIMATE_HEIGHT : SKILL_HEIGHT, isUltimate ? _ultimateColor : _buttonColor);
+                button.onClick.AddListener(() => PickSkill(skillIndex));
+                _skillButtons.Add(button);
+                _skillLabels.Add(button.GetComponentInChildren<Text>());
+
+                if (!isUltimate) listTop += SKILL_HEIGHT + ROW_GAP;
+            }
+
+            var back = CreateButtonAt(panel, "BackButton", "Back", SLOT_X, 940f, SLOT_WIDTH, SLOT_HEIGHT * 0.8f, _buttonColor);
+            back.onClick.AddListener(() => ShowScreen(MenuScreen.Home));
+        }
+
+        private void SelectSlot(int slot)
+        {
+            _selectedSlot = slot;
+            RefreshSkillEquip();
+            ShowDetail(_equippedSkillIndices[slot]);
+        }
+
+        private void PickSkill(int skillIndex)
+        {
+            _equipSkill?.Invoke(_selectedSlot, skillIndex);
+            ShowDetail(skillIndex);
+        }
+
+        private void ShowDetail(int skillIndex)
+        {
+            if (skillIndex < 0 || skillIndex >= _skills.Count)
+            {
+                _detailText.text = string.Empty;
+                return;
+            }
+
+            var skill = _skills[skillIndex];
+            _detailText.text = $"{skill.Name}\nCost: {skill.Cost}" +
+                               (string.IsNullOrEmpty(skill.Description) ? string.Empty : $"\n\n{skill.Description}");
+        }
+
+        /// <summary>
+        /// 装備枠のボタンの文字と選択の色、スキルのボタンの文字（ロック中の印と、装備している枠）を更新する。
+        /// </summary>
+        private void RefreshSkillEquip()
+        {
+            for (var slot = 0; slot < _slotLabels.Count; slot++)
+            {
+                var index = _equippedSkillIndices[slot];
+                var skillName = index >= 0 && index < _skills.Count ? _skills[index].Name : "(empty)";
+                _slotLabels[slot].text = GetSlotText(slot, skillName);
+                _slotButtons[slot].GetComponent<Image>().color = slot == _selectedSlot ? _selectedColor : _buttonColor;
+            }
+
+            for (var i = 0; i < _skillLabels.Count; i++)
+            {
+                var skill = _skills[i];
+                var text = skill.IsUnlocked ? skill.Name : $"{skill.Name}  [LOCKED]";
+                var equippedSlot = Array.IndexOf(_equippedSkillIndices, i);
+                if (equippedSlot >= 0) text += $"  [Slot {equippedSlot + 1}]";
+                _skillLabels[i].text = text;
+                _skillButtons[i].interactable = skill.IsUnlocked;
+            }
+        }
+
+        /// <summary>
+        /// 基準の解像度の左上からの位置と大きさを指定して、ボタンを置く。
+        /// </summary>
+        private Button CreateButtonAt(Transform panel, string name, string label, float x, float y, float width,
+            float height, Color color)
+        {
+            var button = UiBuilder.CreateButton(panel, name, label, BUTTON_FONT_SIZE, color);
+            PlaceAtTopLeft((RectTransform)button.transform, x, y, width, height);
+            return button;
+        }
+
+        private static void PlaceAtTopLeft(RectTransform rect, float x, float y, float width, float height)
+        {
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, 1f);
+            rect.sizeDelta = new Vector2(width, height);
+            rect.anchoredPosition = new Vector2(x, -y);
         }
 
         private Transform CreatePanel(Transform canvas, MenuScreen screen)
@@ -239,6 +392,8 @@ namespace Kizami.EngineAdapter
             {
                 pair.Value.SetActive(pair.Key == screen);
             }
+
+            _title.gameObject.SetActive(screen != MenuScreen.SkillEquip);
         }
     }
 }

@@ -37,6 +37,10 @@ namespace Kizami.Initialization
         private SkillData[] _initialUnlockedSkills;
 
         [SerializeField]
+        [Tooltip("スキル装備の画面で専用の枠に置くスキル（羽天轟号）。装備できるスキルに含まれるもの。空なら専用の枠を出さない。")]
+        private SkillData _ultimateSkill;
+
+        [SerializeField]
         [Tooltip("起動時にアウトゲームへ自動で遷移する。")]
         private bool _transitionOnStart = true;
 
@@ -48,7 +52,8 @@ namespace Kizami.Initialization
                 return;
             }
 
-            _progressService.Initialize(blackBoard, _stages, _skills, _initialUnlockedSkills);
+            _progressService.Initialize(blackBoard, _stages, _skills, _initialUnlockedSkills,
+                _ultimateSkill);
             if (!_sceneController.Initialize(blackBoard, _outGameGroup.GroupData, _progressService)) return;
 
             base.Initialize(blackBoard);
