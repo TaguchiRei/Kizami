@@ -107,7 +107,7 @@ namespace Kizami.EngineAdapter
         private float _damageInterval = 0.1f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("ビームがボクセルを溶かして進む速さ（m/s）。ボクセルでない物（メッシュのままの建物、装甲、地形）は溶かさず、そこで止まる")]
+        [Tooltip("ビームがボクセルを溶かして進む速さ（m/s）。ボクセルでない物（装甲、地形）は溶かさず、そこで止まる")]
         private float _meltSpeed = 4f;
 
         [SerializeField, Min(0f)]
@@ -345,7 +345,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 当たった物が VoxelPiece なら、_meltInterval ごとに、当たった面から射線に沿って溶ける速さ × 間隔の分だけ奥へ、穴の半径の球を動かして溶かす。
         /// 球の中心は、先端が面から進む長さだけ奥に届く位置（面から穴の半径だけ手前）から動かす。1 回で面から奥へ進む深さが、溶ける速さ × 間隔に収まる。
-        /// VoxelPiece でない物（メッシュのままの建物、装甲、地形）は溶かさず、ビームはそこで止まる。
+        /// 手付かずの形のメッシュのまま置いたモデルは、ボクセルにしてから溶かす。それ以外のボクセルでない物（装甲、地形）は溶かさず、ビームはそこで止まる。
         /// </summary>
         /// <param name="surface">ビームが最初に当たった面の位置</param>
         private void Melt(Vector3 surface, float deltaTime)
@@ -356,13 +356,27 @@ namespace Kizami.EngineAdapter
             _meltTimer += _meltInterval;
             if (_hitCollider == null) return;
 
-            var piece = _hitCollider.GetComponentInParent<VoxelPiece>();
-            if (piece == null) return;
-
             var start = surface - _aimDirection * _meltRadius;
             var end = start + _aimDirection * (_meltSpeed * _meltInterval);
             var reach = _meltRadius + VoxelThermalSettings.NORMAL_MELTING_POINT / _meltFalloff;
-            piece.ApplyStrike(new CapsuleShape(start, end, reach), _meltFalloff, Space.World);
+            var shape = new CapsuleShape(start, end, reach);
+
+            var piece = _hitCollider.GetComponentInParent<VoxelPiece>();
+            if (piece != null)
+            {
+                piece.ApplyStrike(shape, _meltFalloff, Space.World);
+                return;
+            }
+
+            // 手付かずの形のメッシュのまま置いたモデルは、当たったときにボクセルにしてから溶かす
+            var loader = _hitCollider.GetComponentInParent<VoxelModelLoader>();
+            if (loader == null || !loader.IsStatic) return;
+
+            loader.Load();
+            foreach (var part in loader.Parts)
+            {
+                part.ApplyStrike(shape, _meltFalloff, Space.World);
+            }
         }
 
         /// <summary>
