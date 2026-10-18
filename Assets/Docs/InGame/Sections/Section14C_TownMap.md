@@ -164,7 +164,7 @@
 | B | 崩壊。`TownLayout` で中庭を見つけ、コアと、時間で元に戻る破壊対象（新しい仕組み。作り方を提案してから作る）を置く。アーケードの屋根の案も試す | 崩壊を最初から最後まで遊べる |
 | B' | チュートリアル。最低限の内容に変更（2026-10-17、ユーザー）。移動を伴わず、街の 1 地点で指定の動作をする。中央よりやや上に操作説明（キーキャップ）、右上は台本の文だけを出す。下の「段階 B' の実装結果」 | チュートリアルを最初から最後まで遊べる |
 | C | 到達。14C-6 の天照塔の Y 40〜65m のボクセル化を先に行い、削られた割合で崩して、ボクセルの少ない側へ倒す。仮の `TenshoTower` を外す | 到達を最初から最後まで遊べる |
-| 後片付け | 全部移したら、`Town.unity` と `EnemySpawnCube` を消してよいか、ユーザーに聞く | |
+| 後片付け | `Town.unity`（`TutorialAlley` を含む）を消し、ビルド設定から外した（2026-10-18）。ビルド番号が 1 つずつ詰まったので、`BuildScenes` は自動で生成し直され、`TutorialGroup`・`AnnihilationGroup`・`CollapseGroup`・`ArrivalGroup` のシーン番号を手で直した（主シーン `TownMap` は 8、`Stage_Tutorial` 4・`Stage_Annihilation` 5・`Stage_Collapse` 6・`Stage_Arrival` 7）。`EnemySpawnCube` は `TestStage.unity` が使っているので残した | 済 |
 
 段階ごとに、変更したファイルと確認の結果を報告して止まる。
 
