@@ -80,6 +80,20 @@ namespace Kizami.EngineAdapter
         /// <summary> 次に足踏みできるまでの時間（秒） </summary>
         private float _cooldownRemaining;
 
+        /// <summary> 出ている輪があるか </summary>
+        public bool HasActiveRing
+        {
+            get
+            {
+                for (var i = 0; i < _radii.Length; i++)
+                {
+                    if (_radii[i] > 0f) return true;
+                }
+
+                return false;
+            }
+        }
+
         /// <summary>
         /// ダメージと弾く関数を受け取る。
         /// </summary>
@@ -98,14 +112,16 @@ namespace Kizami.EngineAdapter
         /// <returns>足踏みの番を進めたか。クールタイム中なら false</returns>
         public bool TryStomp()
         {
-            if (_cooldownRemaining > 0f) return false;
+            return _cooldownRemaining <= 0f && Stomp();
+        }
 
-            var index = _weapons.TakeNext(BossWeaponKind.Outrigger);
-            if (index < 0) return false;
-
-            _cooldownRemaining = _cooldown;
-            if (!_weapons.IsBroken(index)) Spawn(_weapons.GetPosition(index));
-            return true;
+        /// <summary>
+        /// クールタイムを無視して、次の番のアウトリガーで足踏みする。壊れた番では輪を出さない。総攻撃で、輪が消えるたびに出すために使う。
+        /// </summary>
+        /// <returns>足踏みの番を進めたか。アウトリガーがなければ false</returns>
+        public bool ForceStomp()
+        {
+            return Stomp();
         }
 
         private void Awake()
@@ -156,6 +172,16 @@ namespace Kizami.EngineAdapter
                 if (!_hasHit[i]) TryHit(i, previousRadius);
                 DrawRing(i);
             }
+        }
+
+        private bool Stomp()
+        {
+            var index = _weapons.TakeNext(BossWeaponKind.Outrigger);
+            if (index < 0) return false;
+
+            _cooldownRemaining = _cooldown;
+            if (!_weapons.IsBroken(index)) Spawn(_weapons.GetPosition(index));
+            return true;
         }
 
         /// <summary>

@@ -105,8 +105,14 @@ namespace Kizami.EngineAdapter
         /// <summary> 次にダメージを与えられるまでの時間（秒） </summary>
         private float _damageCooldownRemaining;
 
+        /// <summary> 撃ち始めてから撃ち終えるまでの時間（秒）。撃ち始めるたびに決める </summary>
+        private float _currentDuration;
+
+        /// <summary> コアを撃っていなくてもせり出したままにするか </summary>
+        private bool _isCoreHeld;
+
         /// <summary> 撃っているか（コアをせり出させている間を含む） </summary>
-        private bool IsFiring => _firingIndex >= 0;
+        public bool IsFiring => _firingIndex >= 0;
 
         /// <summary>
         /// ダメージの関数を受け取る。
@@ -135,11 +141,40 @@ namespace Kizami.EngineAdapter
                 return true;
             }
 
-            _firingIndex = index;
-            _firingTime = -_coreMoveTime;
-            _angle = 0f;
-            _damageCooldownRemaining = 0f;
+            StartFiring(index, _duration);
             return true;
+        }
+
+        /// <summary>
+        /// クールタイムと撃っているかを無視して、次の番のレーザーを duration 秒撃ち始める。壊れた番では撃たない。
+        /// 総攻撃で、撃ち続けるために使う。
+        /// </summary>
+        /// <param name="duration">コアをせり出させたあとに撃ち続ける時間（秒）</param>
+        /// <returns>撃ち始めたか。レーザーがない、または番のレーザーが壊れていれば false</returns>
+        public bool FireFor(float duration)
+        {
+            var index = _weapons.TakeNext(BossWeaponKind.Laser);
+            if (index < 0 || _weapons.IsBroken(index)) return false;
+
+            StartFiring(index, duration);
+            return true;
+        }
+
+        /// <summary>
+        /// 撃っていれば撃つのをやめる。クールタイムは発生させない。
+        /// </summary>
+        public void Cancel()
+        {
+            _firingIndex = -1;
+        }
+
+        /// <summary>
+        /// 撃っていないときもコアをせり出したままにするかを切り替える。隙を晒している間に、コアを見せるために使う。
+        /// </summary>
+        /// <param name="isHeld">せり出したままにするなら true</param>
+        public void HoldCoreExposed(bool isHeld)
+        {
+            _isCoreHeld = isHeld;
         }
 
         private void Awake()
@@ -171,7 +206,7 @@ namespace Kizami.EngineAdapter
             if (IsFiring)
             {
                 _firingTime += deltaTime;
-                if (_firingTime >= _duration)
+                if (_firingTime >= _currentDuration)
                 {
                     _firingIndex = -1;
                     _cooldownRemaining = _cooldown;
@@ -183,10 +218,19 @@ namespace Kizami.EngineAdapter
                 }
             }
 
-            MoveCore(IsFiring, deltaTime);
+            MoveCore(IsFiring || _isCoreHeld, deltaTime);
 
             _line.enabled = isBeamOn;
             if (isBeamOn) UpdateBeam();
+        }
+
+        private void StartFiring(int index, float duration)
+        {
+            _firingIndex = index;
+            _currentDuration = duration;
+            _firingTime = -_coreMoveTime;
+            _angle = 0f;
+            _damageCooldownRemaining = 0f;
         }
 
         /// <summary>

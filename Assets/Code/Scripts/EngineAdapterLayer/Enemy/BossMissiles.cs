@@ -111,6 +111,28 @@ namespace Kizami.EngineAdapter
             return true;
         }
 
+        /// <summary>
+        /// クールタイムを無視して、ミサイルの武装を 1 周する間に 1 回ずつ、プレイヤーのいる地点の地面へ撃つ。壊れた番では撃たない。
+        /// 総攻撃で、すべての脚を撃ち切るために使う。
+        /// </summary>
+        /// <returns>撃った数</returns>
+        public int FireAll()
+        {
+            if (_target == null) return 0;
+
+            var fired = 0;
+            var count = _weapons.CountOf(BossWeaponKind.Missile);
+            for (var i = 0; i < count; i++)
+            {
+                var index = _weapons.TakeNext(BossWeaponKind.Missile);
+                if (index < 0 || _weapons.IsBroken(index)) continue;
+
+                if (Launch(_weapons.GetPosition(index), GetAim())) fired++;
+            }
+
+            return fired;
+        }
+
         private void Awake()
         {
             _weapons = GetComponent<BossWeapons>();
@@ -187,7 +209,8 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 空いているミサイルを origin から aim へ撃ち、aim に予兆の輪を出す。空きがなければ撃たない。
         /// </summary>
-        private void Launch(Vector3 origin, Vector3 aim)
+        /// <returns>撃ったか</returns>
+        private bool Launch(Vector3 origin, Vector3 aim)
         {
             for (var i = 0; i < _capacity; i++)
             {
@@ -204,8 +227,10 @@ namespace Kizami.EngineAdapter
 
                 DrawWarning(i);
                 _warnings[i].enabled = true;
-                return;
+                return true;
             }
+
+            return false;
         }
 
         /// <summary>

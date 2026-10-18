@@ -92,6 +92,18 @@ namespace Kizami.EngineAdapter
 
         private Vector3 _previousRootPosition;
 
+        /// <summary> 胴体を動かすか。止めても脚は足を置き直す </summary>
+        private bool _isMoving = true;
+
+        /// <summary>
+        /// 胴体の移動と旋回を切り替える。止めている間も、脚は今の胴体に合わせて足を運ぶ。
+        /// </summary>
+        /// <param name="isMoving">動かすなら true</param>
+        public void SetMoving(bool isMoving)
+        {
+            _isMoving = isMoving;
+        }
+
         private void Awake()
         {
             var count = _legs.Length;
@@ -140,7 +152,7 @@ namespace Kizami.EngineAdapter
             var deltaTime = Time.deltaTime;
             if (deltaTime <= 0f) return;
 
-            if (_target != null) Move(deltaTime);
+            if (_target != null && _isMoving) Move(deltaTime);
 
             var velocity = (transform.position - _previousRootPosition) / deltaTime;
             velocity.y = 0f;

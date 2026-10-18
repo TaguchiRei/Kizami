@@ -41,6 +41,50 @@ namespace Kizami.EngineAdapter
 
         private IDisposable _loadedSubscription;
 
+        /// <summary> 武装の数 </summary>
+        public int Count => _weapons.Length;
+
+        /// <summary>
+        /// 種類 kind の武装の数を返す。
+        /// </summary>
+        public int CountOf(BossWeaponKind kind)
+        {
+            var count = 0;
+            foreach (var weapon in _weapons)
+            {
+                if (weapon.Kind == kind) count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>
+        /// 壊れている武装の数を返す。壊れたかを、今の体積で確かめ直してから数える。
+        /// </summary>
+        public int CountBroken()
+        {
+            var count = 0;
+            for (var i = 0; i < _weapons.Length; i++)
+            {
+                if (IsBroken(i)) count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>
+        /// パーツ piece が、どれかの武装を形づくるパーツか。
+        /// </summary>
+        public bool IsWeaponPart(VoxelPiece piece)
+        {
+            foreach (var parts in _parts)
+            {
+                if (parts.Contains(piece)) return true;
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// 武装 index が壊れているか。壊れたかを、今の体積で確かめ直してから返す。
         /// </summary>
