@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Unity.Cinemachine;
+using Kizami.EngineAdapter.Voxel;
 using Unity.Mathematics;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
@@ -105,6 +106,22 @@ namespace Kizami.EngineAdapter
         [Tooltip("ダメージを与える間隔（秒）")]
         private float _damageInterval = 0.1f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("ビームがボクセルを溶かして進む速さ（m/s）。ボクセルでない物（メッシュのままの建物、装甲、地形）は溶かさず、そこで止まる")]
+        private float _meltSpeed = 4f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("溶かして開ける穴の半径（m）。普通の素材の場合。硬い素材は、これより小さくなる")]
+        private float _meltRadius = 3f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("溶かす攻撃の、1m あたりに減る強さ。小さいほど、素材の強度による溶け方の差が大きい")]
+        private float _meltFalloff = 0.5f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("ボクセルを溶かす間隔（秒）。1 回で進む長さは「溶ける速さ × 間隔」")]
+        private float _meltInterval = 0.05f;
+
         [SerializeField]
         [Tooltip("ビームを止める物のレイヤー。プレイヤー自身のレイヤーは外す")]
         private LayerMask _blockLayers;
@@ -132,6 +149,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 次にダメージを与えられるまでの時間（秒） </summary>
         private float _damageTimer;
+
+        /// <summary> 次にボクセルを溶かすまでの時間（秒） </summary>
+        private float _meltTimer;
+
+        /// <summary> CastBeam で最初に当たったコライダー。当たらなければ null </summary>
+        private Collider _hitCollider;
 
         private bool _isReady;
 
@@ -276,17 +299,19 @@ namespace Kizami.EngineAdapter
         {
             _telegraph?.Hide();
             _damageTimer = 0f;
+            _meltTimer = 0f;
             SetPhase(Phase.Firing);
             _impulseSource?.GenerateImpulseWithForce(_shakeForce);
         }
 
         /// <summary>
-        /// ビームを pivot から最初に当たった物まで出し、プレイヤーが半径の中に入っていれば、間隔ごとにダメージを与える。
+        /// ビームを pivot から最初に当たった物まで出し、当たった物がボクセルなら溶かす。プレイヤーが半径の中に入っていれば、間隔ごとにダメージを与える。
         /// </summary>
         private void UpdateFiring(Vector3 pivot, float3 capsuleStart, float3 capsuleEnd, float capsuleRadius,
             float deltaTime)
         {
             var stop = CastBeam(pivot, out var hasHit, out var normal);
+            Melt(stop, deltaTime);
             var flicker = 1f + 0.25f * Mathf.Sin(_phaseTime * 60f);
             ShowGlow(_muzzleGlow, pivot, _muzzleSize * flicker, _glowColor, 2f, 1f);
             ShowTipEffects(stop, normal, hasHit, _glowColor, true);
@@ -312,8 +337,32 @@ namespace Kizami.EngineAdapter
         {
             hasHit = Physics.Raycast(pivot, _aimDirection, out var hit, MAX_BEAM_LENGTH, _blockLayers,
                 QueryTriggerInteraction.Ignore);
+            _hitCollider = hasHit ? hit.collider : null;
             normal = hasHit ? hit.normal : -_aimDirection;
             return hasHit ? hit.point : pivot + _aimDirection * MAX_BEAM_LENGTH;
+        }
+
+        /// <summary>
+        /// 当たった物が VoxelPiece なら、_meltInterval ごとに、当たった面から射線に沿って溶ける速さ × 間隔の分だけ奥へ、穴の半径の球を動かして溶かす。
+        /// 球の中心は、先端が面から進む長さだけ奥に届く位置（面から穴の半径だけ手前）から動かす。1 回で面から奥へ進む深さが、溶ける速さ × 間隔に収まる。
+        /// VoxelPiece でない物（メッシュのままの建物、装甲、地形）は溶かさず、ビームはそこで止まる。
+        /// </summary>
+        /// <param name="surface">ビームが最初に当たった面の位置</param>
+        private void Melt(Vector3 surface, float deltaTime)
+        {
+            _meltTimer -= deltaTime;
+            if (_meltTimer > 0f) return;
+
+            _meltTimer += _meltInterval;
+            if (_hitCollider == null) return;
+
+            var piece = _hitCollider.GetComponentInParent<VoxelPiece>();
+            if (piece == null) return;
+
+            var start = surface - _aimDirection * _meltRadius;
+            var end = start + _aimDirection * (_meltSpeed * _meltInterval);
+            var reach = _meltRadius + VoxelThermalSettings.NORMAL_MELTING_POINT / _meltFalloff;
+            piece.ApplyStrike(new CapsuleShape(start, end, reach), _meltFalloff, Space.World);
         }
 
         /// <summary>
