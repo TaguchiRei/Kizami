@@ -344,6 +344,15 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 同時に攻撃するアタッカーとフィニッシャーの数を変える。Initialize のあとに呼ぶ。0 以下の値は、それぞれの既定の値のままにする。
+        /// </summary>
+        public void SetMaxAttacking(int maxAttackers, int maxFinishers)
+        {
+            if (maxAttackers > 0 && _shooter != null) _shooter.SetMaxShooters(maxAttackers);
+            if (maxFinishers > 0 && _finisherAttack != null) _finisherAttack.SetMaxAttacks(maxFinishers);
+        }
+
+        /// <summary>
         /// ステージシーンの EnemySpawnSystem を探し、上限の数だけ敵の状態と、体と、見た目用の部位を作る。
         /// 見つからないときは Update を止めたままにする。
         /// </summary>

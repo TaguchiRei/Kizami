@@ -1728,7 +1728,8 @@ MonoBehaviour:
   _interval: 3
   _intervalJitter: 0.3
   _radius: 0.3
-  _maxBullets: 4
+  _maxBullets: 16
+  _maxShooters: 4
   _blockLayers:
     serializedVersion: 2
     m_Bits: 44545
