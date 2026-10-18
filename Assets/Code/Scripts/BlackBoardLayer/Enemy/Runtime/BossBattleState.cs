@@ -3,7 +3,7 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// ボスとの直接戦闘の段階と、今が何周目か、今の周で足踏みした回数を保持するステート。
+    /// ボス戦の段階と、今が何周目か、今の周で足踏みした回数を保持するステート。
     /// ApplicationLayer（BossBattleService）が書き込み、EngineAdapterLayer（BossBattleAdapter）が読んで攻撃を切り替え、近接切断が停止後の破壊属性の自動付与に読む。
     /// </summary>
     [RegisterBoard(typeof(EnemyBoard))]
@@ -22,7 +22,7 @@ namespace Kizami.BlackBoard
         /// <summary>
         /// 段階を設定する。
         /// </summary>
-        /// <param name="phase">直接戦闘の段階</param>
+        /// <param name="phase">ボス戦の段階</param>
         public void SetPhase(BossBattlePhase phase)
         {
             Phase = phase;
@@ -48,11 +48,11 @@ namespace Kizami.BlackBoard
     }
 
     /// <summary>
-    /// ボスとの直接戦闘の読み取り面。
+    /// ボス戦の読み取り面。
     /// </summary>
     public interface IBossBattleState : IStateGetter
     {
-        /// <summary> 直接戦闘の段階 </summary>
+        /// <summary> ボス戦の段階 </summary>
         BossBattlePhase Phase { get; }
 
         /// <summary> 今が何周目か。始まる前は 0 </summary>
@@ -66,12 +66,18 @@ namespace Kizami.BlackBoard
     }
 
     /// <summary>
-    /// ボスとの直接戦闘の段階。Stopped からは変わらない。
+    /// ボス戦の段階。1 周は Crystal → Arriving → Stomping → CoreExposed → Opening。Stopped からは変わらない。
     /// </summary>
     public enum BossBattlePhase
     {
         /// <summary> 始まる前 </summary>
         Idle,
+
+        /// <summary> 水晶を置き、遠くから攻撃している。水晶をすべて壊すまで続く </summary>
+        Crystal,
+
+        /// <summary> 水晶のあった所へ飛んできている </summary>
+        Arriving,
 
         /// <summary> 足踏みしている </summary>
         Stomping,
