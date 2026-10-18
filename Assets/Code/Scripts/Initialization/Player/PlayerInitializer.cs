@@ -18,6 +18,9 @@ namespace Kizami.Initialization
     /// </summary>
     public sealed class PlayerInitializer : InitializerBase, IInjectable<ITimeScaleController>, IInjectable<GameProgressService>
     {
+        /// <summary> 攻走で削るカプセルの下端と、足元との隙間（m） </summary>
+        private const float RUSH_FLOOR_MARGIN = 0.1f;
+
         private readonly PlayerHealthService _healthService = new();
         private readonly PlayerMovementService _movementService = new();
         private readonly PlayerEnhanceService _enhanceService = new();
@@ -127,13 +130,14 @@ namespace Kizami.Initialization
 
         /// <summary>
         /// 移動入力の向き（なければ正面）へ突進を要求し、通る経路を先に削る。経路を先に削るので、途中の壁で止まらずに通り抜ける。
-        /// 経路は足元から半径の分だけ上げ、足場を削らないようにする。
+        /// 削るカプセルの軸は、足元から半径と RUSH_FLOOR_MARGIN だけ上に置き、足場に穴を開けない。
         /// </summary>
         private void Rush(float distance, float duration, float radius)
         {
             var direction = _movementService.GetRushDirection();
-            var start = _movementAdapter.transform.position + Vector3.up * radius;
-            _voxelDestructionAdapter.CarveCapsuleWithArmor(start, start + direction * distance, radius, start);
+            var body = _movementAdapter.BodyBounds;
+            var start = new Vector3(body.center.x, body.min.y + radius + RUSH_FLOOR_MARGIN, body.center.z);
+            _voxelDestructionAdapter.CarveCapsuleWithArmor(start, start + direction * distance, radius, body.center);
             _movementService.RequestRush(direction, distance, duration);
         }
 
