@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 実装済み・ローカルでの確認待ち |
+| 状態 | 完了 |
 | 目安の時期 | 未定 |
 | 前提となる区間 | 0, 1 |
 | 全体計画 | [OutGameOverallPlan.md](../OutGameOverallPlan.md) |
@@ -83,12 +83,10 @@
 
 完了条件の確認結果
 
-- 未確認（クラウドで Unity が動かない為）。静的な確認として、asmdef の参照、命名、メンバー順は見た
-- ローカルでの準備（必須）
-  1. `OutGame.unity` を開いて `UsefulToolkit/Generate/Scene Compositor` で `OutGameCompositor` を作り直す（`OutGameStartInitializer` に注入する型が 2 つ増えた。作り直さないと Config ボタンは押せないまま）
-  2. `UsefulToolkitPersistent.unity` の `OperationSettingInitializer` に、`InputDispatcher` と同じ `InputSystem_Actions` を `_inputActions` へ割り当てる
-  3. AudioMixer を作り（マスター・BGM・SE のグループ）、グループごとの Volume を `MasterVolume`・`BgmVolume`・`SeVolume` として Expose し、`OperationSettingInitializer._audioMixer` へ割り当てる
-- ローカルで確かめること：`Kizami.BlackBoard.Runtime`・`Kizami.Application.Runtime`・`Kizami.EngineAdapter.Runtime`・`Kizami.Initialization.Runtime` のコンパイル。ホームの Config を開き、切り替えとスライダーを動かして再起動しても残ること。キーを割り当て直し（Esc で取り消し、重なったキーは入れ替わる）、インゲームでそのキーで動くこと、再起動しても残ること、「Reset Keys」で戻ること。音量はスライダーを動かすと Mixer の Exposed Parameter が変わること（Audio Mixer ウィンドウで確認できる）
+- ローカルでの準備は済ませた。`OutGameCompositor` を作り直し、`OperationSettingInitializer` に `InputSystem_Actions` と `Assets/Audio/MainMixer.mixer`（Master の下に BGM・SE。Volume を `MasterVolume`・`BgmVolume`・`SeVolume` で Expose）を割り当てた
+- ローカルのプレイモードで確認した（2026-10-19）。切り替えとスライダーが `setting.json` に残り、再生し直しても戻る。音量のスライダーで Mixer の Exposed Parameter が変わる。キーの割り当て直し、Esc での取り消し、重なったキーの入れ替え、再生し直したあとの当て直し、Reset Keys で初期値に戻ること。インゲームの `InputDispatcher` が持つアセットにも割り当てが効いている
+- 確かめられなかったこと：割り当てたキーを実際に押してインゲームで動くか（uloop のキー入力は割り当て直しに届かず、`InputSystem.QueueStateEvent` で流した）。鳴る音がないので、音量は Mixer の値まで
+- 保存した `BindingOverridesJson` の `action` が `Smartphone/Sprint` のように別のマップ名になることがある。Input System は `id` で照合するので、読み込みは正しく Player マップに戻る
 
 次の区間へ持ち越すこと
 

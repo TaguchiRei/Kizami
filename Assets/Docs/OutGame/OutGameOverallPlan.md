@@ -75,7 +75,7 @@ PC を先に作る。スマホと VR の対応は、インゲームと同じく�
 | 背景映像 | なし。Cinemachine 3.1.7 と Timeline 1.8.10 は導入済み。Unity Recorder は未導入 |
 | コンフィグ | あり（区間4）。ホームから開く画面で、ダッシュ・つかむの受け付け方、切断面の回転角度、視点感度、音量を変えられ、`setting.json` に保存する。ポーズからの導線はない |
 | キーコンフィグ | あり（区間4）。`InputRebindAdapter` が Player マップのキーボード・マウスの割り当てを変える（Look・CutRotate は対象外） |
-| 音量 | 一部あり（区間4）。マスター・BGM・SE の設定と `AudioVolumeAdapter`。AudioMixer アセットはローカルで作る。鳴る音がまだない |
+| 音量 | 一部あり（区間4）。マスター・BGM・SE の設定と `AudioVolumeAdapter`。AudioMixer は `Assets/Audio/MainMixer.mixer`。鳴る音がまだない |
 | セーブ | あり（区間0）。`JsonSaveStore<T>` で `persistentDataPath/Save/` に書く。消すのはエディタのメニュー `Kizami/Delete Save` |
 
 ## 4. 進め方
@@ -89,11 +89,11 @@ PC を先に作る。スマホと VR の対応は、インゲームと同じく�
 
 | # | 区間 | 主な内容 | 前提 | 目安の時期 | 状態 | 計画書 |
 |---|---|---|---|---|---|---|
-| 0 | 進行のセーブと解放 | 進行（クリア済みのステージ、装備）とコンフィグの保存・読み込み、通貨の削除、ステージのロック、スキルの解放の判定 | ― | 未定 | 実装済み（ローカルでの確認待ち） | [Section00](Sections/Section00_ProgressSave.md) |
-| 1 | ホームとステージ選択 | uGUI のホーム、画面の切り替え、ステージ選択（ロック表示） | 0 | 未定 | 実装済み（ローカルでの確認待ち） | [Section01](Sections/Section01_HomeStageSelect.md) |
-| 2 | スキル装備 | 装備枠 3、スキル一覧（羽天轟号は専用の枠を上に置く）、解放の演出（羽天轟号は特別） | 0, 1 | 未定 | 実装済み（ローカルでの確認待ち） | [Section02](Sections/Section02_SkillEquip.md) |
+| 0 | 進行のセーブと解放 | 進行（クリア済みのステージ、装備）とコンフィグの保存・読み込み、通貨の削除、ステージのロック、スキルの解放の判定 | ― | 未定 | 完了 | [Section00](Sections/Section00_ProgressSave.md) |
+| 1 | ホームとステージ選択 | uGUI のホーム、画面の切り替え、ステージ選択（ロック表示） | 0 | 未定 | 完了 | [Section01](Sections/Section01_HomeStageSelect.md) |
+| 2 | スキル装備 | 装備枠 3、スキル一覧（羽天轟号は専用の枠を上に置く）、解放の演出（羽天轟号は特別） | 0, 1 | 未定 | 完了 | [Section02](Sections/Section02_SkillEquip.md) |
 | 3 | 背景映像 | マップを周回するカメラの撮影と書き出し、アウトゲームでのループ再生 | ― | 未定 | 未着手 | [Section03](Sections/Section03_BackgroundVideo.md) |
-| 4 | コンフィグ | 既存の設定の画面、キーコンフィグ、音量 | 0, 1 | 未定 | 実装済み（ローカルでの確認待ち） | [Section04](Sections/Section04_Config.md) |
+| 4 | コンフィグ | 既存の設定の画面、キーコンフィグ、音量 | 0, 1 | 未定 | 完了 | [Section04](Sections/Section04_Config.md) |
 | 5 | スキルの作り直し | 7 種への整理、刃術 3 種（10 回振るまで、重ねがけ）、火術・崩爆、インゲーム区間17（衝波・攻走）との統合 | ― | 未定 | 未着手 | [Section05](Sections/Section05_SkillRework.md) |
 | 6 | 火術奥義・羽天轟号 | 上空への飛び上がり、チャージ、視点操作できる無敵のビーム、0.5 秒ごとの破壊判定とエネルギー消費、止め方 | 5 | 未定 | 未着手 | [Section06](Sections/Section06_Utenkougou.md) |
 | A | マイルストーンA | アウトゲームからステージを選び、装備を替えて遊び、クリアでスキルが解放される | | | | |

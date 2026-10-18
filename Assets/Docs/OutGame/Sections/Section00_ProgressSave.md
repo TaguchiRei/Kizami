@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 実装済み・ローカルでの確認待ち |
+| 状態 | 完了 |
 | 目安の時期 | 未定 |
 | 前提となる区間 | ― |
 | 全体計画 | [OutGameOverallPlan.md](../OutGameOverallPlan.md) |
@@ -73,6 +73,11 @@
 - 装備の制約は `CycleEquippedSkill` の中で、解放していないスキルとほかの枠のスキルを飛ばす形で入れた
 - 初期解放のスキルは `GameSceneInitializer._initialUnlockedSkills`。衝波・攻走ができるまでは、仮にビームと爆発を入れている
 - 各ステージの `_unlockSkill` は空のまま（砕剣などの定義ができる区間5で入れる）
+
+完了条件の確認結果
+
+- ローカルのプレイモードで確認した（2026-10-19）。クリアが `progress.json` に残り、再生し直すと次のステージのロックが外れている。装備も保存から戻る
+- 確認で直したこと：`JsonSaveStore` がコンストラクタで `persistentDataPath` を読んでいた。`GameSceneInitializer` のフィールド初期化子から生成される為に Unity が例外を出し、`GameProgressService` が null で登録されていた。パスは読み書きのときに組み立てるようにした
 
 ## 見つけた問題（今回は扱わない）
 
