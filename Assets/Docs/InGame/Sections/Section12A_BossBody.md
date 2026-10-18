@@ -46,6 +46,20 @@
 - 武装の部位を 5% 以上削ると、その武装は撃たなくなる。ミサイルは壊れた脚の番でクールタイムだけが過ぎる
 - ボスが動いている間も、剣とスキルでボスの部位を削れる
 
+## 実装の状況(2026-10-18、クラウドでの静的確認)
+
+12A-2〜12A-5 のコードは書き終え、参照先・asmdef の依存・命名・メンバー順・コメントを静的に確認した。残りは 12A-1 と、コンパイル・プレイでの確認で、どちらもローカルで行う。
+
+### ローカルで行うこと
+
+1. `Kizami.EngineAdapter.Runtime` と `Kizami.Initialization.Runtime` をコンパイルする
+2. 12A-1:Town.unity の `BossVoxelPreview`(`VoxelModelLoader` 付き)を元に、ボスのプレハブを作る
+   - 根に `BossBody`、`BossWeapons`、`BossShockwaves`、`BossMissiles`、`BossLaser`、`BossTurret`、`BossInitializer`、`BossDebugInitializer` を付ける
+   - `BossBody` の脚 4 本に、各脚の `UpperLeg_Outer`(腿)・`UnderLeg_Outer`(脛)・`Pad`(足先)を割り当てる。前後の脚で `Pair` を分ける
+   - `BossWeapons` に武装を設定する(上部タレット 2:`Armor_L/R`・`Barrel_L/R`、下部レーザー:`Core` の `BeamGun_Outer/Inner`、ミサイル 4:各脚の `Hatch_A/B`、アウトリガー 4:各脚の `LiftCylinder`・`Pad`)。パスは `MachineEnemy_Boss_Body/...` の形
+   - 各武装の `_target` にプレイヤー、`BossLaser` の `_core` に `Core` を割り当てる。マテリアルとプレハブ(輪・レーザー・ミサイル・弾)も設定する
+3. 確認:ボスが歩く(足が地面に着く)/ 6〜9 キーで武装 4 種を撃つ / 武装の部位を 5% 以上削ると撃たなくなる / ボスが動いている間も剣とスキルで削れる(Transform を動かしたときの当たり判定の追従、12A-1)
+
 ## 詳細仕様で決めること
 
 | # | 項目 | 案 |
