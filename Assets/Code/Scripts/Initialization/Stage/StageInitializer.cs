@@ -18,6 +18,7 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// インゲームの流れ（StageFlowService / StageFlowState）と、ステージの案内（StageGuideService / StageGuideState）、破壊対象・制限時間・HUD・案内・ポーズ・リザルトの Adapter、ステージシーンにある台本（StageGuideScript）と開始位置の目印（PlayerStartPoint）を繋いで、プレイを始める配線役。インゲームのシーンへ置く。
+    /// 倒れる塔があるステージでは、塔を渡りきったらクリアにする（TowerCrossingAdapter）。
     /// Brilliant Skill の判定（BrilliantSkillService）に、敵を倒した通知、ボクセルを壊した体積、建物の倒壊を繋ぎ、成立したら追加スコアを足す。
     /// 失敗条件の判定と、案内のログにプレイヤーの State と出来事の通知を使う為、PlayerInitializer より後に初期化する。
     /// 流れの状態、破壊済みの破壊対象の数、破壊対象ごとの壊れ具合（ボクセルは重要パーツごとの削れた割合、コアは分離した部位の数）を画面に出す。表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
@@ -102,6 +103,8 @@ namespace Kizami.Initialization
                     _guideService.SetDialogue, _guideService.SetHint, _flowService.Clear);
             }
 
+            ConnectTowerCrossing();
+
             _resultAdapter.Initialize(blackBoard, Retry, BackToOutGame);
             _hudAdapter.Initialize(blackBoard, _fragmentThrowAdapter);
             _guideAdapter.Initialize(blackBoard);
@@ -112,6 +115,26 @@ namespace Kizami.Initialization
 
             base.Initialize(blackBoard);
             _flowService.Begin();
+        }
+
+        /// <summary>
+        /// 倒れる塔（TowerTopple）があるステージでは、塔を渡りきったらクリアにする Adapter を作って繋ぐ。ステージを読み直すとシーンごと消える。
+        /// </summary>
+        private void ConnectTowerCrossing()
+        {
+            var tower = FindFirstObjectByType<TowerTopple>();
+            if (tower == null) return;
+
+            var movementAdapter = FindFirstObjectByType<PlayerMovementAdapterBase>();
+            if (movementAdapter == null)
+            {
+                UsefulLogger.LogError("PlayerMovementAdapterBase が見つからない為、塔を渡りきったことを判定できません。", this);
+                return;
+            }
+
+            var adapterObject = new GameObject(nameof(TowerCrossingAdapter));
+            SceneManager.MoveGameObjectToScene(adapterObject, gameObject.scene);
+            adapterObject.AddComponent<TowerCrossingAdapter>().Initialize(tower, movementAdapter.transform, _flowService.Clear);
         }
 
         /// <summary>

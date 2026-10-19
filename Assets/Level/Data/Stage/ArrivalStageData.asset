@@ -21,7 +21,7 @@ MonoBehaviour:
   _fixedSkills: []
   _targetGimmickIds:
   - Tower_Tensho
-  - Escape_Arrival
+  _clearsOnTargets: 0
   _isMaxDestructionPower: 1
   _failConditions:
   - rid: 8226038394822328408
