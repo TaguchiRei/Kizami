@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Skill_EnhanceDestroy
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u30DC\u30AF\u30BB\u30EB\u7834\u58CA"
+  _id: EnhanceDestroy
   _effect: 3
   _cost: 40
   _radius: 1

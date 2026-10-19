@@ -4,7 +4,7 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// 操作に関わる設定（ダッシュ入力の受け付け方・つかむ入力の受け付け方・切断面の回転角度・視点操作の感度）を保持するゲームステート。シーンを跨いで保たれる。
+    /// 操作に関わる設定（ダッシュ入力の受け付け方・つかむ入力の受け付け方・切断面の回転角度・視点操作の感度・音量）を保持するゲームステート。シーンを跨いで保たれる。
     /// 感度は基準を1.0とする倍率で、生の視点入力の単位が経路ごとに違う（PC / スマホはスクリーン座標の delta、VR はスティックの -1〜1）ため、基準スケールは各入力経路・適用側が定数として持つ。
     /// </summary>
     [RegisterBoard(typeof(AppBoard))]
@@ -16,6 +16,12 @@ namespace Kizami.BlackBoard
         /// <summary> 感度倍率として受け付ける上限 </summary>
         public const float MAX_SENSITIVITY = 10f;
 
+        /// <summary> 音量として受け付ける上限（下限は0） </summary>
+        public const int MAX_VOLUME = 100;
+
+        /// <summary> 音量の初期値 </summary>
+        public const int DEFAULT_VOLUME = 80;
+
         public SprintInputMode SprintInputMode { get; private set; } = SprintInputMode.Hold;
 
         public GrabInputMode GrabInputMode { get; private set; } = GrabInputMode.Toggle;
@@ -26,11 +32,18 @@ namespace Kizami.BlackBoard
 
         public float VerticalSensitivity { get; private set; } = 1f;
 
+        public int MasterVolume { get; private set; } = DEFAULT_VOLUME;
+
+        public int BgmVolume { get; private set; } = DEFAULT_VOLUME;
+
+        public int SeVolume { get; private set; } = DEFAULT_VOLUME;
+
         public override string GetLog()
         {
             return $"SprintInputMode: {SprintInputMode}  \nGrabInputMode: {GrabInputMode}  \n" +
                    $"CutRotateStepAngle: {CutRotateStepAngle}  \n" +
-                   $"HorizontalSensitivity: {HorizontalSensitivity}  \nVerticalSensitivity: {VerticalSensitivity}";
+                   $"HorizontalSensitivity: {HorizontalSensitivity}  \nVerticalSensitivity: {VerticalSensitivity}  \n" +
+                   $"MasterVolume: {MasterVolume}  \nBgmVolume: {BgmVolume}  \nSeVolume: {SeVolume}";
         }
 
         /// <summary>
@@ -77,6 +90,33 @@ namespace Kizami.BlackBoard
         {
             VerticalSensitivity = Mathf.Clamp(sensitivity, MIN_SENSITIVITY, MAX_SENSITIVITY);
         }
+
+        /// <summary>
+        /// マスター音量を設定する。値は 0 〜 MAX_VOLUME にクランプされる。
+        /// </summary>
+        /// <param name="volume">音量</param>
+        public void SetMasterVolume(int volume)
+        {
+            MasterVolume = Mathf.Clamp(volume, 0, MAX_VOLUME);
+        }
+
+        /// <summary>
+        /// BGM の音量を設定する。値は 0 〜 MAX_VOLUME にクランプされる。
+        /// </summary>
+        /// <param name="volume">音量</param>
+        public void SetBgmVolume(int volume)
+        {
+            BgmVolume = Mathf.Clamp(volume, 0, MAX_VOLUME);
+        }
+
+        /// <summary>
+        /// SE の音量を設定する。値は 0 〜 MAX_VOLUME にクランプされる。
+        /// </summary>
+        /// <param name="volume">音量</param>
+        public void SetSeVolume(int volume)
+        {
+            SeVolume = Mathf.Clamp(volume, 0, MAX_VOLUME);
+        }
     }
 
     /// <summary>
@@ -98,6 +138,51 @@ namespace Kizami.BlackBoard
 
         /// <summary> 上下の視点操作の感度倍率。VR では適用側が上下方向の入力を捨てる </summary>
         float VerticalSensitivity { get; }
+
+        /// <summary> マスター音量（0〜100） </summary>
+        int MasterVolume { get; }
+
+        /// <summary> BGM の音量（0〜100） </summary>
+        int BgmVolume { get; }
+
+        /// <summary> SE の音量（0〜100） </summary>
+        int SeVolume { get; }
+    }
+
+    /// <summary>
+    /// 操作に関わる設定の書き込み面。変更は保存される。
+    /// </summary>
+    public interface IOperationSettingController
+    {
+        /// <summary> キーの割り当ての変更差分（InputActionAsset の SaveBindingOverridesAsJson の文字列）。変更がなければ空 </summary>
+        string BindingOverridesJson { get; }
+
+        /// <summary> ダッシュ入力の受け付け方を変更して保存する </summary>
+        void SetSprintInputMode(SprintInputMode mode);
+
+        /// <summary> つかむ入力の受け付け方を変更して保存する </summary>
+        void SetGrabInputMode(GrabInputMode mode);
+
+        /// <summary> 切断面の回転入力1回あたりの回転角度（度）を変更して保存する </summary>
+        void SetCutRotateStepAngle(float angle);
+
+        /// <summary> 左右の視点操作の感度倍率を変更して保存する </summary>
+        void SetHorizontalSensitivity(float sensitivity);
+
+        /// <summary> 上下の視点操作の感度倍率を変更して保存する </summary>
+        void SetVerticalSensitivity(float sensitivity);
+
+        /// <summary> マスター音量（0〜100）を変更して保存する </summary>
+        void SetMasterVolume(int volume);
+
+        /// <summary> BGM の音量（0〜100）を変更して保存する </summary>
+        void SetBgmVolume(int volume);
+
+        /// <summary> SE の音量（0〜100）を変更して保存する </summary>
+        void SetSeVolume(int volume);
+
+        /// <summary> キーの割り当ての変更差分を保存する。初期値に戻すなら空文字 </summary>
+        void SetBindingOverridesJson(string json);
     }
 
     /// <summary>

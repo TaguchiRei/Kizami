@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Skill_EnhanceRange
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u7BC4\u56F2\u30A2\u30C3\u30D7"
+  _id: EnhanceRange
   _effect: 5
   _cost: 30
   _radius: 1

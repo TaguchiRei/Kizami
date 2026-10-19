@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Skill_EnhanceSpeed
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u901F\u3055\u30A2\u30C3\u30D7"
+  _id: EnhanceSpeed
   _effect: 6
   _cost: 30
   _radius: 1
