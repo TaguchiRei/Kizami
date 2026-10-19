@@ -67,6 +67,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 直前の FixedUpdate で反映した移動モード </summary>
         private PlayerMoveMode _lastAppliedMode;
 
+        /// <summary> プレイヤーの当たり判定のカプセルの、ワールド空間の外接箱 </summary>
+        public Bounds BodyBounds => _collider.bounds;
+
         /// <summary>
         /// PlayerMovementState と PlayerLookState の登録より後に呼ぶこと。
         /// </summary>

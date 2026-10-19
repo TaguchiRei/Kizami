@@ -170,6 +170,60 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// カメラの正面に、水平の向きの横長のカプセルで削る。カメラの向きは水平に直して使う。装甲への当て方は CarveCapsuleWithArmor と同じ。
+        /// </summary>
+        /// <param name="width">横幅（m）</param>
+        /// <param name="depth">奥行き（m）。カプセルの直径になり、カメラの位置から奥行きの分だけ前までを削る</param>
+        /// <param name="falloff">1m あたりに減る強さ。1 ÷ 半径以下なら硬い素材は削れない</param>
+        public void CarveSweep(float width, float depth, float falloff)
+        {
+            if (!TryGetCameraTransform(out var cameraTransform)) return;
+
+            var forward = Vector3.ProjectOnPlane(cameraTransform.forward, Vector3.up);
+            if (forward.sqrMagnitude < 0.0001f) return;
+
+            forward.Normalize();
+            var right = Vector3.Cross(Vector3.up, forward);
+            var radius = depth * 0.5f;
+            var center = cameraTransform.position + forward * radius;
+            var halfAxis = Mathf.Max(width * 0.5f - radius, 0f);
+
+            CarveCapsuleWithArmor(center - right * halfAxis, center + right * halfAxis, radius, cameraTransform.position,
+                falloff);
+        }
+
+        /// <summary>
+        /// 指定した2点を結ぶカプセルで削る。ガラスの板は割る。
+        /// カプセルに入った装甲のパネルすべてに1回ずつ当て、origin から見て装甲の奥にあるピースは削らない。
+        /// 硬い素材（鉄筋）を削るのは崩爆と羽天轟号だけにする為、破壊力を最大にしたときの強さの上乗せは使わない。
+        /// </summary>
+        /// <param name="start">カプセルの一方の端（ワールド空間）</param>
+        /// <param name="end">カプセルのもう一方の端（ワールド空間）</param>
+        /// <param name="radius">カプセルの半径（m）</param>
+        /// <param name="origin">装甲の遮断を判定するレイの始点</param>
+        /// <param name="falloff">1m あたりに減る強さ。1 ÷ 半径以下なら、普通の素材を半径まで削り、硬い素材は削れない</param>
+        public void CarveCapsuleWithArmor(Vector3 start, Vector3 end, float radius, Vector3 origin, float falloff)
+        {
+            CollectArmorPanels(Physics.OverlapCapsuleNonAlloc(start, end, radius, _armorHitBuffer, _armorLayers,
+                QueryTriggerInteraction.Ignore));
+            ShatterGlass(Physics.OverlapCapsuleNonAlloc(start, end, radius + _glassMargin, _glassHitBuffer, _targetLayers,
+                QueryTriggerInteraction.Ignore), origin);
+
+            var reach = radius + VoxelThermalSettings.NORMAL_MELTING_POINT / falloff;
+            var hitCount = QueryCapsule(start, end, reach);
+
+            // 遮断の判定は、当てて壊れる前のパネルで行う
+            Carve(new CapsuleShape(start, end, reach), falloff, hitCount, _armorPanels.Count > 0, origin);
+
+            foreach (var armorPanel in _armorPanels)
+            {
+                armorPanel.ApplyDamage(DamageType.Destroy);
+            }
+
+            _armorPanels.Clear();
+        }
+
+        /// <summary>
         /// 指定した点を中心に球で削る。
         /// 球に入った装甲のパネルすべてに1回ずつ当て、中心から見て装甲の奥にあるピースは削らない。
         /// 遮断は中心から各ピースのバウンディングボックスの中心へのレイで判定するので、ピースの一部だけが装甲の陰にあっても、ピース全体を削るか削らないかのどちらかになる。
@@ -178,7 +232,8 @@ namespace Kizami.EngineAdapter
         /// <param name="radius">球の半径（m）</param>
         public void CarveExplosionAt(Vector3 center, float radius)
         {
-            CollectArmorPanels(center, radius);
+            CollectArmorPanels(Physics.OverlapSphereNonAlloc(center, radius, _armorHitBuffer, _armorLayers,
+                QueryTriggerInteraction.Ignore));
             ShatterGlass(Physics.OverlapSphereNonAlloc(center, radius + _glassMargin, _glassHitBuffer, _targetLayers,
                 QueryTriggerInteraction.Ignore), center);
 
@@ -259,14 +314,12 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 球に入った装甲のパネルを _armorPanels に集める。
+        /// _armorHitBuffer に集めた装甲のコライダーから、装甲のパネルを _armorPanels に集める。
         /// </summary>
-        private void CollectArmorPanels(Vector3 center, float radius)
+        /// <param name="hitCount">_armorHitBuffer に集めたコライダーの数</param>
+        private void CollectArmorPanels(int hitCount)
         {
             _armorPanels.Clear();
-
-            var hitCount = Physics.OverlapSphereNonAlloc(center, radius, _armorHitBuffer, _armorLayers,
-                QueryTriggerInteraction.Ignore);
 
             if (hitCount == _armorHitBuffer.Length)
             {
