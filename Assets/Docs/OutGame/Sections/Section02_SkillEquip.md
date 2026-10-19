@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 未着手（着手前にこの計画を見直す） |
+| 状態 | 完了 |
 | 目安の時期 | 未定 |
 | 前提となる区間 | 0, 1（羽天轟号の表示は 6 を待たずに作れる） |
 | 全体計画 | [OutGameOverallPlan.md](../OutGameOverallPlan.md) |
@@ -15,7 +15,8 @@
 
 | 資産 | 内容 |
 |---|---|
-| `GameProgressService.CycleEquippedSkill` | 押すたびに次のスキルに替える仮の操作。この区間で、枠とスキルを選ぶ操作に置き換える |
+| `GameProgressService.CycleEquippedSkill` | 押すたびに次のスキルに替える仮の操作。解放していないスキルとほかの枠のスキルを飛ばし、変更のたびに保存する（区間0）。この区間で、枠とスキルを選ぶ操作に置き換える |
+| `IGameProgressState.IsSkillUnlocked` | 解放済みかの判定（区間0） |
 | `SkillData` の名前とアイコン | 一覧に出す |
 
 ## 作業一覧
@@ -40,14 +41,55 @@
 | 1 | 装備の操作 | 枠を選んでから一覧のスキルを押す。ほかの枠にあるスキルを押したら入れ替える |
 | 2 | 出す情報 | 名前、消費、説明文 |
 | 3 | 解放の演出 | 通常は小さな通知、羽天轟号は全画面の演出 |
+| 4 | 演出を出したかの記録 | `ProgressSaveData` に演出を出したスキルの ID を足して保存する（アプリを閉じても二度出さない為） |
+| 5 | 羽天轟号の見分け方 | `GameSceneInitializer` で羽天轟号の `SkillData` を別の欄で受け取る（`SkillData` に印を足すより変更が小さい為） |
+| 6 | 説明文 | `SkillData` に `_description` を足す。文は全体計画書の 7 章の「効果」を元にする |
 
 ## 既存コードの確認結果
 
-着手する直前に書く。
+| 対象 | 今の状態 |
+|---|---|
+| 装備の窓口 | `GameProgressService` にあるのは `CycleEquippedSkill(slot)` だけ。枠とスキルを指定して装備する窓口はない。制約の判定は private の `CanEquip(slot, skillIndex)` にあるので、装備の窓口はこれを使う |
+| 装備の保存 | `progress.json` の `EquippedSkillIds`。装備を変える窓口は、最後に private の `Save()` を呼ぶ |
+| 解放 | 解放済みのスキルは保存していない。起動時に「初期解放（`GameSceneInitializer._initialUnlockedSkills`）＋クリア済みのステージの `UnlockSkill`」から決める。「新しく解放したか」を覚える仕組みはない |
+| インゲームへの受け渡し | `PlayerInitializer` が `GameProgressService.GetEquippedSkills()` を `SkillService` に渡す。ステージが `FixedSkills` を持つときは、そちらが優先される（チュートリアルはビーム・爆発・回復に固定） |
+| `SkillData` | 名前（`DisplayName`）、アイコン（`Icon`、Texture2D）、消費（`Cost`）を持つ。説明文はない |
+| 装備できるスキル | `GameSceneInitializer._skills` の 8 つ（区間5で 7 種に入れ替わる）。羽天轟号を見分ける印は `SkillData` にない |
+
+作業のときの注意
+
+- 解放の演出を「一度だけ」出すには、演出を出したスキルを覚える必要がある。再起動をまたいで覚えるなら `ProgressSaveData` に項目を足す。足すかどうかは下の「決めること」4 で決める
+- 羽天轟号の専用の枠は、`SkillData` に印を足すか、Initializer で 1 つだけ別に受け取るかを決める（決めること 5）
 
 ## 実装結果
 
-区間を終えるときに書く。
+決めたこと
+
+| # | 項目 | 決定 |
+|---|---|---|
+| 1 | 装備の操作 | 枠を選んでから一覧のスキルを押す。ほかの枠にあるスキルを押すと入れ替える。「Unequip」で選んだ枠を空きにする |
+| 2 | 出す情報 | 名前、消費、説明文（空なら出さない）。装備枠と一覧のボタンには装備している枠の印を付ける |
+| 3 | 解放の演出 | 通常は画面右上の通知（3 秒）、専用の枠のスキルは全画面で、OK を押すまで閉じない |
+| 4 | 演出を出したかの記録 | `progress.json` の `ShownUnlockSkillIds`。順番待ちに加えた時点で記録する（途中で閉じても二度は出ない） |
+| 5 | 羽天轟号の見分け方 | `GameSceneInitializer._ultimateSkill`（装備できるスキルに含まれるもの。空なら専用の枠を出さない） |
+| 6 | 説明文 | `SkillData._description` を足した。文は未入力（スキルの定義を作り直す区間5で入れる） |
+
+作ったもの
+
+- `GameProgressService`：`EquipSkill(slot, skillIndex)`（`CycleEquippedSkill` を置き換え）、`GetPendingUnlockSkills`、`MarkUnlockShown`、`UltimateSkillIndex`
+- `OutGameMenuAdapter`：スキル装備の画面（左に枠と説明、右に専用の枠と一覧）と、解放の演出。表示内容は `SkillEntry` で受け取る
+- `OutGameStartInitializer`：装備の操作と演出の順番待ちをつなぐ
+
+完了条件の確認結果
+
+- ローカルのプレイモードで確認した（2026-10-19）。枠を選んでスキルを押すと装備でき、ほかの枠のスキルを押すと入れ替わる。未解放のスキルは押しても変わらない。殲滅では装備がプレイヤーに渡る（チュートリアルは `_fixedSkills` で固定の為、装備に関わらず固定のスキルになる）
+- 確かめられなかったこと：解放の通知。解放するスキルを持つステージがまだない（区間5で入れる）。専用の枠と全画面の演出も、羽天轟号ができるまで確かめられない
+
+次の区間へ持ち越すこと
+
+- 説明文の入力と、`_ultimateSkill` への羽天轟号の割り当て（区間5・6）
+- 既存の保存データは `ShownUnlockSkillIds` を持たないので、クリア済みのステージのスキルの通知が最初に一度出る
+- 見た目の作り込み
 
 ## 見つけた問題（今回は扱わない）
 

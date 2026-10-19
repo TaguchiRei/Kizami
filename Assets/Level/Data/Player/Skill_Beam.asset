@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Skill_Beam
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u30D3\u30FC\u30E0"
+  _id: Beam
   _effect: 0
   _cost: 30
   _radius: 1

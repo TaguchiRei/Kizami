@@ -11,6 +11,7 @@ namespace Kizami.EngineAdapter
     // TODO: 見た目を作り込むときは、組み立てをプレハブに置き換え、このクラスを消す
     public static class UiBuilder
     {
+        private const float HANDLE_WIDTH = 24f;
         private static readonly Vector2 _referenceResolution = new(1920f, 1080f);
 
         private static Font _font;
@@ -85,6 +86,52 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 左から右へ値が増える、横向きのスライダーを作る。
+        /// </summary>
+        /// <param name="parent">親</param>
+        /// <param name="name">GameObject の名前</param>
+        /// <param name="minValue">下限</param>
+        /// <param name="maxValue">上限</param>
+        /// <param name="wholeNumbers">整数だけにするか</param>
+        /// <param name="trackColor">溝の色</param>
+        /// <param name="fillColor">値の分だけ塗る色</param>
+        public static Slider CreateSlider(Transform parent, string name, float minValue, float maxValue,
+            bool wholeNumbers, Color trackColor, Color fillColor)
+        {
+            var slider = CreateChild<Slider>(parent, name);
+
+            var track = CreateImage(slider.transform, "Track", trackColor);
+            track.raycastTarget = true;
+            SetAnchors(track.rectTransform, new Vector2(0f, 0.35f), new Vector2(1f, 0.65f));
+
+            var fillArea = CreateRect(slider.transform, "FillArea");
+            SetAnchors(fillArea, new Vector2(0f, 0.35f), new Vector2(1f, 0.65f));
+            var fill = CreateImage(fillArea, "Fill", fillColor);
+            fill.rectTransform.anchorMin = Vector2.zero;
+            fill.rectTransform.anchorMax = new Vector2(0f, 1f);
+            fill.rectTransform.sizeDelta = Vector2.zero;
+
+            var handleArea = CreateRect(slider.transform, "HandleArea");
+            SetAnchors(handleArea, Vector2.zero, Vector2.one);
+            handleArea.offsetMin = new Vector2(HANDLE_WIDTH * 0.5f, 0f);
+            handleArea.offsetMax = new Vector2(-HANDLE_WIDTH * 0.5f, 0f);
+            var handle = CreateImage(handleArea, "Handle", Color.white);
+            handle.raycastTarget = true;
+            handle.rectTransform.anchorMin = Vector2.zero;
+            handle.rectTransform.anchorMax = new Vector2(0f, 1f);
+            handle.rectTransform.sizeDelta = new Vector2(HANDLE_WIDTH, 0f);
+
+            slider.fillRect = fill.rectTransform;
+            slider.handleRect = handle.rectTransform;
+            slider.targetGraphic = handle;
+            slider.direction = Slider.Direction.LeftToRight;
+            slider.minValue = minValue;
+            slider.maxValue = maxValue;
+            slider.wholeNumbers = wholeNumbers;
+            return slider;
+        }
+
+        /// <summary>
         /// 親に対する割合で範囲を決め、余白を0にする。
         /// </summary>
         public static void SetAnchors(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
@@ -104,6 +151,13 @@ namespace Kizami.EngineAdapter
 
             var eventSystem = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
             eventSystem.transform.SetParent(parent, false);
+        }
+
+        private static RectTransform CreateRect(Transform parent, string name)
+        {
+            var child = new GameObject(name, typeof(RectTransform));
+            child.transform.SetParent(parent, false);
+            return (RectTransform)child.transform;
         }
 
         private static T CreateChild<T>(Transform parent, string name) where T : Component

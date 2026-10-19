@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Skill_Heal
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u56DE\u5FA9"
+  _id: Heal
   _effect: 2
   _cost: 40
   _radius: 1

@@ -1,10 +1,11 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// ステージシーンが読み込まれている間だけ、天球のマテリアルを差し替える。ステージシーンへ置く。
-    /// 追加で読み込んだシーンのライティング設定は使われず、主のシーン（町）の天球が出る為、実行時に RenderSettings を書き換える。
+    /// 天球はアクティブなシーンのライティング設定で決まり、主のシーン（町）がアクティブになると戻る為、アクティブなシーンが変わるたびに差し替え直す。
     /// </summary>
     public sealed class StageSkyboxOverride : MonoBehaviour
     {
@@ -17,18 +18,33 @@ namespace Kizami.EngineAdapter
 
         private void OnEnable()
         {
-            if (_skybox == null) return;
-
-            _previousSkybox = RenderSettings.skybox;
-            RenderSettings.skybox = _skybox;
-            DynamicGI.UpdateEnvironment();
+            SceneManager.activeSceneChanged += OnActiveSceneChanged;
+            Apply();
         }
 
         private void OnDisable()
         {
+            SceneManager.activeSceneChanged -= OnActiveSceneChanged;
             if (_skybox == null || RenderSettings.skybox != _skybox) return;
 
             RenderSettings.skybox = _previousSkybox;
+            DynamicGI.UpdateEnvironment();
+        }
+
+        private void OnActiveSceneChanged(Scene previous, Scene next)
+        {
+            Apply();
+        }
+
+        /// <summary>
+        /// 天球を差し替える。すでに差し替えていれば何もしない。
+        /// </summary>
+        private void Apply()
+        {
+            if (_skybox == null || RenderSettings.skybox == _skybox) return;
+
+            _previousSkybox = RenderSettings.skybox;
+            RenderSettings.skybox = _skybox;
             DynamicGI.UpdateEnvironment();
         }
     }

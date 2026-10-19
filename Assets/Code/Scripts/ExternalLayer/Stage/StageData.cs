@@ -6,7 +6,7 @@ using UsefulToolkit.External.Scene;
 namespace Kizami.External
 {
     /// <summary>
-    /// ステージ1つの定義。アウトゲームの選択肢に出す名前、インゲームで読み込むシーングループ、クリアの基礎スコア、使うスキルの固定、始めるときのチャージ量、失敗条件を持つ。
+    /// ステージ1つの定義。アウトゲームの選択肢に出す名前、保存に使う ID、初回クリアで解放するスキル、インゲームで読み込むシーングループ、クリアの基礎スコア、使うスキルの固定、始めるときのチャージ量、失敗条件を持つ。
     /// 敵の出し方と破壊対象は、ステージシーンに置いた物が持つ。
     /// </summary>
     [CreateAssetMenu(fileName = "StageData", menuName = "Kizami/Stage/StageData")]
@@ -15,6 +15,14 @@ namespace Kizami.External
         [SerializeField]
         [Tooltip("アウトゲームの選択肢に出す名前")]
         private string _displayName = "Stage";
+
+        [SerializeField]
+        [Tooltip("保存データでステージを見分ける ID。並びを変えても進行が残るよう、番号ではなく ID で保存する。空ならアセットの名前を使う")]
+        private string _id;
+
+        [SerializeField]
+        [Tooltip("初めてクリアしたときに解放するスキル。空なら解放しない")]
+        private SkillData _unlockSkill;
 
         [SerializeField]
         [Tooltip("インゲームで読み込むシーングループ。ステージシーンをアクティブにし、InGame を加える")]
@@ -58,6 +66,12 @@ namespace Kizami.External
 
         /// <summary> アウトゲームの選択肢に出す名前 </summary>
         public string DisplayName => _displayName;
+
+        /// <summary> 保存データでステージを見分ける ID </summary>
+        public string Id => string.IsNullOrEmpty(_id) ? name : _id;
+
+        /// <summary> 初めてクリアしたときに解放するスキル。解放しなければ null </summary>
+        public SkillData UnlockSkill => _unlockSkill;
 
         /// <summary> インゲームで読み込むシーングループ </summary>
         public SceneGroupDataBase SceneGroup => _sceneGroup;
