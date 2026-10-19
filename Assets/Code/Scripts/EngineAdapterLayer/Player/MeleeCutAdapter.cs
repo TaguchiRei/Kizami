@@ -33,11 +33,11 @@ namespace Kizami.EngineAdapter
 
         [SerializeField, Min(0f)]
         [Tooltip("切断の範囲の、カメラから前方への距離（m）")]
-        private float _reach = 3f;
+        private float _reach = 9f;
 
         [SerializeField, Min(0f)]
         [Tooltip("切断の範囲の、刃に沿った横方向の幅（m）")]
-        private float _width = 2f;
+        private float _width = 6f;
 
         [SerializeField, Min(0f)]
         [Tooltip("切断の範囲の、刃の法線方向の厚み（m）")]

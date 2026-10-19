@@ -19,5 +19,5 @@ MonoBehaviour:
   _length: 0
   _healAmount: 0
   _distance: 5
-  _width: 4
-  _depth: 2
+  _width: 12
+  _depth: 6

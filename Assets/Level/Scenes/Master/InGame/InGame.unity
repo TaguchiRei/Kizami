@@ -998,8 +998,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.MeleeCutAdapter
   _blade: {fileID: 909869849}
-  _reach: 3
-  _width: 2
+  _reach: 9
+  _width: 6
   _thickness: 0.2
   _targetLayers:
     serializedVersion: 2

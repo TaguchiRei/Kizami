@@ -15,7 +15,7 @@ MonoBehaviour:
   _displayName: "\u653B\u8D70"
   _effect: 11
   _cost: 15
-  _radius: 1
+  _radius: 3
   _length: 0
   _healAmount: 0
   _distance: 8
