@@ -14,11 +14,12 @@ namespace Kizami.EngineAdapter
     /// アタッカーが体の上のタレットから撃つ弾を扱う。EnemySpawnAdapter と同じ GameObject に置き、EnemySpawnAdapter が初期化と毎フレームの更新を呼ぶ。
     /// 撃つのは、射程の中にいて、攻撃部位が壊れておらず、銃口からプレイヤーまで壁のないアタッカー。体を貸していない敵も、敵の状態の値だけで撃つ。
     /// 弾の位置・速度・残りの寿命は NativeArray に持ち、Burst の Job で進めてプレイヤーのカプセルとの当たりを距離で調べ、前のフレームの位置からの間を SpherecastCommand で調べて壁と装甲で止める。
-    /// 飛んでいる弾の数に上限を設け、1体が1発ずつ撃つので、同時に撃つ敵の数の上限にもなる。弾の位置は GraphicsBuffer で VFX Graph へ渡して描く。
+    /// 1体が1発ずつ撃ち、弾が飛んでいる間は同時に撃っているとみなす。同時に撃つ敵の数は、弾の器の数を超えない範囲で、ステージごとに変えられる。弾の位置は GraphicsBuffer で VFX Graph へ渡して描く。
     /// </summary>
     /// <remarks>
     /// VFX Graph で受け取るものは次のとおり（名前を変えるときは、グラフの側も合わせる）。
-    /// GraphicsBuffer の BulletStates（float4 の並び。xyz が位置、w が飛んでいれば1・いなければ0）、int の BulletCapacity（その数）。
+    /// GraphicsBuffer の BulletStates（float4 の並び。xyz が位置、w が飛んでいれば1・いなければ0）、GraphicsBuffer の BulletVelocities（float4 の並び。xyz が速度）、int の BulletCapacity（その数）。
+    /// 撃った瞬間に Fire イベントを送り、イベントの position に銃口の位置、direction に撃った向きを入れる。
     /// </remarks>
     public sealed class EnemyShooter : MonoBehaviour
     {
@@ -29,7 +30,11 @@ namespace Kizami.EngineAdapter
         private const float LIFETIME_RATE = 1.2f;
 
         private static readonly int _statesId = Shader.PropertyToID("BulletStates");
+        private static readonly int _velocitiesId = Shader.PropertyToID("BulletVelocities");
         private static readonly int _capacityId = Shader.PropertyToID("BulletCapacity");
+        private static readonly int _fireEventId = Shader.PropertyToID("Fire");
+        private static readonly int _positionAttributeId = Shader.PropertyToID("position");
+        private static readonly int _directionAttributeId = Shader.PropertyToID("direction");
 
         [SerializeField]
         [Tooltip("弾を描く VisualEffect。未設定なら、弾は見えないまま飛ぶ")]
@@ -60,8 +65,12 @@ namespace Kizami.EngineAdapter
         private float _radius = 0.3f;
 
         [SerializeField, Min(1)]
-        [Tooltip("同時に飛んでいる弾の数の上限。1 体が 1 発ずつ撃つので、同時に撃つ敵の数の上限でもある")]
-        private int _maxBullets = 4;
+        [Tooltip("用意しておく弾の数。同時に撃つ敵の数は、これを超えられない")]
+        private int _maxBullets = 16;
+
+        [SerializeField, Min(1)]
+        [Tooltip("同時に撃つ敵の数の既定の値。ステージが上限を決めていればそちらを使う")]
+        private int _maxShooters = 4;
 
         [SerializeField]
         [Tooltip("弾を止め、銃口からプレイヤーまでの間をさえぎる物のレイヤー（壁と装甲）")]
@@ -97,9 +106,16 @@ namespace Kizami.EngineAdapter
         private NativeArray<RaycastHit> _sightHits;
 
         private GraphicsBuffer _stateBuffer;
+        private GraphicsBuffer _velocityBuffer;
+
+        /// <summary> Fire イベントに付ける、銃口の位置と撃った向き </summary>
+        private VFXEventAttribute _fireAttribute;
 
         /// <summary> VFX Graph へ渡す弾の状態。並びは弾の番号と同じ </summary>
         private Vector4[] _states;
+
+        /// <summary> VFX Graph へ渡す弾の速度。並びは弾の番号と同じ </summary>
+        private Vector4[] _velocityStates;
 
         private bool _isReady;
 
@@ -118,6 +134,15 @@ namespace Kizami.EngineAdapter
 
                 return count;
             }
+        }
+
+        /// <summary>
+        /// 同時に撃つ敵の数を変える。弾の器の数を超える値は、器の数にする。
+        /// </summary>
+        /// <param name="maxShooters">同時に撃つ敵の数。0 なら撃たない</param>
+        public void SetMaxShooters(int maxShooters)
+        {
+            _maxShooters = Mathf.Clamp(maxShooters, 0, _maxBullets);
         }
 
         /// <summary>
@@ -155,20 +180,25 @@ namespace Kizami.EngineAdapter
             _sightHits = new NativeArray<RaycastHit>(_maxBullets, Allocator.Persistent);
             _candidates = new NativeList<int>(Allocator.Persistent);
             _states = new Vector4[_maxBullets];
+            _velocityStates = new Vector4[_maxBullets];
 
             if (_effect == null)
             {
                 UsefulLogger.LogWarning("弾の VisualEffect が設定されていない為、弾は見えないまま飛びます。", this);
             }
-            else if (!_effect.HasGraphicsBuffer(_statesId) || !_effect.HasInt(_capacityId))
+            else if (!_effect.HasGraphicsBuffer(_statesId) || !_effect.HasGraphicsBuffer(_velocitiesId) || !_effect.HasInt(_capacityId))
             {
-                UsefulLogger.LogWarning("弾の VFX Graph に BulletStates か BulletCapacity がない為、弾は見えないまま飛びます。", this);
+                UsefulLogger.LogWarning("弾の VFX Graph に BulletStates・BulletVelocities・BulletCapacity のどれかがない為、弾は見えないまま飛びます。", this);
             }
             else
             {
                 _stateBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, _maxBullets, sizeof(float) * 4);
                 _stateBuffer.SetData(_states);
                 _effect.SetGraphicsBuffer(_statesId, _stateBuffer);
+                _velocityBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, _maxBullets, sizeof(float) * 4);
+                _velocityBuffer.SetData(_velocityStates);
+                _effect.SetGraphicsBuffer(_velocitiesId, _velocityBuffer);
+                _fireAttribute = _effect.CreateVFXEventAttribute();
                 _effect.SetInt(_capacityId, _maxBullets);
             }
 
@@ -203,6 +233,7 @@ namespace Kizami.EngineAdapter
             if (_sightHits.IsCreated) _sightHits.Dispose();
             if (_candidates.IsCreated) _candidates.Dispose();
             _stateBuffer?.Release();
+            _velocityBuffer?.Release();
         }
 
         private void OnDrawGizmos()
@@ -314,7 +345,7 @@ namespace Kizami.EngineAdapter
                 AttackPartMask = _attackPartMask
             }.Schedule().Complete();
 
-            var freeCount = _maxBullets - FlyingCount;
+            var freeCount = Mathf.Min(_maxShooters, _maxBullets) - FlyingCount;
             var shooterCount = math.min(freeCount, _candidates.Length);
             if (shooterCount <= 0) return;
 
@@ -368,8 +399,18 @@ namespace Kizami.EngineAdapter
                 _positions[i] = muzzle;
                 _velocities[i] = direction * _speed;
                 _lifetimes[i] = _range / _speed * LIFETIME_RATE;
+                SendFireEvent(muzzle, direction);
                 return;
             }
+        }
+
+        private void SendFireEvent(float3 muzzle, float3 direction)
+        {
+            if (_fireAttribute == null) return;
+
+            _fireAttribute.SetVector3(_positionAttributeId, muzzle);
+            _fireAttribute.SetVector3(_directionAttributeId, direction);
+            _effect.SendEvent(_fireEventId, _fireAttribute);
         }
 
         private void UpdateEffect()
@@ -379,10 +420,13 @@ namespace Kizami.EngineAdapter
             for (var i = 0; i < _maxBullets; i++)
             {
                 var position = _positions[i];
+                var velocity = _velocities[i];
                 _states[i] = new Vector4(position.x, position.y, position.z, _isFlying[i] ? 1f : 0f);
+                _velocityStates[i] = new Vector4(velocity.x, velocity.y, velocity.z, 0f);
             }
 
             _stateBuffer.SetData(_states);
+            _velocityBuffer.SetData(_velocityStates);
         }
 
         /// <summary>

@@ -67,7 +67,8 @@ namespace Kizami.Editor
             var oldTower = GameObject.Find("Stage_Tower_Tensho_01");
             if (oldTower != null) Object.DestroyImmediate(oldTower);
 
-            var plan = TownLayout.Plan(SEED);
+            // チュートリアルのダミーの区画には施設を置かない。区画の重なりでは先に置いたダミーが使われ、施設から敵が出なくなる為
+            var plan = TownLayout.Plan(SEED, SECTION_SIZE, new[] { GetSection(_tutorialDummyPosition) });
             var root = new GameObject(ROOT_NAME).transform;
             var meltSystem = Instantiate($"{BUILDING_FOLDER}/Town_VoxelMeltSystem.prefab", root).GetComponent<VoxelMeltSystem>();
 
@@ -183,6 +184,14 @@ namespace Kizami.Editor
                 var collider = box.AddComponent<BoxCollider>();
                 collider.size = new Vector3(FAR_GROUND_WIDTH, FAR_GROUND_THICKNESS, FAR_GROUND_LENGTH);
             }
+        }
+
+        /// <summary>
+        /// 位置が入る、EnemySpawnSystem の区画の番号。格子は原点を中心に置くので、区画の中心は SECTION_SIZE の倍数になる。
+        /// </summary>
+        private static Vector2Int GetSection(Vector3 position)
+        {
+            return new Vector2Int(Mathf.FloorToInt(position.x / SECTION_SIZE + 0.5f), Mathf.FloorToInt(position.z / SECTION_SIZE + 0.5f));
         }
 
         private static Transform CreateSpawnSystem(Transform root)

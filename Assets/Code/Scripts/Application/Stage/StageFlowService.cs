@@ -10,7 +10,7 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.Application
 {
     /// <summary>
-    /// インゲームの流れ（StageFlowState）を進めるユースケース。破壊対象がすべて破壊済みになったら（ステージが破壊でのクリアを許すときだけ）クリアにし、
+    /// インゲームの流れ（StageFlowState）を進めるユースケース。破壊済みの破壊対象がステージの必要な数に達したら（ステージが破壊でのクリアを許すときだけ）クリアにし、
     /// ステージの失敗条件のどれかを満たしたら失敗にする。クリアと失敗はプレイ中にだけ起こり、一度決まったら変わらない。
     /// スコアは、倒した敵1体につき1点と、よい行動の追加スコアと、クリアしたときの基礎スコアの合計。クリアタイムと被ダメージは、時間をかけて準備して壊す遊び方を損なわない為、使わない。
     /// プレイ中は UI マップの Cancel（Esc）でポーズを切り替える。ポーズは時間の倍率を0にして Player マップを止め、解くとポーズ前の倍率に戻す。
@@ -23,6 +23,9 @@ namespace Kizami.Application
         private readonly List<IDisposable> _subscriptions = new();
         private readonly int _clearScore;
         private readonly bool _clearsOnTargets;
+
+        /// <summary> ステージの定義にある、クリアに必要な破壊済みの数。0 なら破壊対象すべて </summary>
+        private readonly int _requiredTargetCount;
         private readonly ITimeScaleController _timeScaleController;
         private readonly ITimeScaleState _timeScaleState;
         private readonly IInputController _inputController;
@@ -41,13 +44,14 @@ namespace Kizami.Application
         /// <param name="stage">遊ぶステージの定義</param>
         /// <param name="timeScaleController">ポーズで時間の倍率を変える操作面</param>
         /// <param name="inputController">ポーズ中とクリア・失敗のあとに Player マップを止める操作面</param>
-        /// <param name="onCleared">クリアしたときに呼ぶ処理（初回クリアの通貨を足すなど）</param>
+        /// <param name="onCleared">クリアしたときに呼ぶ処理（クリアの記録とスキルの解放など）</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public StageFlowService(IBlackBoard blackBoard, StageData stage, ITimeScaleController timeScaleController,
             IInputController inputController, Action onCleared, int sceneId)
         {
             _clearScore = stage.ClearScore;
             _clearsOnTargets = stage.ClearsOnTargets;
+            _requiredTargetCount = stage.RequiredTargetCount;
             _timeScaleController = timeScaleController;
             _inputController = inputController;
             _onCleared = onCleared;
@@ -79,13 +83,14 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 破壊対象の数と、破壊済みの数を受け取る。プレイ中にすべて破壊済みになったらクリアにする。
+        /// 破壊対象の数と、破壊済みの数を受け取る。プレイ中に破壊済みの数が必要な数に達したらクリアにする。
         /// </summary>
         /// <param name="targetCount">ステージにある破壊対象の数</param>
         /// <param name="destroyedCount">破壊済みの破壊対象の数</param>
         public void ReportTargets(int targetCount, int destroyedCount)
         {
-            _state.SetTargets(targetCount, destroyedCount);
+            var requiredCount = _requiredTargetCount > 0 ? Math.Min(_requiredTargetCount, targetCount) : targetCount;
+            _state.SetTargets(targetCount, destroyedCount, requiredCount);
             TryClear();
         }
 
@@ -208,10 +213,10 @@ namespace Kizami.Application
         private void TryClear()
         {
             if (!_clearsOnTargets || _state.Phase != StagePhase.Playing || _state.TargetCount == 0 ||
-                _state.DestroyedTargetCount < _state.TargetCount) return;
+                _state.DestroyedTargetCount < _state.RequiredTargetCount) return;
 
             CompleteClear();
-            UsefulLogger.Log("すべての破壊対象が破壊済みになった為、クリアにしました。", this);
+            UsefulLogger.Log("必要な数の破壊対象が破壊済みになった為、クリアにしました。", this);
         }
 
         /// <summary>

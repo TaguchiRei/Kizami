@@ -12,7 +12,7 @@ namespace Kizami.Application
     /// <summary>
     /// 近接切断の入力を解釈して MeleeCutState へ書き込み、振ったことを切断の実行役へ伝えるユースケース。
     /// 速さアップの強化は攻撃間隔に、範囲アップの強化は振ったときの範囲に倍率を掛ける。
-    /// 切断は攻撃タイプで、ボクセル破壊の強化中は破壊タイプを、シルブレの強化中は粉砕タイプを足す。
+    /// 切断は攻撃タイプで、ボクセル破壊の強化中は破壊タイプを、シルブレの強化中は粉砕タイプを足す。ボスが止まったあとは、強化がなくても常に破壊タイプを足す。
     /// </summary>
     public sealed class MeleeCutService : IDisposable
     {
@@ -27,6 +27,9 @@ namespace Kizami.Application
         private readonly Func<bool> _tryUseCut;
         private readonly PlayerActionEvents _actionEvents;
         private readonly List<IDisposable> _subscriptions = new();
+
+        private IDisposable _bossBattleStateWaiter;
+        private IBossBattleState _bossBattleState;
 
         /// <summary> 前回振った時刻（unscaled の秒） </summary>
         private double _lastSwingTime = double.NegativeInfinity;
@@ -53,6 +56,20 @@ namespace Kizami.Application
                 !blackBoard.TryGetGameState<AppBoard, IOperationSettingState>(out _settingState, this)) return;
 
             playerBoard.RegisterSceneState<IMeleeCutState>(_state, sceneId);
+
+            // BossBattleState はボスのいるシーンでだけ、ボスの Initializer が登録するので、登録を待ち受けて拾う
+            if (blackBoard.TryGetBoard<EnemyBoard>(out var enemyBoard, this))
+            {
+                _bossBattleStateWaiter = enemyBoard.SubscribeStateRegister<IBossBattleState>(
+                    () =>
+                    {
+                        if (enemyBoard.TryGetSceneState<IBossBattleState>(out var state, out _))
+                        {
+                            _bossBattleState = state;
+                        }
+                    },
+                    invokeIfRegistered: true);
+            }
 
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.CutRotate, OnCutRotate));
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Attack, OnAttack));
@@ -87,7 +104,8 @@ namespace Kizami.Application
             _enhanceService.TryUse(SkillEffect.EnhanceRange, out var rangeScale);
 
             var damageType = DamageType.Attack;
-            if (_enhanceService.TryUse(SkillEffect.EnhanceDestroy, out _)) damageType |= DamageType.Destroy;
+            var isDestroyEnhanced = _enhanceService.TryUse(SkillEffect.EnhanceDestroy, out _);
+            if (isDestroyEnhanced || (_bossBattleState != null && _bossBattleState.IsStopped)) damageType |= DamageType.Destroy;
             if (_enhanceService.TryUse(SkillEffect.EnhanceArmorBreak, out _)) damageType |= DamageType.Shatter;
 
             _lastSwingTime = now;
@@ -103,6 +121,7 @@ namespace Kizami.Application
             }
 
             _subscriptions.Clear();
+            _bossBattleStateWaiter?.Dispose();
         }
     }
 }

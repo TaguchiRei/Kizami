@@ -7,7 +7,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// インゲームの HUD（HP とチャージのゲージ、スキルの枠、破壊の進み具合と倒した敵の数、制限時間の残り、ランチャーの装填状態、開始の文字）を出す Adapter。インゲームのシーンへ置く。
+    /// インゲームの HUD（HP とチャージのゲージ、スキルの枠、破壊の進み具合、制限時間の残り、ランチャーの装填状態、開始の文字）を出す Adapter。インゲームのシーンへ置く。
     /// 画面は uGUI の Canvas を初期化のときに組み立てる。値は State から読み、ランチャーの装填状態だけは State がない為、FragmentThrowAdapter から読む。
     /// </summary>
     public sealed class StageHudAdapter : InitializableMonoBehaviour
@@ -91,7 +91,6 @@ namespace Kizami.EngineAdapter
         private Text[] _slotStatusTexts;
         private Text _chargeValueText;
         private Text _targetText;
-        private Text _defeatText;
         private Text _timeText;
         private Text _launcherText;
         private Text _startText;
@@ -132,8 +131,7 @@ namespace Kizami.EngineAdapter
             _chargeValueText.text = _chargeState.Current.ToString();
             UpdateSkills();
 
-            _targetText.text = $"Targets {_flowState.DestroyedTargetCount} / {_flowState.TargetCount}";
-            _defeatText.text = $"Defeated {_flowState.DefeatCount}";
+            _targetText.text = $"Targets {_flowState.DestroyedTargetCount} / {_flowState.RequiredTargetCount}";
             UpdateTimeText();
             _launcherText.text = _fragmentThrowAdapter != null && _fragmentThrowAdapter.IsLoaded
                 ? "Launcher: LOADED"
@@ -239,9 +237,6 @@ namespace Kizami.EngineAdapter
 
             _targetText = UiBuilder.CreateText(canvas, "Targets", LABEL_FONT_SIZE);
             UiBuilder.SetAnchors(_targetText.rectTransform, new Vector2(0.3f, 0.92f), new Vector2(0.7f, 0.98f));
-
-            _defeatText = UiBuilder.CreateText(canvas, "Defeated", LABEL_FONT_SIZE, TextAnchor.MiddleRight);
-            UiBuilder.SetAnchors(_defeatText.rectTransform, new Vector2(0.7f, 0.92f), new Vector2(0.98f, 0.98f));
 
             _timeText = UiBuilder.CreateText(canvas, "Time", LABEL_FONT_SIZE);
             UiBuilder.SetAnchors(_timeText.rectTransform, new Vector2(0.4f, 0.86f), new Vector2(0.6f, 0.92f));

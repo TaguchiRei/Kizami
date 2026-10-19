@@ -129,6 +129,9 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> このピースができた時点の体積に対する、今の体積の割合 </summary>
         public float RelativeVolume => InitialSampleCount > 0 ? (float)SampleCount / InitialSampleCount : 0f;
 
+        /// <summary> 保護されているか。保護中は、削る・切る・加熱する操作を受け付けない </summary>
+        public bool IsProtected { get; private set; }
+
         /// <summary> 直接の分離元。分離で生まれたピースでなければ null。分離元が破棄済みなら null と等しくなる </summary>
         public VoxelPiece Parent { get; private set; }
 
@@ -279,6 +282,14 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// 保護を切り替える。保護中は ApplyEdit・ApplyStrike・Slice・ApplyHeat を何もせずに返す。当たり判定は残るので、触れることはできる。
+        /// </summary>
+        public void SetProtected(bool isProtected)
+        {
+            IsProtected = isProtected;
+        }
+
+        /// <summary>
         /// 削られて分かれた塊を、別のピースとして切り離すかを切り替える。
         /// </summary>
         public void SetSplittable(bool splittable)
@@ -342,6 +353,8 @@ namespace Kizami.EngineAdapter.Voxel
         public void ApplyEdit<TShape>(in TShape localShape, VoxelCsgOperation operation)
             where TShape : struct, IVoxelShape
         {
+            if (IsProtected) return;
+
             if (_volume == null)
             {
                 UsefulLogger.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
@@ -381,6 +394,8 @@ namespace Kizami.EngineAdapter.Voxel
         public int ApplyStrike<TShape>(in TShape reach, float falloff, Space space)
             where TShape : struct, ITransformableVoxelShape<TShape>
         {
+            if (IsProtected) return 0;
+
             if (_volume == null)
             {
                 UsefulLogger.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
@@ -428,7 +443,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// 平面の両側のうち内側のサンプルが多い側をこのピースに残し、もう一方の側は、つながった塊ごとに新しいピースとして切り離す。
         /// 残した側の中で塊が分かれていれば、LateUpdate の分離の判定で切り離す。
         /// 切り離した直後に両方のメッシュを作り直す。形状変化と分離の通知は、ApplyEdit と同じく LateUpdate で行う。
-        /// 分離しない設定のピースでは何もしない。
+        /// 分離しない設定のピースと、保護中のピースでは何もしない。
         /// モデルに属していれば、切った平面を VoxelSliceRecord にしてモデルへ通知する。
         /// </summary>
         /// <param name="worldPoint">平面上の点（ワールド空間）</param>
@@ -436,6 +451,8 @@ namespace Kizami.EngineAdapter.Voxel
         /// <returns>切り離した新しいピース。平面がピースと交わらなければ空</returns>
         public VoxelPiece[] Slice(Vector3 worldPoint, Vector3 worldNormal)
         {
+            if (IsProtected) return Array.Empty<VoxelPiece>();
+
             if (_volume == null)
             {
                 UsefulLogger.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);
@@ -509,6 +526,8 @@ namespace Kizami.EngineAdapter.Voxel
         public void ApplyHeat<TShape>(in TShape localShape, float amount, float falloff)
             where TShape : struct, IVoxelShape
         {
+            if (IsProtected) return;
+
             if (_volume == null)
             {
                 UsefulLogger.LogError("ボリュームがありません。先に CreateVolume か LoadSdf を呼んでください。", this);

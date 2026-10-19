@@ -124,6 +124,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 初期の出現と、補充と出し直しで敵を出せるか </summary>
         public bool CanSpawn => IsEnabled && !_isHeld && !IsBroken;
 
+        /// <summary> 出すグループの編成を差し替える。敵を出す前に呼ぶ </summary>
+        public void SetComposition(EnemySquadComposition composition)
+        {
+            _composition = composition;
+        }
+
         /// <summary> 敵を出せる状態にする </summary>
         public void Enable()
         {

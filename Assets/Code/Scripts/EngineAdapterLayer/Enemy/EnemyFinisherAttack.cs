@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kizami.BlackBoard;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
@@ -10,12 +11,13 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// フィニッシャーの攻撃を扱う。EnemySpawnAdapter と同じ GameObject に置き、EnemySpawnAdapter が初期化と毎フレームの更新を呼ぶ。
-    /// 攻撃するのはマップ全体で1体まで。グループが螺旋に並んでいて（EnemyGroup.HasArrived）、プレイヤーが射程の中にいる、冷却を終えたフィニッシャーが始める。
+    /// 同時に攻撃するのはマップ全体で上限の数まで。上限はステージごとに変えられる。グループがプレイヤーを追跡していて（EnemyGroupState.Tracking）、冷却を終えたフィニッシャーが始める。冷却は敵ごとに EnemyAgent.AttackCooldown で持つ。
     /// 同じグループの最も近いメンバーを吸収の対象に選んで止め、その上へ飛んで、Animator の grab を立てて吸収の姿勢（旧作の Absorption → BeamStance → Aiming）にし、対象をディゾルブで消しながら粒を吸い込む。
     /// 構えのアニメーションは、対象が消えて照準が始まったあとも続く。
     /// 吸収された敵はオーブもチャージも出さない。吸収したあとはその場で体を傾けてプレイヤーを狙い、ビームを撃ち（EnemyFinisherBeams）、撃ち終えたら冷却に入って、飛び立った位置へ戻る。
-    /// 吸収する前に対象が倒れるか、グループの並びが解けたら、冷却に入って戻る。フィニッシャーが倒れたら、対象を放し、ビームと危険範囲の帯を消してやめる。
+    /// 吸収する前に対象が倒れるか、グループが追跡をやめたら、冷却に入って戻る。フィニッシャーが倒れたら、対象を放し、ビームと危険範囲の帯を消してやめる。
     /// 吸収を始めたあとにフィニッシャーが倒れたときは、対象もそのまま消す。消えかけた体を元に戻して歩かせることはしない。
+    /// 攻撃1回分の状態は Attack が持つ。飛んでいるフィニッシャーと止めた対象は行動を始められない為、ほかの攻撃と同じ敵を選ぶことはない。
     /// </summary>
     /// <remarks>
     /// 吸収の粒は、崩落のエネルギーと同じ VFX Graph（EnemyEnergy.vfx）を別の VisualEffect で使い、吸い込む先（EnergyTarget）をフィニッシャーにする。
@@ -36,6 +38,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 吸収の対象の、残っている部位の中心。粒を出す位置に使う作業用の一覧 </summary>
         private readonly List<Vector3> _partCenters = new();
 
+        /// <summary> 攻撃の枠。同時に攻撃する数の上限まで、必要になったときに足す </summary>
+        private readonly List<Attack> _attacks = new();
+
         [SerializeField]
         [Tooltip("吸収の粒を出す VisualEffect。VFX Graph は崩落のエネルギーと同じ EnemyEnergy.vfx")]
         private VisualEffect _effect;
@@ -44,9 +49,9 @@ namespace Kizami.EngineAdapter
         [Tooltip("吸収したあとのビームを扱う EnemyFinisherBeams。未設定なら吸収したあとすぐに戻る")]
         private EnemyFinisherBeams _beams;
 
-        [SerializeField, Min(0f)]
-        [Tooltip("プレイヤーがこの距離（m）以内にいると、攻撃を始める")]
-        private float _range = 50f;
+        [SerializeField, Min(1)]
+        [Tooltip("同時に攻撃するフィニッシャーの数の既定の値。ステージが上限を決めていればそちらを使う")]
+        private int _maxAttacks = 1;
 
         [SerializeField, Min(0f)]
         [Tooltip("吸収するときの、フィニッシャーの体の根の、対象の体の根からの高さ（m）")]
@@ -92,29 +97,9 @@ namespace Kizami.EngineAdapter
         [Tooltip("1 回に粒を出す位置（対象の部位）の数の上限")]
         private int _maxBurstPositions = 32;
 
-        private Transform _target;
         private Material _dissolveMaterial;
         private GraphicsBuffer _positionBuffer;
         private VFXEventAttribute _eventAttribute;
-        private Phase _phase;
-
-        /// <summary> 攻撃しているフィニッシャーの番号。攻撃していなければ -1 </summary>
-        private int _finisher = -1;
-
-        /// <summary> 吸収の対象の番号。選んでいなければ -1 </summary>
-        private int _absorbTarget = -1;
-
-        /// <summary> 今の段階に入ってからの時間（秒） </summary>
-        private float _phaseTime;
-
-        /// <summary> 次に粒を出すまでの時間（秒） </summary>
-        private float _burstTimer;
-
-        /// <summary> フィニッシャーが飛び立った位置。戻るときはここへ降りる </summary>
-        private float3 _homePosition;
-
-        /// <summary> grab を立てている Animator。立てていなければ null </summary>
-        private Animator _grabAnimator;
 
         /// <summary> ビームを使えるか </summary>
         private bool _hasBeams;
@@ -180,6 +165,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// グループがプレイヤーを追跡しているか。待機・帰還・退却のグループは攻撃しない。
+        /// </summary>
+        private static bool IsTracking(in EnemyGroup group)
+        {
+            return group.IsActive && group.State == EnemyGroupState.Tracking;
+        }
+
+        /// <summary>
         /// 敵に貸している体を返す。体を貸していなければ null。
         /// </summary>
         private static EnemyBody GetBody(in EnemyAgent agent, EnemyBodyLender[] lenders)
@@ -210,6 +203,15 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 同時に攻撃するフィニッシャーの数を変える。今の攻撃は続け、新しく始める数だけを抑える。
+        /// </summary>
+        /// <param name="maxAttacks">同時に攻撃する数。0 なら攻撃しない</param>
+        public void SetMaxAttacks(int maxAttacks)
+        {
+            _maxAttacks = Mathf.Max(0, maxAttacks);
+        }
+
+        /// <summary>
         /// 粒を出す GraphicsBuffer を作る。プレイヤーがなければ、警告を出して攻撃しないままにする。
         /// VisualEffect か吸収のプロパティがなければ、警告を出して粒を出さずに攻撃する。
         /// </summary>
@@ -224,7 +226,6 @@ namespace Kizami.EngineAdapter
                 return;
             }
 
-            _target = target;
             _dissolveMaterial = dissolveMaterial;
 
             if (_beams == null)
@@ -254,7 +255,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// フィニッシャーの冷却を進め、攻撃していなければ始める敵を探し、攻撃していれば段階を進める。
+        /// フィニッシャーの冷却を進め、攻撃している枠の段階を進め、空いた枠があれば始める敵を探す。
         /// EnemySpawnAdapter が毎フレーム、敵を動かして体の位置を合わせたあとに呼ぶ。
         /// </summary>
         /// <param name="agents">敵の状態</param>
@@ -268,62 +269,23 @@ namespace Kizami.EngineAdapter
 
             AdvanceCooldowns(agents, deltaTime);
 
-            if (_phase == Phase.Idle)
+            var activeCount = 0;
+            foreach (var attack in _attacks)
             {
-                TryStart(agents, groups);
-                return;
+                if (attack.IsActive) attack.Tick(agents, groups, lenders, deltaTime);
+                if (attack.IsActive) activeCount++;
             }
 
-            if (!agents[_finisher].IsAlive)
-            {
-                Abort(agents);
-                return;
-            }
-
-            _phaseTime += deltaTime;
-
-            switch (_phase)
-            {
-                case Phase.Approaching:
-                    if (!IsTargetValid(agents, groups))
-                    {
-                        StartReturn(agents);
-                        break;
-                    }
-
-                    UpdateApproach(agents, lenders);
-                    break;
-                case Phase.Absorbing:
-                    if (!agents[_absorbTarget].IsAlive)
-                    {
-                        StartReturn(agents);
-                        break;
-                    }
-
-                    UpdateAbsorb(agents, lenders, deltaTime);
-                    break;
-                case Phase.Beam:
-                    UpdateBeam(agents, lenders, deltaTime);
-                    break;
-                case Phase.Returning:
-                    UpdateReturn(agents);
-                    break;
-            }
-
-            if (_effect != null && _finisher >= 0)
-            {
-                _effect.SetVector3(_targetId, (Vector3)agents[_finisher].Position + Vector3.up * _finisherCenterHeight);
-            }
+            while (activeCount < _maxAttacks && TryStart(agents, groups)) activeCount++;
         }
 
         /// <summary>
-        /// 攻撃を始められるフィニッシャーと、その吸収の対象を探し、見つかれば始める。
-        /// 始められるのは、地面に立って歩ける状態で、冷却中でなく、グループが螺旋に並んでいて、プレイヤーが射程の中にいるフィニッシャー。
+        /// 攻撃を始められるフィニッシャーと、その吸収の対象を探し、見つかれば空いた枠で始める。
+        /// 始められるのは、地面に立って歩ける状態で、冷却中でなく、グループがプレイヤーを追跡しているフィニッシャー。
         /// </summary>
-        private void TryStart(NativeArray<EnemyAgent> agents, EnemyGroups groups)
+        /// <returns>始めたか</returns>
+        private bool TryStart(NativeArray<EnemyAgent> agents, EnemyGroups groups)
         {
-            var player = (float3)_target.position;
-            var rangeSq = _range * _range;
             var groupStates = groups.Groups;
 
             for (var i = 0; i < agents.Length; i++)
@@ -332,214 +294,31 @@ namespace Kizami.EngineAdapter
                 if (!agent.IsAlive || agent.Kind != EnemyKind.Finisher || agent.AttackCooldown > 0f ||
                     !CanAct(agent) || agent.GroupIndex < 0) continue;
 
-                var group = groupStates[agent.GroupIndex];
-                if (!group.IsActive || !group.HasArrived || math.distancesq(agent.Position, player) > rangeSq) continue;
+                if (!IsTracking(groupStates[agent.GroupIndex])) continue;
 
                 var absorbTarget = FindAbsorbTarget(agents, i);
                 if (absorbTarget < 0) continue;
 
-                Begin(agents, i, absorbTarget);
-                return;
+                GetFreeAttack().Begin(agents, i, absorbTarget);
+                return true;
             }
+
+            return false;
         }
 
         /// <summary>
-        /// 吸収の対象を止め、フィニッシャーを飛ばして対象の上へ向かわせる。
+        /// 攻撃していない枠を返す。なければ足す。
         /// </summary>
-        private void Begin(NativeArray<EnemyAgent> agents, int finisher, int absorbTarget)
+        private Attack GetFreeAttack()
         {
-            var target = agents[absorbTarget];
-            target.MoveMode = EnemyMoveMode.Held;
-            agents[absorbTarget] = target;
-
-            var agent = agents[finisher];
-            _homePosition = agent.Position;
-            agent.MoveMode = EnemyMoveMode.Flying;
-            agent.IsGrounded = false;
-            agent.VerticalSpeed = 0f;
-            agent.FlyTarget = target.Position + new float3(0f, _hoverHeight, 0f);
-            agents[finisher] = agent;
-
-            _finisher = finisher;
-            _absorbTarget = absorbTarget;
-            SetPhase(Phase.Approaching);
-        }
-
-        /// <summary>
-        /// 吸収の対象が生きていて、フィニッシャーのグループが螺旋に並んだままか。
-        /// </summary>
-        private bool IsTargetValid(NativeArray<EnemyAgent> agents, EnemyGroups groups)
-        {
-            if (!agents[_absorbTarget].IsAlive) return false;
-
-            var groupIndex = agents[_finisher].GroupIndex;
-            return groupIndex >= 0 && groups.Groups[groupIndex].IsActive && groups.Groups[groupIndex].HasArrived;
-        }
-
-        /// <summary>
-        /// 対象の上へ飛び、着いたら吸収の姿勢（Animator の grab）を始める。
-        /// </summary>
-        private void UpdateApproach(NativeArray<EnemyAgent> agents, EnemyBodyLender[] lenders)
-        {
-            var target = agents[_absorbTarget];
-            var agent = agents[_finisher];
-            agent.FlyTarget = target.Position + new float3(0f, _hoverHeight, 0f);
-            agents[_finisher] = agent;
-
-            if (math.distance(agent.Position, agent.FlyTarget) > ARRIVE_DISTANCE) return;
-
-            var legs = GetLegs(agent, lenders);
-            _grabAnimator = legs != null ? legs.Animator : null;
-            if (_grabAnimator != null) _grabAnimator.SetBool(_grabId, true);
-
-            _burstTimer = 0f;
-            SetPhase(Phase.Absorbing);
-        }
-
-        /// <summary>
-        /// 対象をつかんだまま、ディゾルブで消し、粒を吸い込ませる。消えきったら対象をステージから消し、冷却に入って戻る。
-        /// 対象に体がなければ、ディゾルブせずに粒だけ出す。
-        /// </summary>
-        private void UpdateAbsorb(NativeArray<EnemyAgent> agents, EnemyBodyLender[] lenders, float deltaTime)
-        {
-            var target = agents[_absorbTarget];
-            var body = GetBody(target, lenders);
-            var amount = Mathf.Clamp01(_phaseTime / _absorbDuration);
-            if (body != null)
+            foreach (var attack in _attacks)
             {
-                body.BeginDissolve(_dissolveMaterial);
-                body.SetDissolveAmount(amount);
+                if (!attack.IsActive) return attack;
             }
 
-            CollectTargetCenters(target, lenders);
-
-            _burstTimer -= deltaTime;
-            if (_burstTimer <= 0f)
-            {
-                EmitParticles();
-                _burstTimer += _burstInterval;
-            }
-
-            if (amount < 1f) return;
-
-            // 体は、次の EnemyBodyLender.ReturnBodies で返る。倒れたことにしないので、オーブもチャージも出ない
-            target.IsAlive = false;
-            agents[_absorbTarget] = target;
-            _absorbTarget = -1;
-
-            if (!_hasBeams)
-            {
-                StartReturn(agents);
-                return;
-            }
-
-            _beams.Begin();
-            SetPhase(Phase.Beam);
-        }
-
-        /// <summary>
-        /// その場に浮いたまま、ビームの段階を進め、体をビームの向きに傾ける。撃ち終えたら冷却に入って戻る。
-        /// </summary>
-        private void UpdateBeam(NativeArray<EnemyAgent> agents, EnemyBodyLender[] lenders, float deltaTime)
-        {
-            var agent = agents[_finisher];
-            agent.FlyTarget = agent.Position;
-            agents[_finisher] = agent;
-
-            var pivot = (Vector3)agent.Position + Vector3.up * _pivotHeight;
-            if (!_beams.Tick(pivot, deltaTime, out var aimDirection))
-            {
-                StartReturn(agents);
-                return;
-            }
-
-            TiltBody(GetBody(agent, lenders), pivot, aimDirection);
-        }
-
-        /// <summary>
-        /// 飛び立った位置へ飛んで戻り、着いたら隊列の動きに戻す。
-        /// </summary>
-        private void UpdateReturn(NativeArray<EnemyAgent> agents)
-        {
-            var agent = agents[_finisher];
-            if (math.distance(agent.Position, agent.FlyTarget) > ARRIVE_DISTANCE) return;
-
-            agent.Position = agent.FlyTarget;
-            agent.MoveMode = EnemyMoveMode.Walking;
-            agent.IsGrounded = true;
-            agent.VerticalSpeed = 0f;
-            agent.FallStartHeight = agent.Position.y;
-            agents[_finisher] = agent;
-
-            _finisher = -1;
-            SetPhase(Phase.Idle);
-        }
-
-        /// <summary>
-        /// 吸収の対象が生きていれば放して歩かせ、フィニッシャーを冷却に入れて飛び立った位置へ戻らせる。
-        /// </summary>
-        private void StartReturn(NativeArray<EnemyAgent> agents)
-        {
-            ReleaseTarget(agents);
-            ReleaseGrab();
-
-            var agent = agents[_finisher];
-            agent.FlyTarget = _homePosition;
-            agent.AttackCooldown = _cooldown;
-            agents[_finisher] = agent;
-            SetPhase(Phase.Returning);
-        }
-
-        /// <summary>
-        /// フィニッシャーが倒れたときに呼ぶ。吸収の対象を放してやめる。吸収を始めていれば、対象も消す。ビームと危険範囲の帯を消す。
-        /// </summary>
-        private void Abort(NativeArray<EnemyAgent> agents)
-        {
-            if (_hasBeams) _beams.Stop();
-
-            if (_phase == Phase.Absorbing)
-            {
-                var target = agents[_absorbTarget];
-                target.IsAlive = false;
-                agents[_absorbTarget] = target;
-            }
-
-            ReleaseTarget(agents);
-            ReleaseGrab();
-            _finisher = -1;
-            SetPhase(Phase.Idle);
-        }
-
-        /// <summary>
-        /// 吸収の対象が生きていれば歩かせ、選んでいない状態にする。
-        /// </summary>
-        private void ReleaseTarget(NativeArray<EnemyAgent> agents)
-        {
-            if (_absorbTarget < 0) return;
-
-            var target = agents[_absorbTarget];
-            if (target.IsAlive)
-            {
-                target.MoveMode = EnemyMoveMode.Walking;
-                agents[_absorbTarget] = target;
-            }
-
-            _absorbTarget = -1;
-        }
-
-        /// <summary>
-        /// 吸収の姿勢をやめ、待機か移動の姿勢に戻す。
-        /// </summary>
-        private void ReleaseGrab()
-        {
-            if (_grabAnimator != null) _grabAnimator.SetBool(_grabId, false);
-            _grabAnimator = null;
-        }
-
-        private void SetPhase(Phase phase)
-        {
-            _phase = phase;
-            _phaseTime = 0f;
+            var created = new Attack(this, _hasBeams ? _beams.CreateShot() : null);
+            _attacks.Add(created);
+            return created;
         }
 
         /// <summary>
@@ -554,15 +333,17 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 吸収の対象の部位の中心から、粒を出す。
+        /// 吸収の対象の部位の中心から、フィニッシャーの体の中心へ粒を出す。
         /// </summary>
-        private void EmitParticles()
+        // TODO: 吸い込む先は VisualEffect に1つしかない為、複数のフィニッシャーが同時に吸収すると、飛んでいる粒が最後に出した方へ向かう
+        private void EmitParticles(in EnemyAgent finisher)
         {
             if (_effect == null) return;
 
             var count = Mathf.Min(_partCenters.Count, _maxBurstPositions);
             _positionBuffer.SetData(_partCenters, 0, 0, count);
             _effect.SetInt(_positionCountId, count);
+            _effect.SetVector3(_targetId, (Vector3)finisher.Position + Vector3.up * _finisherCenterHeight);
             _eventAttribute.SetFloat(_spawnCountId, count * _particlesPerPart);
             _effect.SendEvent(_energyEventId, _eventAttribute);
         }
@@ -571,6 +352,288 @@ namespace Kizami.EngineAdapter
         {
             _positionBuffer?.Release();
             _eventAttribute?.Dispose();
+        }
+
+        /// <summary>
+        /// 攻撃1回分の状態。1体のフィニッシャーの吸収・ビーム・戻りを進める。
+        /// </summary>
+        private sealed class Attack
+        {
+            private readonly EnemyFinisherAttack _owner;
+
+            /// <summary> この枠のビーム。ビームを使えなければ null </summary>
+            private readonly EnemyFinisherBeams.Shot _shot;
+
+            private Phase _phase;
+
+            /// <summary> 攻撃しているフィニッシャーの番号。攻撃していなければ -1 </summary>
+            private int _finisher = -1;
+
+            /// <summary> 吸収の対象の番号。選んでいなければ -1 </summary>
+            private int _absorbTarget = -1;
+
+            /// <summary> 今の段階に入ってからの時間（秒） </summary>
+            private float _phaseTime;
+
+            /// <summary> 次に粒を出すまでの時間（秒） </summary>
+            private float _burstTimer;
+
+            /// <summary> フィニッシャーが飛び立った位置。戻るときはここへ降りる </summary>
+            private float3 _homePosition;
+
+            /// <summary> grab を立てている Animator。立てていなければ null </summary>
+            private Animator _grabAnimator;
+
+            public Attack(EnemyFinisherAttack owner, EnemyFinisherBeams.Shot shot)
+            {
+                _owner = owner;
+                _shot = shot;
+            }
+
+            /// <summary> 攻撃しているか </summary>
+            public bool IsActive => _phase != Phase.Idle;
+
+            /// <summary>
+            /// 吸収の対象を止め、フィニッシャーを飛ばして対象の上へ向かわせる。
+            /// </summary>
+            public void Begin(NativeArray<EnemyAgent> agents, int finisher, int absorbTarget)
+            {
+                var target = agents[absorbTarget];
+                target.MoveMode = EnemyMoveMode.Held;
+                agents[absorbTarget] = target;
+
+                var agent = agents[finisher];
+                _homePosition = agent.Position;
+                agent.MoveMode = EnemyMoveMode.Flying;
+                agent.IsGrounded = false;
+                agent.VerticalSpeed = 0f;
+                agent.FlyTarget = target.Position + new float3(0f, _owner._hoverHeight, 0f);
+                agents[finisher] = agent;
+
+                _finisher = finisher;
+                _absorbTarget = absorbTarget;
+                SetPhase(Phase.Approaching);
+            }
+
+            /// <summary>
+            /// 段階を進める。フィニッシャーが倒れていたらやめる。
+            /// </summary>
+            public void Tick(NativeArray<EnemyAgent> agents, EnemyGroups groups, EnemyBodyLender[] lenders,
+                float deltaTime)
+            {
+                if (!agents[_finisher].IsAlive)
+                {
+                    Abort(agents);
+                    return;
+                }
+
+                _phaseTime += deltaTime;
+
+                switch (_phase)
+                {
+                    case Phase.Approaching:
+                        if (!IsTargetValid(agents, groups))
+                        {
+                            StartReturn(agents);
+                            break;
+                        }
+
+                        UpdateApproach(agents, lenders);
+                        break;
+                    case Phase.Absorbing:
+                        if (!agents[_absorbTarget].IsAlive)
+                        {
+                            StartReturn(agents);
+                            break;
+                        }
+
+                        UpdateAbsorb(agents, lenders, deltaTime);
+                        break;
+                    case Phase.Beam:
+                        UpdateBeam(agents, lenders, deltaTime);
+                        break;
+                    case Phase.Returning:
+                        UpdateReturn(agents);
+                        break;
+                }
+            }
+
+            /// <summary>
+            /// 吸収の対象が生きていて、フィニッシャーのグループが追跡を続けているか。
+            /// </summary>
+            private bool IsTargetValid(NativeArray<EnemyAgent> agents, EnemyGroups groups)
+            {
+                if (!agents[_absorbTarget].IsAlive) return false;
+
+                var groupIndex = agents[_finisher].GroupIndex;
+                return groupIndex >= 0 && IsTracking(groups.Groups[groupIndex]);
+            }
+
+            /// <summary>
+            /// 対象の上へ飛び、着いたら吸収の姿勢（Animator の grab）を始める。
+            /// </summary>
+            private void UpdateApproach(NativeArray<EnemyAgent> agents, EnemyBodyLender[] lenders)
+            {
+                var target = agents[_absorbTarget];
+                var agent = agents[_finisher];
+                agent.FlyTarget = target.Position + new float3(0f, _owner._hoverHeight, 0f);
+                agents[_finisher] = agent;
+
+                if (math.distance(agent.Position, agent.FlyTarget) > ARRIVE_DISTANCE) return;
+
+                var legs = GetLegs(agent, lenders);
+                _grabAnimator = legs != null ? legs.Animator : null;
+                if (_grabAnimator != null) _grabAnimator.SetBool(_grabId, true);
+
+                _burstTimer = 0f;
+                SetPhase(Phase.Absorbing);
+            }
+
+            /// <summary>
+            /// 対象をつかんだまま、ディゾルブで消し、粒を吸い込ませる。消えきったら対象をステージから消し、ビームを始める。
+            /// 対象に体がなければ、ディゾルブせずに粒だけ出す。
+            /// </summary>
+            private void UpdateAbsorb(NativeArray<EnemyAgent> agents, EnemyBodyLender[] lenders, float deltaTime)
+            {
+                var target = agents[_absorbTarget];
+                var body = GetBody(target, lenders);
+                var amount = Mathf.Clamp01(_phaseTime / _owner._absorbDuration);
+                if (body != null)
+                {
+                    body.BeginDissolve(_owner._dissolveMaterial);
+                    body.SetDissolveAmount(amount);
+                }
+
+                _owner.CollectTargetCenters(target, lenders);
+
+                _burstTimer -= deltaTime;
+                if (_burstTimer <= 0f)
+                {
+                    _owner.EmitParticles(agents[_finisher]);
+                    _burstTimer += _owner._burstInterval;
+                }
+
+                if (amount < 1f) return;
+
+                // 体は、次の EnemyBodyLender.ReturnBodies で返る。倒れたことにしないので、オーブもチャージも出ない
+                target.IsAlive = false;
+                agents[_absorbTarget] = target;
+                _absorbTarget = -1;
+
+                if (_shot == null)
+                {
+                    StartReturn(agents);
+                    return;
+                }
+
+                _shot.Begin();
+                SetPhase(Phase.Beam);
+            }
+
+            /// <summary>
+            /// その場に浮いたまま、ビームの段階を進め、体をビームの向きに傾ける。撃ち終えたら冷却に入って戻る。
+            /// </summary>
+            private void UpdateBeam(NativeArray<EnemyAgent> agents, EnemyBodyLender[] lenders, float deltaTime)
+            {
+                var agent = agents[_finisher];
+                agent.FlyTarget = agent.Position;
+                agents[_finisher] = agent;
+
+                var pivot = (Vector3)agent.Position + Vector3.up * _owner._pivotHeight;
+                if (!_shot.Tick(pivot, deltaTime, out var aimDirection))
+                {
+                    StartReturn(agents);
+                    return;
+                }
+
+                TiltBody(GetBody(agent, lenders), pivot, aimDirection);
+            }
+
+            /// <summary>
+            /// 飛び立った位置へ飛んで戻り、着いたら隊列の動きに戻して枠を空ける。
+            /// </summary>
+            private void UpdateReturn(NativeArray<EnemyAgent> agents)
+            {
+                var agent = agents[_finisher];
+                if (math.distance(agent.Position, agent.FlyTarget) > ARRIVE_DISTANCE) return;
+
+                agent.Position = agent.FlyTarget;
+                agent.MoveMode = EnemyMoveMode.Walking;
+                agent.IsGrounded = true;
+                agent.VerticalSpeed = 0f;
+                agent.FallStartHeight = agent.Position.y;
+                agents[_finisher] = agent;
+
+                _finisher = -1;
+                SetPhase(Phase.Idle);
+            }
+
+            /// <summary>
+            /// 吸収の対象が生きていれば放して歩かせ、フィニッシャーを冷却に入れて飛び立った位置へ戻らせる。
+            /// </summary>
+            private void StartReturn(NativeArray<EnemyAgent> agents)
+            {
+                ReleaseTarget(agents);
+                ReleaseGrab();
+
+                var agent = agents[_finisher];
+                agent.FlyTarget = _homePosition;
+                agent.AttackCooldown = _owner._cooldown;
+                agents[_finisher] = agent;
+                SetPhase(Phase.Returning);
+            }
+
+            /// <summary>
+            /// フィニッシャーが倒れたときに呼ぶ。吸収の対象を放してやめる。吸収を始めていれば、対象も消す。ビームと危険範囲の帯を消す。
+            /// </summary>
+            private void Abort(NativeArray<EnemyAgent> agents)
+            {
+                _shot?.Stop();
+
+                if (_phase == Phase.Absorbing)
+                {
+                    var target = agents[_absorbTarget];
+                    target.IsAlive = false;
+                    agents[_absorbTarget] = target;
+                }
+
+                ReleaseTarget(agents);
+                ReleaseGrab();
+                _finisher = -1;
+                SetPhase(Phase.Idle);
+            }
+
+            /// <summary>
+            /// 吸収の対象が生きていれば歩かせ、選んでいない状態にする。
+            /// </summary>
+            private void ReleaseTarget(NativeArray<EnemyAgent> agents)
+            {
+                if (_absorbTarget < 0) return;
+
+                var target = agents[_absorbTarget];
+                if (target.IsAlive)
+                {
+                    target.MoveMode = EnemyMoveMode.Walking;
+                    agents[_absorbTarget] = target;
+                }
+
+                _absorbTarget = -1;
+            }
+
+            /// <summary>
+            /// 吸収の姿勢をやめ、待機か移動の姿勢に戻す。
+            /// </summary>
+            private void ReleaseGrab()
+            {
+                if (_grabAnimator != null) _grabAnimator.SetBool(_grabId, false);
+                _grabAnimator = null;
+            }
+
+            private void SetPhase(Phase phase)
+            {
+                _phase = phase;
+                _phaseTime = 0f;
+            }
         }
 
         /// <summary>

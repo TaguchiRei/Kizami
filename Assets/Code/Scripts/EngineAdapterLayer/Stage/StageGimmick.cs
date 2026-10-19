@@ -36,6 +36,16 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// ID が、指定の ID に当たるか。指定の末尾が * なら、その前までで始まる ID に当たる。
+        /// </summary>
+        public static bool Matches(string pattern, string id)
+        {
+            return pattern.EndsWith("*")
+                ? id.StartsWith(pattern.Substring(0, pattern.Length - 1), System.StringComparison.Ordinal)
+                : pattern == id;
+        }
+
+        /// <summary>
         /// ID を設定する。シーンを組み立てるエディタ拡張が使う。
         /// </summary>
         public void SetId(string id)

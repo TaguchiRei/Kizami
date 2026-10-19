@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Skill_EnhanceArmorBreak
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u30B7\u30EB\u30D6\u30EC"
+  _id: EnhanceArmorBreak
   _effect: 4
   _cost: 40
   _radius: 1

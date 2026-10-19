@@ -149,6 +149,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageGuideScript
   _texts: {fileID: 11400000, guid: ee6779cfb7b648a41a034a4940d8cc66, type: 2}
+  _clearsOnFinish: 0
   _steps:
   - _condition:
       _kind: 1
@@ -156,6 +157,7 @@ MonoBehaviour:
       _targetId: 
       _count: 3
       _action: 0
+    _delay: 0
     _releaseSpawnPoints:
     - {fileID: 0}
     _releaseSpawnPointIds: []
@@ -165,6 +167,7 @@ MonoBehaviour:
       _targetId: Core_Collapse
       _count: 0
       _action: 0
+    _delay: 0
     _releaseSpawnPoints:
     - {fileID: 0}
     _releaseSpawnPointIds: []
@@ -175,6 +178,56 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 151873801}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &511984614
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 511984616}
+  - component: {fileID: 511984615}
+  m_Layer: 0
+  m_Name: StageSpawnOverride
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &511984615
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 511984614}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3965853983ecd0c4eb814f56e5f28101, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageSpawnOverride
+  _disabledSpawnPointIds: []
+  _disablesAll: 0
+  _keptSpawnPointIds: []
+  _composition: {fileID: 11400000, guid: 89b7b598c28a8a2479254ad2e456fbb3, type: 2}
+  _compositionSpawnPointIds:
+  - Spawn_Factory_*
+--- !u!4 &511984616
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 511984614}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -233,3 +286,4 @@ SceneRoots:
   m_Roots:
   - {fileID: 1613573280}
   - {fileID: 151873803}
+  - {fileID: 511984616}

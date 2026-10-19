@@ -13,14 +13,15 @@ MonoBehaviour:
   m_Name: AnnihilationStageData
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.StageData
   _displayName: Annihilation
+  _id: Annihilation
+  _unlockSkill: {fileID: 0}
   _sceneGroup: {fileID: 11400000, guid: ed02e6f189a99474d990e5b1bdf3fb4f, type: 2}
   _clearScore: 1000
   _initialCharge: 100
   _fixedSkills: []
   _targetGimmickIds:
-  - Factory_01
-  - Factory_05
-  - Factory_06
+  - Factory_*
+  _requiredTargetCount: 3
   _failConditions:
   - rid: 8226038394822328400
   references:

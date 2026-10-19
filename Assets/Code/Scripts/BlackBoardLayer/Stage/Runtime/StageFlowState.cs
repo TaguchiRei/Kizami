@@ -13,13 +13,14 @@ namespace Kizami.BlackBoard
         public bool IsPaused { get; private set; }
         public int TargetCount { get; private set; }
         public int DestroyedTargetCount { get; private set; }
+        public int RequiredTargetCount { get; private set; }
         public int DefeatCount { get; private set; }
         public int Score { get; private set; }
         public float RemainingTime { get; private set; } = -1f;
 
         public override string GetLog()
         {
-            return $"Phase: {Phase}  \nIsPaused: {IsPaused}  \nFailReason: {FailReason}  \nTargets: {DestroyedTargetCount} / {TargetCount}  \nDefeats: {DefeatCount}  \nScore: {Score}  \nRemainingTime: {RemainingTime}";
+            return $"Phase: {Phase}  \nIsPaused: {IsPaused}  \nFailReason: {FailReason}  \nTargets: {DestroyedTargetCount} / {RequiredTargetCount} (of {TargetCount})  \nDefeats: {DefeatCount}  \nScore: {Score}  \nRemainingTime: {RemainingTime}";
         }
 
         /// <summary>
@@ -59,14 +60,16 @@ namespace Kizami.BlackBoard
         }
 
         /// <summary>
-        /// 破壊対象の数と、破壊済みの数を設定する。
+        /// 破壊対象の数と、破壊済みの数と、クリアに必要な破壊済みの数を設定する。
         /// </summary>
         /// <param name="targetCount">ステージにある破壊対象の数</param>
         /// <param name="destroyedCount">破壊済みの破壊対象の数</param>
-        public void SetTargets(int targetCount, int destroyedCount)
+        /// <param name="requiredCount">クリアに必要な破壊済みの数</param>
+        public void SetTargets(int targetCount, int destroyedCount, int requiredCount)
         {
             TargetCount = targetCount;
             DestroyedTargetCount = destroyedCount;
+            RequiredTargetCount = requiredCount;
         }
 
         /// <summary>
@@ -107,6 +110,9 @@ namespace Kizami.BlackBoard
 
         /// <summary> 破壊済みの破壊対象の数 </summary>
         int DestroyedTargetCount { get; }
+
+        /// <summary> クリアに必要な破壊済みの数。破壊対象の数を超えない </summary>
+        int RequiredTargetCount { get; }
 
         /// <summary> プレイ中に倒した敵の数 </summary>
         int DefeatCount { get; }

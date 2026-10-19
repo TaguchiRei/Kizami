@@ -24,7 +24,7 @@ namespace Kizami.EngineAdapter
         /// ステージシーンの破壊対象を集め、最初の数を通知する。ステージシーンを読み込んだあとに呼ぶ。
         /// </summary>
         /// <param name="onTargetsChanged">破壊済みの数が変わったときに呼ぶ処理。引数は破壊対象の数と破壊済みの数</param>
-        /// <param name="targetGimmickIds">クリアの対象にするギミックの ID。空なら、見つけた破壊対象をすべて対象にする</param>
+        /// <param name="targetGimmickIds">クリアの対象にするギミックの ID。末尾の * は前方一致。空なら、見つけた破壊対象をすべて対象にする</param>
         public void Initialize(Action<int, int> onTargetsChanged, IReadOnlyList<string> targetGimmickIds)
         {
             _onTargetsChanged = onTargetsChanged;
@@ -45,7 +45,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 破壊対象のうち、ID の一覧に入ったギミックだけを残す。ID に当たる破壊対象がなければ警告する。
+        /// 破壊対象のうち、ID の一覧に当たるギミックだけを残す。ID に当たる破壊対象がなければ警告する。
         /// </summary>
         private void KeepGimmicks(IReadOnlyList<string> ids)
         {
@@ -55,7 +55,7 @@ namespace Kizami.EngineAdapter
 
             foreach (var id in ids)
             {
-                var found = _targets.Exists(target => ((Component)target).GetComponent<StageGimmick>().Id == id);
+                var found = _targets.Exists(target => StageGimmick.Matches(id, ((Component)target).GetComponent<StageGimmick>().Id));
                 if (!found) UsefulLogger.LogWarning($"ID '{id}' の破壊対象が見つかりません。", this);
             }
         }
@@ -64,7 +64,7 @@ namespace Kizami.EngineAdapter
         {
             for (var i = 0; i < ids.Count; i++)
             {
-                if (ids[i] == id) return true;
+                if (StageGimmick.Matches(ids[i], id)) return true;
             }
 
             return false;
