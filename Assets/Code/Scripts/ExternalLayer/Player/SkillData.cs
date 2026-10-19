@@ -48,6 +48,10 @@ namespace Kizami.External
         [Tooltip("突進の所要時間（秒）。攻走でだけ使う。進む距離は飛距離、削る半径は半径を使う")]
         private float _duration = 0.3f;
 
+        [SerializeField, Min(0.01f)]
+        [Tooltip("削る強さが 1m あたりに減る量。1 ÷ 半径以下にすると、普通の素材（コンクリート）を半径まで削り、硬い素材（鉄筋）は削れない。衝波と攻走でだけ使う")]
+        private float _falloff = 0.5f;
+
         [SerializeField, Min(0)]
         [Tooltip("回復する HP。回復でだけ使う")]
         private int _healAmount = 30;
@@ -101,6 +105,9 @@ namespace Kizami.External
 
         /// <summary> 突進の所要時間（秒） </summary>
         public float Duration => _duration;
+
+        /// <summary> 削る強さが 1m あたりに減る量 </summary>
+        public float Falloff => _falloff;
 
         /// <summary> 回復する HP </summary>
         public int HealAmount => _healAmount;

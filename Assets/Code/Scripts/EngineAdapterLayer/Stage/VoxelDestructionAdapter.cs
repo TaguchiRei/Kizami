@@ -174,7 +174,8 @@ namespace Kizami.EngineAdapter
         /// </summary>
         /// <param name="width">横幅（m）</param>
         /// <param name="depth">奥行き（m）。カプセルの直径になり、カメラの位置から奥行きの分だけ前までを削る</param>
-        public void CarveSweep(float width, float depth)
+        /// <param name="falloff">1m あたりに減る強さ。1 ÷ 半径以下なら硬い素材は削れない</param>
+        public void CarveSweep(float width, float depth, float falloff)
         {
             if (!TryGetCameraTransform(out var cameraTransform)) return;
 
@@ -187,29 +188,32 @@ namespace Kizami.EngineAdapter
             var center = cameraTransform.position + forward * radius;
             var halfAxis = Mathf.Max(width * 0.5f - radius, 0f);
 
-            CarveCapsuleWithArmor(center - right * halfAxis, center + right * halfAxis, radius, cameraTransform.position);
+            CarveCapsuleWithArmor(center - right * halfAxis, center + right * halfAxis, radius, cameraTransform.position,
+                falloff);
         }
 
         /// <summary>
         /// 指定した2点を結ぶカプセルで削る。ガラスの板は割る。
         /// カプセルに入った装甲のパネルすべてに1回ずつ当て、origin から見て装甲の奥にあるピースは削らない。
+        /// 硬い素材（鉄筋）を削るのは崩爆と羽天轟号だけにする為、破壊力を最大にしたときの強さの上乗せは使わない。
         /// </summary>
         /// <param name="start">カプセルの一方の端（ワールド空間）</param>
         /// <param name="end">カプセルのもう一方の端（ワールド空間）</param>
         /// <param name="radius">カプセルの半径（m）</param>
         /// <param name="origin">装甲の遮断を判定するレイの始点</param>
-        public void CarveCapsuleWithArmor(Vector3 start, Vector3 end, float radius, Vector3 origin)
+        /// <param name="falloff">1m あたりに減る強さ。1 ÷ 半径以下なら、普通の素材を半径まで削り、硬い素材は削れない</param>
+        public void CarveCapsuleWithArmor(Vector3 start, Vector3 end, float radius, Vector3 origin, float falloff)
         {
             CollectArmorPanels(Physics.OverlapCapsuleNonAlloc(start, end, radius, _armorHitBuffer, _armorLayers,
                 QueryTriggerInteraction.Ignore));
             ShatterGlass(Physics.OverlapCapsuleNonAlloc(start, end, radius + _glassMargin, _glassHitBuffer, _targetLayers,
                 QueryTriggerInteraction.Ignore), origin);
 
-            var reach = ReachRadius(radius, _explosionFalloff);
+            var reach = radius + VoxelThermalSettings.NORMAL_MELTING_POINT / falloff;
             var hitCount = QueryCapsule(start, end, reach);
 
             // 遮断の判定は、当てて壊れる前のパネルで行う
-            Carve(new CapsuleShape(start, end, reach), _explosionFalloff, hitCount, _armorPanels.Count > 0, origin);
+            Carve(new CapsuleShape(start, end, reach), falloff, hitCount, _armorPanels.Count > 0, origin);
 
             foreach (var armorPanel in _armorPanels)
             {
