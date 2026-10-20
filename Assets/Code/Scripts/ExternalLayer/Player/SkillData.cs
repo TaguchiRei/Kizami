@@ -52,6 +52,10 @@ namespace Kizami.External
         [Tooltip("削る範囲の奥行き（m）。衝波でだけ使う")]
         private float _depth = 2f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("範囲の中心を、プレイヤーの正面へずらす距離（m）。崩爆は爆弾を投げる起点、衝波と攻走は削る範囲の中心をずらす")]
+        private float _forwardOffset;
+
         [SerializeField, Min(0.01f)]
         [Tooltip("突進の所要時間（秒）。攻走でだけ使う。進む距離は飛距離、削る半径は半径を使う")]
         private float _duration = 0.3f;
@@ -112,6 +116,9 @@ namespace Kizami.External
 
         /// <summary> 削る範囲の奥行き（m） </summary>
         public float Depth => _depth;
+
+        /// <summary> 範囲の中心を、プレイヤーの正面へずらす距離（m） </summary>
+        public float ForwardOffset => _forwardOffset;
 
         /// <summary> 突進の所要時間（秒） </summary>
         public float Duration => _duration;

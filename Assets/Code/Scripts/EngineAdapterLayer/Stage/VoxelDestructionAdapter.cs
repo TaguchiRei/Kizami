@@ -172,7 +172,8 @@ namespace Kizami.EngineAdapter
         /// <param name="width">横幅（m）</param>
         /// <param name="depth">奥行き（m）。カプセルの直径になり、カメラの位置から奥行きの分だけ前までを削る</param>
         /// <param name="falloff">1m あたりに減る強さ。1 ÷ 半径以下なら硬い素材は削れない</param>
-        public void CarveSweep(float width, float depth, float falloff)
+        /// <param name="forwardOffset">範囲の中心を、さらに正面へずらす距離（m）</param>
+        public void CarveSweep(float width, float depth, float falloff, float forwardOffset)
         {
             if (!TryGetCameraTransform(out var cameraTransform)) return;
 
@@ -182,7 +183,7 @@ namespace Kizami.EngineAdapter
             forward.Normalize();
             var right = Vector3.Cross(Vector3.up, forward);
             var radius = depth * 0.5f;
-            var center = cameraTransform.position + forward * radius;
+            var center = cameraTransform.position + forward * (radius + forwardOffset);
             var halfAxis = Mathf.Max(width * 0.5f - radius, 0f);
 
             CarveCapsuleWithArmor(center - right * halfAxis, center + right * halfAxis, radius, cameraTransform.position,

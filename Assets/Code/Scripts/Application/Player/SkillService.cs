@@ -23,9 +23,9 @@ namespace Kizami.Application
         private readonly Action<float, float> _onBeam;
         private readonly Action<float> _onExplosion;
         private readonly Action<int> _onHeal;
-        private readonly Action<float, float> _onBomb;
-        private readonly Action<float, float, float> _onSweep;
-        private readonly Action<float, float, float, float> _onRush;
+        private readonly Action<float, float, float> _onBomb;
+        private readonly Action<float, float, float, float> _onSweep;
+        private readonly Action<float, float, float, float, float> _onRush;
         private readonly Func<float, bool> _onMoundBegin;
         private readonly Action _onMoundEnd;
         private readonly Func<bool> _canAct;
@@ -43,9 +43,9 @@ namespace Kizami.Application
         /// <param name="onBeam">ビームを出す関数。引数は長さ（m）と半径（m）</param>
         /// <param name="onExplosion">爆発を出す関数。引数は半径（m）</param>
         /// <param name="onHeal">HP を回復する関数。引数は回復量</param>
-        /// <param name="onBomb">爆弾を投げる関数。引数は投げる距離（m）と爆発の半径（m）</param>
-        /// <param name="onSweep">正面を横長に削る関数。引数は横幅（m）、奥行き（m）、1m あたりに減る強さ</param>
-        /// <param name="onRush">突進する関数。引数は距離（m）、所要時間（秒）、削る半径（m）、1m あたりに減る強さ</param>
+        /// <param name="onBomb">爆弾を投げる関数。引数は投げる距離（m）、爆発の半径（m）、投げる起点を正面へずらす距離（m）</param>
+        /// <param name="onSweep">正面を横長に削る関数。引数は横幅（m）、奥行き（m）、1m あたりに減る強さ、範囲の中心を正面へずらす距離（m）</param>
+        /// <param name="onRush">突進する関数。引数は距離（m）、所要時間（秒）、削る半径（m）、1m あたりに減る強さ、削る範囲を進む向きへずらす距離（m）</param>
         /// <param name="onMoundBegin">ボクセルを盛り始める関数。引数は球の半径（m）。盛り始められたら true を返す</param>
         /// <param name="onMoundEnd">ボクセルを盛るのを止める関数</param>
         /// <param name="canRush">突進を始められるかを返す関数。攻走でだけ使う</param>
@@ -55,8 +55,8 @@ namespace Kizami.Application
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
             ChargeService chargeService, PlayerEnhanceService enhanceService, Action<float, float> onBeam,
-            Action<float> onExplosion, Action<int> onHeal, Action<float, float> onBomb, Action<float, float, float> onSweep,
-            Action<float, float, float, float> onRush, Func<float, bool> onMoundBegin, Action onMoundEnd, Func<bool> canRush, Func<bool> canAct, Action onActed, PlayerActionEvents actionEvents,
+            Action<float> onExplosion, Action<int> onHeal, Action<float, float, float> onBomb, Action<float, float, float, float> onSweep,
+            Action<float, float, float, float, float> onRush, Func<float, bool> onMoundBegin, Action onMoundEnd, Func<bool> canRush, Func<bool> canAct, Action onActed, PlayerActionEvents actionEvents,
             int sceneId)
         {
             _actionEvents = actionEvents;
@@ -146,13 +146,13 @@ namespace Kizami.Application
                     _onHeal?.Invoke(skill.HealAmount);
                     break;
                 case SkillEffect.Bomb:
-                    _onBomb?.Invoke(skill.Distance, skill.Radius);
+                    _onBomb?.Invoke(skill.Distance, skill.Radius, skill.ForwardOffset);
                     break;
                 case SkillEffect.Sweep:
-                    _onSweep?.Invoke(skill.Width, skill.Depth, skill.Falloff);
+                    _onSweep?.Invoke(skill.Width, skill.Depth, skill.Falloff, skill.ForwardOffset);
                     break;
                 case SkillEffect.Rush:
-                    _onRush?.Invoke(skill.Distance, skill.Duration, skill.Radius, skill.Falloff);
+                    _onRush?.Invoke(skill.Distance, skill.Duration, skill.Radius, skill.Falloff, skill.ForwardOffset);
                     break;
             }
         }

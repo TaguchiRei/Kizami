@@ -22,4 +22,5 @@ MonoBehaviour:
   _distance: 15
   _width: 4
   _depth: 2
+  _forwardOffset: 5
   _duration: 0.3

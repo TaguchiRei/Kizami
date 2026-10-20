@@ -133,14 +133,15 @@ namespace Kizami.Initialization
 
         /// <summary>
         /// 移動入力の向き（なければ正面）へ突進を要求し、通る経路を先に削る。経路を先に削るので、途中の壁で止まらずに通り抜ける。
-        /// 削るカプセルの軸は、足元から半径と RUSH_FLOOR_MARGIN だけ上に置き、足場に穴を開けない。
+        /// 削るカプセルは進む向きへ forwardOffset だけ前にずらす（突進の移動距離は変えない）。軸は、足元から半径と RUSH_FLOOR_MARGIN だけ上に置き、足場に穴を開けない。
         /// </summary>
-        private void Rush(float distance, float duration, float radius, float falloff)
+        private void Rush(float distance, float duration, float radius, float falloff, float forwardOffset)
         {
             var direction = _movementService.GetRushDirection();
             var body = _movementAdapter.BodyBounds;
             var start = new Vector3(body.center.x, body.min.y + radius + RUSH_FLOOR_MARGIN, body.center.z);
-            _voxelDestructionAdapter.CarveCapsuleWithArmor(start, start + direction * distance, radius, body.center,
+            var shifted = start + direction * forwardOffset;
+            _voxelDestructionAdapter.CarveCapsuleWithArmor(shifted, shifted + direction * distance, radius, body.center,
                 falloff);
             _movementService.RequestRush(direction, distance, duration);
         }
