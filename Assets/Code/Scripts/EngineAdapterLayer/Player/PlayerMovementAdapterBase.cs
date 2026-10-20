@@ -52,13 +52,10 @@ namespace Kizami.EngineAdapter
         [SerializeField] private Rigidbody _rigidbody;
         [SerializeField] private CapsuleCollider _collider;
 
-        [Header("水平速度の補間レート（地上・壁走り中） (m/s^2)")]
-        [SerializeField, Min(0f)] private float _acceleration = 40f;
-        [SerializeField, Min(0f)] private float _deceleration = 60f;
-
-        [Header("水平速度の補間レート（空中） (m/s^2)")]
-        [SerializeField, Min(0f)] private float _airAcceleration = 10f;
-        [SerializeField, Min(0f)] private float _airDeceleration = 10f;
+        [Header("空中の水平速度")]
+        [SerializeField, Min(0f)]
+        [Tooltip("空中で目標速度へ近づける加速度（m/s^2）。地上と壁走り中は目標速度へ即座に合わせる")]
+        private float _airAcceleration = 125f;
 
         private IPlayerMovementState _movementState;
         private Func<Vector3, float, Vector3?> _step;
@@ -141,7 +138,7 @@ namespace Kizami.EngineAdapter
         /// 1ステップ分の処理を次の順で行う。
         /// 1. 直前の物理ステップの結果から触れている物を判定し、PlayerContactState に書き込む
         /// 2. 視線の向きと経過時間を渡して PlayerMovementService.Step を呼び、打ち出し速度を受け取る
-        /// 3. 目標速度（PlayerMovementState.TargetVelocity の水平成分）へ向けて水平速度を緩やかに補間し、
+        /// 3. 水平速度を目標速度（PlayerMovementState.TargetVelocity の水平成分）へ、地上と壁走り中は即座に、空中は加速度を制限して合わせ、
         ///    自前で持つ縦の速度（壁走り中は 0、それ以外は重力を足す）と合わせて Rigidbody に反映する
         /// Step が触れている物を読むので、1は2より先に行う。
         /// ワープ中は目標速度（Y 成分を含む）をそのまま Rigidbody に設定し、
@@ -198,13 +195,15 @@ namespace Kizami.EngineAdapter
             target.y = 0f;
 
             var isGrounded = (_contactState.Contacts & PlayerContact.Ground) != 0;
-            var useGroundRate = isGrounded || isWallRunning;
-            var acceleration = useGroundRate ? _acceleration : _airAcceleration;
-            var deceleration = useGroundRate ? _deceleration : _airDeceleration;
-
-            // 目標へ近づく（加速）ときは加速レート、緩める・止める（減速）ときは減速レートを使う
-            var rate = target.sqrMagnitude >= _horizontalVelocity.sqrMagnitude ? acceleration : deceleration;
-            _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, target, rate * Time.fixedDeltaTime);
+            if (isGrounded || isWallRunning)
+            {
+                _horizontalVelocity = target;
+            }
+            else if (target.sqrMagnitude > 0f)
+            {
+                // 入力がないときは今の水平速度を保つ。減速させると壁キックの勢いが空中で消える
+                _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, target, _airAcceleration * Time.fixedDeltaTime);
+            }
 
             UpdateVerticalVelocity(launchVelocity, isGrounded, isWallRunning || hasWarpEnded);
             _rigidbody.linearVelocity = new Vector3(_horizontalVelocity.x, _verticalVelocity, _horizontalVelocity.z);
