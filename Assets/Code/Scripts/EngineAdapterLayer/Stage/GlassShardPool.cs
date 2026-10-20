@@ -17,7 +17,7 @@ namespace Kizami.EngineAdapter
         private RecycleBuffer<GlassShardGroup> _buffer;
 
         [SerializeField]
-        [Tooltip("破片をまとめたプレハブ。子の1つ1つが破片で、板と同じ原点で作る。コライダーは生成時に外す")]
+        [Tooltip("破片をまとめたプレハブ。子の1つ1つが破片で、板と同じ原点で作る。コライダーは付けない")]
         private GameObject _shardsPrefab;
 
         [SerializeField, Min(1)]
@@ -90,13 +90,8 @@ namespace Kizami.EngineAdapter
         {
             if (_shardsPrefab == null) return;
 
-            // 当たり判定は使わない為、元になるまとまりから外してから複製する
+            // 複製を非アクティブのまま作る為、非アクティブにした元を複製する
             var template = Instantiate(_shardsPrefab, transform);
-            foreach (var shardCollider in template.GetComponentsInChildren<Collider>(true))
-            {
-                DestroyImmediate(shardCollider);
-            }
-
             template.SetActive(false);
             var instances = await InstantiateAsync(template, _capacity, transform);
             if (this == null) return;

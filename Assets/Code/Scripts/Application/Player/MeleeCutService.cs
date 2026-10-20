@@ -26,6 +26,7 @@ namespace Kizami.Application
         private readonly PlayerEnhanceService _enhanceService;
         private readonly Action<float, float, DamageType> _onSwing;
         private readonly Func<bool> _tryUseCut;
+        private readonly Func<bool> _isMounding;
         private readonly PlayerActionEvents _actionEvents;
         private readonly List<IDisposable> _subscriptions = new();
 
@@ -40,13 +41,15 @@ namespace Kizami.Application
         /// <param name="enhanceService">切断にかかる強化の取得元</param>
         /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）、範囲に掛ける倍率、ダメージの種類</param>
         /// <param name="tryUseCut">振る直前に呼び、振れる回数を1回使う関数。false なら振らない</param>
+        /// <param name="isMounding">造山で盛っている間か。盛っている間は通常攻撃もスキルも出せない</param>
         /// <param name="actionEvents">振ったことを流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public MeleeCutService(IBlackBoard blackBoard, PlayerParameterData parameters,
             PlayerEnhanceService enhanceService, Action<float, float, DamageType> onSwing, Func<bool> tryUseCut,
-            PlayerActionEvents actionEvents, int sceneId)
+            Func<bool> isMounding, PlayerActionEvents actionEvents, int sceneId)
         {
             _actionEvents = actionEvents;
+            _isMounding = isMounding;
             _parameters = parameters;
             _enhanceService = enhanceService;
             _onSwing = onSwing;
@@ -77,10 +80,13 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 前回、通常攻撃かスキルを出してから、今の攻撃間隔が経っているかを返す。スローモード中も攻撃間隔は実時間で数える。
+        /// 造山で盛っている間でなく、前回、通常攻撃かスキルを出してから、今の攻撃間隔が経っているかを返す。スローモード中も攻撃間隔は実時間で数える。
         /// </summary>
         public bool CanAct()
         {
+            if (_isMounding != null && _isMounding()) return false;
+
+
             _enhanceService.IsActive(SkillEffect.EnhanceSpeed, out var intervalScale);
             return Time.unscaledTimeAsDouble - _lastActionTime >= _parameters.MeleeAttackInterval * intervalScale;
         }

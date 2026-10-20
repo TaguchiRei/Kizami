@@ -11,7 +11,6 @@ GameObject:
   - component: {fileID: 3589745061817865282}
   - component: {fileID: 8375571752531114223}
   - component: {fileID: 2860740968442350513}
-  - component: {fileID: 1644083024342517817}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_06
   m_TagString: Untagged
@@ -91,27 +90,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1644083024342517817
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 672955108043231683}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.57242393, y: 0.7615696, z: 0.049999993}
-  m_Center: {x: -0.033171654, y: 0.08994589, z: 0}
 --- !u!1 &708132541065758999
 GameObject:
   m_ObjectHideFlags: 0
@@ -123,7 +101,6 @@ GameObject:
   - component: {fileID: 6569502050016732869}
   - component: {fileID: 6764592262305731656}
   - component: {fileID: 8809169905465929816}
-  - component: {fileID: 9017660116653708641}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_20
   m_TagString: Untagged
@@ -203,27 +180,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &9017660116653708641
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 708132541065758999}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.52756804, y: 0.3889054, z: 0.049999993}
-  m_Center: {x: -0.01207751, y: 0.025561143, z: 0}
 --- !u!1 &933291206711204491
 GameObject:
   m_ObjectHideFlags: 0
@@ -288,7 +244,6 @@ GameObject:
   - component: {fileID: 4419778015047999426}
   - component: {fileID: 6376599307775628655}
   - component: {fileID: 3064865252796348009}
-  - component: {fileID: 3229346981152560544}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_01
   m_TagString: Untagged
@@ -368,27 +323,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &3229346981152560544
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1421099957961808555}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.32689553, y: 0.27351782, z: 0.049999993}
-  m_Center: {x: 0.00846833, y: 0.025434587, z: 0}
 --- !u!1 &2340187317103745178
 GameObject:
   m_ObjectHideFlags: 0
@@ -400,7 +334,6 @@ GameObject:
   - component: {fileID: 1630695140580483859}
   - component: {fileID: 6869318430696581327}
   - component: {fileID: 3724164983120150735}
-  - component: {fileID: 7906301705280810538}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_08
   m_TagString: Untagged
@@ -480,27 +413,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &7906301705280810538
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2340187317103745178}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.46129566, y: 0.4519303, z: 0.049999993}
-  m_Center: {x: 0.04978373, y: 0.07223231, z: 0}
 --- !u!1 &3180602307288013443
 GameObject:
   m_ObjectHideFlags: 0
@@ -512,7 +424,6 @@ GameObject:
   - component: {fileID: 6225343454765201585}
   - component: {fileID: 4081239096883320896}
   - component: {fileID: 2727428488614818168}
-  - component: {fileID: 2693180310375988557}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_13
   m_TagString: Untagged
@@ -592,27 +503,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &2693180310375988557
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3180602307288013443}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.6430398, y: 0.64346457, z: 0.049999993}
-  m_Center: {x: 0.04902473, y: -0.016496418, z: 0}
 --- !u!1 &3302907021138765846
 GameObject:
   m_ObjectHideFlags: 0
@@ -624,7 +514,6 @@ GameObject:
   - component: {fileID: 1485467137123711303}
   - component: {fileID: 3948752114365139447}
   - component: {fileID: 1526441320111496680}
-  - component: {fileID: 6875889380942392285}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_12
   m_TagString: Untagged
@@ -704,27 +593,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &6875889380942392285
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3302907021138765846}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.3915981, y: 0.41297215, z: 0.049999993}
-  m_Center: {x: 0.012768365, y: -0.00977683, z: 0}
 --- !u!1 &3646517970852901730
 GameObject:
   m_ObjectHideFlags: 0
@@ -736,7 +604,6 @@ GameObject:
   - component: {fileID: 1498594609432333782}
   - component: {fileID: 1670949365214666495}
   - component: {fileID: 4858892542051523968}
-  - component: {fileID: 1611786086295584245}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_09
   m_TagString: Untagged
@@ -816,27 +683,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1611786086295584245
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3646517970852901730}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.58016765, y: 0.382928, z: 0.049999993}
-  m_Center: {x: 0.006410569, y: 0.01010844, z: 0}
 --- !u!1 &3821838212769591766
 GameObject:
   m_ObjectHideFlags: 0
@@ -848,7 +694,6 @@ GameObject:
   - component: {fileID: 1352876395380080127}
   - component: {fileID: 1296183668112080965}
   - component: {fileID: 2023021315051191634}
-  - component: {fileID: 2225004693807583115}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_16
   m_TagString: Untagged
@@ -928,27 +773,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &2225004693807583115
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3821838212769591766}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.43510428, y: 0.42789245, z: 0.049999993}
-  m_Center: {x: -0.00032871962, y: -0.037894476, z: 0}
 --- !u!1 &4272333315117584003
 GameObject:
   m_ObjectHideFlags: 0
@@ -960,7 +784,6 @@ GameObject:
   - component: {fileID: 293147977084292728}
   - component: {fileID: 6349510962433925506}
   - component: {fileID: 5334589178853104559}
-  - component: {fileID: 1436693226948838829}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_18
   m_TagString: Untagged
@@ -1040,27 +863,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1436693226948838829
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4272333315117584003}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.28855932, y: 0.73682183, z: 0.049999993}
-  m_Center: {x: 0.0025439113, y: 0.017726628, z: 0}
 --- !u!1 &4592708572955343178
 GameObject:
   m_ObjectHideFlags: 0
@@ -1072,7 +874,6 @@ GameObject:
   - component: {fileID: 5604389945720424766}
   - component: {fileID: 155552797688210900}
   - component: {fileID: 8785623577160179234}
-  - component: {fileID: 1842496436181824220}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_15
   m_TagString: Untagged
@@ -1152,27 +953,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1842496436181824220
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4592708572955343178}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.6773738, y: 0.52173495, z: 0.049999993}
-  m_Center: {x: -0.006302178, y: 0.0123468395, z: 0}
 --- !u!1 &5465810694571650281
 GameObject:
   m_ObjectHideFlags: 0
@@ -1184,7 +964,6 @@ GameObject:
   - component: {fileID: 674678265154772837}
   - component: {fileID: 2654583607441016814}
   - component: {fileID: 1920934379350483620}
-  - component: {fileID: 7317600542628825604}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_19
   m_TagString: Untagged
@@ -1264,27 +1043,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &7317600542628825604
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5465810694571650281}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.90506685, y: 0.57758087, z: 0.049999993}
-  m_Center: {x: -0.0010959804, y: -0.0306697, z: 0}
 --- !u!1 &5734590699314577952
 GameObject:
   m_ObjectHideFlags: 0
@@ -1296,7 +1054,6 @@ GameObject:
   - component: {fileID: 4173686028125018161}
   - component: {fileID: 3731754168786860158}
   - component: {fileID: 8455598529523509786}
-  - component: {fileID: 7381829969036677063}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_14
   m_TagString: Untagged
@@ -1376,27 +1133,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &7381829969036677063
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5734590699314577952}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.24745817, y: 1.0237943, z: 0.049999993}
-  m_Center: {x: -0.012932263, y: -0.052118875, z: 0}
 --- !u!1 &5748109450067556454
 GameObject:
   m_ObjectHideFlags: 0
@@ -1408,7 +1144,6 @@ GameObject:
   - component: {fileID: 2595630736683513139}
   - component: {fileID: 8692563543276790662}
   - component: {fileID: 4668205593410915270}
-  - component: {fileID: 7851809198715485910}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_00
   m_TagString: Untagged
@@ -1488,27 +1223,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &7851809198715485910
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5748109450067556454}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.11240864, y: 0.11514142, z: 0.049999993}
-  m_Center: {x: -0.0049656834, y: 0.00007809884, z: 0}
 --- !u!1 &5749219156514370701
 GameObject:
   m_ObjectHideFlags: 0
@@ -1520,7 +1234,6 @@ GameObject:
   - component: {fileID: 7154378725153215902}
   - component: {fileID: 13610706004646602}
   - component: {fileID: 6359465841465147534}
-  - component: {fileID: 3109332955003618493}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_21
   m_TagString: Untagged
@@ -1600,27 +1313,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &3109332955003618493
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5749219156514370701}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.6042773, y: 0.3760625, z: 0.049999993}
-  m_Center: {x: -0.09724581, y: 0.00024490056, z: 0}
 --- !u!1 &6217632002722621913
 GameObject:
   m_ObjectHideFlags: 0
@@ -1632,7 +1324,6 @@ GameObject:
   - component: {fileID: 2001051328841613260}
   - component: {fileID: 9044089052052131419}
   - component: {fileID: 8262423426244941010}
-  - component: {fileID: 2066157655541891432}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_04
   m_TagString: Untagged
@@ -1712,27 +1403,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &2066157655541891432
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6217632002722621913}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.19635533, y: 0.20645124, z: 0.049999993}
-  m_Center: {x: -0.018723115, y: -0.004568185, z: 0}
 --- !u!1 &6253167203552271285
 GameObject:
   m_ObjectHideFlags: 0
@@ -1744,7 +1414,6 @@ GameObject:
   - component: {fileID: 528575130679941709}
   - component: {fileID: 1069539637508796542}
   - component: {fileID: 2204223106953613905}
-  - component: {fileID: 1148316554270099665}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_10
   m_TagString: Untagged
@@ -1824,27 +1493,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1148316554270099665
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6253167203552271285}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.32977647, y: 0.4546376, z: 0.049999993}
-  m_Center: {x: -0.00086292624, y: -0.043633398, z: 0}
 --- !u!1 &6541215304872467430
 GameObject:
   m_ObjectHideFlags: 0
@@ -1856,7 +1504,6 @@ GameObject:
   - component: {fileID: 2103713082388536564}
   - component: {fileID: 7763158088122395420}
   - component: {fileID: 7169889037523655535}
-  - component: {fileID: 80071024085436312}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_02
   m_TagString: Untagged
@@ -1936,27 +1583,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &80071024085436312
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6541215304872467430}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.22827174, y: 0.31117913, z: 0.049999993}
-  m_Center: {x: 0.0030212477, y: 0.008549637, z: 0}
 --- !u!1 &6561182441713843841
 GameObject:
   m_ObjectHideFlags: 0
@@ -1968,7 +1594,6 @@ GameObject:
   - component: {fileID: 8818608257782221857}
   - component: {fileID: 7048070330086124049}
   - component: {fileID: 954607440174250346}
-  - component: {fileID: 2621987493902077252}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_11
   m_TagString: Untagged
@@ -2048,27 +1673,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &2621987493902077252
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6561182441713843841}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.4151612, y: 0.45881453, z: 0.049999993}
-  m_Center: {x: -0.047129832, y: -0.00927627, z: 0}
 --- !u!1 &8362390430721674183
 GameObject:
   m_ObjectHideFlags: 0
@@ -2080,7 +1684,6 @@ GameObject:
   - component: {fileID: 1942531357785773051}
   - component: {fileID: 4944607626993756567}
   - component: {fileID: 6407513861226520581}
-  - component: {fileID: 3878614997833786934}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_03
   m_TagString: Untagged
@@ -2160,27 +1763,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &3878614997833786934
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8362390430721674183}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.22666365, y: 0.18854865, z: 0.049999993}
-  m_Center: {x: 0.015769754, y: -0.0032060328, z: 0}
 --- !u!1 &8556105963378080651
 GameObject:
   m_ObjectHideFlags: 0
@@ -2192,7 +1774,6 @@ GameObject:
   - component: {fileID: 6964967405529995656}
   - component: {fileID: 1423903215044433342}
   - component: {fileID: 3101101674707622202}
-  - component: {fileID: 8347085692448426647}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_05
   m_TagString: Untagged
@@ -2272,27 +1853,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &8347085692448426647
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8556105963378080651}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.28171515, y: 0.17752655, z: 0.049999993}
-  m_Center: {x: 0.0048124418, y: 0.0032977345, z: 0}
 --- !u!1 &8707038601015672540
 GameObject:
   m_ObjectHideFlags: 0
@@ -2304,7 +1864,6 @@ GameObject:
   - component: {fileID: 5994490525747064485}
   - component: {fileID: 2914754860883660822}
   - component: {fileID: 872726695399225198}
-  - component: {fileID: 816499288247695450}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_17
   m_TagString: Untagged
@@ -2384,27 +1943,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &816499288247695450
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8707038601015672540}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.6578413, y: 0.74516577, z: 0.049999993}
-  m_Center: {x: 0.072844, y: -0.01703046, z: 0}
 --- !u!1 &8900917650683462131
 GameObject:
   m_ObjectHideFlags: 0
@@ -2416,7 +1954,6 @@ GameObject:
   - component: {fileID: 2781523986495623166}
   - component: {fileID: 6145690314293088772}
   - component: {fileID: 8909780714206918127}
-  - component: {fileID: 1889386407864675356}
   m_Layer: 6
   m_Name: Stage_Glass_Pane_01_Shard_07
   m_TagString: Untagged
@@ -2496,24 +2033,3 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1889386407864675356
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8900917650683462131}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 0.428755, y: 0.34889367, z: 0.049999993}
-  m_Center: {x: -0.017473951, y: 0.021515718, z: 0}
