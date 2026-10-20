@@ -186,11 +186,7 @@ namespace Kizami.EngineAdapter
         private float _floatingFallSpeed = 2f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("ボクセルから切り離されて落ちてくる塊のうち、下向きの速さがこの値（m/s）以上のものに入った敵を潰す")]
-        private float _crushMinFallSpeed = 3f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("ボクセルから切り離されて落ちてくる塊のうち、体積がこの値（m³）以上のものに入った敵を潰す")]
+        [Tooltip("ボクセルから切り離された塊のうち、体積がこの値（m³）以上のものに入った敵を潰す")]
         private float _crushMinVolume = 0.5f;
 
         [SerializeField, Min(0f)]
@@ -398,8 +394,7 @@ namespace Kizami.EngineAdapter
             _agents = new NativeArray<EnemyAgent>(agentCount, Allocator.Persistent);
             _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
                 _dropHeight, _groundLayers, _spawnSystem.SectionSize, _spawnSystem.SectionOrigin);
-            _collapseDetector = new EnemyCollapseDetector(_crushMinFallSpeed, _crushMinVolume, _crushBodyCenterHeight,
-                _crushSurfaceMargin);
+            _collapseDetector = new EnemyCollapseDetector(_crushMinVolume, _crushBodyCenterHeight, _crushSurfaceMargin);
             foreach (var loader in FindObjectsByType<VoxelModelLoader>(FindObjectsSortMode.None))
             {
                 _distanceField.Watch(loader);

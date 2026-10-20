@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// ボクセルから切り離されて落ちてくる塊に、敵が潰されたかを調べる。EnemySpawnAdapter が持つ。
+    /// ボクセルから切り離されて落ちたり倒れたりする塊に、敵が潰されたかを調べる。EnemySpawnAdapter が持つ。
     /// 敵には PhysX のコライダーを付けないので、塊の範囲に入った敵について、体の中心が塊の SDF の内側（または表面の近く）かを調べる。
     /// 落ちている塊は少ないので、格子の索引は作らず、塊ごとに全部の敵と比べる。
     /// </summary>
@@ -17,18 +17,15 @@ namespace Kizami.EngineAdapter
         private readonly List<IDisposable> _subscriptions = new();
         private readonly List<SeparatedPiece> _separatedPieces = new();
 
-        private readonly float _minFallSpeed;
         private readonly float _minVolume;
         private readonly float _bodyCenterHeight;
         private readonly float _surfaceMargin;
 
-        /// <param name="minFallSpeed">潰す塊の、下向きの速さの下限（m/s）</param>
         /// <param name="minVolume">潰す塊の、体積の下限（m³）</param>
         /// <param name="bodyCenterHeight">調べる体の中心の、体の根からの高さ（m）</param>
         /// <param name="surfaceMargin">体の中心が塊の表面からこの距離（m）以内なら、潰されたとする</param>
-        public EnemyCollapseDetector(float minFallSpeed, float minVolume, float bodyCenterHeight, float surfaceMargin)
+        public EnemyCollapseDetector(float minVolume, float bodyCenterHeight, float surfaceMargin)
         {
-            _minFallSpeed = minFallSpeed;
             _minVolume = minVolume;
             _bodyCenterHeight = bodyCenterHeight;
             _surfaceMargin = surfaceMargin;
@@ -59,7 +56,8 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 下限より速く落ちている、下限より大きい塊に体の中心が入った敵を倒し、崩落で倒されたことを記録する。
+        /// 下限より大きい塊に体の中心が入った敵を倒し、崩落で倒されたことを記録する。
+        /// 落下だけでなく横転する塊も潰せるように、塊の速さは問わない。
         /// </summary>
         /// <returns>この呼び出しで倒した敵の数</returns>
         public int Detect(NativeArray<EnemyAgent> agents)
@@ -75,7 +73,7 @@ namespace Kizami.EngineAdapter
                     continue;
                 }
 
-                if (separated.Body.linearVelocity.y > -_minFallSpeed || separated.Piece.Volume < _minVolume) continue;
+                if (separated.Piece.Volume < _minVolume) continue;
 
                 var bounds = separated.Piece.WorldBounds;
                 bounds.Expand(_surfaceMargin * 2f);
