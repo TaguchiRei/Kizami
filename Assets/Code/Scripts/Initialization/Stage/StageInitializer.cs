@@ -56,6 +56,7 @@ namespace Kizami.Initialization
         private IInputController _inputController;
         private StageFlowService _flowService;
         private StageGuideService _guideService;
+        private TargetHealthService _targetHealthService;
         private BrilliantSkillService _brilliantSkillService;
         private VoxelDestructionAdapter _voxelDestructionAdapter;
 
@@ -80,6 +81,7 @@ namespace Kizami.Initialization
             _flowService = new StageFlowService(blackBoard, stage, _timeScaleController, _inputController,
                 _progressService != null ? _progressService.CompleteSelectedStage : null, gameObject.scene.buildIndex);
             blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this);
+            _targetHealthService = new TargetHealthService(blackBoard, gameObject.scene.buildIndex);
             _stageClearAdapter.Initialize(_flowService.ReportTargets, stage.TargetGimmickIds);
             _timerAdapter.Initialize(_flowService.Tick);
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
