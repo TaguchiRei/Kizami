@@ -28,8 +28,12 @@ namespace Kizami.External
 
         [Header("壁走り")]
         [SerializeField, Min(0f)]
-        [Tooltip("壁走りの速度（m/s）")]
-        private float _wallRunSpeed = 9f;
+        [Tooltip("ダッシュしていないときの壁走りの速度（m/s）")]
+        private float _wallRunWalkSpeed = 9f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ダッシュ中の壁走りの速度（m/s）")]
+        private float _wallRunSprintSpeed = 12f;
 
         [SerializeField, Min(0f)]
         [Tooltip("壁走りの持ち時間（秒）。走っている間もとどまっている間も減り、着地で回復する")]
@@ -137,8 +141,11 @@ namespace Kizami.External
         /// <summary> ジャンプボタンの長押しで、上昇の重力を弱めていられる時間（秒） </summary>
         public float JumpHoldTime => _jumpHoldTime;
 
-        /// <summary> 壁走りの速度（m/s） </summary>
-        public float WallRunSpeed => _wallRunSpeed;
+        /// <summary> ダッシュしていないときの壁走りの速度（m/s） </summary>
+        public float WallRunWalkSpeed => _wallRunWalkSpeed;
+
+        /// <summary> ダッシュ中の壁走りの速度（m/s） </summary>
+        public float WallRunSprintSpeed => _wallRunSprintSpeed;
 
         /// <summary> 壁走りの持ち時間（秒） </summary>
         public float WallRunDuration => _wallRunDuration;

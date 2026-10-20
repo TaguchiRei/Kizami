@@ -15,7 +15,8 @@ MonoBehaviour:
   _walkSpeed: 20
   _sprintSpeed: 25
   _jumpHeight: 4
-  _wallRunSpeed: 30
+  _wallRunWalkSpeed: 30
+  _wallRunSprintSpeed: 37.5
   _wallRunDuration: 10
   _wallDetachAngle: 45
   _wallDetachTime: 0.5

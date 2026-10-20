@@ -46,6 +46,9 @@ namespace Kizami.Application
         /// <summary> 壁走りの残りの持ち時間（秒）。着地で最大値に戻る </summary>
         private float _wallRunTimeRemaining;
 
+        /// <summary> 最後に触れていた壁の法線。壁が途切れて壁走りの途中でとどまっている間も、壁キックと離れる入力の判定に使う </summary>
+        private Vector3 _wallNormal;
+
         /// <summary> 壁から離れようとする入力が続いている時間（秒） </summary>
         private float _wallDetachInputTime;
 
@@ -259,7 +262,11 @@ namespace Kizami.Application
                 _wallRunTimeRemaining = _parameters.WallRunDuration;
             }
 
-            if (!IsTouchingWallInAir)
+            if (IsTouchingWallInAir)
+            {
+                _wallNormal = _contactState.WallNormal;
+            }
+            else
             {
                 _isWaitingWallRelease = false;
             }
@@ -290,7 +297,9 @@ namespace Kizami.Application
 
             if (_state.Mode == PlayerMoveMode.WallRunning)
             {
-                _state.SetTargetVelocity(ProjectOnWall(worldInput) * _parameters.WallRunSpeed);
+                // 壁が途切れたら、壁走りのままその場にとどまる
+                var wallRunSpeed = IsSprinting ? _parameters.WallRunSprintSpeed : _parameters.WallRunWalkSpeed;
+                _state.SetTargetVelocity(IsTouchingWallInAir ? ProjectOnWall(worldInput) * wallRunSpeed : Vector3.zero);
                 return null;
             }
 
@@ -333,16 +342,16 @@ namespace Kizami.Application
         private bool IsPullingAwayFromWall(Vector3 worldInput)
         {
             return worldInput.sqrMagnitude > Mathf.Epsilon &&
-                   Vector3.Angle(worldInput, _contactState.WallNormal) <= _parameters.WallDetachAngle;
+                   Vector3.Angle(worldInput, _wallNormal) <= _parameters.WallDetachAngle;
         }
 
         /// <summary>
         /// 壁走りの持ち時間と、壁から離れようとする入力の継続時間を進め、壁走りを抜けるかどうかを返す。
-        /// 壁との接触が切れたとき、持ち時間が尽きたとき、壁から離れる向きの入力が一定時間続いたときに抜ける。
+        /// 着地したとき、持ち時間が尽きたとき、壁から離れる向きの入力が一定時間続いたときに抜ける。
         /// </summary>
         private bool ShouldExitWallRun(Vector3 worldInput, float deltaTime)
         {
-            if (!IsTouchingWallInAir) return true;
+            if (IsGrounded) return true;
 
             _wallRunTimeRemaining -= deltaTime;
             if (_wallRunTimeRemaining <= 0f)
@@ -360,7 +369,7 @@ namespace Kizami.Application
         /// </summary>
         private Vector3 ProjectOnWall(Vector3 worldInput)
         {
-            return Vector3.ProjectOnPlane(worldInput, _contactState.WallNormal);
+            return Vector3.ProjectOnPlane(worldInput, _wallNormal);
         }
 
         /// <summary>
@@ -370,7 +379,7 @@ namespace Kizami.Application
         /// </summary>
         private Vector3 CalculateWallJumpVelocity()
         {
-            var wallNormal = _contactState.WallNormal;
+            var wallNormal = _wallNormal;
 
             var horizontalDirection = Vector3.Dot(_viewForward, wallNormal) < 0f
                 ? Vector3.Reflect(_viewForward, wallNormal)
