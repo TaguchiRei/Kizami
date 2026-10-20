@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 殲滅のステージの目標を選ぶ。有効で、建物が壊れていない敵のスポーン位置を候補にする。ステージシーンへ置く。
+    /// 殲滅のステージの目標を選ぶ。敵を出せるスポーン位置（有効で、保留されておらず、建物が壊れていないもの）を候補にする。台本が保留しているチュートリアルのダミーなどは、解放されるまで候補にしない。ステージシーンへ置く。
     /// </summary>
     public sealed class SpawnPointTargetSelector : TargetSelectorBase
     {
@@ -19,7 +19,7 @@ namespace Kizami.EngineAdapter
         {
             foreach (var spawnPoint in _spawnPoints)
             {
-                if (spawnPoint == null || !spawnPoint.IsEnabled || spawnPoint.IsBroken) continue;
+                if (spawnPoint == null || !spawnPoint.CanSpawn) continue;
 
                 candidates.Add(spawnPoint.transform.position);
             }
