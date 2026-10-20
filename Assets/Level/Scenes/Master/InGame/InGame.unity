@@ -1784,7 +1784,7 @@ MonoBehaviour:
   _meltInterval: 0.3
   _blockLayers:
     serializedVersion: 2
-    m_Bits: 44545
+    m_Bits: 42497
 --- !u!1 &1579939515
 GameObject:
   m_ObjectHideFlags: 0

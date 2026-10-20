@@ -27,6 +27,9 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private const float MELT_FALLOFF = 1000f;
 
+        /// <summary> 当たり判定のレイの、ビームの半径に対する周囲の4本の位置の割合。周囲の4本の判定の半径も同じ割合 </summary>
+        private const float HIT_RING_RATIO = 0.5f;
+
         /// <summary> 射線の調べと、溶かす範囲に重なるコライダーを集めるときの上限 </summary>
         private const int MAX_HIT_COUNT = 64;
 
@@ -134,7 +137,7 @@ namespace Kizami.EngineAdapter
         private float _meltInterval = 0.05f;
 
         [SerializeField]
-        [Tooltip("ビームを止める物のレイヤー。プレイヤー自身のレイヤーは外す")]
+        [Tooltip("ビームを止める物のレイヤー。プレイヤー自身のレイヤーは外す。敵（EnemyBody）に当たったものは、レイヤーに関わらず貫通する")]
         private LayerMask _blockLayers;
 
 
@@ -144,6 +147,14 @@ namespace Kizami.EngineAdapter
         private MaterialPropertyBlock _glowProperties;
         private Transform _camera;
         private bool _isReady;
+
+        /// <summary>
+        /// 敵の体か。ビームは敵を貫通する。
+        /// </summary>
+        private static bool IsEnemy(Collider target)
+        {
+            return target.GetComponentInParent<EnemyBody>() != null;
+        }
 
         /// <summary>
         /// ビームが溶かせる物か。ボクセルのピースか、手付かずの形のメッシュのまま置いたモデルなら溶かせる。
@@ -185,7 +196,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// pivot からプレイヤーの頭まで、ボクセルを含む遮る物がないか。撃つ前に、撃てる位置かを調べるのに使う。
+        /// pivot からプレイヤーの頭まで、ボクセルを含む壁がないか。敵は遮らない。撃つ前に、撃てる位置かを調べるのに使う。
         /// </summary>
         /// <param name="pivot">ビームを撃つ所（ワールド座標）</param>
         public bool CanSeeTarget(Vector3 pivot)
@@ -195,8 +206,16 @@ namespace Kizami.EngineAdapter
             CapsuleGeometry.GetAxis(_targetCapsule, out _, out var capsuleEnd, out var capsuleRadius);
             var toHead = (Vector3)capsuleEnd + Vector3.up * capsuleRadius - pivot;
             var distance = toHead.magnitude;
-            return distance <= 0f || !Physics.Raycast(pivot, toHead / distance, distance, _blockLayers,
+            if (distance <= 0f) return true;
+
+            var count = Physics.RaycastNonAlloc(pivot, toHead / distance, _castBuffer, distance, _blockLayers,
                 QueryTriggerInteraction.Ignore);
+            for (var i = 0; i < count; i++)
+            {
+                if (!IsEnemy(_castBuffer[i].collider)) return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -489,7 +508,7 @@ namespace Kizami.EngineAdapter
             }
 
             /// <summary>
-            /// 溶かす先端を進め、ビームを pivot からボクセルでない物まで出す。プレイヤーが、pivot から溶かす先端までの半径の中に入っていれば、間隔ごとにダメージを与える。
+            /// 溶かす先端を進め、ビームを pivot からボクセルでない壁まで出す。プレイヤーが、当たり判定のレイの範囲（IsPlayerHit）に入っていれば、間隔ごとにダメージを与える。
             /// </summary>
             private void UpdateFiring(Vector3 pivot, float3 capsuleStart, float3 capsuleEnd, float capsuleRadius,
                 float deltaTime)
@@ -497,15 +516,12 @@ namespace Kizami.EngineAdapter
                 var blockDistance = CastBlock(pivot, out var blockNormal);
                 Melt(pivot, blockDistance, deltaTime);
 
-                // 見た目は、溶かす先端に関わらず、撃つ所からボクセルでない物まで最初から伸ばす
+                // 見た目は、溶かす先端に関わらず、撃つ所からボクセルでない壁まで最初から伸ばす
                 var stop = pivot + _aimDirection * blockDistance;
                 var hasHit = blockDistance < MAX_BEAM_LENGTH;
                 var normal = blockNormal;
 
-                // 当たり判定は、溶かして進んだ先端までの範囲
-                var hitDistance = Mathf.Min(_meltFrontDistance, blockDistance);
-                var hitEnd = pivot + _aimDirection * hitDistance;
-
+                // 当たり判定は、溶かして進んだ先端までの範囲。敵は貫通する
                 var flicker = 1f + 0.25f * Mathf.Sin(_phaseTime * 60f);
                 _owner.ShowGlow(_muzzleGlow, pivot, _owner._muzzleSize * flicker, _owner._glowColor, 2f, 1f);
                 ShowTipEffects(stop, normal, hasHit, _owner._glowColor, true);
@@ -515,41 +531,84 @@ namespace Kizami.EngineAdapter
                 _damageTimer -= deltaTime;
                 if (_damageTimer > 0f) return;
 
-                var reach = _owner._beamRadius + capsuleRadius;
-                if (CapsuleGeometry.GetSegmentDistanceSq(pivot, hitEnd, capsuleStart, capsuleEnd, out _) > reach * reach) return;
+                if (!IsPlayerHit(pivot, blockDistance, capsuleStart, capsuleEnd, capsuleRadius)) return;
 
                 _damageTimer = _owner._damageInterval;
                 _owner._applyDamage?.Invoke(_owner._damage);
             }
 
             /// <summary>
-            /// pivot から _aimDirection へ調べ、最初に当たった物の位置を返す。当たらなければ MAX_BEAM_LENGTH 先の位置を返す。照準と予兆の帯に使う。
+            /// プレイヤーがビームに当たっているか。ビームの中心と、それを囲む4か所から射線と同じ向きにレイを飛ばし、それぞれが溶かす先端か壁の近いほうまでを範囲にする。
+            /// 中心はビームの半径、周囲の4本は半径の HIT_RING_RATIO 倍の位置から同じ割合の半径で調べる。敵は貫通する。
+            /// </summary>
+            /// <param name="centerBlockDistance">中心のレイの、ボクセルでも敵でもない壁までの距離（m）</param>
+            private bool IsPlayerHit(Vector3 pivot, float centerBlockDistance, float3 capsuleStart, float3 capsuleEnd,
+                float capsuleRadius)
+            {
+                var beamRadius = _owner._beamRadius;
+                var centerEnd = pivot + _aimDirection * Mathf.Min(_meltFrontDistance, centerBlockDistance);
+                var centerReach = beamRadius + capsuleRadius;
+                if (CapsuleGeometry.GetSegmentDistanceSq(pivot, centerEnd, capsuleStart, capsuleEnd, out _) <=
+                    centerReach * centerReach) return true;
+
+                var right = Vector3.Cross(Mathf.Abs(_aimDirection.y) > 0.99f ? Vector3.forward : Vector3.up,
+                    _aimDirection).normalized;
+                var up = Vector3.Cross(_aimDirection, right);
+                var ringOffset = beamRadius * HIT_RING_RATIO;
+                var ringReach = ringOffset + capsuleRadius;
+                for (var i = 0; i < 4; i++)
+                {
+                    var offset = i switch { 0 => right, 1 => -right, 2 => up, _ => -up } * ringOffset;
+                    var origin = pivot + offset;
+                    var distance = Mathf.Min(_meltFrontDistance, CastBlock(origin, out _));
+                    if (CapsuleGeometry.GetSegmentDistanceSq(origin, origin + _aimDirection * distance, capsuleStart,
+                            capsuleEnd, out _) <= ringReach * ringReach) return true;
+                }
+
+                return false;
+            }
+
+            /// <summary>
+            /// pivot から _aimDirection へ調べ、最初に当たった敵でない物（ボクセルの壁を含む）の位置を返す。当たらなければ MAX_BEAM_LENGTH 先の位置を返す。照準と予兆の帯に使う。
             /// </summary>
             /// <param name="hasHit">何かに当たったか</param>
             /// <param name="normal">当たった面の向き。当たらなければ pivot へ戻る向き</param>
             private Vector3 CastBeam(Vector3 pivot, out bool hasHit, out Vector3 normal)
             {
-                hasHit = Physics.Raycast(pivot, _aimDirection, out var hit, MAX_BEAM_LENGTH, _owner._blockLayers,
-                    QueryTriggerInteraction.Ignore);
-                normal = hasHit ? hit.normal : -_aimDirection;
-                return hasHit ? hit.point : pivot + _aimDirection * MAX_BEAM_LENGTH;
+                var castBuffer = _owner._castBuffer;
+                var count = Physics.RaycastNonAlloc(pivot, _aimDirection, castBuffer, MAX_BEAM_LENGTH,
+                    _owner._blockLayers, QueryTriggerInteraction.Ignore);
+                var distance = MAX_BEAM_LENGTH;
+                hasHit = false;
+                normal = -_aimDirection;
+                for (var i = 0; i < count; i++)
+                {
+                    var hit = castBuffer[i];
+                    if (hit.distance >= distance || IsEnemy(hit.collider)) continue;
+
+                    distance = hit.distance;
+                    normal = hit.normal;
+                    hasHit = true;
+                }
+
+                return pivot + _aimDirection * distance;
             }
 
             /// <summary>
-            /// pivot から _aimDirection へ調べ、最初に当たったボクセルでない物（装甲、地形）までの距離を返す。当たらなければ MAX_BEAM_LENGTH を返す。
+            /// origin から _aimDirection へ調べ、最初に当たったボクセルでも敵でもない物（壁、装甲、地形）までの距離を返す。当たらなければ MAX_BEAM_LENGTH を返す。
             /// </summary>
             /// <param name="normal">当たった面の向き。当たらなければ pivot へ戻る向き</param>
-            private float CastBlock(Vector3 pivot, out Vector3 normal)
+            private float CastBlock(Vector3 origin, out Vector3 normal)
             {
                 var castBuffer = _owner._castBuffer;
-                var count = Physics.RaycastNonAlloc(pivot, _aimDirection, castBuffer, MAX_BEAM_LENGTH,
+                var count = Physics.RaycastNonAlloc(origin, _aimDirection, castBuffer, MAX_BEAM_LENGTH,
                     _owner._blockLayers, QueryTriggerInteraction.Ignore);
                 var distance = MAX_BEAM_LENGTH;
                 normal = -_aimDirection;
                 for (var i = 0; i < count; i++)
                 {
                     var hit = castBuffer[i];
-                    if (hit.distance >= distance || IsVoxel(hit.collider)) continue;
+                    if (hit.distance >= distance || IsVoxel(hit.collider) || IsEnemy(hit.collider)) continue;
 
                     distance = hit.distance;
                     normal = hit.normal;
