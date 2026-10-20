@@ -190,7 +190,8 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 範囲内にあり、今切れる状態で、Renderer のバウンディングボックスが刃の平面をまたぎ、装甲の奥にない CuttableObject を _targets に集める。
         /// Brilliant Skill の言葉（BrilliantWord）は文字が当たり判定を持たない為、言葉の箱が範囲に入っていたら、その文字を同じ条件で集める。
-        /// 範囲内の装甲のパネルは _armorPanels に集める。collectsPieces なら、範囲内にあり装甲の奥にないボクセルのピースを _pieces に集める。
+        /// 範囲内の装甲のパネルは _armorPanels に集める。範囲内にあり装甲の奥にないボクセルのピースを _pieces に集める。
+        /// collectsPieces でなければ、通常攻撃で切れる印の付いたピースだけを集める。
         /// </summary>
         private void CollectTargets(Vector3 origin, Vector3 forward, Vector3 normal, Quaternion bladeRotation,
             float rangeScale, bool collectsPieces)
@@ -218,7 +219,7 @@ namespace Kizami.EngineAdapter
                     continue;
                 }
 
-                if (collectsPieces && TryCollectPieces(_hitBuffer[i], origin, center, halfExtents, bladeRotation))
+                if (TryCollectPieces(_hitBuffer[i], origin, center, halfExtents, bladeRotation, collectsPieces))
                 {
                     continue;
                 }
@@ -251,17 +252,22 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// コライダーがボクセルのピースか、手付かずの形のメッシュのまま置いたモデルのものなら、切り分けるピースを _pieces に集める。
         /// モデルはボクセルにしてから、範囲の箱を包む軸平行の箱と交わる部分（パーツ）だけを集める。装甲の奥にあるピースは集めない。
+        /// collectsPieces でなければ、通常攻撃で切れる印の付いたピースだけを対象にし、モデルはボクセルにしない。
         /// </summary>
         /// <returns>コライダーがボクセルのものなら true</returns>
         private bool TryCollectPieces(Collider hit, Vector3 origin, Vector3 center, Vector3 halfExtents,
-            Quaternion bladeRotation)
+            Quaternion bladeRotation, bool collectsPieces)
         {
             var piece = hit.GetComponentInParent<VoxelPiece>();
             if (piece != null)
             {
+                if (!collectsPieces && !piece.IsCutByMelee) return false;
+
                 if (!IsBehindArmor(origin, piece.WorldBounds.center)) _pieces.Add(piece);
                 return true;
             }
+
+            if (!collectsPieces) return false;
 
             var loader = hit.GetComponentInParent<VoxelModelLoader>();
             if (loader == null || !loader.IsStatic) return false;
