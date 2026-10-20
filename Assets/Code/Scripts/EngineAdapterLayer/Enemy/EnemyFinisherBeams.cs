@@ -116,6 +116,10 @@ namespace Kizami.EngineAdapter
         private AnimationCurve _tillingYCurve = new(new Keyframe(0f, 1f), new Keyframe(0.167f, -4f),
             new Keyframe(1.167f, 1f), new Keyframe(1.667f, 1f));
 
+        [SerializeField, Min(0f)]
+        [Tooltip("止めるまで撃ち続けるビームで、模様の変化を止める照射の経過時間（秒）。この時間の模様のまま撃ち続ける")]
+        private float _continuousPatternTime = 0.3f;
+
         [SerializeField, Min(0)]
         [Tooltip("ビームに当たっているときに、間隔ごとに与えるダメージ")]
         private int _damage = 1;
@@ -554,7 +558,8 @@ namespace Kizami.EngineAdapter
                 var flicker = 1f + 0.25f * Mathf.Sin(_phaseTime * 60f);
                 _owner.ShowGlow(_muzzleGlow, pivot, _owner._muzzleSize * flicker, _owner._glowColor, 2f, 1f);
                 ShowTipEffects(stop, normal, hasHit, _owner._glowColor, true);
-                _beam.SetPattern(_owner._noiseLevelCurve.Evaluate(_phaseTime), _owner._tillingYCurve.Evaluate(_phaseTime));
+                var patternTime = _isContinuous ? Mathf.Min(_phaseTime, _owner._continuousPatternTime) : _phaseTime;
+                _beam.SetPattern(_owner._noiseLevelCurve.Evaluate(patternTime), _owner._tillingYCurve.Evaluate(patternTime));
                 _beam.ShowBeam(pivot, stop, _owner._beamRadius);
 
                 _damageTimer -= deltaTime;

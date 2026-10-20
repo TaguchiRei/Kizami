@@ -204,6 +204,7 @@ GameObject:
   m_Component:
   - component: {fileID: 199915496}
   - component: {fileID: 199915495}
+  - component: {fileID: 199915497}
   m_Layer: 0
   m_Name: BossArena
   m_TagString: Untagged
@@ -225,17 +226,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossArena
   _target: {fileID: 0}
   _unitPrefab: {fileID: 919132149155446097, guid: 8e06ebfa565b04e4f827dcb1d915a452, type: 3}
-  _beamMaterial: {fileID: 2100000, guid: f1ee0f09a79d09a49809cb68c0313769, type: 2}
-  _beamInnerMaterial: {fileID: 2100000, guid: 3351652a32aa23c40bc8913f9a4c8035, type: 2}
-  _noiseLevel: 0.8
-  _tillingY: -4
   _groundLayers:
     serializedVersion: 2
     m_Bits: 32768
-  _unitCount: 12
+  _unitCount: 16
   _radius: 60
   _height: 25
-  _beamRadius: 1
   _groundRayHeight: 50
   _damage: 10
   _damageInterval: 0.5
@@ -254,6 +250,126 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &199915497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 199915494}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36b6c3ddb34b87844adb3289eeae309e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyFinisherBeams
+  _beamMaterial: {fileID: 2100000, guid: f1ee0f09a79d09a49809cb68c0313769, type: 2}
+  _beamInnerMaterial: {fileID: 2100000, guid: 3351652a32aa23c40bc8913f9a4c8035, type: 2}
+  _telegraphMaterial: {fileID: 2100000, guid: 75145594f275da24eaabc61d61316f8c, type: 2}
+  _glowMaterial: {fileID: 2100000, guid: f665de0a18fffa2409bc87f9767ad42e, type: 2}
+  _glowColor: {r: 0.4, g: 1, b: 0.9, a: 1}
+  _telegraphGlowColor: {r: 2, g: 0.35, b: 0.1, a: 1}
+  _muzzleSize: 24
+  _tipSize: 60
+  _shakeForce: 0.5
+  _beamRadius: 14.14
+  _telegraphRadius: 16
+  _aimDuration: 3
+  _aimDelay: 2
+  _telegraphDuration: 1
+  _firingDuration: 2
+  _noiseLevelCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.167
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.667
+      value: 0.5
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.667
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  _tillingYCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.167
+      value: -4
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.167
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.667
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  _continuousPatternTime: 0.3
+  _damage: 1
+  _damageInterval: 0.1
+  _meltSpeed: 20
+  _meltRadius: 14
+  _meltInterval: 0.3
+  _blockLayers:
+    serializedVersion: 2
+    m_Bits: 42497
 --- !u!1001 &565529295
 PrefabInstance:
   m_ObjectHideFlags: 0
