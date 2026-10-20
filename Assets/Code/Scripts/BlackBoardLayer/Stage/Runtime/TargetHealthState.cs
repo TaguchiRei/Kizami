@@ -80,5 +80,8 @@ namespace Kizami.BlackBoard
 
         /// <summary> 時間で減っていく。ゲージを灰色にして赤く点滅させる </summary>
         Draining,
+
+        /// <summary> 壊れて止まった。ゲージを灰色にして、ひびを入れる </summary>
+        Broken,
     }
 }

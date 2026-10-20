@@ -149,7 +149,10 @@ namespace Kizami.Application
             if (hasHealth) _health.Drain(_health.Max / _finalDuration * deltaTime);
 
             var isFinished = hasHealth ? _health.IsDepleted : _finalTime >= _finalDuration;
-            if (isFinished) _state.SetPhase(BossBattlePhase.Stopped);
+            if (!isFinished) return;
+
+            _health?.SetMode(TargetHealthMode.Broken);
+            _state.SetPhase(BossBattlePhase.Stopped);
         }
 
         private void StartStomping()

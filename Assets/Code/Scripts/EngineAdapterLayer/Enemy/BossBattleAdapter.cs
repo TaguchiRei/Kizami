@@ -13,7 +13,7 @@ namespace Kizami.EngineAdapter
     /// 水晶の段階は、退く所へ飛び去ってから水晶を投げて置き、上部タレット・降下フィニッシャー・頭部のレーザーで遠くから攻撃する。水晶がすべて壊れたら、飛来の段階で水晶のあった所へ飛ぶ。
     /// 足踏みの段階はアウトリガーで足踏みし、コアを出す段階は下部レーザーと降下フィニッシャーで攻撃する。
     /// ダウンの段階はコアを出したまま壊せる武装を赤く塗り、ボスに攻撃が当たったら（HealthTarget が知らせる）、BossWeapons が選んだ武装を 1 つ壊す。
-    /// 最終の段階は、レーザーを撃ち続け、降下フィニッシャーを出し、衝撃波を消えるたびに出す。止まったあとは攻撃をやめる。
+    /// 最終の段階は、下部レーザーを撃ち続け、降下フィニッシャーを決めた間隔で出し、衝撃波を消えるたびに出す。止まったあとは攻撃をやめ、出ている降下フィニッシャーも消す。
     /// </summary>
     /// <remarks>
     /// ボス戦の間、ボスは自分では歩かない（飛来でだけ動く）。武装を含むすべてのパーツを止まるまで保護し、削れないようにする。
@@ -77,8 +77,12 @@ namespace Kizami.EngineAdapter
         private float _landingPause = 1f;
 
         [SerializeField, Min(0.1f)]
-        [Tooltip("最終の段階で、下部レーザーを撃ち続ける時間（秒）")]
+        [Tooltip("最終の段階で、下部レーザーを 1 回に撃ち続ける時間（秒）。撃ち終えたら撃ち直す")]
         private float _allOutDuration = 10f;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("最終の段階で、降下フィニッシャーを出す間隔（秒）。壊れた Hatch に関わらず出す")]
+        private float _finalStrikeInterval = 1.5f;
 
         private VoxelModelLoader _loader;
         private IBossBattleState _state;
@@ -100,6 +104,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 今のダウンで、武装を壊したか </summary>
         private bool _isWeaponBrokenInDown;
+
+        /// <summary> 最終の段階で、次に降下フィニッシャーを出すまでの時間（秒） </summary>
+        private float _finalStrikeRemaining;
 
         /// <summary> すべてのパーツを保護したか </summary>
         private bool _isProtected;
@@ -204,7 +211,7 @@ namespace Kizami.EngineAdapter
                     TickDown();
                     break;
                 case BossBattlePhase.Final:
-                    TickFinal();
+                    TickFinal(Time.deltaTime);
                     break;
             }
         }
@@ -249,10 +256,12 @@ namespace Kizami.EngineAdapter
                     if (_healthTarget != null) _healthTarget.ResetDepleted();
                     _laser.FireFor(_allOutDuration);
                     _finisherStrikes.FireNow();
+                    _finalStrikeRemaining = _finalStrikeInterval;
                     break;
                 case BossBattlePhase.Stopped:
                     _body.SetMoving(false);
                     _weapons.SetHighlight(false);
+                    _finisherStrikes.StopAll();
                     _laser.Cancel();
                     _laser.HoldCoreExposed(true);
                     if (_headLaser != null) _headLaser.Cancel();
@@ -348,11 +357,18 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 衝撃波が消えていれば新しく出す。レーザーと降下フィニッシャーは始めたときに出してある。終わりは BossBattleService が体力で決める。
+        /// 下部レーザーを撃ち終えていれば撃ち直し、衝撃波が消えていれば新しく出し、間隔ごとに降下フィニッシャーを出す。終わりは BossBattleService が体力で決める。
         /// </summary>
-        private void TickFinal()
+        private void TickFinal(float deltaTime)
         {
+            if (!_laser.IsFiring) _laser.FireFor(_allOutDuration);
             if (!_shockwaves.HasActiveRing) _shockwaves.ForceStomp();
+
+            _finalStrikeRemaining -= deltaTime;
+            if (_finalStrikeRemaining > 0f) return;
+
+            _finalStrikeRemaining = _finalStrikeInterval;
+            _finisherStrikes.FireNow();
         }
 
         /// <summary>
