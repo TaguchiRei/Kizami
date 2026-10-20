@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 計画済み（詳細仕様の確定待ち。2026-10-20） |
+| 状態 | 実装済み（動作の最終確認と値の調整はレビュー時。2026-10-20） |
 | 目安の時期 | 未定 |
 | 前提となる区間 | 18, OutGame 区間5 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -44,12 +44,12 @@
 
 | # | 作業 | 層 | 内容 |
 |---|---|---|---|
-| 20-1 | 覇剣の削除 | External / Application | 上の表の「覇剣」の行をすべて直す |
-| 20-2 | 長押しの発動 | Application | `SkillService` で、造山の枠を押したら始め、離したら止める。押している間のチャージの消費は Adapter から呼ぶ |
-| 20-3 | ボクセルを盛る | EngineAdapter | 押し始めに視線の先へ箱を確保し、押している間は視線の当たる点に球を足す |
-| 20-4 | 通常攻撃で切れる | EngineAdapter | `VoxelPiece` に「通常攻撃でも切り分けられる」印を持たせ、`MeleeCutAdapter` が破壊タイプなしでも、印の付いたピースを切り分ける。区間31の崩壊の対象も同じ印を使う |
-| 20-5 | 敵が見張る | EngineAdapter | `EnemySpawnAdapter.WatchPiece` を足す。形が変わったら格子を調べ直し、分かれて落ちる塊を崩落の判定に入れる |
-| 20-6 | アセットと一覧 | External / Level | `Skill_Zouzan.asset` の値と説明を書く |
+| 29-1 | 覇剣の削除 | External / Application | 上の表の「覇剣」の行をすべて直す |
+| 29-2 | 長押しの発動 | Application | `SkillService` で、造山の枠を押したら始め、離したら止める。押している間のチャージの消費は Adapter から呼ぶ |
+| 29-3 | ボクセルを盛る | EngineAdapter | 押し始めに視線の先へ箱を確保し、押している間は視線の当たる点に球を足す |
+| 29-4 | 通常攻撃で切れる | EngineAdapter | `VoxelPiece` に「通常攻撃でも切り分けられる」印を持たせ、`MeleeCutAdapter` が破壊タイプなしでも、印の付いたピースを切り分ける。区間31の崩壊の対象も同じ印を使う |
+| 29-5 | 敵が見張る | EngineAdapter | `EnemySpawnAdapter.WatchPiece` を足す。形が変わったら格子を調べ直し、分かれて落ちる塊を崩落の判定に入れる |
+| 29-6 | アセットと一覧 | External / Level | `Skill_Zouzan.asset` の値と説明を書く |
 
 ## 完了条件
 
@@ -106,6 +106,34 @@
 | 5 | 20-6：値の調整、計画書の実装結果、全体計画書の更新 | 完了条件すべて |
 
 クラウドで書いたコミットは、コンパイルと動作を確かめていない。ローカルで `Kizami.External.Runtime`・`Kizami.Application.Runtime`・`Kizami.EngineAdapter.Runtime`・`Kizami.Initialization.Runtime` をコンパイルし、InGame の `PlayerInitializer` に `VoxelMoundAdapter` を割り当ててから確かめる。
+
+## 実装結果（2026-10-20）
+
+### 決めたこと
+
+- 詳細仕様は案のとおり。#9 は変更し、盛っている間は通常攻撃・ほかのスキル・突進を受け付けない。移動とジャンプはできる
+- 回避はこのプロジェクトにない。回避で盛りを止める処理は作っていない
+- 盛り始めは、視線が何にも当たらなければ発動せず、消費もしない。最初の球は発動の次の Update で足し、2 つ目からは 0.25 秒ごとに消費 2
+- 保存データの移し替えは作らない（#8）
+
+### 作った主なもの
+
+- `VoxelMoundAdapter`（ピースのプール、盛る・止める、箱の確保）と、`VoxelMoundPiece.prefab`（品質 Building、`VoxelDefault.mat`、通常攻撃で切れる印）
+- `VoxelPiece._cutByMelee`（切り離したピースに引き継ぐ）と、`MeleeCutAdapter` の印付きピースの切り分け
+- `SkillService` の長押し（押したら始め、離したら止める）。`MeleeCutService.CanAct` が盛り中は false
+- `EnemySpawnAdapter.WatchPiece` / `RefreshRegion`、`EnemyDistanceField.WatchPiece` / `Invalidate`、`EnemyCollapseDetector.WatchPiece`
+- 覇剣の削除（`SkillEffect.Mound`、`Skill_Zouzan.asset`）
+
+### 完了条件の確認結果
+
+- コンパイル：コミットごとに成功（エラー0、警告0）
+- 動作：コミット 1〜4 の確かめ方は、ユーザーがその都度確認した。完了条件すべての通しの確認と、値（箱の大きさ・間隔・消費・半径）の調整はレビュー時
+
+### 次の区間へ持ち越すこと
+
+- `SkillService` のコンストラクタの引数が 17 個になった。引数をまとめる型は、次にスキルを足すときに提案する
+- 造山のピースが分離で作った塊の、さらなる分離と形の変化は、敵の格子に通知されない。落ちている間は格子に数えないので、止まったときの調べ直しで足りる想定で、レビュー時に確認する
+- `FragmentThrowService` は `CanAct` を通らないので、盛り中もかけらを投げられる
 
 ## 見つけた問題（今回は扱わない）
 
