@@ -100,7 +100,8 @@ namespace Kizami.Initialization
             _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, () => _voxelMoundAdapter.IsMounding, _actionEvents, sceneId);
-            _voxelMoundAdapter.Initialize(_chargeService.TryConsume);
+            _voxelMoundAdapter.Initialize(_chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
+                _enemySpawnAdapter.RefreshRegion);
             if (_bombThrowAdapter == null) _bombThrowAdapter = gameObject.AddComponent<BombThrowAdapter>();
             _bombThrowAdapter.Initialize(_voxelDestructionAdapter.CarveExplosionAt);
 

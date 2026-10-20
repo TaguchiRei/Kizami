@@ -43,6 +43,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 単独のピースを見張り、切り離された Rigidbody を持つ塊を調べる対象に加える。
+        /// </summary>
+        public void WatchPiece(VoxelPiece piece)
+        {
+            _subscriptions.Add(piece.RegisterOnSplit(OnPieceSplit));
+        }
+
+        /// <summary>
         /// 落ちる塊を調べる対象に加える。Rigidbody は塊自身か、まとめて落とす親に付いた物。
         /// </summary>
         public void WatchFalling(VoxelPiece piece, Rigidbody body)

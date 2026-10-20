@@ -657,6 +657,25 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 単独のピース（造山で盛った物など）を、敵の格子と崩落の判定に見張らせる。敵の初期化が済む前は何もしない。
+        /// </summary>
+        public void WatchPiece(VoxelPiece piece)
+        {
+            if (_distanceField == null || _collapseDetector == null) return;
+
+            _distanceField.WatchPiece(piece);
+            _collapseDetector.WatchPiece(piece);
+        }
+
+        /// <summary>
+        /// 範囲の足場と障害物を、敵の格子で調べ直させる。敵の初期化が済む前は何もしない。
+        /// </summary>
+        public void RefreshRegion(Bounds bounds)
+        {
+            _distanceField?.Invalidate(bounds);
+        }
+
+        /// <summary>
         /// 倒れた建物の階のピースを、まとめた Rigidbody とともに、敵の格子と崩落の判定に見張らせる。
         /// </summary>
         private void OnBuildingCollapsed(Rigidbody body)

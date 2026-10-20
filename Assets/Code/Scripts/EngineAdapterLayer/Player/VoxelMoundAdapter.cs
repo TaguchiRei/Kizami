@@ -43,7 +43,10 @@ namespace Kizami.EngineAdapter
 
         private readonly List<VoxelPiece> _freePieces = new();
         private readonly List<VoxelPiece> _activePieces = new();
+        private readonly HashSet<VoxelPiece> _watchedPieces = new();
         private Func<int, bool> _tryConsume;
+        private Action<VoxelPiece> _watchPiece;
+        private Action<Bounds> _refreshRegion;
         private VoxelPiece _current;
         private Bounds _currentBox;
         private float _radius;
@@ -53,9 +56,13 @@ namespace Kizami.EngineAdapter
         public bool IsMounding { get; private set; }
 
         /// <param name="tryConsume">チャージを消費する関数。引数は消費量で、足りなければ false を返す</param>
-        public void Initialize(Func<int, bool> tryConsume)
+        /// <param name="watchPiece">盛るピースを、敵の格子と崩落の判定に見張らせる関数。ピースごとに最初に使うときに1回だけ呼ぶ</param>
+        /// <param name="refreshRegion">ピースを使い回して消した範囲を、敵の格子に調べ直させる関数</param>
+        public void Initialize(Func<int, bool> tryConsume, Action<VoxelPiece> watchPiece, Action<Bounds> refreshRegion)
         {
             _tryConsume = tryConsume;
+            _watchPiece = watchPiece;
+            _refreshRegion = refreshRegion;
 
             if (_piecePrefab == null)
             {
@@ -147,8 +154,11 @@ namespace Kizami.EngineAdapter
             {
                 piece = _activePieces[0];
                 _activePieces.RemoveAt(0);
+                _refreshRegion?.Invoke(piece.WorldBounds);
                 piece.gameObject.SetActive(false);
             }
+
+            if (_watchedPieces.Add(piece)) _watchPiece?.Invoke(piece);
 
             var center = groundPoint + Vector3.up * (_boxSize * 0.5f);
             piece.transform.SetPositionAndRotation(center, Quaternion.identity);
