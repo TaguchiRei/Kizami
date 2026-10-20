@@ -62,6 +62,7 @@ namespace Kizami.EngineAdapter
         private Collider[] _hitBuffer = new Collider[INITIAL_HIT_COUNT];
         private VoxelModelLoader _loader;
         private Func<float, bool> _applyDamage;
+        private Action _onHitWhileDepleted;
         private bool _isProtected;
         private bool _isDepleted;
 
@@ -75,10 +76,12 @@ namespace Kizami.EngineAdapter
         /// 体力を減らす処理を受け取り、動き始める。読み込みが終わったら保護を始める。
         /// </summary>
         /// <param name="applyDamage">体力を減らす量を受け取り、この呼び出しで体力が尽きたら true を返す処理</param>
-        public void Initialize(Func<float, bool> applyDamage)
+        /// <param name="onHitWhileDepleted">体力が尽きたあとに、通常攻撃かスキルが当たったときに呼ぶ処理</param>
+        public void Initialize(Func<float, bool> applyDamage, Action onHitWhileDepleted = null)
         {
             _loader = GetComponent<VoxelModelLoader>();
             _applyDamage = applyDamage;
+            _onHitWhileDepleted = onHitWhileDepleted;
             enabled = true;
         }
 
@@ -96,6 +99,24 @@ namespace Kizami.EngineAdapter
         public void ReportSkillHit()
         {
             ApplyDamage(_skillDamage);
+        }
+
+        /// <summary>
+        /// 体力が尽きた状態を戻し、また体力を減らせるようにする。保護を外していれば、保護し直す。体力そのものは呼び出し側が戻す。
+        /// </summary>
+        public void ResetDepleted()
+        {
+            if (_isDepleted && _releasesOnDepleted)
+            {
+                foreach (var part in _loader.Parts)
+                {
+                    part.SetProtected(true);
+                    part.SetCutByMelee(false);
+                }
+            }
+
+            _isDepleted = false;
+            _countedPieces.Clear();
         }
 
         private void Awake()
@@ -141,7 +162,13 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void ApplyDamage(float amount)
         {
-            if (!_isProtected || _isDepleted || amount <= 0f) return;
+            if (!_isProtected || amount <= 0f) return;
+
+            if (_isDepleted)
+            {
+                _onHitWhileDepleted?.Invoke();
+                return;
+            }
 
             if (!_applyDamage(amount)) return;
 

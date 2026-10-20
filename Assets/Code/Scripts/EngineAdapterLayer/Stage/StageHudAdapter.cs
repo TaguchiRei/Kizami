@@ -83,6 +83,14 @@ namespace Kizami.EngineAdapter
         [Tooltip("無敵の間の、体力制の破壊対象のゲージの色")]
         private Color _invincibleColor = new(0.6f, 0.6f, 0.6f);
 
+        [SerializeField]
+        [Tooltip("時間で減っていく間に、灰色のゲージを点滅させる色")]
+        private Color _drainingFlashColor = new(0.95f, 0.15f, 0.15f);
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("時間で減っていく間の、点滅の周期（秒）")]
+        private float _drainingFlashPeriod = 0.5f;
+
         [SerializeField, Min(0f)]
         [Tooltip("残り時間がこの秒数以下になったら、警告の色にする")]
         private float _timeWarningSeconds = 30f;
@@ -271,12 +279,19 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 体力制の破壊対象の名前と体力のゲージを出す。対象がないステージ（最大体力が0）では隠す。無敵の間はゲージを灰色にして名前に「無敵」を添える。
+        /// 時間で減っていく間は、ゲージを灰色と赤で点滅させる。
         /// </summary>
         private void UpdateTargetHealth()
         {
             var current = _targetHealthState.Current;
             var max = _targetHealthState.Max;
             var mode = _targetHealthState.Mode;
+            if (mode == TargetHealthMode.Draining && max > 0f)
+            {
+                var flash = Mathf.PingPong(Time.time * 2f / _drainingFlashPeriod, 1f);
+                _targetHealthFillImage.color = Color.Lerp(_invincibleColor, _drainingFlashColor, flash);
+            }
+
             if (current == _shownTargetHealth && max == _shownTargetHealthMax && mode == _shownTargetHealthMode) return;
 
             _shownTargetHealth = current;
@@ -287,7 +302,7 @@ namespace Kizami.EngineAdapter
 
             SetCenteredRatio(_targetHealthFill, current / max);
             var isInvincible = mode == TargetHealthMode.Invincible;
-            _targetHealthFillImage.color = isInvincible ? _invincibleColor : _targetHealthColor;
+            if (mode != TargetHealthMode.Draining) _targetHealthFillImage.color = isInvincible ? _invincibleColor : _targetHealthColor;
             _targetHealthNameText.text = isInvincible ? $"{_targetHealthState.Name}  無敵" : _targetHealthState.Name;
         }
 

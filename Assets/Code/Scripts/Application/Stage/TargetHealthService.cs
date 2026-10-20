@@ -46,6 +46,14 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// 体力を最大まで戻す。
+        /// </summary>
+        public void Restore()
+        {
+            _state.SetCurrent(_state.Max);
+        }
+
+        /// <summary>
         /// 表示の状態を設定する。
         /// </summary>
         /// <param name="mode">表示の状態</param>

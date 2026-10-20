@@ -77,5 +77,8 @@ namespace Kizami.BlackBoard
 
         /// <summary> 無敵。体力が減らない </summary>
         Invincible,
+
+        /// <summary> 時間で減っていく。ゲージを灰色にして赤く点滅させる </summary>
+        Draining,
     }
 }
