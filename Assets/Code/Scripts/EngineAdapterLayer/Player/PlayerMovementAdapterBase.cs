@@ -65,6 +65,9 @@ namespace Kizami.EngineAdapter
         private IDisposable _lookSubscription;
         private Vector3 _horizontalVelocity;
 
+        /// <summary> 縦の速度の正本。重力は Rigidbody ではなくこの値に足す </summary>
+        private float _verticalVelocity;
+
         /// <summary> ワープを始める直前の水平速度。ワープが終わったときにこの値へ戻す </summary>
         private Vector3 _preWarpHorizontalVelocity;
 
@@ -92,6 +95,7 @@ namespace Kizami.EngineAdapter
                 !blackBoard.TryGetSceneState<PlayerBoard, IPlayerLookState>(out var lookState, this)) return;
 
             _step = step;
+            _rigidbody.useGravity = false;
             playerBoard.RegisterSceneState<IPlayerContactState>(_contactState, gameObject.scene.buildIndex);
             _lookSubscription = lookState.RegisterOnLookInputChanged(OnLookInputChanged);
 
@@ -111,6 +115,7 @@ namespace Kizami.EngineAdapter
             _rigidbody.position = position;
             _rigidbody.linearVelocity = Vector3.zero;
             _horizontalVelocity = Vector3.zero;
+            _verticalVelocity = 0f;
             Physics.SyncTransforms();
         }
 
@@ -136,8 +141,8 @@ namespace Kizami.EngineAdapter
         /// 1ステップ分の処理を次の順で行う。
         /// 1. 直前の物理ステップの結果から触れている物を判定し、PlayerContactState に書き込む
         /// 2. 視線の向きと経過時間を渡して PlayerMovementService.Step を呼び、打ち出し速度を受け取る
-        /// 3. 移動モードに応じて重力を切り替え、目標速度（PlayerMovementState.TargetVelocity の水平成分）へ向けて
-        ///    水平速度を緩やかに補間し、Rigidbody に反映する
+        /// 3. 目標速度（PlayerMovementState.TargetVelocity の水平成分）へ向けて水平速度を緩やかに補間し、
+        ///    自前で持つ縦の速度（壁走り中は 0、それ以外は重力を足す）と合わせて Rigidbody に反映する
         /// Step が触れている物を読むので、1は2より先に行う。
         /// ワープ中は目標速度（Y 成分を含む）をそのまま Rigidbody に設定し、
         /// ワープが終わったステップでは水平速度をワープを始める直前の値に戻してから補間する。
@@ -159,14 +164,14 @@ namespace Kizami.EngineAdapter
                     _preWarpHorizontalVelocity = _horizontalVelocity;
                 }
 
-                _rigidbody.useGravity = false;
+                _verticalVelocity = 0f;
                 _rigidbody.linearVelocity = _movementState.TargetVelocity;
                 return;
             }
 
             if (mode == PlayerMoveMode.Aiming)
             {
-                _rigidbody.useGravity = false;
+                _verticalVelocity = 0f;
                 _rigidbody.linearVelocity = Vector3.zero;
                 _horizontalVelocity = Vector3.zero;
                 return;
@@ -179,7 +184,6 @@ namespace Kizami.EngineAdapter
             }
 
             var isWallRunning = mode == PlayerMoveMode.WallRunning;
-            _rigidbody.useGravity = !isWallRunning;
 
             if (launchVelocity.HasValue)
             {
@@ -202,9 +206,33 @@ namespace Kizami.EngineAdapter
             var rate = target.sqrMagnitude >= _horizontalVelocity.sqrMagnitude ? acceleration : deceleration;
             _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, target, rate * Time.fixedDeltaTime);
 
-            var verticalSpeed = launchVelocity?.y ??
-                                (isWallRunning || hasWarpEnded ? 0f : _rigidbody.linearVelocity.y);
-            _rigidbody.linearVelocity = new Vector3(_horizontalVelocity.x, verticalSpeed, _horizontalVelocity.z);
+            UpdateVerticalVelocity(launchVelocity, isGrounded, isWallRunning || hasWarpEnded);
+            _rigidbody.linearVelocity = new Vector3(_horizontalVelocity.x, _verticalVelocity, _horizontalVelocity.z);
+        }
+
+        /// <summary>
+        /// 縦の速度を更新する。重力は Rigidbody に任せず自前で足す。
+        /// 物理が押し戻しで作った上向きの速度は取り込まず、天井などで止められたとき（Rigidbody の値が自分の値より小さいとき）だけ取り込む。
+        /// </summary>
+        private void UpdateVerticalVelocity(Vector3? launchVelocity, bool isGrounded, bool resetsToZero)
+        {
+            if (resetsToZero)
+            {
+                _verticalVelocity = 0f;
+                return;
+            }
+
+            _verticalVelocity = Mathf.Min(_verticalVelocity, _rigidbody.linearVelocity.y);
+            _verticalVelocity += Physics.gravity.y * Time.fixedDeltaTime;
+
+            if (launchVelocity.HasValue)
+            {
+                _verticalVelocity = launchVelocity.Value.y;
+            }
+            else if (isGrounded && _verticalVelocity < 0f)
+            {
+                _verticalVelocity = 0f;
+            }
         }
 
         /// <summary>
