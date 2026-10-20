@@ -38,6 +38,14 @@ namespace Kizami.EngineAdapter
         /// <summary> 待機を始めてから処理を止めるまでの、メンバーが隊列に並び終える時間に足す余裕（秒） </summary>
         private const float DORMANT_MARGIN = 1f;
 
+        /// <summary> 着いたグループのメンバーの目標位置を求め直す間隔（秒）。プレイヤーが動いて螺旋の向きが変わっても、この間隔で追いつく </summary>
+        private const float MEMBER_TARGET_INTERVAL = 2f;
+
+        /// <summary> アンカーが目標位置を求めたときの位置からこの距離（m）より離れたら、間隔を待たずに目標位置を求め直す </summary>
+        private const float MEMBER_TARGET_ANCHOR_MOVE = 2f;
+
+        /// <summary> メンバーの目標位置どうしの最小の間隔の、メンバーの螺旋に沿った間隔に対する割合。体の大きさより小さい１マスでは重なりを防げない為、距離で守る </summary>
+        private const float MEMBER_MIN_SPACING_RATE = 0.5f;
 
         public NativeArray<EnemyGroup> Groups;
 
@@ -55,6 +63,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、メンバーの敵の番号 </summary>
         [ReadOnly] public NativeArray<int> Members;
+
+        /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、着いたグループのメンバーの目標位置（水平）。区画の番号はメンバーの隊列の順番 </summary>
+        public NativeArray<float2> MemberTargets;
 
         [ReadOnly] public NativeArray<EnemyAgent> Agents;
         public EnemyNavigationGrid Grid;
@@ -163,6 +174,7 @@ namespace Kizami.EngineAdapter
             if (group.State == group.CommandedState) return;
 
             group.State = group.CommandedState;
+            group.MemberTargetCount = -1;
             group.HasReachedHome = false;
             group.IsReturnBlocked = false;
             switch (group.State)
@@ -706,6 +718,169 @@ namespace Kizami.EngineAdapter
             return minWidth;
         }
 
+        /// <summary>
+        /// 着いたグループのメンバーの目標位置を、MEMBER_TARGET_INTERVAL ごとに求め直す。
+        /// 動けるメンバーの数が変わったとき、アンカーが MEMBER_TARGET_ANCHOR_MOVE を超えて動いたとき、着いた直後は、間隔を待たずに求め直す。
+        /// </summary>
+        private void UpdateMemberTargets(int g, ref EnemyGroup group)
+        {
+            group.MemberTargetAge += DeltaTime;
+            var count = math.min(group.MobileMemberCount, EnemyFormationSettings.MAX_GROUP_SIZE);
+            var anchorMoved = math.distancesq(group.AnchorPosition.xz, group.MemberTargetAnchor)
+                              > MEMBER_TARGET_ANCHOR_MOVE * MEMBER_TARGET_ANCHOR_MOVE;
+            if (group.MemberTargetCount == count && !anchorMoved && group.MemberTargetAge < MEMBER_TARGET_INTERVAL) return;
+
+            group.MemberTargetAge = 0f;
+            group.MemberTargetCount = count;
+            group.MemberTargetAnchor = group.AnchorPosition.xz;
+            AssignMemberTargets(g, group.AnchorPosition, count);
+        }
+
+        /// <summary>
+        /// 隊列の順番 0〜count-1 のメンバーに、アンカーから床がつながった範囲の中の、別々の目標位置を割り当てる。
+        /// 0番はアンカーの位置。1番からは、プレイヤーを向いた螺旋の上の位置が範囲の中にあり、割り当て済みの位置から最小の間隔以上離れていればその位置にする。
+        /// そうでなければ、範囲の中で螺旋の上の位置に最も近く、最小の間隔を守れるマスの中心にする。守れるマスがなければ、間隔を無視して最も近いマスにする。
+        /// 床の範囲は、アンカーの高さと同じ高さの床（GetNodeNear）を、隣の8マスへたどった範囲で、最も外のメンバーの半径に MemberSlotSpacing を足した距離までとする。
+        /// </summary>
+        private void AssignMemberTargets(int g, float3 anchor, int count)
+        {
+            var offset = g * EnemyFormationSettings.MAX_GROUP_SIZE;
+            for (var slot = 0; slot < count; slot++) MemberTargets[offset + slot] = anchor.xz;
+
+            if (count <= 1 || !Grid.TryGetColumn(anchor, out var anchorColumn)) return;
+
+            var anchorCell = new int2(anchorColumn % Grid.Width, anchorColumn / Grid.Width);
+            var outerRadius = EnemyFormationSettings.GetSpiralRadius(count - 1, 0f, Formation.MemberLoopSpacing,
+                Formation.MemberSlotSpacing);
+            var radiusCells = (int)math.ceil((outerRadius + Formation.MemberSlotSpacing) / Grid.CellSize);
+            var size = radiusCells * 2 + 1;
+            var reach = new NativeArray<byte>(size * size, Allocator.Temp);
+            var reached = new NativeArray<int2>(size * size, Allocator.Temp);
+            var reachedCount = SpreadReach(anchorCell, anchor.y, radiusCells, reach, reached);
+
+            var toPlayer = math.normalizesafe((PlayerPosition - anchor).xz, new float2(0f, 1f));
+            var side = new float2(toPlayer.y, -toPlayer.x);
+            var minSpacing = Formation.MemberSlotSpacing * MEMBER_MIN_SPACING_RATE;
+            var minSpacingSq = minSpacing * minSpacing;
+
+            for (var slot = 1; slot < count; slot++)
+            {
+                var spiral = EnemyFormationSettings.GetSpiralOffset(slot, 0f, Formation.MemberLoopSpacing,
+                    Formation.MemberSlotSpacing);
+                var desired = anchor.xz + side * spiral.x + toPlayer * spiral.y;
+                var point = desired;
+                var isReached = IsReached(desired, anchorCell, radiusCells, reach);
+                if (!isReached || IsTooClose(desired, offset, slot, minSpacingSq))
+                {
+                    if (!TryFindNearestReached(desired, anchorCell, reached, reachedCount, offset, slot, minSpacingSq, out point)
+                        && !TryFindNearestReached(desired, anchorCell, reached, reachedCount, offset, slot, 0f, out point))
+                    {
+                        point = anchor.xz;
+                    }
+                }
+
+                MemberTargets[offset + slot] = point;
+            }
+
+            reach.Dispose();
+            reached.Dispose();
+        }
+
+        /// <summary>
+        /// アンカーのマスから、アンカーの高さと同じ高さの床を隣の8マスへたどり、radiusCells マス以内でつながった範囲を reach に印し、
+        /// たどったマスのアンカーのマスからのずれを reached に並べて、その数を返す。斜めに進むときは、間の2マスも床であることを確かめる（壁の角を抜けない為）。
+        /// </summary>
+        private int SpreadReach(int2 anchorCell, float height, int radiusCells, NativeArray<byte> reach,
+            NativeArray<int2> reached)
+        {
+            var size = radiusCells * 2 + 1;
+            var head = 0;
+            var tail = 0;
+            reach[radiusCells * size + radiusCells] = 1;
+            reached[tail++] = int2.zero;
+
+            while (head < tail)
+            {
+                var current = reached[head++];
+                for (var direction = 0; direction < 8; direction++)
+                {
+                    var step = EnemyNavigationGrid.GetNeighborOffset(direction);
+                    var next = current + step;
+                    if (math.dot(next, next) > radiusCells * radiusCells) continue;
+
+                    var index = (next.y + radiusCells) * size + next.x + radiusCells;
+                    if (reach[index] != 0 || !IsFloorCell(anchorCell + next, height)) continue;
+
+                    if (step.x != 0 && step.y != 0
+                                    && (!IsFloorCell(anchorCell + current + new int2(step.x, 0), height)
+                                        || !IsFloorCell(anchorCell + current + new int2(0, step.y), height))) continue;
+
+                    reach[index] = 1;
+                    reached[tail++] = next;
+                }
+            }
+
+            return tail;
+        }
+
+        /// <summary>
+        /// マスが格子の中にあり、高さ height と同じ高さの床があるか。
+        /// </summary>
+        private bool IsFloorCell(int2 cell, float height)
+        {
+            if (cell.x < 0 || cell.x >= Grid.Width || cell.y < 0 || cell.y >= Grid.Depth) return false;
+
+            return Grid.GetNodeNear(cell.y * Grid.Width + cell.x, height) >= 0;
+        }
+
+        /// <summary>
+        /// 水平の位置 point のマスが、SpreadReach で印した範囲の中にあるか。
+        /// </summary>
+        private bool IsReached(float2 point, int2 anchorCell, int radiusCells, NativeArray<byte> reach)
+        {
+            var cell = (int2)math.floor((point - Grid.Origin.xz) / Grid.CellSize);
+            var local = cell - anchorCell + radiusCells;
+            var size = radiusCells * 2 + 1;
+            return local.x >= 0 && local.x < size && local.y >= 0 && local.y < size && reach[local.y * size + local.x] != 0;
+        }
+
+        /// <summary>
+        /// 割り当て済みの目標位置（隊列の順番 0〜assignedCount-1）のどれかと、minSpacingSq の平方根（m）より近いか。
+        /// </summary>
+        private bool IsTooClose(float2 point, int offset, int assignedCount, float minSpacingSq)
+        {
+            for (var i = 0; i < assignedCount; i++)
+            {
+                if (math.distancesq(point, MemberTargets[offset + i]) < minSpacingSq) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 範囲の中のマスのうち、割り当て済みの目標位置から minSpacingSq の平方根（m）以上離れていて、desired に最も近いマスの中心を返す。なければ false。
+        /// </summary>
+        private bool TryFindNearestReached(float2 desired, int2 anchorCell, NativeArray<int2> reached, int reachedCount,
+            int offset, int assignedCount, float minSpacingSq, out float2 point)
+        {
+            point = desired;
+            var bestDistanceSq = float.MaxValue;
+            var found = false;
+            for (var i = 0; i < reachedCount; i++)
+            {
+                var cell = anchorCell + reached[i];
+                var center = Grid.GetCellCenter(cell.y * Grid.Width + cell.x, 0f).xz;
+                var distanceSq = math.distancesq(center, desired);
+                if (distanceSq >= bestDistanceSq || IsTooClose(center, offset, assignedCount, minSpacingSq)) continue;
+
+                bestDistanceSq = distanceSq;
+                point = center;
+                found = true;
+            }
+
+            return found;
+        }
+
         public void Execute()
         {
             for (var g = 0; g < Groups.Length; g++)
@@ -733,6 +908,7 @@ namespace Kizami.EngineAdapter
                 if (!group.HasMobileMember)
                 {
                     HoldAnchor(ref group);
+                    group.MemberTargetCount = -1;
                     group.HasReachedHome = false;
                     group.IsReturnBlocked = group.State == EnemyGroupState.Returning;
                     Groups[g] = group;
@@ -755,6 +931,9 @@ namespace Kizami.EngineAdapter
 
                 RecordPath(g, ref group);
                 UpdateColumnCount(ref group);
+                if (group.HasArrived) UpdateMemberTargets(g, ref group);
+                else group.MemberTargetCount = -1;
+
                 Groups[g] = group;
             }
         }

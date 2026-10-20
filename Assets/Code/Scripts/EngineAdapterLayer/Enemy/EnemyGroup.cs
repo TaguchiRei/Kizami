@@ -59,6 +59,15 @@ namespace Kizami.EngineAdapter
         /// <summary> アンカーが包囲の置き場に着いているか </summary>
         public bool HasArrived;
 
+        /// <summary> 着いたグループのメンバーの目標位置を、最後に求めてからの時間（秒） </summary>
+        public float MemberTargetAge;
+
+        /// <summary> メンバーの目標位置を求めたときの、動けるメンバーの数。求めていなければ -1 </summary>
+        public int MemberTargetCount;
+
+        /// <summary> メンバーの目標位置を求めたときの、アンカーの水平の位置 </summary>
+        public float2 MemberTargetAnchor;
+
         /// <summary> メンバーの区画に入っている数。倒れたメンバーの区画も、詰めるまでは数える </summary>
         public int MemberCount;
 
