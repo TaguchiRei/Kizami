@@ -162,7 +162,7 @@
 | 26B | ボスとの直接戦闘 | 円形の空間、足踏み、コアの露出、隙、総攻撃、停止と破壊属性の自動付与、クリア | 26A, 13, 19 | 未定 | 未定 | 完了（2026-10-20） | [Section26B](Sections/Section26B_BossDirectBattle.md) |
 | 26C | 水晶の段階とボス戦のステージ | 水晶、遠距離の攻撃、吸収と頭部のレーザー、飛来、町のシーンを共有するボスステージ | 26B, 23, 22 | 未定 | 10/19 | 完了（2026-10-19） | [Section26C](Sections/Section26C_BossCrystalPhase.md) |
 | 27 | 近接スキルと破壊の重心 | 初期スキルの頑拳（消費 10）と突撃（消費 15）、ボロノイ状の破砕、すべての破壊に共通する重心の偏り、通常攻撃とスキルで共有する発動の制約、初期装備を頑拳 1 つにする。2026-10-19 に、頑拳＝体術・衝波、突撃＝体術・攻走として、アウトゲームの区間5（[OutGame Section05](../OutGame/Sections/Section05_SkillRework.md)）に統合した | 8, 18, 19, 17, 24 | 未定 | 未定 | 統合済み（アウトゲームの区間5へ。2026-10-19） | [Section27](Sections/Section27_CloseRangeSkill.md) |
-| 28 | 初期スキルの破壊力 | 衝波・攻走の 3〜4 回でビル 1 棟を崩す。鉄筋も削れるが効率は低い | 17, OutGame 5 | 未定 | 未定 | 計画済み（詳細仕様の確定待ち） | [Section28](Sections/Section28_InitialSkillPower.md) |
+| 28 | 初期スキルの破壊力 | 衝波・攻走の 3〜4 回でビル 1 棟を崩す。鉄筋も削れるが効率は低い | 17, OutGame 5 | 未定 | 未定 | 完了（2026-10-20） | [Section28](Sections/Section28_InitialSkillPower.md) |
 | 29 | 土遁・造山 | 覇剣を置き換える。長押しでボクセルを盛って大きくし、通常攻撃で切れる | 18, OutGame 5 | 未定 | 未定 | 計画済み（詳細仕様の確定待ち） | [Section29](Sections/Section29_Zouzan.md) |
 | 30 | 敵の広がり | 隊列の間隔を広げ、通常攻撃でまとめて倒せる数を減らす | 16 | 未定 | 未定 | 計画済み（詳細仕様の確定待ち） | [Section30](Sections/Section30_EnemySpread.md) |
 | 31 | 体力制の破壊対象 | 体力が尽きるまで壊せない対象、上部の体力ゲージ、崩壊の半球の対象、殲滅の撃破数の条件 | 29, 22, 19 | 未定 | 未定 | 計画済み（詳細仕様の確定待ち） | [Section31](Sections/Section31_TargetHealth.md) |
