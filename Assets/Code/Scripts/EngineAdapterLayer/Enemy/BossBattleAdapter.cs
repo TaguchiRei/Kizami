@@ -10,12 +10,14 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// ボス戦で、BossBattleState の段階に合わせてボスの武装を動かし、段階が進む出来事を報告する。ボスのボクセルのモデル（VoxelModelLoader）と同じ GameObject に付ける。
     /// 1 周目の飛来は、プレイヤーの正面の着地点へ降りてくる。
-    /// 水晶の段階は、退く所へ飛び去ってから水晶を投げて置き、上部タレット・ミサイル・頭部のレーザーで遠くから攻撃する。水晶がすべて壊れたら、飛来の段階で水晶のあった所へ飛ぶ。
-    /// 足踏みの段階はアウトリガーで足踏みし、コアを出す段階は下部レーザーとミサイルで攻撃する。隙の段階はコアを出したまま、武装が壊れるのを待つ。
-    /// 総攻撃は、レーザーを撃ち続け、ミサイルを撃ち切り、衝撃波を消えるたびに出す。止まったあとは攻撃をやめる。
+    /// 水晶の段階は、退く所へ飛び去ってから水晶を投げて置き、上部タレット・降下フィニッシャー・頭部のレーザーで遠くから攻撃する。水晶がすべて壊れたら、飛来の段階で水晶のあった所へ飛ぶ。
+    /// 足踏みの段階はアウトリガーで足踏みし、コアを出す段階は下部レーザーと降下フィニッシャーで攻撃する。
+    /// ダウンの段階はコアを出したまま壊せる武装を赤く塗り、ボスに攻撃が当たったら（HealthTarget が知らせる）、BossWeapons が選んだ武装を 1 つ壊す。
+    /// 最終の段階は、下部レーザーを撃ち続け、降下フィニッシャーを決めた間隔で出し、衝撃波を消えるたびに出す。止まったあとは攻撃をやめ、出ている降下フィニッシャーも消す。
     /// </summary>
     /// <remarks>
-    /// ボス戦の間、ボスは自分では歩かない（飛来でだけ動く）。武装以外のパーツは止まるまで保護し、削れないようにする。
+    /// ボス戦の間、ボスは自分では歩かない（飛来でだけ動く）。武装を含むすべてのパーツを止まるまで保護し、削れないようにする。
+    /// 体力の配線は StageInitializer が行う。ボスの HealthTarget は、体力が尽きても保護を外さない設定にする。
     /// 上部タレットは水晶の段階でだけ使う。円形の空間は足踏みの段階に入るときに作り、水晶の段階に入るときと止まったときに閉じる。
     /// 水晶・飛来・上部タレット・頭部のレーザーは無くてもよく、無ければその攻撃をせず、水晶と飛来は済んだものとして進める。
     /// </remarks>
@@ -39,8 +41,8 @@ namespace Kizami.EngineAdapter
         private BossLaser _laser;
 
         [SerializeField]
-        [Tooltip("ボスの脚のミサイル")]
-        private BossMissiles _missiles;
+        [Tooltip("ボスの脚の Hatch が呼ぶ降下フィニッシャー")]
+        private BossFinisherStrikes _finisherStrikes;
 
         [SerializeField]
         [Tooltip("ボスの上部タレット。水晶の段階で使う")]
@@ -75,8 +77,12 @@ namespace Kizami.EngineAdapter
         private float _landingPause = 1f;
 
         [SerializeField, Min(0.1f)]
-        [Tooltip("総攻撃を続ける時間（秒）")]
+        [Tooltip("最終の段階で、下部レーザーを 1 回に撃ち続ける時間（秒）。撃ち終えたら撃ち直す")]
         private float _allOutDuration = 10f;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("最終の段階で、降下フィニッシャーを出す間隔（秒）。壊れた Hatch に関わらず出す")]
+        private float _finalStrikeInterval = 1.5f;
 
         private VoxelModelLoader _loader;
         private IBossBattleState _state;
@@ -85,19 +91,24 @@ namespace Kizami.EngineAdapter
         private Action _reportStomp;
         private Action _reportCoreAttackFinished;
         private Action _reportWeaponBroken;
-        private Action _reportAllOutFinished;
+        private Action<float> _tick;
+        private HealthTarget _healthTarget;
+        private Transform _target;
         private BossBattlePhase _handledPhase = BossBattlePhase.Idle;
 
-        /// <summary> 今の周を始めたときに壊れていた武装の数。これを超えたら、武装が 1 つ壊れたとする </summary>
+        /// <summary> ダウンに入ったときに壊れていた武装の数。これを超えたら、武装が 1 つ壊れたとする </summary>
         private int _brokenBaseline;
 
         /// <summary> コアを出す段階で、下部レーザーの番を進めたか </summary>
         private bool _isLaserStarted;
 
-        /// <summary> 総攻撃を始めてからの時間（秒） </summary>
-        private float _allOutTime;
+        /// <summary> 今のダウンで、武装を壊したか </summary>
+        private bool _isWeaponBrokenInDown;
 
-        /// <summary> 武装以外のパーツを保護したか </summary>
+        /// <summary> 最終の段階で、次に降下フィニッシャーを出すまでの時間（秒） </summary>
+        private float _finalStrikeRemaining;
+
+        /// <summary> すべてのパーツを保護したか </summary>
         private bool _isProtected;
 
         /// <summary> 今の水晶の段階で、水晶を投げたか </summary>
@@ -115,9 +126,11 @@ namespace Kizami.EngineAdapter
         /// <param name="reportStomp">足踏みしたことを報告する関数（BossBattleService.ReportStomp）</param>
         /// <param name="reportCoreAttackFinished">コアを出した攻撃を終えたことを報告する関数（BossBattleService.ReportCoreAttackFinished）</param>
         /// <param name="reportWeaponBroken">武装が 1 つ壊れたことを報告する関数（BossBattleService.ReportWeaponBroken）</param>
-        /// <param name="reportAllOutFinished">総攻撃を終えたことを報告する関数（BossBattleService.ReportAllOutFinished）</param>
+        /// <param name="tick">毎フレーム経過時間を渡す関数（BossBattleService.Tick）。体力が尽きたかを調べ、最終の体力を減らす</param>
+        /// <param name="target">プレイヤー。ダウンで壊す武装を選ぶのに使う</param>
         public void Initialize(IBossBattleState state, Action reportCrystalsCleared, Action reportArrived,
-            Action reportStomp, Action reportCoreAttackFinished, Action reportWeaponBroken, Action reportAllOutFinished)
+            Action reportStomp, Action reportCoreAttackFinished, Action reportWeaponBroken, Action<float> tick,
+            Transform target)
         {
             _state = state;
             _reportCrystalsCleared = reportCrystalsCleared;
@@ -125,7 +138,9 @@ namespace Kizami.EngineAdapter
             _reportStomp = reportStomp;
             _reportCoreAttackFinished = reportCoreAttackFinished;
             _reportWeaponBroken = reportWeaponBroken;
-            _reportAllOutFinished = reportAllOutFinished;
+            _tick = tick;
+            _target = target;
+            if (_healthTarget != null) _healthTarget.SetOnHitWhileDepleted(OnHitWhileDepleted);
         }
 
         /// <summary>
@@ -150,10 +165,15 @@ namespace Kizami.EngineAdapter
         private void Awake()
         {
             _loader = GetComponent<VoxelModelLoader>();
-
-            if (_body == null || _weapons == null || _shockwaves == null || _laser == null || _missiles == null)
+            _healthTarget = GetComponent<HealthTarget>();
+            if (_healthTarget == null)
             {
-                UsefulLogger.LogError("ボスの胴体・武装・衝撃波・下部レーザー・ミサイルのどれかが設定されていない為、直接戦闘は動きません。", this);
+                UsefulLogger.LogWarning("ボスに HealthTarget がない為、ダウンせず、武装も壊せません。", this);
+            }
+
+            if (_body == null || _weapons == null || _shockwaves == null || _laser == null || _finisherStrikes == null)
+            {
+                UsefulLogger.LogError("ボスの胴体・武装・衝撃波・下部レーザー・降下フィニッシャーのどれかが設定されていない為、直接戦闘は動きません。", this);
                 enabled = false;
             }
         }
@@ -163,6 +183,7 @@ namespace Kizami.EngineAdapter
             if (_state == null) return;
 
             UpdateProtection();
+            _tick?.Invoke(Time.deltaTime);
 
             var phase = _state.Phase;
             if (phase != _handledPhase)
@@ -186,11 +207,11 @@ namespace Kizami.EngineAdapter
                 case BossBattlePhase.CoreExposed:
                     TickCoreExposed();
                     break;
-                case BossBattlePhase.Opening:
-                    TickOpening();
+                case BossBattlePhase.Down:
+                    TickDown();
                     break;
-                case BossBattlePhase.AllOutAttack:
-                    TickAllOutAttack(Time.deltaTime);
+                case BossBattlePhase.Final:
+                    TickFinal(Time.deltaTime);
                     break;
             }
         }
@@ -206,6 +227,7 @@ namespace Kizami.EngineAdapter
                     _body.SetMoving(false);
                     _laser.HoldCoreExposed(false);
                     if (_arena != null) _arena.Close();
+                    if (_healthTarget != null) _healthTarget.ResetDepleted();
                     _isCrystalThrown = false;
                     if (_arrival != null && _retreatPoint != null) _arrival.Begin(_retreatPoint.position);
                     break;
@@ -217,23 +239,29 @@ namespace Kizami.EngineAdapter
                 case BossBattlePhase.Stomping:
                     _body.SetMoving(false);
                     _laser.HoldCoreExposed(false);
-                    _brokenBaseline = _weapons.CountBroken();
                     if (_arena != null && !_arena.IsOpen) _arena.Open(_body.transform.position);
                     break;
                 case BossBattlePhase.CoreExposed:
                     _isLaserStarted = false;
                     break;
-                case BossBattlePhase.Opening:
+                case BossBattlePhase.Down:
+                    _laser.Cancel();
                     _laser.HoldCoreExposed(true);
+                    _brokenBaseline = _weapons.CountBroken();
+                    _isWeaponBrokenInDown = false;
+                    _weapons.SetHighlight(true);
                     break;
-                case BossBattlePhase.AllOutAttack:
+                case BossBattlePhase.Final:
                     _laser.HoldCoreExposed(false);
+                    if (_healthTarget != null) _healthTarget.ResetDepleted();
                     _laser.FireFor(_allOutDuration);
-                    _missiles.FireAll();
-                    _allOutTime = 0f;
+                    _finisherStrikes.FireNow();
+                    _finalStrikeRemaining = _finalStrikeInterval;
                     break;
                 case BossBattlePhase.Stopped:
                     _body.SetMoving(false);
+                    _weapons.SetHighlight(false);
+                    _finisherStrikes.StopAll();
                     _laser.Cancel();
                     _laser.HoldCoreExposed(true);
                     if (_headLaser != null) _headLaser.Cancel();
@@ -243,7 +271,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 飛び去り終えたら水晶を投げ、上部タレット・ミサイル・頭部のレーザーを、それぞれのクールタイムごとに撃つ。水晶がすべて壊れたら報告する。
+        /// 飛び去り終えたら水晶を投げ、上部タレット・降下フィニッシャー・頭部のレーザーを、それぞれのクールタイムごとに撃つ。水晶がすべて壊れたら報告する。
         /// </summary>
         private void TickCrystal()
         {
@@ -263,7 +291,7 @@ namespace Kizami.EngineAdapter
             }
 
             if (_turret != null) _turret.TryFire();
-            _missiles.TryFire();
+            _finisherStrikes.TryFire();
             if (_headLaser != null) _headLaser.TryFire();
         }
 
@@ -300,7 +328,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 下部レーザーを撃ち、撃っている間はミサイルも撃つ。レーザーを撃ち終えたら報告する。
+        /// 下部レーザーを撃ち、撃っている間は降下フィニッシャーも撃つ。レーザーを撃ち終えたら報告する。
         /// 番のレーザーが壊れていれば、撃たずにクールタイムだけ過ぎるので、撃ち終えたものとして報告する。
         /// </summary>
         private void TickCoreExposed()
@@ -312,7 +340,7 @@ namespace Kizami.EngineAdapter
 
             if (_laser.IsFiring)
             {
-                _missiles.TryFire();
+                _finisherStrikes.TryFire();
                 return;
             }
 
@@ -320,26 +348,47 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 壊れた武装の数が、周を始めたときより増えたら報告する。
+        /// 壊れた武装の数が、ダウンに入ったときより増えたら報告する。壊せる武装が残っていなければ、壊したものとして報告する。
         /// </summary>
-        private void TickOpening()
+        private void TickDown()
         {
-            if (_weapons.CountBroken() > _brokenBaseline) _reportWeaponBroken?.Invoke();
+            var brokenCount = _weapons.CountBroken();
+            if (brokenCount > _brokenBaseline || brokenCount >= _weapons.Count) _reportWeaponBroken?.Invoke();
         }
 
         /// <summary>
-        /// 衝撃波が消えていれば新しく出し、決めた時間が過ぎたら報告する。レーザーとミサイルは始めたときに出してある。
+        /// 下部レーザーを撃ち終えていれば撃ち直し、衝撃波が消えていれば新しく出し、間隔ごとに降下フィニッシャーを出す。終わりは BossBattleService が体力で決める。
         /// </summary>
-        private void TickAllOutAttack(float deltaTime)
+        private void TickFinal(float deltaTime)
         {
+            if (!_laser.IsFiring) _laser.FireFor(_allOutDuration);
             if (!_shockwaves.HasActiveRing) _shockwaves.ForceStomp();
 
-            _allOutTime += deltaTime;
-            if (_allOutTime >= _allOutDuration) _reportAllOutFinished?.Invoke();
+            _finalStrikeRemaining -= deltaTime;
+            if (_finalStrikeRemaining > 0f) return;
+
+            _finalStrikeRemaining = _finalStrikeInterval;
+            _finisherStrikes.FireNow();
         }
 
         /// <summary>
-        /// モデルを読み込んだら、武装以外のパーツを保護する。止まったら保護を外す。
+        /// 体力が尽きたあとにボスへ攻撃が当たったら、ダウンの間に 1 回だけ、画面の中央に近い武装を 1 つ壊し、残りの赤を消す。
+        /// </summary>
+        private void OnHitWhileDepleted()
+        {
+            if (_state == null || _state.Phase != BossBattlePhase.Down || _isWeaponBrokenInDown) return;
+
+            var view = Camera.main;
+            if (view == null) return;
+
+            var viewTransform = view.transform;
+            var playerPosition = _target != null ? _target.position : viewTransform.position;
+            _isWeaponBrokenInDown = _weapons.BreakBest(viewTransform.position, viewTransform.forward, playerPosition) >= 0;
+            if (_isWeaponBrokenInDown) _weapons.SetHighlight(false);
+        }
+
+        /// <summary>
+        /// モデルを読み込んだら、武装を含むすべてのパーツを保護する。止まったら保護を外す。
         /// </summary>
         private void UpdateProtection()
         {
@@ -348,7 +397,7 @@ namespace Kizami.EngineAdapter
 
             foreach (var part in _loader.Parts)
             {
-                if (!_weapons.IsWeaponPart(part)) part.SetProtected(shouldProtect);
+                part.SetProtected(shouldProtect);
             }
 
             _isProtected = shouldProtect;

@@ -424,6 +424,24 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 単独のピースを見張り、削る・盛る編集や塊の分離で形が変わった範囲の列を調べ直す。見張り方は VoxelModelLoader の Watch と同じ。
+        /// </summary>
+        public void WatchPiece(VoxelPiece piece)
+        {
+            _subscriptions.Add(piece.RegisterOnShapeChanged(OnPieceShapeChanged));
+            _subscriptions.Add(piece.RegisterOnSplit(OnPieceSplit));
+            _subscriptions.Add(piece.RegisterOnDestroyed(OnPieceDestroyed));
+        }
+
+        /// <summary>
+        /// 範囲の列を、ピースの作り直しを待たずに調べ直す。ピースを使い回して消したときなど、形の変化の通知が来ない変更の後に呼ぶ。
+        /// </summary>
+        public void Invalidate(Bounds bounds)
+        {
+            _pendingRegions.Add(new PendingRegion(null, bounds, false));
+        }
+
+        /// <summary>
         /// 中心から半径の中にある立てる層を、プレイヤーまでの距離の色（近いほど赤、遠いほど青、たどり着けないか追跡範囲の外なら灰）でギズモに描く。
         /// 追跡範囲の外枠も、中心の高さに描く。
         /// </summary>

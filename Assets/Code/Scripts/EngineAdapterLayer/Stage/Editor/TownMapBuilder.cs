@@ -72,6 +72,8 @@ namespace Kizami.Editor
             var root = new GameObject(ROOT_NAME).transform;
             var meltSystem = Instantiate($"{BUILDING_FOLDER}/Town_VoxelMeltSystem.prefab", root).GetComponent<VoxelMeltSystem>();
 
+            Instantiate($"{BUILDING_FOLDER}/Town_GlassShardPool.prefab", root);
+
             var tower = Instantiate($"{BUILDING_FOLDER}/Town_TenshoTower.prefab", root);
             SetMeltSystem(tower.GetComponentInChildren<VoxelBuilding>(), meltSystem);
             CreateFarGroundColliders(root);

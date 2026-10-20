@@ -11,7 +11,7 @@ namespace Kizami.Application
 {
     /// <summary>
     /// 近接切断の入力を解釈して MeleeCutState へ書き込み、振ったことを切断の実行役へ伝えるユースケース。
-    /// 速さアップの強化は攻撃間隔に、範囲アップの強化は振ったときの範囲に倍率を掛ける。範囲と速さの強化（覇剣）は両方に掛ける。
+    /// 速さアップの強化は攻撃間隔に、範囲アップの強化は振ったときの範囲に倍率を掛ける。
     /// 通常攻撃とスキルは攻撃間隔を共有し、どちらかを出してから攻撃間隔が経つまで、どちらも出せない。
     /// 切断は攻撃タイプで、ボクセル破壊の強化中は破壊タイプを、シルブレの強化中は粉砕タイプを足す。ボスが止まったあとは、強化がなくても常に破壊タイプを足す。
     /// </summary>
@@ -26,6 +26,7 @@ namespace Kizami.Application
         private readonly PlayerEnhanceService _enhanceService;
         private readonly Action<float, float, DamageType> _onSwing;
         private readonly Func<bool> _tryUseCut;
+        private readonly Func<bool> _isMounding;
         private readonly PlayerActionEvents _actionEvents;
         private readonly List<IDisposable> _subscriptions = new();
 
@@ -40,13 +41,15 @@ namespace Kizami.Application
         /// <param name="enhanceService">切断にかかる強化の取得元</param>
         /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）、範囲に掛ける倍率、ダメージの種類</param>
         /// <param name="tryUseCut">振る直前に呼び、振れる回数を1回使う関数。false なら振らない</param>
+        /// <param name="isMounding">造山で盛っている間か。盛っている間は通常攻撃もスキルも出せない</param>
         /// <param name="actionEvents">振ったことを流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public MeleeCutService(IBlackBoard blackBoard, PlayerParameterData parameters,
             PlayerEnhanceService enhanceService, Action<float, float, DamageType> onSwing, Func<bool> tryUseCut,
-            PlayerActionEvents actionEvents, int sceneId)
+            Func<bool> isMounding, PlayerActionEvents actionEvents, int sceneId)
         {
             _actionEvents = actionEvents;
+            _isMounding = isMounding;
             _parameters = parameters;
             _enhanceService = enhanceService;
             _onSwing = onSwing;
@@ -77,13 +80,14 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 前回、通常攻撃かスキルを出してから、今の攻撃間隔が経っているかを返す。スローモード中も攻撃間隔は実時間で数える。
+        /// 造山で盛っている間でなく、前回、通常攻撃かスキルを出してから、今の攻撃間隔が経っているかを返す。スローモード中も攻撃間隔は実時間で数える。
         /// </summary>
         public bool CanAct()
         {
+            if (_isMounding != null && _isMounding()) return false;
+
+
             _enhanceService.IsActive(SkillEffect.EnhanceSpeed, out var intervalScale);
-            _enhanceService.IsActive(SkillEffect.EnhanceRangeSpeed, out _, out var rangeSpeedIntervalScale);
-            intervalScale *= rangeSpeedIntervalScale;
             return Time.unscaledTimeAsDouble - _lastActionTime >= _parameters.MeleeAttackInterval * intervalScale;
         }
 
@@ -119,8 +123,6 @@ namespace Kizami.Application
 
             _enhanceService.TryUse(SkillEffect.EnhanceSpeed, out _);
             _enhanceService.TryUse(SkillEffect.EnhanceRange, out var rangeScale);
-            _enhanceService.TryUse(SkillEffect.EnhanceRangeSpeed, out var rangeSpeedScale);
-            rangeScale *= rangeSpeedScale;
 
             var damageType = DamageType.Attack;
             var isDestroyEnhanced = _enhanceService.TryUse(SkillEffect.EnhanceDestroy, out _);

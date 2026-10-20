@@ -19,13 +19,21 @@ namespace Kizami.External
 
         [Header("ジャンプ")]
         [SerializeField, Min(0f)]
-        [Tooltip("ジャンプの高さ（m）。初速は重力の大きさから求める")]
+        [Tooltip("初速を決める高さ（m）。重力の倍率が 1 のときにこの高さまで上がる初速で跳ぶ。実際の高さは Adapter の重力の倍率で決まる")]
         private float _jumpHeight = 1.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ジャンプボタンの長押しで、上昇の重力を弱めていられる時間（秒）")]
+        private float _jumpHoldTime = 0.5f;
 
         [Header("壁走り")]
         [SerializeField, Min(0f)]
-        [Tooltip("壁走りの速度（m/s）")]
-        private float _wallRunSpeed = 9f;
+        [Tooltip("ダッシュしていないときの壁走りの速度（m/s）")]
+        private float _wallRunWalkSpeed = 9f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ダッシュ中の壁走りの速度（m/s）")]
+        private float _wallRunSprintSpeed = 12f;
 
         [SerializeField, Min(0f)]
         [Tooltip("壁走りの持ち時間（秒）。走っている間もとどまっている間も減り、着地で回復する")]
@@ -42,10 +50,6 @@ namespace Kizami.External
         [SerializeField, Min(0f)]
         [Tooltip("壁ジャンプの水平方向の速さ（m/s）。上向きの速度はジャンプと同じ")]
         private float _wallJumpHorizontalSpeed = 6f;
-
-        [SerializeField, Range(0f, 1f)]
-        [Tooltip("壁ジャンプの水平方向に、移動入力の向きを混ぜる割合。0 なら壁から離れる向きのみ、1 なら入力の向きのみ")]
-        private float _wallJumpInputInfluence = 0.5f;
 
         [Header("短距離ワープ")]
         [SerializeField, Min(0f)]
@@ -131,11 +135,17 @@ namespace Kizami.External
         /// <summary> ダッシュの速度（m/s） </summary>
         public float SprintSpeed => _sprintSpeed;
 
-        /// <summary> ジャンプの高さ（m） </summary>
+        /// <summary> 初速を決める高さ（m）。重力の倍率が 1 のときにこの高さまで上がる </summary>
         public float JumpHeight => _jumpHeight;
 
-        /// <summary> 壁走りの速度（m/s） </summary>
-        public float WallRunSpeed => _wallRunSpeed;
+        /// <summary> ジャンプボタンの長押しで、上昇の重力を弱めていられる時間（秒） </summary>
+        public float JumpHoldTime => _jumpHoldTime;
+
+        /// <summary> ダッシュしていないときの壁走りの速度（m/s） </summary>
+        public float WallRunWalkSpeed => _wallRunWalkSpeed;
+
+        /// <summary> ダッシュ中の壁走りの速度（m/s） </summary>
+        public float WallRunSprintSpeed => _wallRunSprintSpeed;
 
         /// <summary> 壁走りの持ち時間（秒） </summary>
         public float WallRunDuration => _wallRunDuration;
@@ -148,9 +158,6 @@ namespace Kizami.External
 
         /// <summary> 壁ジャンプの水平方向の速さ（m/s） </summary>
         public float WallJumpHorizontalSpeed => _wallJumpHorizontalSpeed;
-
-        /// <summary> 壁ジャンプの水平方向に移動入力の向きを混ぜる割合（0〜1） </summary>
-        public float WallJumpInputInfluence => _wallJumpInputInfluence;
 
         /// <summary> ワープで進む距離（m） </summary>
         public float WarpDistance => _warpDistance;

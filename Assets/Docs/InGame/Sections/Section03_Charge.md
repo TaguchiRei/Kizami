@@ -23,8 +23,8 @@
 | # | 内容 | 対応 |
 |---|---|---|
 | 1 | 操作シーン（StandardPlayerControl）と InGame は別の Compositor のスコープで、DI は「自分のスコープ → Root」しか探さない。チャージの State と Service の置き場所が決まらない（区間2の `OnSwing` の Event、区間4の決めること #7 も同じ原因） | 操作シーンを InGame に統合する（決定 A、コミット0） |
-| 2 | 3-1「かけらの管理」は Application / BlackBoard の作業になっているが、かけらは MeshCut の `CuttableObject` で、Application の asmdef は MeshCut を参照していない。区間3には、かけらの状態を読む利用者もいない（つかむのは区間7） | かけらの管理は EngineAdapter の Adapter に閉じ込め、State は作らない |
-| 3 | 3-1「チャージにならないかけらの印」と 3-4「消費の操作」は、区間3に利用者がいない（投擲は区間7、消費は区間6・7） | 区間6・7へ持ち越す |
+| 2 | 3-1「かけらの管理」は Application / BlackBoard の作業になっているが、かけらは MeshCut の `CuttableObject` で、Application の asmdef は MeshCut を参照していない。区間3には、かけらの状態を読む利用者もいない（つかむのは区間9） | かけらの管理は EngineAdapter の Adapter に閉じ込め、State は作らない |
+| 3 | 3-1「チャージにならないかけらの印」と 3-4「消費の操作」は、区間3に利用者がいない（投擲は区間9、消費は区間8・9） | 区間8・9へ持ち越す |
 | 4 | かけらのプレハブ（`CutFragment`）は Default レイヤー。`Shard` レイヤーはあり、Player との衝突は切ってあるが、Shard 同士は衝突する | かけらを Shard にし、Shard 同士の衝突を切る（決定 5） |
 | 5 | `MeshCutObjectPool.ReleaseObject` は `OnRecycle` を呼ぶので、自分でかけらを返したときも `ReuseAction` が呼ばれる。`TryReleaseObject` はフラグを下ろすだけで非アクティブにしない | 自分で返すかけらは、返す前に管理から外す |
 | 6 | ステージシーンは区間4（4-0）で作るので、3-5「ステージの外周」の置き場所がない | InGame の `TestWalls` の下に仮に置き、4-0 で一緒に移す |
@@ -87,17 +87,17 @@
 
 | # | 項目 | 決定 |
 |---|---|---|
-| 1 | チャージの置き場所 | `ChargeState` を `PlayerBoard` の SceneState として InGame の sceneId で登録し、`ChargeService` だけが書く。インゲームに入るたびにリセットされる。区間6・7の消費する側も InGame の Initializer から DI で受け取れる |
+| 1 | チャージの置き場所 | `ChargeState` を `PlayerBoard` の SceneState として InGame の sceneId で登録し、`ChargeService` だけが書く。インゲームに入るたびにリセットされる。区間8・9の消費する側も InGame の Initializer から DI で受け取れる |
 | 2 | かけらの通知の経路 | 直接配線。`PlayerInitializer` が、`MeleeCutAdapter` に「切断の結果を渡す関数」（`FragmentOrbAdapter` のメソッド）を渡す。受け取り手が 1 つで、同じシーンにある為 |
 | 3 | 1 個あたりのチャージとゲージの上限 | 仮に 1 個 = 1、上限 100。`PlayerParameterData` に置く。満タンのときも吸収は行い、値は上限で止める |
 | 4 | もう一度切ったときの数え方と、加算するタイミング | オーブがプレイヤーに届いたときに加える。切られた元のかけらは管理から外すので、結果として「最終的にオーブになったかけらの数」になる |
-| 5 | 「何かに触れる」の範囲 | かけらを `Shard` レイヤーにし、Shard 同士の衝突を切る（散らばる問題も解消する見込み）。生まれてから仮に 0.2 秒は接触を無視する（生まれた時点で敵の残りのパーツに触れていて、すぐにオーブになるのを防ぐ。0 で無効）。値は Adapter の Inspector。区間7 で、ぶつかってもオーブにせず、寿命だけでオーブにする形に変えた（地面の近くで切ったかけらがすぐオーブになり、スロー中につかめなかった為） |
+| 5 | 「何かに触れる」の範囲 | かけらを `Shard` レイヤーにし、Shard 同士の衝突を切る（散らばる問題も解消する見込み）。生まれてから仮に 0.2 秒は接触を無視する（生まれた時点で敵の残りのパーツに触れていて、すぐにオーブになるのを防ぐ。0 で無効）。値は Adapter の Inspector。区間9 で、ぶつかってもオーブにせず、寿命だけでオーブにする形に変えた（地面の近くで切ったかけらがすぐオーブになり、スロー中につかめなかった為） |
 | 6 | 何にも触れないかけら | 生まれてから仮に 3 秒でオーブにする |
 | 7 | 吸収の速さと、引き寄せ始める距離 | 距離の条件は設けず、オーブになったらすぐにプレイヤーへ向かう。仮に 15 m/s、0.5m 以内で吸収。向かう先は `Camera.main` の位置。動きは `Time.deltaTime`（スロー中は一緒に遅くなる） |
 | 8 | かけらのプールの生成数と、強制回収されたかけら | 生成数は 128 のまま。強制回収されたかけらは捨てる（チャージにしない）。強制回収は切断の途中（`GetObjects` の中）で起き、切られている最中の元のかけらと区別できないので、チャージにすると二重に数えるおそれがある為 |
 | 9 | オーブの同時に存在する数の上限 | 仮に 64。上限に達したら、オーブを出さずにすぐチャージに加える |
 | 10 | オーブの見た目 | 光る小さな球（仮）。コライダーと Rigidbody は持たせず、Adapter が位置を動かす |
-| 11 | スロー中につかむかけら（区間7）との関係 | 区間3では扱わない。区間7で決める |
+| 11 | スロー中につかむかけら（区間9）との関係 | 区間3では扱わない。区間9で決める |
 
 ## 設計
 
@@ -193,7 +193,7 @@ sequenceDiagram
 | 置き場所 | 値 |
 |---|---|
 | `PlayerParameterData`（`Assets/Level/Data/Player/PlayerParameterData.asset`） | かけら 1 個あたりのチャージ 1、チャージの上限 100（アセットにはまだ保存されておらず、既定値が使われる） |
-| `FragmentOrbAdapter`（InGame の `FragmentOrb`） | 接触を無視する時間 0.2 秒（区間7 で、接触でオーブにするのをやめたので消した）、かけらの寿命 3 秒、オーブの速さ 15 m/s、吸収する距離 0.5m、オーブの上限 64 |
+| `FragmentOrbAdapter`（InGame の `FragmentOrb`） | 接触を無視する時間 0.2 秒（区間9 で、接触でオーブにするのをやめたので消した）、かけらの寿命 3 秒、オーブの速さ 15 m/s、吸収する距離 0.5m、オーブの上限 64 |
 | `FragmentPool`（InGame の `MeshCut System`） | かけらの生成数 128（区間2のまま） |
 | `StageBounds`（InGame の `TestWalls`） | 内側が x・z ±50、y -3〜25。各面の厚さ 5m |
 
@@ -225,10 +225,10 @@ sequenceDiagram
 
 - 区間4：討伐（4-7）で切断の結果を受け取る。今は `PlayerInitializer` が `MeleeCutAdapter` の結果を `FragmentOrbAdapter.ReceiveCutResults` だけに渡している。受け取り手が 2 つになるので、配線を足すか Event にするかを決める。切断の結果の `Original` が敵のパーツ（プールのかけらでない物）のとき、`FragmentOrbAdapter` は何もしない
 - 区間4：4-0 で、`TestWalls`（`StageBounds` を含む）をステージシーンへ移す。ステージシーンは別の Compositor のスコープになる
-- 区間6：チャージの消費の操作（`ChargeService` に足す。足りないときの扱いは区間6で決める）。スキルの Service は InGame の Initializer が `ChargeService` を受け取って使う（DI するなら `PlayerInitializer` が登録する）。スキルが切断するなら、その結果も `FragmentOrbAdapter.ReceiveCutResults` に渡す
-- 区間7：投擲・ランチャーで撃ったかけらはチャージにしない（`FragmentOrbAdapter` の管理から外す、などで実現する）。スロー中につかむかけらとオーブ化の関係（つかめる間はオーブにしない など）を決める。かけらとオーブは `Time.time` / `Time.deltaTime` で動くので、スロー中は一緒に遅くなる
-- 区間11：HUD にチャージ量を出す（今は `DebugGUI` の表示だけ）
-- 区間13：オーブの見た目と吸収の演出、各パラメータの調整
+- 区間8：チャージの消費の操作（`ChargeService` に足す。足りないときの扱いは区間8で決める）。スキルの Service は InGame の Initializer が `ChargeService` を受け取って使う（DI するなら `PlayerInitializer` が登録する）。スキルが切断するなら、その結果も `FragmentOrbAdapter.ReceiveCutResults` に渡す
+- 区間9：投擲・ランチャーで撃ったかけらはチャージにしない（`FragmentOrbAdapter` の管理から外す、などで実現する）。スロー中につかむかけらとオーブ化の関係（つかめる間はオーブにしない など）を決める。かけらとオーブは `Time.time` / `Time.deltaTime` で動くので、スロー中は一緒に遅くなる
+- 区間19：HUD にチャージ量を出す（今は `DebugGUI` の表示だけ）
+- 区間33：オーブの見た目と吸収の演出、各パラメータの調整
 - 他プラットフォーム：VR のリグを置くときに、InGame の中でビルドモードによってリグを選ぶ仕組みを作る
 
 ### 使い方

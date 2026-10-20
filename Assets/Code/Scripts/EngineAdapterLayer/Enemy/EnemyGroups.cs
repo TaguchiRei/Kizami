@@ -38,6 +38,9 @@ namespace Kizami.EngineAdapter
         /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、メンバーの敵の番号 </summary>
         private NativeArray<int> _members;
 
+        /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、着いたグループのメンバーの目標位置（水平）。区画の番号はメンバーの隊列の順番 </summary>
+        private NativeArray<float2> _memberTargets;
+
         /// <summary> 置き場ごとの、立てる列へずらした位置。使えない置き場は NaN。EnemyEncircleSlotJob が毎フレーム書き直す </summary>
         private NativeArray<float2> _slotPoints;
 
@@ -52,6 +55,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 道筋の点。EnemyMoveJob が読む </summary>
         public NativeArray<float3> Paths => _paths;
+
+        /// <summary> 着いたグループのメンバーの目標位置。EnemyMoveJob が読む </summary>
+        public NativeArray<float2> MemberTargets => _memberTargets;
 
         /// <summary> BuildSlotPoints で求めた、置き場ごとの立てる列へずらした位置。使えない置き場は NaN </summary>
         public NativeArray<float2> SlotPoints => _slotPoints;
@@ -81,6 +87,7 @@ namespace Kizami.EngineAdapter
             _paths = new NativeArray<float3>(capacity * PATH_CAPACITY, Allocator.Persistent);
             _returnPaths = new NativeArray<float3>(capacity * RETURN_PATH_CAPACITY, Allocator.Persistent);
             _members = new NativeArray<int>(capacity * EnemyFormationSettings.MAX_GROUP_SIZE, Allocator.Persistent);
+            _memberTargets = new NativeArray<float2>(capacity * EnemyFormationSettings.MAX_GROUP_SIZE, Allocator.Persistent);
             _slotPoints = new NativeArray<float2>(MAX_ENCIRCLE_SLOTS, Allocator.Persistent);
             for (var slot = 0; slot < MAX_ENCIRCLE_SLOTS; slot++)
             {
@@ -284,6 +291,7 @@ namespace Kizami.EngineAdapter
                 Paths = _paths,
                 ReturnPaths = _returnPaths,
                 Members = _members,
+                MemberTargets = _memberTargets,
                 Agents = agents,
                 Grid = grid,
                 Distances = distances,
@@ -443,6 +451,7 @@ namespace Kizami.EngineAdapter
             if (_paths.IsCreated) _paths.Dispose();
             if (_returnPaths.IsCreated) _returnPaths.Dispose();
             if (_members.IsCreated) _members.Dispose();
+            if (_memberTargets.IsCreated) _memberTargets.Dispose();
             if (_slotPoints.IsCreated) _slotPoints.Dispose();
             if (_lastUsableSlot.IsCreated) _lastUsableSlot.Dispose();
         }

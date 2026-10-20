@@ -542,6 +542,7 @@ MonoBehaviour:
   _enemySpawnAdapter: {fileID: 1539543158}
   _voxelDestructionAdapter: {fileID: 1734900002}
   _fragmentThrowAdapter: {fileID: 1258148392}
+  _voxelMoundAdapter: {fileID: 1734900004}
   _bombThrowAdapter: {fileID: 1258148394}
   _equippedSkills:
   - {fileID: 11400000, guid: 7ae116c07fce44eb9d3d2f376c7e56ab, type: 2}
@@ -660,15 +661,13 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967287
   _wallCheckDistance: 0.1
+  _glassContactDistance: 0.1
   _wallLayers:
     serializedVersion: 2
     m_Bits: 512
   _rigidbody: {fileID: 903436360}
   _collider: {fileID: 903436363}
-  _acceleration: 40
-  _deceleration: 60
-  _airAcceleration: 10
-  _airDeceleration: 10
+  _airAcceleration: 25
   _cameraTransform: {fileID: 1307013810}
 --- !u!114 &903436368
 MonoBehaviour:
@@ -1547,16 +1546,16 @@ MonoBehaviour:
     _anchorSpeedRate: 0.8
     _anchorAcceleration: 1.5
     _anchorTurnSpeed: 90
-    _rowSpacing: 8
-    _lateralSpacing: 2.5
+    _rowSpacing: 9
+    _lateralSpacing: 4
     _maxColumns: 4
     _columnChangeDelay: 1
     _encircleApproachMargin: 5
     _encircleInnerRadius: 25
     _encircleLoopSpacing: 25
     _encircleSlotSpacing: 25
-    _memberLoopSpacing: 6
-    _memberSlotSpacing: 6
+    _memberLoopSpacing: 10
+    _memberSlotSpacing: 10
     _followDistance: 10
     _barrierLeaveMargin: 10
   _strandedReturnRadius: 4
@@ -1654,7 +1653,8 @@ MonoBehaviour:
   _maxAttacks: 1
   _hoverHeight: 1
   _absorbDuration: 0.75
-  _cooldown: 10
+  _cooldown: 25
+  _globalCooldown: 20
   _firstCooldownMin: 10
   _firstCooldownMax: 15
   _pivotHeight: 2
@@ -1689,7 +1689,7 @@ MonoBehaviour:
   _aimDuration: 3
   _aimDelay: 2
   _telegraphDuration: 1
-  _firingDuration: 1
+  _firingDuration: 2
   _noiseLevelCurve:
     serializedVersion: 2
     m_Curve:
@@ -1776,15 +1776,12 @@ MonoBehaviour:
     m_RotationOrder: 4
   _damage: 1
   _damageInterval: 0.1
-  _meltSpeed: 10
+  _meltSpeed: 20
   _meltRadius: 14
-  _meltInterval: 0.05
+  _meltInterval: 0.3
   _blockLayers:
     serializedVersion: 2
-    m_Bits: 44545
-  _glassLayers:
-    serializedVersion: 2
-    m_Bits: 16384
+    m_Bits: 42497
 --- !u!1 &1579939515
 GameObject:
   m_ObjectHideFlags: 0
@@ -2099,6 +2096,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1734900003}
   - component: {fileID: 1734900002}
+  - component: {fileID: 1734900004}
   m_Layer: 0
   m_Name: VoxelDestruction
   m_TagString: Untagged
@@ -2145,6 +2143,27 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1734900004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1734900001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 837f15d55604e6440ae081359e65beb4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelMoundAdapter
+  _piecePrefab: {fileID: 7209276436324303460, guid: 61530eb9160a0774ea36b62e68332dba, type: 3}
+  _maxCount: 4
+  _boxSize: 8
+  _maxDistance: 30
+  _targetLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _interval: 0.25
+  _tickCost: 2
 --- !u!1 &1879736535
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,4 +1,5 @@
 using System.Text;
+using UnityEngine;
 
 namespace Kizami.EngineAdapter
 {
@@ -9,6 +10,9 @@ namespace Kizami.EngineAdapter
     {
         /// <summary> 破壊済みか。状態を測れるようになる前は false </summary>
         bool IsDestroyed { get; }
+
+        /// <summary> 目標の表示で指す位置（ワールド座標） </summary>
+        Vector3 Center { get; }
 
         /// <summary>
         /// 名前と壊れ具合を、デバッグ表示の文字列へ書き足す。

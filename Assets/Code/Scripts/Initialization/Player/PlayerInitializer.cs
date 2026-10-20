@@ -39,6 +39,7 @@ namespace Kizami.Initialization
         [SerializeField] private EnemySpawnAdapter _enemySpawnAdapter;
         [SerializeField] private VoxelDestructionAdapter _voxelDestructionAdapter;
         [SerializeField] private FragmentThrowAdapter _fragmentThrowAdapter;
+        [SerializeField] private VoxelMoundAdapter _voxelMoundAdapter;
 
         [SerializeField]
         [Tooltip("火術・崩爆の爆弾を投げる Adapter。未設定なら、既定の値でこの GameObject に付ける")]
@@ -98,13 +99,15 @@ namespace Kizami.Initialization
             // SlowModeService は ChargeState を取得する為、ChargeService の生成より後に生成する
             _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
-                _slowModeService.TryUseCut, _actionEvents, sceneId);
+                _slowModeService.TryUseCut, () => _voxelMoundAdapter.IsMounding, _actionEvents, sceneId);
+            _voxelMoundAdapter.Initialize(_chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
+                _enemySpawnAdapter.RefreshRegion);
             if (_bombThrowAdapter == null) _bombThrowAdapter = gameObject.AddComponent<BombThrowAdapter>();
             _bombThrowAdapter.Initialize(_voxelDestructionAdapter.CarveExplosionAt);
 
             _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService, _enhanceService,
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
-                _bombThrowAdapter.Throw, _voxelDestructionAdapter.CarveSweep, Rush, () => _movementService.CanRush,
+                _bombThrowAdapter.Throw, _voxelDestructionAdapter.CarveSweep, Rush, _voxelMoundAdapter.Begin, _voxelMoundAdapter.End, () => _movementService.CanRush,
                 _meleeCutService.CanAct, _meleeCutService.MarkActed, _actionEvents, sceneId);
 
             _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake, _voxelDestructionAdapter.CarveExplosionAt);
@@ -130,14 +133,15 @@ namespace Kizami.Initialization
 
         /// <summary>
         /// 移動入力の向き（なければ正面）へ突進を要求し、通る経路を先に削る。経路を先に削るので、途中の壁で止まらずに通り抜ける。
-        /// 削るカプセルの軸は、足元から半径と RUSH_FLOOR_MARGIN だけ上に置き、足場に穴を開けない。
+        /// 削るカプセルは進む向きへ forwardOffset だけ前にずらす（突進の移動距離は変えない）。軸は、足元から半径と RUSH_FLOOR_MARGIN だけ上に置き、足場に穴を開けない。
         /// </summary>
-        private void Rush(float distance, float duration, float radius, float falloff)
+        private void Rush(float distance, float duration, float radius, float falloff, float forwardOffset)
         {
             var direction = _movementService.GetRushDirection();
             var body = _movementAdapter.BodyBounds;
             var start = new Vector3(body.center.x, body.min.y + radius + RUSH_FLOOR_MARGIN, body.center.z);
-            _voxelDestructionAdapter.CarveCapsuleWithArmor(start, start + direction * distance, radius, body.center,
+            var shifted = start + direction * forwardOffset;
+            _voxelDestructionAdapter.CarveCapsuleWithArmor(shifted, shifted + direction * distance, radius, body.center,
                 falloff);
             _movementService.RequestRush(direction, distance, duration);
         }
@@ -156,6 +160,7 @@ namespace Kizami.Initialization
             hasAll &= this.IsAssigned(_enemySpawnAdapter, nameof(EnemySpawnAdapter));
             hasAll &= this.IsAssigned(_voxelDestructionAdapter, nameof(VoxelDestructionAdapter));
             hasAll &= this.IsAssigned(_fragmentThrowAdapter, nameof(FragmentThrowAdapter));
+            hasAll &= this.IsAssigned(_voxelMoundAdapter, nameof(VoxelMoundAdapter));
             return hasAll;
         }
 

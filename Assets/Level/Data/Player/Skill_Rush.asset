@@ -15,11 +15,12 @@ MonoBehaviour:
   _displayName: "\u653B\u8D70"
   _effect: 11
   _cost: 15
-  _radius: 3
+  _radius: 5
   _length: 0
   _falloff: 0.3
   _healAmount: 0
-  _distance: 8
+  _distance: 15
   _width: 4
   _depth: 2
+  _forwardOffset: 5
   _duration: 0.3

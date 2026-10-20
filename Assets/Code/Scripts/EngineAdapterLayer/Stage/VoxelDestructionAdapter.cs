@@ -28,7 +28,6 @@ namespace Kizami.EngineAdapter
 
         private Collider[] _hitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly Collider[] _armorHitBuffer = new Collider[MAX_HIT_COUNT];
-        private readonly Collider[] _glassHitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly HashSet<VoxelPiece> _pieces = new();
         private readonly HashSet<ArmorPanel> _armorPanels = new();
 
@@ -116,8 +115,7 @@ namespace Kizami.EngineAdapter
                 return;
             }
 
-            ShatterGlass(Physics.OverlapSphereNonAlloc(hit.point, _radius + _glassMargin, _glassHitBuffer, _targetLayers,
-                QueryTriggerInteraction.Ignore), hit.point);
+            GlassPane.ShatterInSphere(hit.point, _radius + _glassMargin, hit.point);
 
             var reach = ReachRadius(_radius, _aimFalloff);
             var hitCount = QuerySphere(hit.point, reach);
@@ -150,8 +148,7 @@ namespace Kizami.EngineAdapter
             }
 
             var end = start + forward * length;
-            ShatterGlass(Physics.OverlapCapsuleNonAlloc(start, end, radius + _glassMargin, _glassHitBuffer, _targetLayers,
-                QueryTriggerInteraction.Ignore), start);
+            GlassPane.ShatterInCapsule(start, end, radius + _glassMargin, start);
 
             var reach = ReachRadius(radius, _beamFalloff);
             var hitCount = QueryCapsule(start, end, reach);
@@ -175,7 +172,8 @@ namespace Kizami.EngineAdapter
         /// <param name="width">横幅（m）</param>
         /// <param name="depth">奥行き（m）。カプセルの直径になり、カメラの位置から奥行きの分だけ前までを削る</param>
         /// <param name="falloff">1m あたりに減る強さ。1 ÷ 半径以下なら硬い素材は削れない</param>
-        public void CarveSweep(float width, float depth, float falloff)
+        /// <param name="forwardOffset">範囲の中心を、さらに正面へずらす距離（m）</param>
+        public void CarveSweep(float width, float depth, float falloff, float forwardOffset)
         {
             if (!TryGetCameraTransform(out var cameraTransform)) return;
 
@@ -185,7 +183,7 @@ namespace Kizami.EngineAdapter
             forward.Normalize();
             var right = Vector3.Cross(Vector3.up, forward);
             var radius = depth * 0.5f;
-            var center = cameraTransform.position + forward * radius;
+            var center = cameraTransform.position + forward * (radius + forwardOffset);
             var halfAxis = Mathf.Max(width * 0.5f - radius, 0f);
 
             CarveCapsuleWithArmor(center - right * halfAxis, center + right * halfAxis, radius, cameraTransform.position,
@@ -195,19 +193,18 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 指定した2点を結ぶカプセルで削る。ガラスの板は割る。
         /// カプセルに入った装甲のパネルすべてに1回ずつ当て、origin から見て装甲の奥にあるピースは削らない。
-        /// 硬い素材（鉄筋）を削るのは崩爆と羽天轟号だけにする為、破壊力を最大にしたときの強さの上乗せは使わない。
+        /// 強さは普通の融点と減衰率から決め、破壊力を最大にしたときの上乗せは使わない。
         /// </summary>
         /// <param name="start">カプセルの一方の端（ワールド空間）</param>
         /// <param name="end">カプセルのもう一方の端（ワールド空間）</param>
         /// <param name="radius">カプセルの半径（m）</param>
         /// <param name="origin">装甲の遮断を判定するレイの始点</param>
-        /// <param name="falloff">1m あたりに減る強さ。1 ÷ 半径以下なら、普通の素材を半径まで削り、硬い素材は削れない</param>
+        /// <param name="falloff">1m あたりに減る強さ。普通の素材は半径まで削れる。硬い素材は、減衰率 × 半径が 1 を超えると少しだけ削れる</param>
         public void CarveCapsuleWithArmor(Vector3 start, Vector3 end, float radius, Vector3 origin, float falloff)
         {
             CollectArmorPanels(Physics.OverlapCapsuleNonAlloc(start, end, radius, _armorHitBuffer, _armorLayers,
                 QueryTriggerInteraction.Ignore));
-            ShatterGlass(Physics.OverlapCapsuleNonAlloc(start, end, radius + _glassMargin, _glassHitBuffer, _targetLayers,
-                QueryTriggerInteraction.Ignore), origin);
+            GlassPane.ShatterInCapsule(start, end, radius + _glassMargin, origin);
 
             var reach = radius + VoxelThermalSettings.NORMAL_MELTING_POINT / falloff;
             var hitCount = QueryCapsule(start, end, reach);
@@ -234,8 +231,7 @@ namespace Kizami.EngineAdapter
         {
             CollectArmorPanels(Physics.OverlapSphereNonAlloc(center, radius, _armorHitBuffer, _armorLayers,
                 QueryTriggerInteraction.Ignore));
-            ShatterGlass(Physics.OverlapSphereNonAlloc(center, radius + _glassMargin, _glassHitBuffer, _targetLayers,
-                QueryTriggerInteraction.Ignore), center);
+            GlassPane.ShatterInSphere(center, radius + _glassMargin, center);
 
             var reach = ReachRadius(radius, _explosionFalloff);
             var hitCount = QuerySphere(center, reach);
@@ -274,8 +270,7 @@ namespace Kizami.EngineAdapter
         /// <param name="notifiesCarved">削った体積を SetOnCarved の通知先へ伝えるか。ボスの演出のように、プレイヤーの手柄にしない破壊では false</param>
         public void CarveCapsuleAt(Vector3 start, Vector3 end, float radius, bool notifiesCarved = true)
         {
-            ShatterGlass(Physics.OverlapCapsuleNonAlloc(start, end, radius + _glassMargin, _glassHitBuffer, _targetLayers,
-                QueryTriggerInteraction.Ignore), start);
+            GlassPane.ShatterInCapsule(start, end, radius + _glassMargin, start);
 
             var reach = ReachRadius(radius, _explosionFalloff);
             var hitCount = QueryCapsule(start, end, reach);
@@ -333,18 +328,6 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// _glassHitBuffer に集めたコライダーのうち、ガラスの板を origin を起点に割る。
-        /// </summary>
-        private void ShatterGlass(int hitCount, Vector3 origin)
-        {
-            for (var i = 0; i < hitCount; i++)
-            {
-                var glass = _glassHitBuffer[i].GetComponentInParent<GlassPane>();
-                if (glass != null) glass.Shatter(origin);
-            }
-        }
-
-        /// <summary>
         /// 範囲の問い合わせで集めたコライダーからピースを集め、強さと減衰率の攻撃を当てる。
         /// </summary>
         /// <param name="reach">融点0の素材まで届く範囲（ワールド空間）</param>
@@ -383,15 +366,20 @@ namespace Kizami.EngineAdapter
             }
 
             var carvedVolume = 0f;
+            HealthTarget hitHealthTarget = null;
             foreach (var piece in _pieces)
             {
                 if (checkArmor && IsBehindArmor(origin, piece.WorldBounds.center)) continue;
 
+                if (hitHealthTarget == null) hitHealthTarget = piece.GetComponentInParent<HealthTarget>();
                 carvedVolume += piece.ApplyStrike(reach, falloff, Space.World) * piece.VoxelCubicVolume;
             }
 
             _pieces.Clear();
             if (notifiesCarved && carvedVolume > 0f) _onCarved?.Invoke(carvedVolume);
+
+            // 倒壊の跡を削る塔のように、プレイヤーの攻撃でない破壊は体力を減らさない
+            if (notifiesCarved && hitHealthTarget != null) hitHealthTarget.ReportSkillHit();
         }
 
         /// <summary>

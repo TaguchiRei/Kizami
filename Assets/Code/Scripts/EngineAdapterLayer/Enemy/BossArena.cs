@@ -6,13 +6,13 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// ボスとの直接戦闘で、プレイヤーを閉じ込める円形の空間を作る。ボスとは別の GameObject に置き、拡大率は 1 にする。
-    /// 円周に等間隔でユニットを上空に浮かべ、各ユニットから真下の地面へフィニッシャーと同じ見た目のビームを撃って、円周に光の柵を作る。
-    /// プレイヤーが柵に触れるか外へ出ると、決めた間隔ごとにダメージを与える。
+    /// 円周に等間隔でユニットを上空に浮かべ、各ユニットから真下の地面へフィニッシャーのビームを撃ち続けて、円周に光の柵を作る。
+    /// 柵のダメージとボクセルを溶かすのはフィニッシャーのビーム（同じ GameObject の EnemyFinisherBeams）が行い、円の外へ出たときのダメージはこのコンポーネントが与える。
     /// </summary>
     /// <remarks>
     /// ユニットはフィニッシャーのモデルを見た目だけ置いたもので、吸収型の敵そのものではない。
-    /// ビームは EnemyFinisherBeams と同じく内側と外側のマテリアルを重ねて描き、模様は照射中の一定の値で止めておく。
-    /// 柵の当たりは、プレイヤーの水平の位置が円の中心から「半径 − レーザーの半径」以上離れているかで決め、レーザーの高さは見ない。
+    /// 柵に隙間を残さないよう、ユニットの数は「円周 ÷ ビームの直径」以上にする。隣のビームと重なる所では、ダメージがそれぞれ加わる。
+    /// 円の外の判定は、プレイヤーの水平の位置が円の中心から半径以上離れているかで決め、高さは見ない。
     /// </remarks>
     public sealed class BossArena : MonoBehaviour
     {
@@ -25,28 +25,12 @@ namespace Kizami.EngineAdapter
         private GameObject _unitPrefab;
 
         [SerializeField]
-        [Tooltip("ビームの外側のマテリアル。フィニッシャーのビームと同じものにする")]
-        private Material _beamMaterial;
-
-        [SerializeField]
-        [Tooltip("ビームの内側のマテリアル。未設定なら外側だけで描く")]
-        private Material _beamInnerMaterial;
-
-        [SerializeField]
-        [Tooltip("ビームのノイズのしきい値。大きいほど濃く映る")]
-        private float _noiseLevel = 0.8f;
-
-        [SerializeField]
-        [Tooltip("ビームの射線に沿った模様の細かさ。符号で流れる向きが変わる")]
-        private float _tillingY = -4f;
-
-        [SerializeField]
-        [Tooltip("レーザーの止まる地面を探すレイヤー")]
+        [Tooltip("ビームの止まる地面を探すレイヤー")]
         private LayerMask _groundLayers = ~0;
 
         [SerializeField, Min(3)]
-        [Tooltip("円周に並べるユニットの数")]
-        private int _unitCount = 12;
+        [Tooltip("円周に並べるユニットの数。円周 ÷ ビームの直径 以上にする")]
+        private int _unitCount = 16;
 
         [SerializeField, Min(1f)]
         [Tooltip("円の半径（m）")]
@@ -57,36 +41,35 @@ namespace Kizami.EngineAdapter
         private float _height = 25f;
 
         [SerializeField, Min(0.1f)]
-        [Tooltip("レーザーの半径（m）")]
-        private float _beamRadius = 0.5f;
-
-        [SerializeField, Min(0.1f)]
         [Tooltip("地面を探すレイを、円周の位置からこの高さ（m）上から下へ撃つ")]
         private float _groundRayHeight = 50f;
 
         [SerializeField, Min(0)]
-        [Tooltip("柵に触れたときのダメージ量。遠距離の追跡ビームと同じ値にする")]
+        [Tooltip("円の外にいるときのダメージ量")]
         private int _damage = 10;
 
         [SerializeField, Min(0.01f)]
-        [Tooltip("柵に触れ続けている間にダメージを与える間隔（秒）")]
+        [Tooltip("円の外にいる間にダメージを与える間隔（秒）")]
         private float _damageInterval = 0.5f;
 
         private Action<int> _applyDamage;
-        private EnemyBeam[] _beams;
+        private EnemyFinisherBeams.Shot[] _shots;
         private Transform[] _units;
+
+        /// <summary> 各ユニットのビームを撃つ所（ワールド座標） </summary>
+        private Vector3[] _emitters;
 
         /// <summary> 円の中心（ワールド座標） </summary>
         private Vector3 _center;
 
-        /// <summary> 次にダメージを与えられるまでの時間（秒） </summary>
+        /// <summary> 次に円の外のダメージを与えられるまでの時間（秒） </summary>
         private float _damageCooldownRemaining;
 
         /// <summary> 円の空間を作っているか </summary>
         public bool IsOpen { get; private set; }
 
         /// <summary>
-        /// 閉じ込める相手を target にする。ボスとプレイヤーが別のシーンにあるときに、初期化で渡す。
+        /// 閉じ込める相手を target にする。ボスとプレイヤーが別のシーンにあるときに、初期化で渡す。Initialize より前に呼ぶ。
         /// </summary>
         public void SetTarget(Transform target)
         {
@@ -94,12 +77,25 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// ダメージの関数を受け取る。
+        /// ダメージの関数を受け取り、ユニットの数だけビームを作る。
         /// </summary>
         /// <param name="applyDamage">プレイヤーにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
         public void Initialize(Action<int> applyDamage)
         {
             _applyDamage = applyDamage;
+
+            var beams = GetComponent<EnemyFinisherBeams>();
+            if (beams == null || !beams.Initialize(_target, applyDamage))
+            {
+                UsefulLogger.LogWarning("円形の空間に EnemyFinisherBeams がないか使えない為、柵のビームは出ません。", this);
+                return;
+            }
+
+            _shots = new EnemyFinisherBeams.Shot[_unitCount];
+            for (var i = 0; i < _unitCount; i++)
+            {
+                _shots[i] = beams.CreateShot();
+            }
         }
 
         /// <summary>
@@ -115,55 +111,43 @@ namespace Kizami.EngineAdapter
             {
                 var angle = Mathf.PI * 2f * i / _unitCount;
                 var rim = center + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * _radius;
-                var ground = FindGround(rim);
-                var emitter = ground + Vector3.up * _height;
+                _emitters[i] = FindGround(rim) + Vector3.up * _height;
 
                 if (_units[i] != null)
                 {
-                    _units[i].position = emitter;
+                    _units[i].position = _emitters[i];
                     _units[i].gameObject.SetActive(true);
                 }
 
-                _beams[i].SetPattern(_noiseLevel, _tillingY);
-                _beams[i].ShowBeam(emitter, ground, _beamRadius);
+                _shots?[i].BeginContinuous(Vector3.down);
             }
 
             IsOpen = true;
         }
 
         /// <summary>
-        /// 円形の空間を閉じる。ユニットとレーザーを消す。
+        /// 円形の空間を閉じる。ユニットとビームを消す。
         /// </summary>
         public void Close()
         {
             IsOpen = false;
-            if (_beams == null) return;
+            if (_units == null) return;
 
             for (var i = 0; i < _unitCount; i++)
             {
-                _beams[i].Hide();
+                _shots?[i].Stop();
                 if (_units[i] != null) _units[i].gameObject.SetActive(false);
             }
         }
 
         private void Awake()
         {
-            _beams = new EnemyBeam[_unitCount];
             _units = new Transform[_unitCount];
-
-            if (_beamMaterial == null)
-            {
-                UsefulLogger.LogWarning("円形の空間のレーザーのマテリアルが設定されていない為、レーザーは見えません。", this);
-            }
+            _emitters = new Vector3[_unitCount];
+            if (_unitPrefab == null) return;
 
             for (var i = 0; i < _unitCount; i++)
             {
-                _beams[i] = _beamInnerMaterial != null
-                    ? new EnemyBeam(transform, _beamInnerMaterial, _beamMaterial)
-                    : new EnemyBeam(transform, _beamMaterial);
-
-                if (_unitPrefab == null) continue;
-
                 _units[i] = Instantiate(_unitPrefab, transform).transform;
                 _units[i].gameObject.SetActive(false);
             }
@@ -171,12 +155,22 @@ namespace Kizami.EngineAdapter
 
         private void Update()
         {
+            if (!IsOpen) return;
+
+            if (_shots != null)
+            {
+                for (var i = 0; i < _unitCount; i++)
+                {
+                    _shots[i].Tick(_emitters[i], Time.deltaTime, out _);
+                }
+            }
+
             _damageCooldownRemaining = Mathf.Max(0f, _damageCooldownRemaining - Time.deltaTime);
-            if (!IsOpen || _target == null || _damageCooldownRemaining > 0f) return;
+            if (_target == null || _damageCooldownRemaining > 0f) return;
 
             var offset = _target.position - _center;
             offset.y = 0f;
-            if (offset.sqrMagnitude < (_radius - _beamRadius) * (_radius - _beamRadius)) return;
+            if (offset.sqrMagnitude < _radius * _radius) return;
 
             _damageCooldownRemaining = _damageInterval;
             _applyDamage?.Invoke(_damage);

@@ -1,6 +1,6 @@
 # フィニッシャーの旧作資料（HDRPVerHookShot）
 
-区間18（[Section18_FinisherBeam.md](Sections/Section18_FinisherBeam.md)）で旧作に合わせる値を書き写した資料。以降の作業はこの文書を正本にする。
+区間23（[Section23_FinisherBeam.md](Sections/Section23_FinisherBeam.md)）で旧作に合わせる値を書き写した資料。以降の作業はこの文書を正本にする。
 旧作のプロジェクトは `C:\Users\trei0\Downloads\HDRPVerHookShot-20261016T203848Z-1-001\HDRPVerHookShot`（Unity 6000.3.10f1、HDRP）。下の「旧作のパス」は、その `Assets/` からの相対パス。
 
 書き写した日は 2026-10-18。Unity のオイラー角は Z → X → Y の順に回す値で、旧作と kizami のどちらも同じ。
@@ -255,7 +255,7 @@ Defender の旧作の骨には前脚の下の骨（FrontLeftUnderLeg・FrontRigh
 
 ## 5. 18-1 で見つけた、計画書との食い違い
 
-区間18の計画書の「確定した仕様」と、旧作の実際の動きで、次の違いがある。ユーザーの判断が要る。
+区間23の計画書の「確定した仕様」と、旧作の実際の動きで、次の違いがある。ユーザーの判断が要る。
 
 | # | 計画書 | 旧作の実際 |
 |---|---|---|

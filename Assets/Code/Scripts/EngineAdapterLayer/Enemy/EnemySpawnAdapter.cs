@@ -186,11 +186,7 @@ namespace Kizami.EngineAdapter
         private float _floatingFallSpeed = 2f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("ボクセルから切り離されて落ちてくる塊のうち、下向きの速さがこの値（m/s）以上のものに入った敵を潰す")]
-        private float _crushMinFallSpeed = 3f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("ボクセルから切り離されて落ちてくる塊のうち、体積がこの値（m³）以上のものに入った敵を潰す")]
+        [Tooltip("ボクセルから切り離された塊のうち、体積がこの値（m³）以上のものに入った敵を潰す")]
         private float _crushMinVolume = 0.5f;
 
         [SerializeField, Min(0f)]
@@ -398,8 +394,7 @@ namespace Kizami.EngineAdapter
             _agents = new NativeArray<EnemyAgent>(agentCount, Allocator.Persistent);
             _distanceField = new EnemyDistanceField(_spawnSystem.NavigationBounds, _cellSize, _enemyHeight, _climbHeight,
                 _dropHeight, _groundLayers, _spawnSystem.SectionSize, _spawnSystem.SectionOrigin);
-            _collapseDetector = new EnemyCollapseDetector(_crushMinFallSpeed, _crushMinVolume, _crushBodyCenterHeight,
-                _crushSurfaceMargin);
+            _collapseDetector = new EnemyCollapseDetector(_crushMinVolume, _crushBodyCenterHeight, _crushSurfaceMargin);
             foreach (var loader in FindObjectsByType<VoxelModelLoader>(FindObjectsSortMode.None))
             {
                 _distanceField.Watch(loader);
@@ -622,9 +617,18 @@ namespace Kizami.EngineAdapter
 
                 using (_renderMarker.Auto())
                 {
+                    var handles = new NativeArray<JobHandle>(_crowdRenderers.Length, Allocator.Temp);
+                    for (var i = 0; i < _crowdRenderers.Length; i++)
+                    {
+                        if (_crowdRenderers[i] != null) handles[i] = _crowdRenderers[i].ScheduleMatrices(_agents);
+                    }
+
+                    JobHandle.CombineDependencies(handles).Complete();
+                    handles.Dispose();
+
                     foreach (var crowdRenderer in _crowdRenderers)
                     {
-                        crowdRenderer?.Render(_agents);
+                        crowdRenderer?.Draw(_agents.Length);
                     }
                 }
 
@@ -645,6 +649,25 @@ namespace Kizami.EngineAdapter
             {
                 if (building != null) building.SetRetainArea(area);
             }
+        }
+
+        /// <summary>
+        /// 単独のピース（造山で盛った物など）を、敵の格子と崩落の判定に見張らせる。敵の初期化が済む前は何もしない。
+        /// </summary>
+        public void WatchPiece(VoxelPiece piece)
+        {
+            if (_distanceField == null || _collapseDetector == null) return;
+
+            _distanceField.WatchPiece(piece);
+            _collapseDetector.WatchPiece(piece);
+        }
+
+        /// <summary>
+        /// 範囲の足場と障害物を、敵の格子で調べ直させる。敵の初期化が済む前は何もしない。
+        /// </summary>
+        public void RefreshRegion(Bounds bounds)
+        {
+            _distanceField?.Invalidate(bounds);
         }
 
         /// <summary>
@@ -767,6 +790,7 @@ namespace Kizami.EngineAdapter
                 TrackingMax = _distanceField.TrackingMax,
                 Groups = _groups.Groups,
                 Paths = _groups.Paths,
+                MemberTargets = _groups.MemberTargets,
                 Formation = _formation,
                 PlayerPosition = playerPosition,
                 DeltaTime = deltaTime,

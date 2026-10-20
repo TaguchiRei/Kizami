@@ -10,7 +10,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// ボスの武装の状態の画面表示と、武装を順番に使わせる操作（6：タレット、7：レーザー、8：ミサイル、9：アウトリガー。それぞれの武装の攻撃のコンポーネントがあれば撃たせる）を行うデバッグ用の Initializer。インゲームのシーンへ置き、ボスはステージシーンから探す。
+    /// ボスの武装の状態の画面表示と、武装を順番に使わせる操作（6：タレット、7：レーザー、8：降下フィニッシャー、9：アウトリガー。それぞれの武装の攻撃のコンポーネントがあれば撃たせる）を行うデバッグ用の Initializer。インゲームのシーンへ置き、ボスはステージシーンから探す。
     /// 操作はデバッグ専用の為、入力マップに Action を足さず Keyboard.current を直接読む。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動く。
     /// </summary>
@@ -31,8 +31,8 @@ namespace Kizami.Initialization
         /// <summary> ボスの下部レーザー。7 キーで撃たせる </summary>
         private BossLaser _laser;
 
-        /// <summary> ボスの脚のミサイル。8 キーで撃たせる </summary>
-        private BossMissiles _missiles;
+        /// <summary> ボスの脚の Hatch が呼ぶ降下フィニッシャー。8 キーで撃たせる </summary>
+        private BossFinisherStrikes _finisherStrikes;
 
         /// <summary> ボスのアウトリガーの衝撃波。9 キーで足踏みさせる </summary>
         private BossShockwaves _shockwaves;
@@ -67,7 +67,7 @@ namespace Kizami.Initialization
             _battle = boss.GetComponentInChildren<BossBattleAdapter>(true);
             _turret = boss.GetComponentInChildren<BossTurret>(true);
             _laser = boss.GetComponentInChildren<BossLaser>(true);
-            _missiles = boss.GetComponentInChildren<BossMissiles>(true);
+            _finisherStrikes = boss.GetComponentInChildren<BossFinisherStrikes>(true);
             _shockwaves = boss.GetComponentInChildren<BossShockwaves>(true);
         }
 
@@ -91,7 +91,7 @@ namespace Kizami.Initialization
             }
             if (keyboard.digit8Key.wasPressedThisFrame)
             {
-                if (_missiles != null) _missiles.TryFire();
+                if (_finisherStrikes != null) _finisherStrikes.TryFire();
                 else Use(BossWeaponKind.Missile);
             }
             if (keyboard.digit9Key.wasPressedThisFrame)

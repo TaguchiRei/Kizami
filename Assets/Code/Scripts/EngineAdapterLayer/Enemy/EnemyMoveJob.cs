@@ -57,6 +57,9 @@ namespace Kizami.EngineAdapter
         /// <summary> グループごとに EnemyGroups.PATH_CAPACITY 個の区画を持つ道筋の点 </summary>
         [ReadOnly] public NativeArray<float3> Paths;
 
+        /// <summary> グループごとに EnemyFormationSettings.MAX_GROUP_SIZE 個の区画を持つ、着いたグループのメンバーの目標位置（水平） </summary>
+        [ReadOnly] public NativeArray<float2> MemberTargets;
+
         public EnemyFormationSettings Formation;
 
         /// <summary> プレイヤーの位置。着いたグループのメンバーと、近づきすぎて止まった敵が向く </summary>
@@ -209,9 +212,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// グループに入っている敵の、隊列の位置（水平）と、その位置での隊列の向きを返す。グループを持たなければ false。
         /// 隊列の位置は、道筋に沿ってアンカーから (列の番号 × 列の間隔) 後ろの点を、列の中の位置に応じて道筋の横へずらした点。
-        /// 置き場に着いたグループでは、グループの中心（アンカー）を中心にした螺旋の上の、隊列の順番の位置にし、プレイヤーを向く。
-        /// 螺旋の0番はグループの中心で、螺旋は0番から外側へ向かう向きがプレイヤーへの向きになるよう回す。
-        /// 螺旋の上の位置が壁の向こうや穴の上に来たら、中心からその向きへ同じ高さの床が続く所まで縮める。
+        /// 置き場に着いたグループでは、EnemyGroupJob が床の範囲の中から割り当てた目標位置（MemberTargets）にし、プレイヤーを向く。
         /// 移動中は、道筋に沿って並ぶ（曲がり角で壁に詰まらない為）。
         /// </summary>
         private bool TryGetSlotTarget(in EnemyAgent agent, out float2 target, out float yaw)
@@ -225,14 +226,9 @@ namespace Kizami.EngineAdapter
 
             if (group.HasArrived)
             {
-                var toPlayer = math.normalizesafe((PlayerPosition - group.AnchorPosition).xz, new float2(0f, 1f));
-                var offset = EnemyFormationSettings.GetSpiralOffset(agent.SlotIndex, 0f, Formation.MemberLoopSpacing,
-                    Formation.MemberSlotSpacing);
-                var side = new float2(toPlayer.y, -toPlayer.x);
-                var fromCenter = side * offset.x + toPlayer * offset.y;
-                var length = math.length(fromCenter);
-                var direction = length > 0f ? fromCenter / length : float2.zero;
-                target = group.AnchorPosition.xz + direction * Grid.GetFlatFloorLength(group.AnchorPosition, direction, length);
+                target = agent.SlotIndex < group.MemberTargetCount
+                    ? MemberTargets[agent.GroupIndex * EnemyFormationSettings.MAX_GROUP_SIZE + agent.SlotIndex]
+                    : group.AnchorPosition.xz;
                 yaw = math.atan2((PlayerPosition.xz - target).x, (PlayerPosition.xz - target).y);
                 return true;
             }

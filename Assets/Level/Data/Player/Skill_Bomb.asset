@@ -15,7 +15,8 @@ MonoBehaviour:
   _displayName: "\u5D29\u7206"
   _effect: 9
   _cost: 50
-  _radius: 7.5
+  _radius: 15
   _length: 0
   _healAmount: 0
-  _distance: 5
+  _distance: 15
+  _forwardOffset: 7.5

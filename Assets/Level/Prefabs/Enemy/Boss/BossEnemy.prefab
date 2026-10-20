@@ -14624,9 +14624,6 @@ PrefabInstance:
       addedObject: {fileID: 7619419835033456080}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1037717660923078475}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
-      insertIndex: -1
       addedObject: {fileID: 7579335390703154969}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
       insertIndex: -1
@@ -14646,6 +14643,15 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4507972708206078375}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8271805734102527412}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6815364066227307419}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1193981274752760801}
   m_SourcePrefab: {fileID: 100100000, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
 --- !u!4 &23996862071713713 stripped
 Transform:
@@ -14855,6 +14861,9 @@ MonoBehaviour:
     - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RR/MachineEnemy_Boss_LiftCylinder_Outer_RR
     - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RR/MachineEnemy_Boss_LiftCylinder_Outer_RR/MachineEnemy_Boss_LiftCylinder_Rod_RR
   _brokenRatio: 0.05
+  _highlightColor: {r: 1, g: 0.15, b: 0.15, a: 1}
+  _tieAngle: 10
+  _detachedDensity: 1
 --- !u!114 &4775852747039605853
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14908,36 +14917,6 @@ MonoBehaviour:
   _targetFootOffset: 1
   _damage: 5
   _damageInterval: 0.5
---- !u!114 &1037717660923078475
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8767164447151323087}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: da1e37c2a5fc462da59eea34e577c6b0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossMissiles
-  _target: {fileID: 0}
-  _missilePrefab: {fileID: 1919779931987556743, guid: 551edc452f05c524da6b8eebbbd7689f, type: 3}
-  _warningMaterial: {fileID: 2100000, guid: 0c77f5f13b64d7b4da4f9c9970299c09, type: 2}
-  _launchSmoke: {fileID: 4332313525214075151}
-  _launchSmokeCount: 20
-  _impactBurst: {fileID: 5170606343655378693}
-  _impactBurstCount: 30
-  _groundLayers:
-    serializedVersion: 2
-    m_Bits: 33281
-  _capacity: 8
-  _cooldown: 2
-  _flightTime: 2
-  _arcHeight: 15
-  _radius: 4
-  _damage: 10
-  _groundRayHeight: 5
-  _groundRayLength: 100
 --- !u!114 &7579335390703154969
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15086,7 +15065,7 @@ MonoBehaviour:
   _weapons: {fileID: 7341799750420490255}
   _shockwaves: {fileID: 4775852747039605853}
   _laser: {fileID: 7619419835033456080}
-  _missiles: {fileID: 1037717660923078475}
+  _finisherStrikes: {fileID: 6815364066227307419}
   _turret: {fileID: 7579335390703154969}
   _headLaser: {fileID: 1014938977512887518}
   _crystals: {fileID: 8761187303322507743}
@@ -15096,3 +15075,171 @@ MonoBehaviour:
   _retreatPoint: {fileID: 0}
   _landingPause: 1
   _allOutDuration: 10
+--- !u!114 &8271805734102527412
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8767164447151323087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36b6c3ddb34b87844adb3289eeae309e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyFinisherBeams
+  _beamMaterial: {fileID: 2100000, guid: f1ee0f09a79d09a49809cb68c0313769, type: 2}
+  _beamInnerMaterial: {fileID: 2100000, guid: 3351652a32aa23c40bc8913f9a4c8035, type: 2}
+  _telegraphMaterial: {fileID: 2100000, guid: 75145594f275da24eaabc61d61316f8c, type: 2}
+  _glowMaterial: {fileID: 2100000, guid: f665de0a18fffa2409bc87f9767ad42e, type: 2}
+  _glowColor: {r: 0.4, g: 1, b: 0.9, a: 1}
+  _telegraphGlowColor: {r: 2, g: 0.35, b: 0.1, a: 1}
+  _muzzleSize: 24
+  _tipSize: 60
+  _shakeForce: 0.5
+  _beamRadius: 14.14
+  _telegraphRadius: 16
+  _aimDuration: 3
+  _aimDelay: 2
+  _telegraphDuration: 1
+  _firingDuration: 2
+  _noiseLevelCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.167
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.667
+      value: 0.5
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.667
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  _tillingYCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.167
+      value: -4
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.167
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.667
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  _continuousPatternTime: 0.3
+  _damage: 1
+  _damageInterval: 0.1
+  _meltSpeed: 20
+  _meltRadius: 14
+  _meltInterval: 0.3
+  _blockLayers:
+    serializedVersion: 2
+    m_Bits: 42497
+--- !u!114 &6815364066227307419
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8767164447151323087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aedea4dc5f4a6a14a9eb3901405453f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossFinisherStrikes
+  _target: {fileID: 0}
+  _unitPrefab: {fileID: 919132149155446097, guid: 8e06ebfa565b04e4f827dcb1d915a452, type: 3}
+  _warningMaterial: {fileID: 2100000, guid: 0c77f5f13b64d7b4da4f9c9970299c09, type: 2}
+  _groundLayers:
+    serializedVersion: 2
+    m_Bits: 33281
+  _capacity: 8
+  _cooldown: 2
+  _height: 30
+  _warningDuration: 3
+  _warningRadius: 16
+  _groundRayHeight: 5
+  _groundRayLength: 100
+--- !u!114 &1193981274752760801
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8767164447151323087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b935a92c8e66d34b88f45c79a4142ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.HealthTarget
+  _displayName: "\u30DC\u30B9"
+  _maxHealth: 100
+  _meleeDamage: 0.5
+  _skillDamage: 1
+  _collapseDamagePerCubicMeter: 2
+  _minFallSpeed: 3
+  _minCollapseVolume: 0.5
+  _collapseLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _releasesOnDepleted: 0

@@ -41,6 +41,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("カプセルの側面から、壁に触れているとみなす距離（m）")]
         private float _wallCheckDistance = 0.1f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("カプセルの側面から、ガラスの板に触れて割るとみなす距離（m）")]
+        private float _glassContactDistance = 0.1f;
+
         [SerializeField]
         [Tooltip("壁走りのできる壁として判定するレイヤー。ボクセルと Brilliant Skill の言葉は、レイヤーによらず壁として判定する")]
         private LayerMask _wallLayers;
@@ -48,18 +52,46 @@ namespace Kizami.EngineAdapter
         [SerializeField] private Rigidbody _rigidbody;
         [SerializeField] private CapsuleCollider _collider;
 
-        [Header("水平速度の補間レート（地上・壁走り中） (m/s^2)")]
-        [SerializeField, Min(0f)] private float _acceleration = 40f;
-        [SerializeField, Min(0f)] private float _deceleration = 60f;
+        [Header("空中の水平速度")]
+        [SerializeField, Min(0f)]
+        [Tooltip("空中で目標速度へ近づける加速度（m/s^2）。地上と壁走り中は目標速度へ即座に合わせる")]
+        private float _airAcceleration = 25f;
 
-        [Header("水平速度の補間レート（空中） (m/s^2)")]
-        [SerializeField, Min(0f)] private float _airAcceleration = 10f;
-        [SerializeField, Min(0f)] private float _airDeceleration = 10f;
+        [Header("ジャンプの軌道（重力の倍率）")]
+        [SerializeField, Min(0f)]
+        [Tooltip("上昇中の倍率。大きいほど素早く上がり、ボタンを放して跳ぶ低いジャンプが低くなる")]
+        private float _riseGravityScale = 2f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ジャンプボタンの長押し中の、上昇中の倍率。上昇中の倍率より小さくして、高く跳べるようにする")]
+        private float _holdRiseGravityScale = 0.8f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("最高点の前後（縦の速さが閾値より小さいとき）の倍率。小さいほどふわっとする")]
+        private float _apexGravityScale = 0.6f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("最高点の前後とみなす、縦の速さの閾値（m/s）")]
+        private float _apexSpeedThreshold = 1.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("下降中の倍率。落下の速さが増えると、最高点の前後の倍率からここへ近づく")]
+        private float _fallGravityScale = 2f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("下降の倍率に達するまでの、落下の速さの幅（m/s）。大きいほど加速度が緩やかに上がる")]
+        private float _fallRampSpeed = 12f;
 
         private IPlayerMovementState _movementState;
         private Func<Vector3, float, Vector3?> _step;
         private IDisposable _lookSubscription;
         private Vector3 _horizontalVelocity;
+
+        /// <summary> 縦の速度の正本。重力は Rigidbody ではなくこの値に足す </summary>
+        private float _verticalVelocity;
+
+        /// <summary> 今の空中が、ジャンプや打ち上げで始まったか。足場から歩いて落ちたときは false </summary>
+        private bool _isJumpArc;
 
         /// <summary> ワープを始める直前の水平速度。ワープが終わったときにこの値へ戻す </summary>
         private Vector3 _preWarpHorizontalVelocity;
@@ -88,6 +120,7 @@ namespace Kizami.EngineAdapter
                 !blackBoard.TryGetSceneState<PlayerBoard, IPlayerLookState>(out var lookState, this)) return;
 
             _step = step;
+            _rigidbody.useGravity = false;
             playerBoard.RegisterSceneState<IPlayerContactState>(_contactState, gameObject.scene.buildIndex);
             _lookSubscription = lookState.RegisterOnLookInputChanged(OnLookInputChanged);
 
@@ -107,6 +140,7 @@ namespace Kizami.EngineAdapter
             _rigidbody.position = position;
             _rigidbody.linearVelocity = Vector3.zero;
             _horizontalVelocity = Vector3.zero;
+            _verticalVelocity = 0f;
             Physics.SyncTransforms();
         }
 
@@ -132,8 +166,8 @@ namespace Kizami.EngineAdapter
         /// 1ステップ分の処理を次の順で行う。
         /// 1. 直前の物理ステップの結果から触れている物を判定し、PlayerContactState に書き込む
         /// 2. 視線の向きと経過時間を渡して PlayerMovementService.Step を呼び、打ち出し速度を受け取る
-        /// 3. 移動モードに応じて重力を切り替え、目標速度（PlayerMovementState.TargetVelocity の水平成分）へ向けて
-        ///    水平速度を緩やかに補間し、Rigidbody に反映する
+        /// 3. 水平速度を目標速度（PlayerMovementState.TargetVelocity の水平成分）へ、地上と壁走り中は即座に、空中は加速度を制限して合わせ、
+        ///    自前で持つ縦の速度（壁走り中は 0、それ以外は重力を足す）と合わせて Rigidbody に反映する
         /// Step が触れている物を読むので、1は2より先に行う。
         /// ワープ中は目標速度（Y 成分を含む）をそのまま Rigidbody に設定し、
         /// ワープが終わったステップでは水平速度をワープを始める直前の値に戻してから補間する。
@@ -155,14 +189,14 @@ namespace Kizami.EngineAdapter
                     _preWarpHorizontalVelocity = _horizontalVelocity;
                 }
 
-                _rigidbody.useGravity = false;
+                _verticalVelocity = 0f;
                 _rigidbody.linearVelocity = _movementState.TargetVelocity;
                 return;
             }
 
             if (mode == PlayerMoveMode.Aiming)
             {
-                _rigidbody.useGravity = false;
+                _verticalVelocity = 0f;
                 _rigidbody.linearVelocity = Vector3.zero;
                 _horizontalVelocity = Vector3.zero;
                 return;
@@ -175,7 +209,6 @@ namespace Kizami.EngineAdapter
             }
 
             var isWallRunning = mode == PlayerMoveMode.WallRunning;
-            _rigidbody.useGravity = !isWallRunning;
 
             if (launchVelocity.HasValue)
             {
@@ -190,17 +223,65 @@ namespace Kizami.EngineAdapter
             target.y = 0f;
 
             var isGrounded = (_contactState.Contacts & PlayerContact.Ground) != 0;
-            var useGroundRate = isGrounded || isWallRunning;
-            var acceleration = useGroundRate ? _acceleration : _airAcceleration;
-            var deceleration = useGroundRate ? _deceleration : _airDeceleration;
+            if (isGrounded || isWallRunning)
+            {
+                _horizontalVelocity = target;
+            }
+            else if (target.sqrMagnitude > 0f)
+            {
+                // 入力がないときは今の水平速度を保つ。減速させると壁キックの勢いが空中で消える
+                _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, target, _airAcceleration * Time.fixedDeltaTime);
+            }
 
-            // 目標へ近づく（加速）ときは加速レート、緩める・止める（減速）ときは減速レートを使う
-            var rate = target.sqrMagnitude >= _horizontalVelocity.sqrMagnitude ? acceleration : deceleration;
-            _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, target, rate * Time.fixedDeltaTime);
+            UpdateVerticalVelocity(launchVelocity, isGrounded, isWallRunning || hasWarpEnded);
+            _rigidbody.linearVelocity = new Vector3(_horizontalVelocity.x, _verticalVelocity, _horizontalVelocity.z);
+        }
 
-            var verticalSpeed = launchVelocity?.y ??
-                                (isWallRunning || hasWarpEnded ? 0f : _rigidbody.linearVelocity.y);
-            _rigidbody.linearVelocity = new Vector3(_horizontalVelocity.x, verticalSpeed, _horizontalVelocity.z);
+        /// <summary>
+        /// 縦の速度を更新する。重力は Rigidbody に任せず自前で足す。
+        /// 物理が押し戻しで作った上向きの速度は取り込まず、天井などで止められたとき（Rigidbody の値が自分の値より小さいとき）だけ取り込む。
+        /// </summary>
+        private void UpdateVerticalVelocity(Vector3? launchVelocity, bool isGrounded, bool resetsToZero)
+        {
+            if (resetsToZero)
+            {
+                _verticalVelocity = 0f;
+                _isJumpArc = false;
+                return;
+            }
+
+            _verticalVelocity = Mathf.Min(_verticalVelocity, _rigidbody.linearVelocity.y);
+            _verticalVelocity += Physics.gravity.y * GetGravityScale() * Time.fixedDeltaTime;
+
+            if (launchVelocity.HasValue)
+            {
+                _verticalVelocity = launchVelocity.Value.y;
+                _isJumpArc = true;
+            }
+            else if (isGrounded && _verticalVelocity < 0f)
+            {
+                _verticalVelocity = 0f;
+                _isJumpArc = false;
+            }
+        }
+
+        /// <summary>
+        /// 縦の速度から、最高点の前後・上昇中・下降中のどれかを判定し、重力の倍率を返す。
+        /// </summary>
+        private float GetGravityScale()
+        {
+            // ジャンプの軌道の緩急は、ジャンプや打ち上げの空中だけに付ける。歩いて落ちたときは最初から下降中の倍率で落ちる
+            if (!_isJumpArc) return _fallGravityScale;
+
+            if (Mathf.Abs(_verticalVelocity) < _apexSpeedThreshold) return _apexGravityScale;
+            if (_verticalVelocity < 0f)
+            {
+                // 落下の速さが増えるにつれて、最高点の前後の倍率から下降中の倍率へ緩やかに近づける
+                var ramp = Mathf.Clamp01((-_verticalVelocity - _apexSpeedThreshold) / Mathf.Max(_fallRampSpeed, 0.01f));
+                return Mathf.Lerp(_apexGravityScale, _fallGravityScale, ramp);
+            }
+
+            return _movementState.IsJumpHolding ? _holdRiseGravityScale : _riseGravityScale;
         }
 
         /// <summary>
@@ -230,6 +311,9 @@ namespace Kizami.EngineAdapter
             }
 
             _contactState.SetContacts(contacts, wallNormal);
+
+            // ガラスの板はコライダーを持たず、触れたら割れて通り抜けられる。割れの起点はプレイヤーの中心
+            GlassPane.ShatterInCapsule(bottomSphereCenter, topSphereCenter, radius + _glassContactDistance, center);
         }
 
         /// <summary>

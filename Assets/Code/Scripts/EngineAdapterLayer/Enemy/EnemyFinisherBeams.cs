@@ -27,6 +27,9 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private const float MELT_FALLOFF = 1000f;
 
+        /// <summary> 当たり判定のレイの、ビームの半径に対する周囲の4本の位置の割合。周囲の4本の判定の半径も同じ割合 </summary>
+        private const float HIT_RING_RATIO = 0.5f;
+
         /// <summary> 射線の調べと、溶かす範囲に重なるコライダーを集めるときの上限 </summary>
         private const int MAX_HIT_COUNT = 64;
 
@@ -113,6 +116,10 @@ namespace Kizami.EngineAdapter
         private AnimationCurve _tillingYCurve = new(new Keyframe(0f, 1f), new Keyframe(0.167f, -4f),
             new Keyframe(1.167f, 1f), new Keyframe(1.667f, 1f));
 
+        [SerializeField, Min(0f)]
+        [Tooltip("止めるまで撃ち続けるビームで、模様の変化を止める照射の経過時間（秒）。この時間の模様のまま撃ち続ける")]
+        private float _continuousPatternTime = 0.3f;
+
         [SerializeField, Min(0)]
         [Tooltip("ビームに当たっているときに、間隔ごとに与えるダメージ")]
         private int _damage = 1;
@@ -134,12 +141,9 @@ namespace Kizami.EngineAdapter
         private float _meltInterval = 0.05f;
 
         [SerializeField]
-        [Tooltip("ビームを止める物のレイヤー。プレイヤー自身のレイヤーは外す")]
+        [Tooltip("ビームを止める物のレイヤー。プレイヤー自身のレイヤーは外す。敵（EnemyBody）に当たったものは、レイヤーに関わらず貫通する")]
         private LayerMask _blockLayers;
 
-        [SerializeField]
-        [Tooltip("照射中に割るガラスの板のレイヤー。ビームの範囲（穴の半径）に入った板を割る")]
-        private LayerMask _glassLayers;
 
         private CapsuleCollider _targetCapsule;
         private Action<int> _applyDamage;
@@ -147,6 +151,14 @@ namespace Kizami.EngineAdapter
         private MaterialPropertyBlock _glowProperties;
         private Transform _camera;
         private bool _isReady;
+
+        /// <summary>
+        /// 敵の体か。ビームは敵を貫通する。
+        /// </summary>
+        private static bool IsEnemy(Collider target)
+        {
+            return target.GetComponentInParent<EnemyBody>() != null;
+        }
 
         /// <summary>
         /// ビームが溶かせる物か。ボクセルのピースか、手付かずの形のメッシュのまま置いたモデルなら溶かせる。
@@ -184,6 +196,29 @@ namespace Kizami.EngineAdapter
             if (_shakeForce > 0f) _impulseSource = CreateImpulseSource();
 
             _isReady = true;
+            return true;
+        }
+
+        /// <summary>
+        /// pivot からプレイヤーの頭まで、ボクセルを含む壁がないか。敵は遮らない。撃つ前に、撃てる位置かを調べるのに使う。
+        /// </summary>
+        /// <param name="pivot">ビームを撃つ所（ワールド座標）</param>
+        public bool CanSeeTarget(Vector3 pivot)
+        {
+            if (!_isReady) return false;
+
+            CapsuleGeometry.GetAxis(_targetCapsule, out _, out var capsuleEnd, out var capsuleRadius);
+            var toHead = (Vector3)capsuleEnd + Vector3.up * capsuleRadius - pivot;
+            var distance = toHead.magnitude;
+            if (distance <= 0f) return true;
+
+            var count = Physics.RaycastNonAlloc(pivot, toHead / distance, _castBuffer, distance, _blockLayers,
+                QueryTriggerInteraction.Ignore);
+            for (var i = 0; i < count; i++)
+            {
+                if (!IsEnemy(_castBuffer[i].collider)) return false;
+            }
+
             return true;
         }
 
@@ -346,6 +381,9 @@ namespace Kizami.EngineAdapter
             /// <summary> 撃つ所から狙う位置への向き。照準の間だけ更新する </summary>
             private Vector3 _aimDirection = Vector3.down;
 
+            /// <summary> 止めるまで照射を続けるか </summary>
+            private bool _isContinuous;
+
             /// <summary> 次にダメージを与えられるまでの時間（秒） </summary>
             private float _damageTimer;
 
@@ -377,7 +415,26 @@ namespace Kizami.EngineAdapter
             {
                 _headHistory.Clear();
                 _aimTime = 0f;
+                _isContinuous = false;
                 SetPhase(Phase.Aiming);
+            }
+
+            /// <summary>
+            /// 向きを決めて予兆から始め、照射の時間が過ぎたら終える。照準はしない。
+            /// </summary>
+            /// <param name="direction">ビームの向き（ワールド座標）</param>
+            public void BeginFixed(Vector3 direction)
+            {
+                BeginTelegraph(direction, false);
+            }
+
+            /// <summary>
+            /// 向きを決めて予兆から始め、Stop を呼ぶまで照射を続ける。照準はしない。
+            /// </summary>
+            /// <param name="direction">ビームの向き（ワールド座標）</param>
+            public void BeginContinuous(Vector3 direction)
+            {
+                BeginTelegraph(direction, true);
             }
 
             /// <summary>
@@ -411,7 +468,7 @@ namespace Kizami.EngineAdapter
                         break;
                     case Phase.Firing:
                         UpdateFiring(pivot, capsuleStart, capsuleEnd, capsuleRadius, deltaTime);
-                        if (_phaseTime >= _owner._firingDuration)
+                        if (!_isContinuous && _phaseTime >= _owner._firingDuration)
                         {
                             Stop();
                             return false;
@@ -435,6 +492,13 @@ namespace Kizami.EngineAdapter
                 if (_tipGlow != null) _tipGlow.gameObject.SetActive(false);
                 if (_sparks != null) _sparks.Stop();
                 SetPhase(Phase.Idle);
+            }
+
+            private void BeginTelegraph(Vector3 direction, bool isContinuous)
+            {
+                _aimDirection = direction.normalized;
+                _isContinuous = isContinuous;
+                SetPhase(Phase.Telegraph);
             }
 
             /// <summary>
@@ -477,7 +541,7 @@ namespace Kizami.EngineAdapter
             }
 
             /// <summary>
-            /// 溶かす先端を進め、ビームを pivot から先端か、ボクセルでない物の近いほうまで出す。プレイヤーが半径の中に入っていれば、間隔ごとにダメージを与える。
+            /// 溶かす先端を進め、ビームを pivot からボクセルでない壁まで出す。プレイヤーが、当たり判定のレイの範囲（IsPlayerHit）に入っていれば、間隔ごとにダメージを与える。
             /// </summary>
             private void UpdateFiring(Vector3 pivot, float3 capsuleStart, float3 capsuleEnd, float capsuleRadius,
                 float deltaTime)
@@ -485,56 +549,100 @@ namespace Kizami.EngineAdapter
                 var blockDistance = CastBlock(pivot, out var blockNormal);
                 Melt(pivot, blockDistance, deltaTime);
 
-                var isBlocked = blockDistance <= _meltFrontDistance;
-                var stopDistance = isBlocked ? blockDistance : _meltFrontDistance;
-                var stop = pivot + _aimDirection * stopDistance;
-                var hasHit = stopDistance < MAX_BEAM_LENGTH;
-                var normal = isBlocked ? blockNormal : -_aimDirection;
+                // 見た目は、溶かす先端に関わらず、撃つ所からボクセルでない壁まで最初から伸ばす
+                var stop = pivot + _aimDirection * blockDistance;
+                var hasHit = blockDistance < MAX_BEAM_LENGTH;
+                var normal = blockNormal;
 
+                // 当たり判定は、溶かして進んだ先端までの範囲。敵は貫通する
                 var flicker = 1f + 0.25f * Mathf.Sin(_phaseTime * 60f);
                 _owner.ShowGlow(_muzzleGlow, pivot, _owner._muzzleSize * flicker, _owner._glowColor, 2f, 1f);
                 ShowTipEffects(stop, normal, hasHit, _owner._glowColor, true);
-                _beam.SetPattern(_owner._noiseLevelCurve.Evaluate(_phaseTime), _owner._tillingYCurve.Evaluate(_phaseTime));
+                var patternTime = _isContinuous ? Mathf.Min(_phaseTime, _owner._continuousPatternTime) : _phaseTime;
+                _beam.SetPattern(_owner._noiseLevelCurve.Evaluate(patternTime), _owner._tillingYCurve.Evaluate(patternTime));
                 _beam.ShowBeam(pivot, stop, _owner._beamRadius);
 
                 _damageTimer -= deltaTime;
                 if (_damageTimer > 0f) return;
 
-                var reach = _owner._beamRadius + capsuleRadius;
-                if (CapsuleGeometry.GetSegmentDistanceSq(pivot, stop, capsuleStart, capsuleEnd, out _) > reach * reach) return;
+                if (!IsPlayerHit(pivot, blockDistance, capsuleStart, capsuleEnd, capsuleRadius)) return;
 
                 _damageTimer = _owner._damageInterval;
                 _owner._applyDamage?.Invoke(_owner._damage);
             }
 
             /// <summary>
-            /// pivot から _aimDirection へ調べ、最初に当たった物の位置を返す。当たらなければ MAX_BEAM_LENGTH 先の位置を返す。照準と予兆の帯に使う。
+            /// プレイヤーがビームに当たっているか。ビームの中心と、それを囲む4か所から射線と同じ向きにレイを飛ばし、それぞれが溶かす先端か壁の近いほうまでを範囲にする。
+            /// 中心はビームの半径、周囲の4本は半径の HIT_RING_RATIO 倍の位置から同じ割合の半径で調べる。敵は貫通する。
+            /// </summary>
+            /// <param name="centerBlockDistance">中心のレイの、ボクセルでも敵でもない壁までの距離（m）</param>
+            private bool IsPlayerHit(Vector3 pivot, float centerBlockDistance, float3 capsuleStart, float3 capsuleEnd,
+                float capsuleRadius)
+            {
+                var beamRadius = _owner._beamRadius;
+                var centerEnd = pivot + _aimDirection * Mathf.Min(_meltFrontDistance, centerBlockDistance);
+                var centerReach = beamRadius + capsuleRadius;
+                if (CapsuleGeometry.GetSegmentDistanceSq(pivot, centerEnd, capsuleStart, capsuleEnd, out _) <=
+                    centerReach * centerReach) return true;
+
+                var right = Vector3.Cross(Mathf.Abs(_aimDirection.y) > 0.99f ? Vector3.forward : Vector3.up,
+                    _aimDirection).normalized;
+                var up = Vector3.Cross(_aimDirection, right);
+                var ringOffset = beamRadius * HIT_RING_RATIO;
+                var ringReach = ringOffset + capsuleRadius;
+                for (var i = 0; i < 4; i++)
+                {
+                    var offset = i switch { 0 => right, 1 => -right, 2 => up, _ => -up } * ringOffset;
+                    var origin = pivot + offset;
+                    var distance = Mathf.Min(_meltFrontDistance, CastBlock(origin, out _));
+                    if (CapsuleGeometry.GetSegmentDistanceSq(origin, origin + _aimDirection * distance, capsuleStart,
+                            capsuleEnd, out _) <= ringReach * ringReach) return true;
+                }
+
+                return false;
+            }
+
+            /// <summary>
+            /// pivot から _aimDirection へ調べ、最初に当たった敵でない物（ボクセルの壁を含む）の位置を返す。当たらなければ MAX_BEAM_LENGTH 先の位置を返す。照準と予兆の帯に使う。
             /// </summary>
             /// <param name="hasHit">何かに当たったか</param>
             /// <param name="normal">当たった面の向き。当たらなければ pivot へ戻る向き</param>
             private Vector3 CastBeam(Vector3 pivot, out bool hasHit, out Vector3 normal)
             {
-                hasHit = Physics.Raycast(pivot, _aimDirection, out var hit, MAX_BEAM_LENGTH, _owner._blockLayers,
-                    QueryTriggerInteraction.Ignore);
-                normal = hasHit ? hit.normal : -_aimDirection;
-                return hasHit ? hit.point : pivot + _aimDirection * MAX_BEAM_LENGTH;
+                var castBuffer = _owner._castBuffer;
+                var count = Physics.RaycastNonAlloc(pivot, _aimDirection, castBuffer, MAX_BEAM_LENGTH,
+                    _owner._blockLayers, QueryTriggerInteraction.Ignore);
+                var distance = MAX_BEAM_LENGTH;
+                hasHit = false;
+                normal = -_aimDirection;
+                for (var i = 0; i < count; i++)
+                {
+                    var hit = castBuffer[i];
+                    if (hit.distance >= distance || IsEnemy(hit.collider)) continue;
+
+                    distance = hit.distance;
+                    normal = hit.normal;
+                    hasHit = true;
+                }
+
+                return pivot + _aimDirection * distance;
             }
 
             /// <summary>
-            /// pivot から _aimDirection へ調べ、最初に当たったボクセルでない物（装甲、地形）までの距離を返す。当たらなければ MAX_BEAM_LENGTH を返す。
+            /// origin から _aimDirection へ調べ、最初に当たったボクセルでも敵でもない物（壁、装甲、地形）までの距離を返す。当たらなければ MAX_BEAM_LENGTH を返す。
             /// </summary>
             /// <param name="normal">当たった面の向き。当たらなければ pivot へ戻る向き</param>
-            private float CastBlock(Vector3 pivot, out Vector3 normal)
+            private float CastBlock(Vector3 origin, out Vector3 normal)
             {
                 var castBuffer = _owner._castBuffer;
-                var count = Physics.RaycastNonAlloc(pivot, _aimDirection, castBuffer, MAX_BEAM_LENGTH,
+                var count = Physics.RaycastNonAlloc(origin, _aimDirection, castBuffer, MAX_BEAM_LENGTH,
                     _owner._blockLayers, QueryTriggerInteraction.Ignore);
                 var distance = MAX_BEAM_LENGTH;
                 normal = -_aimDirection;
                 for (var i = 0; i < count; i++)
                 {
                     var hit = castBuffer[i];
-                    if (hit.distance >= distance || IsVoxel(hit.collider)) continue;
+                    if (hit.distance >= distance || IsVoxel(hit.collider) || IsEnemy(hit.collider)) continue;
 
                     distance = hit.distance;
                     normal = hit.normal;
@@ -597,15 +705,7 @@ namespace Kizami.EngineAdapter
             /// </summary>
             private void ShatterGlass(Vector3 pivot, float distance)
             {
-                var overlapBuffer = _owner._overlapBuffer;
-                var end = pivot + _aimDirection * distance;
-                var count = Physics.OverlapCapsuleNonAlloc(pivot, end, _owner._meltRadius, overlapBuffer,
-                    _owner._glassLayers, QueryTriggerInteraction.Ignore);
-                for (var i = 0; i < count; i++)
-                {
-                    var glass = overlapBuffer[i].GetComponentInParent<GlassPane>();
-                    if (glass != null) glass.Shatter(pivot);
-                }
+                GlassPane.ShatterInCapsule(pivot, pivot + _aimDirection * distance, _owner._meltRadius, pivot);
             }
 
             /// <summary>

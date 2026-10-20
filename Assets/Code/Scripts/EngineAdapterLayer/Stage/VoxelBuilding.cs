@@ -130,6 +130,23 @@ namespace Kizami.EngineAdapter
         /// <summary> 全部の階を置き、つながりの元の面積を測ったか </summary>
         public bool IsConnectionReady { get; private set; }
 
+        /// <summary> 全部の階を手付かずの形で置いたときの範囲の中心（ワールド座標）。階を置く前は建物の位置 </summary>
+        public Vector3 InitialCenter
+        {
+            get
+            {
+                if (_floorBounds.Length == 0) return transform.position;
+
+                var bounds = _floorBounds[0];
+                for (var i = 1; i < _floorBounds.Length; i++)
+                {
+                    bounds.Encapsulate(_floorBounds[i]);
+                }
+
+                return bounds.center;
+            }
+        }
+
         /// <summary>
         /// ボクセルにした階の、読み込んだ時点の体積のうち削れた割合（0〜1）の最大値。
         /// 階はメッシュに戻されると体積を測れなくなる為、一度削れた割合は戻さずに持つ。測るのはこのプロパティを読んだときで、呼ばれない間に削れてメッシュに戻った分は数えない。
@@ -886,6 +903,11 @@ namespace Kizami.EngineAdapter
         private void Start()
         {
             if (_floors.Count > 0) InitializeFloors();
+
+            if (Array.Exists(_sections, section => section.Attachments != null) && GlassShardPool.Instance == null)
+            {
+                UsefulLogger.LogWarning("GlassShardPool がステージにない為、ガラスの板は割れても破片が出ません。", this);
+            }
         }
 
         private void Update()

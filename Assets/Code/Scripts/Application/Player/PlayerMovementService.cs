@@ -34,11 +34,20 @@ namespace Kizami.Application
         /// <summary> 次の Step で処理するジャンプ入力があるか </summary>
         private bool _isJumpRequested;
 
+        /// <summary> ジャンプボタンを押しているか </summary>
+        private bool _isJumpHeld;
+
+        /// <summary> ジャンプしてから、長押しの効果が残っている時間（秒）。ジャンプしていないときは 0 </summary>
+        private float _jumpHoldRemaining;
+
         /// <summary> 視線の向きを水平面へ投影した向き。視線が真上・真下を向いている間は直前の値を保つ </summary>
         private Vector3 _viewForward = Vector3.forward;
 
         /// <summary> 壁走りの残りの持ち時間（秒）。着地で最大値に戻る </summary>
         private float _wallRunTimeRemaining;
+
+        /// <summary> 最後に触れていた壁の法線。壁が途切れて壁走りの途中でとどまっている間も、壁キックと離れる入力の判定に使う </summary>
+        private Vector3 _wallNormal;
 
         /// <summary> 壁から離れようとする入力が続いている時間（秒） </summary>
         private float _wallDetachInputTime;
@@ -207,6 +216,8 @@ namespace Kizami.Application
 
             if (_state.Mode == PlayerMoveMode.Aiming) _state.SetMode(PlayerMoveMode.Normal);
 
+            UpdateJumpHold(deltaTime);
+
             var worldInput = ToWorldDirection(_moveInput);
             var isJumpRequested = _isJumpRequested;
             _isJumpRequested = false;
@@ -242,6 +253,7 @@ namespace Kizami.Application
                 _state.SetMode(PlayerMoveMode.Normal);
                 _isWaitingWallRelease = true;
                 _state.SetTargetVelocity(worldInput * speed);
+                StopJumpHold();
                 return launchHorizontalVelocity + Vector3.up * launchSpeed;
             }
 
@@ -250,7 +262,11 @@ namespace Kizami.Application
                 _wallRunTimeRemaining = _parameters.WallRunDuration;
             }
 
-            if (!IsTouchingWallInAir)
+            if (IsTouchingWallInAir)
+            {
+                _wallNormal = _contactState.WallNormal;
+            }
+            else
             {
                 _isWaitingWallRelease = false;
             }
@@ -263,7 +279,8 @@ namespace Kizami.Application
                     _isWaitingWallRelease = true;
                     _state.SetTargetVelocity(Vector3.zero);
                     _actionEvents?.Raise(new PlayerActionNotice(PlayerActionKind.WallKicked));
-                    return CalculateWallJumpVelocity(worldInput);
+                    StartJumpHold();
+                    return CalculateWallJumpVelocity();
                 }
 
                 if (ShouldExitWallRun(worldInput, deltaTime))
@@ -280,7 +297,9 @@ namespace Kizami.Application
 
             if (_state.Mode == PlayerMoveMode.WallRunning)
             {
-                _state.SetTargetVelocity(ProjectOnWall(worldInput) * _parameters.WallRunSpeed);
+                // 壁が途切れたら、壁走りのままその場にとどまる
+                var wallRunSpeed = IsSprinting ? _parameters.WallRunSprintSpeed : _parameters.WallRunWalkSpeed;
+                _state.SetTargetVelocity(IsTouchingWallInAir ? ProjectOnWall(worldInput) * wallRunSpeed : Vector3.zero);
                 return null;
             }
 
@@ -289,6 +308,7 @@ namespace Kizami.Application
             if (!isJumpRequested || !IsGrounded) return null;
 
             _actionEvents?.Raise(new PlayerActionNotice(PlayerActionKind.Jumped));
+            StartJumpHold();
             return Vector3.up * CalculateJumpSpeed();
         }
 
@@ -301,6 +321,7 @@ namespace Kizami.Application
             _isRushRequested = false;
             _launchSpeed = 0f;
             _warpTimeRemaining = 0f;
+            StopJumpHold();
             _state.SetMode(PlayerMoveMode.Aiming);
             _state.SetTargetVelocity(Vector3.zero);
         }
@@ -321,16 +342,16 @@ namespace Kizami.Application
         private bool IsPullingAwayFromWall(Vector3 worldInput)
         {
             return worldInput.sqrMagnitude > Mathf.Epsilon &&
-                   Vector3.Angle(worldInput, _contactState.WallNormal) <= _parameters.WallDetachAngle;
+                   Vector3.Angle(worldInput, _wallNormal) <= _parameters.WallDetachAngle;
         }
 
         /// <summary>
         /// 壁走りの持ち時間と、壁から離れようとする入力の継続時間を進め、壁走りを抜けるかどうかを返す。
-        /// 壁との接触が切れたとき、持ち時間が尽きたとき、壁から離れる向きの入力が一定時間続いたときに抜ける。
+        /// 着地したとき、持ち時間が尽きたとき、壁から離れる向きの入力が一定時間続いたときに抜ける。
         /// </summary>
         private bool ShouldExitWallRun(Vector3 worldInput, float deltaTime)
         {
-            if (!IsTouchingWallInAir) return true;
+            if (IsGrounded) return true;
 
             _wallRunTimeRemaining -= deltaTime;
             if (_wallRunTimeRemaining <= 0f)
@@ -348,24 +369,21 @@ namespace Kizami.Application
         /// </summary>
         private Vector3 ProjectOnWall(Vector3 worldInput)
         {
-            return Vector3.ProjectOnPlane(worldInput, _contactState.WallNormal);
+            return Vector3.ProjectOnPlane(worldInput, _wallNormal);
         }
 
         /// <summary>
         /// 壁ジャンプの打ち出し速度を求める。
-        /// 水平方向は、入力から壁へ押し込む成分を取り除いた向きと、壁の法線とを WallJumpInputInfluence の割合で混ぜた向き。
-        /// 入力が0のときは法線の向き。上向きの速度はジャンプと同じ。
+        /// 水平方向は、向いている方向（視線の水平な向き）。壁のほうを向いているときは、壁の法線で折り返して外へ向ける。
+        /// 上向きの速度はジャンプと同じ。
         /// </summary>
-        private Vector3 CalculateWallJumpVelocity(Vector3 worldInput)
+        private Vector3 CalculateWallJumpVelocity()
         {
-            var wallNormal = _contactState.WallNormal;
+            var wallNormal = _wallNormal;
 
-            var pushIntoWall = Vector3.Dot(worldInput, wallNormal);
-            var input = pushIntoWall < 0f ? worldInput - wallNormal * pushIntoWall : worldInput;
-
-            var horizontalDirection = input.sqrMagnitude > Mathf.Epsilon
-                ? Vector3.Lerp(wallNormal, input.normalized, _parameters.WallJumpInputInfluence).normalized
-                : wallNormal;
+            var horizontalDirection = Vector3.Dot(_viewForward, wallNormal) < 0f
+                ? Vector3.Reflect(_viewForward, wallNormal)
+                : _viewForward;
 
             return horizontalDirection * _parameters.WallJumpHorizontalSpeed + Vector3.up * CalculateJumpSpeed();
         }
@@ -399,6 +417,36 @@ namespace Kizami.Application
             return Mathf.Sqrt(2f * Mathf.Abs(Physics.gravity.y) * _parameters.JumpHeight);
         }
 
+        /// <summary>
+        /// ジャンプの長押しの効果を進める。通常の移動でボタンを押し続けていて、時間が残っている間だけ長押し中にする。
+        /// </summary>
+        private void UpdateJumpHold(float deltaTime)
+        {
+            if (!_isJumpHeld || _state.Mode != PlayerMoveMode.Normal || _jumpHoldRemaining <= 0f)
+            {
+                StopJumpHold();
+                return;
+            }
+
+            _jumpHoldRemaining -= deltaTime;
+            _state.SetJumpHolding(_jumpHoldRemaining > 0f);
+        }
+
+        /// <summary>
+        /// ジャンプの長押しの効果を始める。ボタンを押し続けている間、JumpHoldTime だけ続く。
+        /// </summary>
+        private void StartJumpHold()
+        {
+            _jumpHoldRemaining = _parameters.JumpHoldTime;
+            _state.SetJumpHolding(_isJumpHeld && _jumpHoldRemaining > 0f);
+        }
+
+        private void StopJumpHold()
+        {
+            _jumpHoldRemaining = 0f;
+            _state.SetJumpHolding(false);
+        }
+
         private void OnMove(InputContext<Vector2> context)
         {
             _moveInput = context.Phase == InputPhase.Canceled
@@ -427,9 +475,15 @@ namespace Kizami.Application
 
         private void OnJump(InputContext<float> context)
         {
-            if (context.Phase == InputPhase.Performed)
+            switch (context.Phase)
             {
-                _isJumpRequested = true;
+                case InputPhase.Performed:
+                    _isJumpRequested = true;
+                    _isJumpHeld = true;
+                    break;
+                case InputPhase.Canceled:
+                    _isJumpHeld = false;
+                    break;
             }
         }
 

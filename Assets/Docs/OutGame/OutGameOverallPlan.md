@@ -24,9 +24,9 @@
 | [InGameOverallPlan.md](../InGame/InGameOverallPlan.md) の 0 章 | 手本にする既存コード、守ること、区間の進め方。アウトゲームでも同じ決まりで進める |
 | スキル `state-centrism-architecture` | 5 層の役割、State の Single Writer、Getter インターフェース、参照ルール |
 | スキル `usefultoolkit` | BlackBoard・State・Initializer・Compositor・SceneGroup・入力の書き方 |
-| [Section11_StageFlow.md](../InGame/Sections/Section11_StageFlow.md) | アウトゲームとインゲームの受け渡し（`GameProgressService`、`GameSceneController`）と、仮のアウトゲームの作り。区間0・1・2で読む |
-| [Section17_CloseRangeSkill.md](../InGame/Sections/Section17_CloseRangeSkill.md) | 体術・衝波（旧仮名：頑拳）と体術・攻走（旧仮名：突撃）の計画。区間5で読む |
-| [Section18_FinisherBeam.md](../InGame/Sections/Section18_FinisherBeam.md)、[FinisherReference.md](../InGame/FinisherReference.md) | フィニッシャーのビーム。羽天轟号の土台。区間6で読む |
+| [Section19_StageFlow.md](../InGame/Sections/Section19_StageFlow.md) | アウトゲームとインゲームの受け渡し（`GameProgressService`、`GameSceneController`）と、仮のアウトゲームの作り。区間0・1・2で読む |
+| [Section27_CloseRangeSkill.md](../InGame/Sections/Section27_CloseRangeSkill.md) | 体術・衝波（旧仮名：頑拳）と体術・攻走（旧仮名：突撃）の計画。区間5で読む |
+| [Section23_FinisherBeam.md](../InGame/Sections/Section23_FinisherBeam.md)、[FinisherReference.md](../InGame/FinisherReference.md) | フィニッシャーのビーム。羽天轟号の土台。区間6で読む |
 
 ### 手本にする既存コード
 
@@ -71,7 +71,7 @@ PC を先に作る。スマホと VR の対応は、インゲームと同じく�
 | クリアの記録 | あり（区間0）。`progress.json` に保存する。前のステージをクリアすると次を選べる |
 | 通貨 | なし（区間0で削除） |
 | スキルの装備 | あり（区間2）。枠を選んでスキルを選ぶ画面、専用の枠、解放の演出。装備枠 3。解放済みのスキルだけ、同じスキルは別の枠と入れ替え（区間0・2）。各ステージの解放するスキルは区間5まで空で、初期解放は仮にビームと爆発 |
-| スキルの中身 | 一部あり。`SkillData` の効果はビーム・爆発・回復・強化型 5 種（区間6・10）。衝波・攻走はインゲームの区間17で計画済み（未着手）。崩爆・羽天轟号はない |
+| スキルの中身 | 一部あり。`SkillData` の効果はビーム・爆発・回復・強化型 5 種（インゲームの区間8・18）。衝波・攻走はアウトゲームの区間5で作った。崩爆はアウトゲームの区間5で作った。羽天轟号はない |
 | 背景映像 | なし。Cinemachine 3.1.7 と Timeline 1.8.10 は導入済み。Unity Recorder は未導入 |
 | コンフィグ | あり（区間4）。ホームから開く画面で、ダッシュ・つかむの受け付け方、切断面の回転角度、視点感度、音量を変えられ、`setting.json` に保存する。ポーズからの導線はない |
 | キーコンフィグ | あり（区間4）。`InputRebindAdapter` が Player マップのキーボード・マウスの割り当てを変える（Look・CutRotate は対象外） |
@@ -82,7 +82,7 @@ PC を先に作る。スマホと VR の対応は、インゲームと同じく�
 
 - 先に、セーブと解放の判定（区間0）を作り、そのうえに画面を載せる。画面は仮の見た目で一周させてから整える
 - 背景映像（区間3）とコンフィグ（区間4）は、ほかの区間に依存しないので、どこで行ってもよい
-- スキルの中身（区間5・6）はインゲーム側の作業だが、アウトゲームのスキル一覧と一緒に決めた仕様なのでここで管理する。インゲームの区間17とは区間5で統合する
+- スキルの中身（区間5・6）はインゲーム側の作業だが、アウトゲームのスキル一覧と一緒に決めた仕様なのでここで管理する。インゲームの区間27とは区間5で統合する
 - 各区間は 0 章の「区間の進め方」の順で進める。区間計画書は、着手する直前にその時点の実装に合わせて見直す
 
 ## 5. 区間一覧
@@ -94,8 +94,9 @@ PC を先に作る。スマホと VR の対応は、インゲームと同じく�
 | 2 | スキル装備 | 装備枠 3、スキル一覧（羽天轟号は専用の枠を上に置く）、解放の演出（羽天轟号は特別） | 0, 1 | 未定 | 完了 | [Section02](Sections/Section02_SkillEquip.md) |
 | 3 | 背景映像 | マップを周回するカメラの撮影と書き出し、アウトゲームでのループ再生 | ― | 未定 | 未着手 | [Section03](Sections/Section03_BackgroundVideo.md) |
 | 4 | コンフィグ | 既存の設定の画面、キーコンフィグ、音量 | 0, 1 | 未定 | 完了 | [Section04](Sections/Section04_Config.md) |
-| 5 | スキルの作り直し | 7 種への整理、刃術 3 種（10 回振るまで、重ねがけ）、火術・崩爆、インゲーム区間17（衝波・攻走）との統合 | ― | 未定 | 未着手 | [Section05](Sections/Section05_SkillRework.md) |
-| 6 | 火術奥義・羽天轟号 | 上空への飛び上がり、チャージ、視点操作できる無敵のビーム、0.5 秒ごとの破壊判定とエネルギー消費、止め方 | 5 | 未定 | 未着手 | [Section06](Sections/Section06_Utenkougou.md) |
+| 5 | スキルの作り直し | 7 種への整理、刃術 3 種（10 回振るまで、重ねがけ）、火術・崩爆、インゲーム区間27（衝波・攻走）との統合 | ― | 未定 | 完了 | [Section07](Sections/Section05_SkillRework.md) |
+| 6 | 火術奥義・羽天轟号 | 上空への飛び上がり、チャージ、視点操作できる無敵のビーム、0.5 秒ごとの破壊判定とエネルギー消費、止め方 | 5 | 未定 | 未着手 | [Section08](Sections/Section06_Utenkougou.md) |
+| 7 | アルファ版の UI | 仮の UI をデザインした画面に作り直す、プレハブ化、遷移の演出。インゲーム区間33（仕上げ）の一部 | 1, 2, 4 | 未定 | 未着手 | [Section07](Sections/Section07_AlphaUi.md) |
 | A | マイルストーンA | アウトゲームからステージを選び、装備を替えて遊び、クリアでスキルが解放される | | | | |
 
 - 目安の時期は、ユーザーとスケジュールを決めてから入れる
@@ -179,6 +180,6 @@ flowchart LR
 
 ## 9. 仮定として置いている事項（未確認）
 
-- 体術・衝波と体術・攻走は、インゲームの区間17の「頑拳」「突撃」と同じスキルとする。区間17の「初期装備を頑拳 1 つにする」は、今回の「衝波と攻走が初期」に置き換わる
+- 体術・衝波と体術・攻走は、インゲームの区間27の「頑拳」「突撃」と同じスキルとする。区間17の「初期装備を頑拳 1 つにする」は、今回の「衝波と攻走が初期」に置き換わる
 - 7 種に入っていない既存のスキル（ビーム・爆発・回復・かけらの爆発）は、アウトゲームのスキル一覧から外す。`SkillData` のアセットと効果のコードを消すかは区間5で決める
 - 刃術・覇剣は、既存の強化型「範囲アップ」と「速さアップ」を 1 つにまとめたものとする

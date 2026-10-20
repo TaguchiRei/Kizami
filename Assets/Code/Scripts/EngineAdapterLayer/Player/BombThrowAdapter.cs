@@ -41,7 +41,8 @@ namespace Kizami.EngineAdapter
         /// </summary>
         /// <param name="distance">平らな地面に落ちる距離（m）</param>
         /// <param name="radius">爆発の半径（m）</param>
-        public void Throw(float distance, float radius)
+        /// <param name="forwardOffset">投げる起点を、カメラの水平な正面へずらす距離（m）</param>
+        public void Throw(float distance, float radius, float forwardOffset)
         {
             var cameraMain = Camera.main;
             if (cameraMain == null)
@@ -58,6 +59,7 @@ namespace Kizami.EngineAdapter
             }
 
             forward.Normalize();
+            origin += forward * forwardOffset;
 
             for (var i = 0; i < DIRECTION_COUNT; i++)
             {

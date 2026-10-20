@@ -10,7 +10,7 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.Application
 {
     /// <summary>
-    /// インゲームの流れ（StageFlowState）を進めるユースケース。破壊済みの破壊対象がステージの必要な数に達したら（ステージが破壊でのクリアを許すときだけ）クリアにし、
+    /// インゲームの流れ（StageFlowState）を進めるユースケース。破壊済みの破壊対象がステージの必要な数に達し、倒した敵の数もステージの必要な数に達したら（ステージが破壊でのクリアを許すときだけ）クリアにし、
     /// ステージの失敗条件のどれかを満たしたら失敗にする。クリアと失敗はプレイ中にだけ起こり、一度決まったら変わらない。
     /// スコアは、倒した敵1体につき1点と、よい行動の追加スコアと、クリアしたときの基礎スコアの合計。クリアタイムと被ダメージは、時間をかけて準備して壊す遊び方を損なわない為、使わない。
     /// プレイ中は UI マップの Cancel（Esc）でポーズを切り替える。ポーズは時間の倍率を0にして Player マップを止め、解くとポーズ前の倍率に戻す。
@@ -26,6 +26,9 @@ namespace Kizami.Application
 
         /// <summary> ステージの定義にある、クリアに必要な破壊済みの数。0 なら破壊対象すべて </summary>
         private readonly int _requiredTargetCount;
+
+        /// <summary> ステージの定義にある、クリアに必要な倒した敵の数。0 なら敵の数を条件にしない </summary>
+        private readonly int _requiredDefeatCount;
         private readonly ITimeScaleController _timeScaleController;
         private readonly ITimeScaleState _timeScaleState;
         private readonly IInputController _inputController;
@@ -52,6 +55,7 @@ namespace Kizami.Application
             _clearScore = stage.ClearScore;
             _clearsOnTargets = stage.ClearsOnTargets;
             _requiredTargetCount = stage.RequiredTargetCount;
+            _requiredDefeatCount = stage.RequiredDefeatCount;
             _timeScaleController = timeScaleController;
             _inputController = inputController;
             _onCleared = onCleared;
@@ -60,6 +64,7 @@ namespace Kizami.Application
                 !blackBoard.TryGetGameState<AppBoard, ITimeScaleState>(out _timeScaleState, this) ||
                 !blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this)) return;
 
+            _state.SetRequiredDefeatCount(_requiredDefeatCount);
             stageBoard.RegisterSceneState<IStageFlowState>(_state, sceneId);
 
             foreach (var condition in stage.FailConditions)
@@ -105,7 +110,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 倒した敵の数を足し、スコアに反映する。プレイ中のときだけ数える。
+        /// 倒した敵の数を足し、スコアに反映する。プレイ中のときだけ数える。必要な数に達したらクリアを判定する。
         /// </summary>
         /// <param name="count">倒した敵の数</param>
         public void AddDefeats(int count)
@@ -114,6 +119,7 @@ namespace Kizami.Application
 
             _state.SetDefeatCount(_state.DefeatCount + count);
             _state.SetScore(_state.Score + count);
+            TryClear();
         }
 
         /// <summary>
@@ -208,15 +214,16 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// プレイ中に破壊対象がすべて破壊済みなら、クリアにする。
+        /// プレイ中に、必要な数の破壊対象が破壊済みで、倒した敵の数も必要な数に達しているなら、クリアにする。
         /// </summary>
         private void TryClear()
         {
             if (!_clearsOnTargets || _state.Phase != StagePhase.Playing || _state.TargetCount == 0 ||
-                _state.DestroyedTargetCount < _state.RequiredTargetCount) return;
+                _state.DestroyedTargetCount < _state.RequiredTargetCount ||
+                _state.DefeatCount < _state.RequiredDefeatCount) return;
 
             CompleteClear();
-            UsefulLogger.Log("必要な数の破壊対象が破壊済みになった為、クリアにしました。", this);
+            UsefulLogger.Log("必要な数の破壊対象が破壊済みで、倒した敵の数も足りた為、クリアにしました。", this);
         }
 
         /// <summary>

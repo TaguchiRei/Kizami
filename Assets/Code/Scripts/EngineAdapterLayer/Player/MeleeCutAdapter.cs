@@ -57,6 +57,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 切断を実行中か。実行中の振りは無視する </summary>
         private bool _isCutting;
 
+        /// <summary> 今回の振りの範囲で刃が入った、体力制の破壊対象。入っていなければ null </summary>
+        private HealthTarget _hitHealthTarget;
+
         /// <summary>
         /// Renderer のバウンディングボックスが、指定した点を通り法線に垂直な平面をまたぐかどうか。
         /// 平面と交わらない対象を切ると、中身がすべて入ったかけらと空のかけらができる為、切る前に除く。
@@ -161,6 +164,10 @@ namespace Kizami.EngineAdapter
             }
 
             _pieces.Clear();
+
+            // 体力が尽きる一撃では切り分けないよう、切り分けのあとに報告する
+            if (_hitHealthTarget != null) _hitHealthTarget.ReportMeleeHit();
+
             if (_targets.Count == 0) return;
 
             _blade.transform.SetPositionAndRotation(origin, bladeRotation);
@@ -190,7 +197,8 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 範囲内にあり、今切れる状態で、Renderer のバウンディングボックスが刃の平面をまたぎ、装甲の奥にない CuttableObject を _targets に集める。
         /// Brilliant Skill の言葉（BrilliantWord）は文字が当たり判定を持たない為、言葉の箱が範囲に入っていたら、その文字を同じ条件で集める。
-        /// 範囲内の装甲のパネルは _armorPanels に集める。collectsPieces なら、範囲内にあり装甲の奥にないボクセルのピースを _pieces に集める。
+        /// 範囲内の装甲のパネルは _armorPanels に集める。範囲内にあり装甲の奥にないボクセルのピースを _pieces に集める。
+        /// collectsPieces でなければ、通常攻撃で切れる印の付いたピースだけを集める。
         /// </summary>
         private void CollectTargets(Vector3 origin, Vector3 forward, Vector3 normal, Quaternion bladeRotation,
             float rangeScale, bool collectsPieces)
@@ -198,6 +206,7 @@ namespace Kizami.EngineAdapter
             _targets.Clear();
             _armorPanels.Clear();
             _pieces.Clear();
+            _hitHealthTarget = null;
 
             var reach = _reach * rangeScale;
             var center = origin + forward * (reach * 0.5f);
@@ -218,7 +227,7 @@ namespace Kizami.EngineAdapter
                     continue;
                 }
 
-                if (collectsPieces && TryCollectPieces(_hitBuffer[i], origin, center, halfExtents, bladeRotation))
+                if (TryCollectPieces(_hitBuffer[i], origin, center, halfExtents, bladeRotation, collectsPieces))
                 {
                     continue;
                 }
@@ -251,17 +260,25 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// コライダーがボクセルのピースか、手付かずの形のメッシュのまま置いたモデルのものなら、切り分けるピースを _pieces に集める。
         /// モデルはボクセルにしてから、範囲の箱を包む軸平行の箱と交わる部分（パーツ）だけを集める。装甲の奥にあるピースは集めない。
+        /// collectsPieces でなければ、通常攻撃で切れる印の付いたピースだけを対象にし、モデルはボクセルにしない。
         /// </summary>
         /// <returns>コライダーがボクセルのものなら true</returns>
         private bool TryCollectPieces(Collider hit, Vector3 origin, Vector3 center, Vector3 halfExtents,
-            Quaternion bladeRotation)
+            Quaternion bladeRotation, bool collectsPieces)
         {
             var piece = hit.GetComponentInParent<VoxelPiece>();
             if (piece != null)
             {
+                var healthTarget = piece.GetComponentInParent<HealthTarget>();
+                if (healthTarget != null && !IsBehindArmor(origin, piece.WorldBounds.center)) _hitHealthTarget = healthTarget;
+
+                if (!collectsPieces && !piece.IsCutByMelee) return false;
+
                 if (!IsBehindArmor(origin, piece.WorldBounds.center)) _pieces.Add(piece);
                 return true;
             }
+
+            if (!collectsPieces) return false;
 
             var loader = hit.GetComponentInParent<VoxelModelLoader>();
             if (loader == null || !loader.IsStatic) return false;

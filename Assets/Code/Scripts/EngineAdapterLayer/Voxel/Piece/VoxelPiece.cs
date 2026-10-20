@@ -68,6 +68,11 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("切り離したピースがこの高さ（ワールド空間の Y）より下に落ちたら破棄する")]
         private float _destroyBelowY = -20f;
 
+        [Header("通常攻撃")]
+        [SerializeField]
+        [Tooltip("ボクセル破壊の強化がなくても、通常攻撃の切断面で切り分けられるか。切り離したピースにも引き継ぐ")]
+        private bool _cutByMelee;
+
         [Header("融解")]
         [SerializeField]
         [Tooltip("融解・蒸発した分の送り先。未設定なら加熱しても何も起きない")]
@@ -93,6 +98,7 @@ namespace Kizami.EngineAdapter.Voxel
         public IReadOnlyList<Material> Materials => _materials;
         public VoxelColliderMode ColliderMode => _colliderMode;
         public bool IsSplittable => _splittable;
+        public bool IsCutByMelee => _cutByMelee;
         public VoxelMeltSystem MeltSystem => _meltSystem;
 
         /// <summary> 粒との当たり判定などで SDF を直接読む為のボリューム。まだ作られていなければ null </summary>
@@ -287,6 +293,14 @@ namespace Kizami.EngineAdapter.Voxel
         public void SetProtected(bool isProtected)
         {
             IsProtected = isProtected;
+        }
+
+        /// <summary>
+        /// ボクセル破壊の強化がなくても通常攻撃の切断面で切り分けられるかを切り替える。以後に切り離したピースにも引き継ぐ。
+        /// </summary>
+        public void SetCutByMelee(bool cutByMelee)
+        {
+            _cutByMelee = cutByMelee;
         }
 
         /// <summary>
@@ -949,6 +963,7 @@ namespace Kizami.EngineAdapter.Voxel
             piece._minPieceSamples = _minPieceSamples;
             piece._density = _density;
             piece._destroyBelowY = _destroyBelowY;
+            piece._cutByMelee = _cutByMelee;
             piece.SetMeltSystem(_meltSystem);
             piece.Parent = this;
             piece.Root = Root;

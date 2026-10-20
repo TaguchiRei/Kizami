@@ -15,6 +15,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 置き場が立てる層のない列に来たときに、ずらす先の列を探す半径（m） </summary>
         private const float SLOT_SHIFT_RADIUS = 10f;
 
+        /// <summary> 置き場にできる列の、プレイヤーまでの経路の長さの上限の、直線距離に対する倍率。壁の向こうで、遠回りでしかたどり着けない列を外す </summary>
+        private const float SLOT_PATH_RATIO_LIMIT = 2.5f;
+
+        /// <summary> 置き場にできる列の、プレイヤーまでの経路の長さの上限に足す余裕（m） </summary>
+        private const float SLOT_PATH_MARGIN = 20f;
+
         /// <summary> 置き場ごとの、立てる列へずらした位置。使えない置き場は NaN </summary>
         public NativeArray<float2> SlotPoints;
 
@@ -45,7 +51,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// point の列から searchRadius 列までを近い順に調べ、プレイヤーへたどり着ける層のある最初の周の中で、point に最も近い列の中心を返す。
+        /// point の列から searchRadius 列までを近い順に調べ、プレイヤーへ遠回りせずにたどり着ける層のある最初の周の中で、point に最も近い列の中心を返す（HasReachableNode）。
         /// point の列にあれば point をそのまま返す。
         /// </summary>
         private bool TryShiftToReachableColumn(float2 point, int searchRadius, out float2 shifted)
@@ -69,9 +75,9 @@ namespace Kizami.EngineAdapter
                         if (nx < TrackingMin.x || nx > TrackingMax.x || nz < TrackingMin.y || nz > TrackingMax.y) continue;
 
                         var column = nz * Grid.Width + nx;
-                        if (!HasReachableNode(column)) continue;
-
                         var center = Grid.GetCellCenter(column, 0f).xz;
+                        if (!HasReachableNode(column, center)) continue;
+
                         var distanceSq = math.distancesq(center, point);
                         if (distanceSq >= bestDistanceSq) continue;
 
@@ -86,18 +92,23 @@ namespace Kizami.EngineAdapter
             return false;
         }
 
-        private bool HasReachableNode(int column)
+        /// <summary>
+        /// 列に、プレイヤーまでの経路の長さが「中心 center からプレイヤーまでの直線距離 × SLOT_PATH_RATIO_LIMIT ＋ SLOT_PATH_MARGIN」以下の層があるか。
+        /// たどり着けない層の経路の長さは無限大なので、上限を超える。
+        /// </summary>
+        private bool HasReachableNode(int column, float2 center)
         {
+            var limit = math.distance(center, PlayerPosition.xz) * SLOT_PATH_RATIO_LIMIT + SLOT_PATH_MARGIN;
             for (var k = 0; k < Grid.LayerCounts[column]; k++)
             {
-                if (!float.IsPositiveInfinity(Distances[column * EnemyNavigationGrid.MAX_LAYERS + k])) return true;
+                if (Distances[column * EnemyNavigationGrid.MAX_LAYERS + k] <= limit) return true;
             }
 
             return false;
         }
 
         /// <summary>
-        /// 置き場ごとに、プレイヤーを中心にした螺旋の上の位置を、プレイヤーへたどり着ける立てる層のある列へずらして SlotPoints に書き、
+        /// 置き場ごとに、プレイヤーを中心にした螺旋の上の位置を、プレイヤーへ遠回りせずにたどり着ける立てる層のある列へずらして SlotPoints に書き、
         /// 使える置き場のうち最も外の置き場の番号を LastUsableSlot に書く（なければ -1）。
         /// それより内側で、周り SLOT_SHIFT_RADIUS に立てる列がない置き場（建物の中や穴の上）は NaN にする。
         /// それより外の置き場は、置き場を持てない部隊が待つ置き場にする。追跡範囲の外に出る位置は範囲の中へ寄せてから、立てる列へずらす

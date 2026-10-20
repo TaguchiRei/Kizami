@@ -15,12 +15,13 @@ namespace Kizami.BlackBoard
         public int DestroyedTargetCount { get; private set; }
         public int RequiredTargetCount { get; private set; }
         public int DefeatCount { get; private set; }
+        public int RequiredDefeatCount { get; private set; }
         public int Score { get; private set; }
         public float RemainingTime { get; private set; } = -1f;
 
         public override string GetLog()
         {
-            return $"Phase: {Phase}  \nIsPaused: {IsPaused}  \nFailReason: {FailReason}  \nTargets: {DestroyedTargetCount} / {RequiredTargetCount} (of {TargetCount})  \nDefeats: {DefeatCount}  \nScore: {Score}  \nRemainingTime: {RemainingTime}";
+            return $"Phase: {Phase}  \nIsPaused: {IsPaused}  \nFailReason: {FailReason}  \nTargets: {DestroyedTargetCount} / {RequiredTargetCount} (of {TargetCount})  \nDefeats: {DefeatCount} / {RequiredDefeatCount}  \nScore: {Score}  \nRemainingTime: {RemainingTime}";
         }
 
         /// <summary>
@@ -82,6 +83,15 @@ namespace Kizami.BlackBoard
         }
 
         /// <summary>
+        /// クリアに必要な倒した敵の数を設定する。
+        /// </summary>
+        /// <param name="requiredDefeatCount">クリアに必要な倒した敵の数。0 なら条件にしない</param>
+        public void SetRequiredDefeatCount(int requiredDefeatCount)
+        {
+            RequiredDefeatCount = requiredDefeatCount;
+        }
+
+        /// <summary>
         /// スコアを設定する。
         /// </summary>
         /// <param name="score">スコア</param>
@@ -116,6 +126,9 @@ namespace Kizami.BlackBoard
 
         /// <summary> プレイ中に倒した敵の数 </summary>
         int DefeatCount { get; }
+
+        /// <summary> クリアに必要な倒した敵の数。0 なら敵の数を条件にしない </summary>
+        int RequiredDefeatCount { get; }
 
         /// <summary> スコア。倒した敵1体につき1点と、クリアしたときの基礎スコアの合計 </summary>
         int Score { get; }

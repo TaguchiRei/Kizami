@@ -52,12 +52,16 @@ namespace Kizami.External
         [Tooltip("削る範囲の奥行き（m）。衝波でだけ使う")]
         private float _depth = 2f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("範囲の中心を、プレイヤーの正面へずらす距離（m）。崩爆は爆弾を投げる起点、衝波と攻走は削る範囲の中心をずらす")]
+        private float _forwardOffset;
+
         [SerializeField, Min(0.01f)]
         [Tooltip("突進の所要時間（秒）。攻走でだけ使う。進む距離は飛距離、削る半径は半径を使う")]
         private float _duration = 0.3f;
 
         [SerializeField, Min(0.01f)]
-        [Tooltip("削る強さが 1m あたりに減る量。1 ÷ 半径以下にすると、普通の素材（コンクリート）を半径まで削り、硬い素材（鉄筋）は削れない。衝波と攻走でだけ使う")]
+        [Tooltip("削る強さが 1m あたりに減る量。普通の素材（コンクリート）は半径まで削れる。硬い素材（鉄筋）は、減衰率 × 半径が 1 を超えると少しだけ削れる。衝波と攻走でだけ使う")]
         private float _falloff = 0.5f;
 
         [SerializeField, Min(0)]
@@ -79,10 +83,6 @@ namespace Kizami.External
         [SerializeField, Min(0.01f)]
         [Tooltip("強化の倍率。範囲アップは刃の幅と届く距離に、速さアップは攻撃間隔に掛ける")]
         private float _enhanceScale = 1.5f;
-
-        [SerializeField, Min(0.01f)]
-        [Tooltip("強化の攻撃間隔の倍率。範囲と速さの強化でだけ使う")]
-        private float _enhanceIntervalScale = 1f;
 
         /// <summary> HUD に出す名前 </summary>
         public string DisplayName => _displayName;
@@ -117,6 +117,9 @@ namespace Kizami.External
         /// <summary> 削る範囲の奥行き（m） </summary>
         public float Depth => _depth;
 
+        /// <summary> 範囲の中心を、プレイヤーの正面へずらす距離（m） </summary>
+        public float ForwardOffset => _forwardOffset;
+
         /// <summary> 突進の所要時間（秒） </summary>
         public float Duration => _duration;
 
@@ -138,11 +141,8 @@ namespace Kizami.External
         /// <summary> 強化の倍率 </summary>
         public float EnhanceScale => _enhanceScale;
 
-        /// <summary> 強化の攻撃間隔の倍率 </summary>
-        public float EnhanceIntervalScale => _enhanceIntervalScale;
-
         /// <summary> 強化型スキルか </summary>
-        public bool IsEnhancement => _effect >= SkillEffect.EnhanceDestroy && _effect <= SkillEffect.EnhanceRangeSpeed;
+        public bool IsEnhancement => _effect >= SkillEffect.EnhanceDestroy && _effect <= SkillEffect.ExplosiveFragment;
     }
 
     /// <summary>
@@ -174,8 +174,8 @@ namespace Kizami.External
         /// <summary> 強化型。投げた・撃ったかけらが、当たった所で爆発する </summary>
         ExplosiveFragment,
 
-        /// <summary> 強化型。剣の切断の範囲に倍率を掛け、攻撃間隔にも倍率を掛ける </summary>
-        EnhanceRangeSpeed,
+        /// <summary> 長押しの間、視線の先にボクセルを盛る。アセットが値で保存しているので、番号を変えない </summary>
+        Mound,
 
         /// <summary> 前後左右へ爆弾を1つずつ投げ、落ちた所で球で削る </summary>
         Bomb,
