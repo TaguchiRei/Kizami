@@ -11,21 +11,22 @@ namespace Kizami.Initialization
     /// <summary>
     /// ステージシーンに置いたボスを探し、攻撃に、プレイヤーへダメージを与える関数と弾く関数、敵を吸収・撃破する関数と狙う相手を渡し、ボス戦の段階を進める BossBattleService と BossBattleAdapter を繋ぐ配線役。インゲームのシーンへ置く。
     /// ボスはボス戦のステージシーンにだけ置き、ボスのいないステージでは何もしない。
+    /// ボスの体力は StageInitializer が作って配線した TargetHealthService を受け取り、BossBattleService が段階に合わせて切り替える。
     /// </summary>
     public sealed class BossInitializer : InitializerBase, IInjectable<PlayerHealthService>,
-        IInjectable<PlayerMovementService>
+        IInjectable<PlayerMovementService>, IInjectable<TargetHealthService>
     {
         [SerializeField]
         [Tooltip("頭部のレーザーで敵を吸収・撃破する先。なければ敵を巻き込まない")]
         private EnemySpawnAdapter _enemySpawnAdapter;
 
         [SerializeField, Min(1)]
-        [Tooltip("ボス戦の 1 周で足踏みする回数")]
+        [Tooltip("ボス戦の足踏みの段階で足踏みする回数")]
         private int _stompsPerRound = 3;
 
-        [SerializeField, Min(1)]
-        [Tooltip("総攻撃の前に行う周の数")]
-        private int _roundCount = 2;
+        [SerializeField, Min(1f)]
+        [Tooltip("最終の段階で、ボスの体力が満タンから尽きるまでの時間（秒）")]
+        private float _finalDuration = 30f;
 
         [SerializeField]
         [Tooltip("初期化の終わりにボス戦を始める")]
@@ -33,6 +34,7 @@ namespace Kizami.Initialization
 
         private PlayerHealthService _healthService;
         private PlayerMovementService _movementService;
+        private TargetHealthService _targetHealthService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -112,14 +114,14 @@ namespace Kizami.Initialization
                 arena.Initialize(applyDamage);
             }
 
-            var battleService = new BossBattleService(blackBoard, _stompsPerRound, _roundCount,
-                gameObject.scene.buildIndex);
+            var battleService = new BossBattleService(blackBoard, _targetHealthService, _stompsPerRound,
+                _finalDuration, gameObject.scene.buildIndex);
             if (blackBoard.TryGetSceneState<EnemyBoard, IBossBattleState>(out var battleState, this))
             {
                 battleAdapter.Initialize(battleState, battleService.ReportCrystalsCleared,
                     battleService.ReportArrived, battleService.ReportStomp,
                     battleService.ReportCoreAttackFinished, battleService.ReportWeaponBroken,
-                    battleService.ReportAllOutFinished);
+                    battleService.Tick, target);
                 if (_beginOnInitialize) battleService.Begin();
             }
 
@@ -146,6 +148,11 @@ namespace Kizami.Initialization
         public void Inject(PlayerMovementService instance)
         {
             _movementService = instance;
+        }
+
+        public void Inject(TargetHealthService instance)
+        {
+            _targetHealthService = instance;
         }
     }
 }

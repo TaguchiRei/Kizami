@@ -14649,6 +14649,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6815364066227307419}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1193981274752760801}
   m_SourcePrefab: {fileID: 100100000, guid: 35b8c16dca6e6f54fbc82ffc2c72ea34, type: 3}
 --- !u!4 &23996862071713713 stripped
 Transform:
@@ -14858,6 +14861,9 @@ MonoBehaviour:
     - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RR/MachineEnemy_Boss_LiftCylinder_Outer_RR
     - MachineEnemy_Boss_Body/MachineEnemy_Boss_Hip_RR/MachineEnemy_Boss_LiftCylinder_Outer_RR/MachineEnemy_Boss_LiftCylinder_Rod_RR
   _brokenRatio: 0.05
+  _highlightColor: {r: 1, g: 0.15, b: 0.15, a: 1}
+  _tieAngle: 10
+  _detachedDensity: 1
 --- !u!114 &4775852747039605853
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15214,3 +15220,26 @@ MonoBehaviour:
   _warningRadius: 16
   _groundRayHeight: 5
   _groundRayLength: 100
+--- !u!114 &1193981274752760801
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8767164447151323087}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b935a92c8e66d34b88f45c79a4142ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.HealthTarget
+  _displayName: "\u30DC\u30B9"
+  _maxHealth: 100
+  _meleeDamage: 0.5
+  _skillDamage: 1
+  _collapseDamagePerCubicMeter: 2
+  _minFallSpeed: 3
+  _minCollapseVolume: 0.5
+  _collapseLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _releasesOnDepleted: 0

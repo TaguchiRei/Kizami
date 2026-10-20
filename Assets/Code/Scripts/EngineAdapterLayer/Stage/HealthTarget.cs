@@ -76,12 +76,10 @@ namespace Kizami.EngineAdapter
         /// 体力を減らす処理を受け取り、動き始める。読み込みが終わったら保護を始める。
         /// </summary>
         /// <param name="applyDamage">体力を減らす量を受け取り、この呼び出しで体力が尽きたら true を返す処理</param>
-        /// <param name="onHitWhileDepleted">体力が尽きたあとに、通常攻撃かスキルが当たったときに呼ぶ処理</param>
-        public void Initialize(Func<float, bool> applyDamage, Action onHitWhileDepleted = null)
+        public void Initialize(Func<float, bool> applyDamage)
         {
             _loader = GetComponent<VoxelModelLoader>();
             _applyDamage = applyDamage;
-            _onHitWhileDepleted = onHitWhileDepleted;
             enabled = true;
         }
 
@@ -99,6 +97,14 @@ namespace Kizami.EngineAdapter
         public void ReportSkillHit()
         {
             ApplyDamage(_skillDamage);
+        }
+
+        /// <summary>
+        /// 体力が尽きたあとに、通常攻撃かスキルが当たったときに呼ぶ処理を受け取る。体力の配線とは別の Initializer から渡せるよう、Initialize と分ける。
+        /// </summary>
+        public void SetOnHitWhileDepleted(Action onHitWhileDepleted)
+        {
+            _onHitWhileDepleted = onHitWhileDepleted;
         }
 
         /// <summary>

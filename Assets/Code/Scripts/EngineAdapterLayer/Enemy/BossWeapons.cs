@@ -13,12 +13,16 @@ namespace Kizami.EngineAdapter
     /// 本体から分離した塊はパーツの体積に含まれない為、切り離した分も削れた分に数える（DestructionTarget と同じ測り方）。
     /// </summary>
     /// <remarks>
+    /// ダウンの間に壊すときは BreakBest で 1 つ選び、そのパーツを本体から外して落とす（体積の割合によらず壊れたとする）。
     /// 使う順番は種類ごとに回り、壊れた武装の番も飛ばさない。壊れた武装の番では撃たずにクールタイムだけを発生させる仕様の為で、
     /// 撃つかどうかとクールタイムは、TakeNext で受け取った武装の IsBroken を見て呼び出し側が決める。
     /// </remarks>
     [RequireComponent(typeof(VoxelModelLoader))]
     public sealed class BossWeapons : MonoBehaviour
     {
+        private static readonly int _baseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int _colorId = Shader.PropertyToID("_Color");
+
         [SerializeField]
         [Tooltip("武装")]
         private BossWeapon[] _weapons = Array.Empty<BossWeapon>();
@@ -26,6 +30,18 @@ namespace Kizami.EngineAdapter
         [SerializeField, Range(0f, 1f)]
         [Tooltip("武装のパーツの体積の合計のうち、読み込んだ時点から削れたら破壊とする割合")]
         private float _brokenRatio = 0.05f;
+
+        [SerializeField]
+        [Tooltip("ダウンの間に、壊せる武装を塗る色")]
+        private Color _highlightColor = new(1f, 0.15f, 0.15f, 1f);
+
+        [SerializeField, Min(0f)]
+        [Tooltip("壊す武装を選ぶとき、画面の中央からの角度の差がこの値（度）以内なら、プレイヤーに近い方を選ぶ")]
+        private float _tieAngle = 10f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("外れて落ちる武装の、体積1m³あたりの質量")]
+        private float _detachedDensity = 1f;
 
         /// <summary> 武装ごとの、読み込んだパーツ </summary>
         private List<VoxelPiece>[] _parts;
@@ -40,6 +56,7 @@ namespace Kizami.EngineAdapter
         private int[] _cursors;
 
         private IDisposable _loadedSubscription;
+        private MaterialPropertyBlock _highlightBlock;
 
         /// <summary> 武装の数 </summary>
         public int Count => _weapons.Length;
@@ -70,19 +87,6 @@ namespace Kizami.EngineAdapter
             }
 
             return count;
-        }
-
-        /// <summary>
-        /// パーツ piece が、どれかの武装を形づくるパーツか。
-        /// </summary>
-        public bool IsWeaponPart(VoxelPiece piece)
-        {
-            foreach (var parts in _parts)
-            {
-                if (parts.Contains(piece)) return true;
-            }
-
-            return false;
         }
 
         /// <summary>
@@ -135,6 +139,49 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 壊れていない武装のうち、画面の中央に最も近い武装を 1 つ選んで壊す。画面の中央からの角度の差が _tieAngle 以内なら、プレイヤーに近い方を選ぶ。
+        /// </summary>
+        /// <param name="viewOrigin">カメラの位置（ワールド座標）</param>
+        /// <param name="viewForward">カメラの正面の向き</param>
+        /// <param name="playerPosition">プレイヤーの位置（ワールド座標）</param>
+        /// <returns>壊した武装の番号。壊せる武装がなければ -1</returns>
+        public int BreakBest(Vector3 viewOrigin, Vector3 viewForward, Vector3 playerPosition)
+        {
+            var best = -1;
+            var bestAngle = 0f;
+            var bestDistance = 0f;
+            for (var i = 0; i < _weapons.Length; i++)
+            {
+                if (IsBroken(i) || _parts[i].Count == 0) continue;
+
+                var position = GetPosition(i);
+                var angle = Vector3.Angle(viewForward, position - viewOrigin);
+                var distance = (position - playerPosition).sqrMagnitude;
+                var isBetter = best < 0 || angle < bestAngle - _tieAngle ||
+                               (angle <= bestAngle + _tieAngle && distance < bestDistance);
+                if (!isBetter) continue;
+
+                best = i;
+                bestAngle = angle;
+                bestDistance = distance;
+            }
+
+            if (best >= 0) Break(best);
+            return best;
+        }
+
+        /// <summary>
+        /// 壊れていない武装のパーツを、_highlightColor で塗るか、元の色に戻す。
+        /// </summary>
+        public void SetHighlight(bool isHighlighted)
+        {
+            for (var i = 0; i < _weapons.Length; i++)
+            {
+                if (!_isBroken[i]) SetHighlight(i, isHighlighted);
+            }
+        }
+
+        /// <summary>
         /// 武装ごとの、種類・削れた割合・壊れたかを書き足す。
         /// </summary>
         public void AppendStatus(StringBuilder builder)
@@ -163,6 +210,62 @@ namespace Kizami.EngineAdapter
         private void OnDestroy()
         {
             _loadedSubscription?.Dispose();
+        }
+
+        /// <summary>
+        /// 武装 index を壊したことにし、そのパーツを本体から外して落とす。
+        /// パーツの当たり判定はメッシュそのままで動く Rigidbody に使えない為、無効にして、範囲を包む箱の当たり判定を付ける。
+        /// </summary>
+        private void Break(int index)
+        {
+            SetHighlight(index, false);
+            _isBroken[index] = true;
+
+            foreach (var part in _parts[index])
+            {
+                if (part == null) continue;
+
+                var bounds = part.WorldBounds;
+                var partTransform = part.transform;
+                partTransform.SetParent(null, true);
+                foreach (var meshCollider in part.GetComponentsInChildren<MeshCollider>())
+                {
+                    meshCollider.enabled = false;
+                }
+
+                var box = part.gameObject.AddComponent<BoxCollider>();
+                var scale = partTransform.lossyScale;
+                box.center = partTransform.InverseTransformPoint(bounds.center);
+                box.size = new Vector3(bounds.size.x / scale.x, bounds.size.y / scale.y, bounds.size.z / scale.z);
+
+                var body = part.gameObject.AddComponent<Rigidbody>();
+                body.mass = Mathf.Max(part.Volume * _detachedDensity, 0.01f);
+                body.interpolation = RigidbodyInterpolation.Interpolate;
+            }
+        }
+
+        /// <summary>
+        /// 武装 index のパーツのチャンクの Renderer に、_highlightColor を塗るか、塗った色を外す。
+        /// </summary>
+        private void SetHighlight(int index, bool isHighlighted)
+        {
+            _highlightBlock ??= new MaterialPropertyBlock();
+            _highlightBlock.Clear();
+            if (isHighlighted)
+            {
+                _highlightBlock.SetColor(_baseColorId, _highlightColor);
+                _highlightBlock.SetColor(_colorId, _highlightColor);
+            }
+
+            foreach (var part in _parts[index])
+            {
+                if (part == null) continue;
+
+                foreach (var chunkRenderer in part.GetComponentsInChildren<MeshRenderer>())
+                {
+                    chunkRenderer.SetPropertyBlock(isHighlighted ? _highlightBlock : null);
+                }
+            }
         }
 
         /// <summary>

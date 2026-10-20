@@ -10,12 +10,18 @@ namespace Kizami.Application
     {
         private readonly TargetHealthState _state = new();
 
+        /// <summary> 最大体力。対象がないステージでは0 </summary>
+        public float Max => _state.Max;
+
+        /// <summary> 対象があり、体力が尽きているか </summary>
+        public bool IsDepleted => _state.Max > 0f && _state.Current <= 0f;
+
         /// <summary>
-        /// TargetHealthState を StageBoard へ登録する。
+        /// TargetHealthState を StageBoard へ登録する。ほかの Initializer へ渡せるよう、Service は登録より前に作る。
         /// </summary>
         /// <param name="blackBoard">TargetHealthState の登録先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
-        public TargetHealthService(IBlackBoard blackBoard, int sceneId)
+        public void Register(IBlackBoard blackBoard, int sceneId)
         {
             if (!blackBoard.TryGetBoard<StageBoard>(out var stageBoard, this)) return;
 
