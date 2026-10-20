@@ -296,6 +296,14 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// ボクセル破壊の強化がなくても通常攻撃の切断面で切り分けられるかを切り替える。以後に切り離したピースにも引き継ぐ。
+        /// </summary>
+        public void SetCutByMelee(bool cutByMelee)
+        {
+            _cutByMelee = cutByMelee;
+        }
+
+        /// <summary>
         /// 削られて分かれた塊を、別のピースとして切り離すかを切り替える。
         /// </summary>
         public void SetSplittable(bool splittable)

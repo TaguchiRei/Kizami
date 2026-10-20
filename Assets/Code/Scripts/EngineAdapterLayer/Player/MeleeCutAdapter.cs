@@ -57,6 +57,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 切断を実行中か。実行中の振りは無視する </summary>
         private bool _isCutting;
 
+        /// <summary> 今回の振りの範囲で刃が入った、体力制の破壊対象。入っていなければ null </summary>
+        private HealthTarget _hitHealthTarget;
+
         /// <summary>
         /// Renderer のバウンディングボックスが、指定した点を通り法線に垂直な平面をまたぐかどうか。
         /// 平面と交わらない対象を切ると、中身がすべて入ったかけらと空のかけらができる為、切る前に除く。
@@ -161,6 +164,10 @@ namespace Kizami.EngineAdapter
             }
 
             _pieces.Clear();
+
+            // 体力が尽きる一撃では切り分けないよう、切り分けのあとに報告する
+            if (_hitHealthTarget != null) _hitHealthTarget.ReportMeleeHit();
+
             if (_targets.Count == 0) return;
 
             _blade.transform.SetPositionAndRotation(origin, bladeRotation);
@@ -199,6 +206,7 @@ namespace Kizami.EngineAdapter
             _targets.Clear();
             _armorPanels.Clear();
             _pieces.Clear();
+            _hitHealthTarget = null;
 
             var reach = _reach * rangeScale;
             var center = origin + forward * (reach * 0.5f);
@@ -261,6 +269,9 @@ namespace Kizami.EngineAdapter
             var piece = hit.GetComponentInParent<VoxelPiece>();
             if (piece != null)
             {
+                var healthTarget = piece.GetComponentInParent<HealthTarget>();
+                if (healthTarget != null && !IsBehindArmor(origin, piece.WorldBounds.center)) _hitHealthTarget = healthTarget;
+
                 if (!collectsPieces && !piece.IsCutByMelee) return false;
 
                 if (!IsBehindArmor(origin, piece.WorldBounds.center)) _pieces.Add(piece);

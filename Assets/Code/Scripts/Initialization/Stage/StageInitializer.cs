@@ -82,6 +82,7 @@ namespace Kizami.Initialization
                 _progressService != null ? _progressService.CompleteSelectedStage : null, gameObject.scene.buildIndex);
             blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this);
             _targetHealthService = new TargetHealthService(blackBoard, gameObject.scene.buildIndex);
+            ConnectHealthTarget();
             _stageClearAdapter.Initialize(_flowService.ReportTargets, stage.TargetGimmickIds);
             _timerAdapter.Initialize(_flowService.Tick);
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
@@ -117,6 +118,18 @@ namespace Kizami.Initialization
 
             base.Initialize(blackBoard);
             _flowService.Begin();
+        }
+
+        /// <summary>
+        /// ステージシーンに体力制の破壊対象（HealthTarget）があれば、名前と最大体力を体力の Service へ渡し、ダメージの報告先を繋ぐ。置いていないステージでは何もしない。
+        /// </summary>
+        private void ConnectHealthTarget()
+        {
+            var healthTarget = FindFirstObjectByType<HealthTarget>();
+            if (healthTarget == null) return;
+
+            _targetHealthService.Setup(healthTarget.DisplayName, healthTarget.MaxHealth);
+            healthTarget.Initialize(_targetHealthService.Damage);
         }
 
         /// <summary>
