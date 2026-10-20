@@ -273,7 +273,7 @@ namespace Kizami.Application
                     _state.SetTargetVelocity(Vector3.zero);
                     _actionEvents?.Raise(new PlayerActionNotice(PlayerActionKind.WallKicked));
                     StartJumpHold();
-                    return CalculateWallJumpVelocity(worldInput);
+                    return CalculateWallJumpVelocity();
                 }
 
                 if (ShouldExitWallRun(worldInput, deltaTime))
@@ -365,19 +365,16 @@ namespace Kizami.Application
 
         /// <summary>
         /// 壁ジャンプの打ち出し速度を求める。
-        /// 水平方向は、入力から壁へ押し込む成分を取り除いた向きと、壁の法線とを WallJumpInputInfluence の割合で混ぜた向き。
-        /// 入力が0のときは法線の向き。上向きの速度はジャンプと同じ。
+        /// 水平方向は、向いている方向（視線の水平な向き）。壁のほうを向いているときは、壁の法線で折り返して外へ向ける。
+        /// 上向きの速度はジャンプと同じ。
         /// </summary>
-        private Vector3 CalculateWallJumpVelocity(Vector3 worldInput)
+        private Vector3 CalculateWallJumpVelocity()
         {
             var wallNormal = _contactState.WallNormal;
 
-            var pushIntoWall = Vector3.Dot(worldInput, wallNormal);
-            var input = pushIntoWall < 0f ? worldInput - wallNormal * pushIntoWall : worldInput;
-
-            var horizontalDirection = input.sqrMagnitude > Mathf.Epsilon
-                ? Vector3.Lerp(wallNormal, input.normalized, _parameters.WallJumpInputInfluence).normalized
-                : wallNormal;
+            var horizontalDirection = Vector3.Dot(_viewForward, wallNormal) < 0f
+                ? Vector3.Reflect(_viewForward, wallNormal)
+                : _viewForward;
 
             return horizontalDirection * _parameters.WallJumpHorizontalSpeed + Vector3.up * CalculateJumpSpeed();
         }
