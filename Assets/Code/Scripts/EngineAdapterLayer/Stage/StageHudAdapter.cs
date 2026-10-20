@@ -7,7 +7,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// インゲームの HUD（HP とチャージのゲージ、スキルの枠、破壊の進み具合、倒した敵の数、制限時間の残り、ランチャーの装填状態、開始の文字）を出す Adapter。インゲームのシーンへ置く。
+    /// インゲームの HUD（HP とチャージのゲージ、スキルの枠、破壊の進み具合、倒した敵の数、制限時間の残り、体力制の破壊対象の名前と体力のゲージ、ランチャーの装填状態、開始の文字）を出す Adapter。インゲームのシーンへ置く。
     /// 画面は uGUI の Canvas を初期化のときに組み立てる。値は State から読み、ランチャーの装填状態だけは State がない為、FragmentThrowAdapter から読む。
     /// </summary>
     /// <remarks>
@@ -75,6 +75,14 @@ namespace Kizami.EngineAdapter
         [Tooltip("発動できないスキルの「不」の文字の色")]
         private Color _unavailableTextColor = new(0.5f, 0.5f, 0.5f);
 
+        [SerializeField]
+        [Tooltip("体力制の破壊対象のゲージの色")]
+        private Color _targetHealthColor = new(0.95f, 0.6f, 0.2f);
+
+        [SerializeField]
+        [Tooltip("無敵の間の、体力制の破壊対象のゲージの色")]
+        private Color _invincibleColor = new(0.6f, 0.6f, 0.6f);
+
         [SerializeField, Min(0f)]
         [Tooltip("残り時間がこの秒数以下になったら、警告の色にする")]
         private float _timeWarningSeconds = 30f;
@@ -87,10 +95,15 @@ namespace Kizami.EngineAdapter
         private IChargeState _chargeState;
         private ISkillSlotState _slotState;
         private IStageFlowState _flowState;
+        private ITargetHealthState _targetHealthState;
         private FragmentThrowAdapter _fragmentThrowAdapter;
 
         private RectTransform _healthFill;
         private RectTransform _chargeFill;
+        private GameObject _targetHealthRoot;
+        private RectTransform _targetHealthFill;
+        private Image _targetHealthFillImage;
+        private Text _targetHealthNameText;
         /// <summary> 装備枠ごとの左右の線。枠の番号 × 2 ＋ 左右（0が左） </summary>
         private Image[] _skillLines;
         private GameObject[] _slots;
@@ -110,6 +123,9 @@ namespace Kizami.EngineAdapter
         private int _shownChargeMax = REDRAW_REQUIRED;
         private int _shownDestroyedTargets = REDRAW_REQUIRED;
         private int _shownRequiredTargets = REDRAW_REQUIRED;
+        private float _shownTargetHealth = REDRAW_REQUIRED;
+        private float _shownTargetHealthMax = REDRAW_REQUIRED;
+        private TargetHealthMode _shownTargetHealthMode = (TargetHealthMode)(-1);
         private int _shownDefeats = REDRAW_REQUIRED;
         private int _shownRequiredDefeats = REDRAW_REQUIRED;
         /// <summary> 表示した残りの秒数。制限時間がないときは -1 </summary>
@@ -140,7 +156,8 @@ namespace Kizami.EngineAdapter
             if (!blackBoard.TryGetSceneState<PlayerBoard, IPlayerHealthState>(out _healthState, this) ||
                 !blackBoard.TryGetSceneState<PlayerBoard, IChargeState>(out _chargeState, this) ||
                 !blackBoard.TryGetSceneState<PlayerBoard, ISkillSlotState>(out _slotState, this) ||
-                !blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this)) return;
+                !blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this) ||
+                !blackBoard.TryGetSceneState<StageBoard, ITargetHealthState>(out _targetHealthState, this)) return;
 
             _fragmentThrowAdapter = fragmentThrowAdapter;
             BuildView();
@@ -155,6 +172,7 @@ namespace Kizami.EngineAdapter
             UpdateSkills();
             UpdateTargetText();
             UpdateDefeatText();
+            UpdateTargetHealth();
             UpdateTimeText();
             UpdateLauncherText();
             UpdateStartText();
@@ -252,6 +270,28 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 体力制の破壊対象の名前と体力のゲージを出す。対象がないステージ（最大体力が0）では隠す。無敵の間はゲージを灰色にして名前に「無敵」を添える。
+        /// </summary>
+        private void UpdateTargetHealth()
+        {
+            var current = _targetHealthState.Current;
+            var max = _targetHealthState.Max;
+            var mode = _targetHealthState.Mode;
+            if (current == _shownTargetHealth && max == _shownTargetHealthMax && mode == _shownTargetHealthMode) return;
+
+            _shownTargetHealth = current;
+            _shownTargetHealthMax = max;
+            _shownTargetHealthMode = mode;
+            _targetHealthRoot.SetActive(max > 0f);
+            if (max <= 0f) return;
+
+            SetCenteredRatio(_targetHealthFill, current / max);
+            var isInvincible = mode == TargetHealthMode.Invincible;
+            _targetHealthFillImage.color = isInvincible ? _invincibleColor : _targetHealthColor;
+            _targetHealthNameText.text = isInvincible ? $"{_targetHealthState.Name}  無敵" : _targetHealthState.Name;
+        }
+
+        /// <summary>
         /// 制限時間の残りを「分:秒」で出す。残りが警告の秒数以下なら警告の色にする。制限時間がないステージでは隠す。
         /// </summary>
         private void UpdateTimeText()
@@ -343,6 +383,8 @@ namespace Kizami.EngineAdapter
             UiBuilder.SetAnchors(_defeatText.rectTransform, new Vector2(0.4f, 0.80f), new Vector2(0.6f, 0.86f));
             _defeatText.enabled = false;
 
+            BuildTargetHealth(canvas);
+
             _launcherText = UiBuilder.CreateText(canvas, "Launcher", LABEL_FONT_SIZE, TextAnchor.MiddleRight);
             UiBuilder.SetAnchors(_launcherText.rectTransform, new Vector2(0.7f, 0.03f), new Vector2(0.98f, 0.09f));
 
@@ -350,6 +392,25 @@ namespace Kizami.EngineAdapter
             UiBuilder.SetAnchors(_startText.rectTransform, new Vector2(0f, 0.55f), new Vector2(1f, 0.7f));
             _startText.text = START_TEXT;
             _startText.enabled = false;
+        }
+
+        /// <summary>
+        /// 体力制の破壊対象の名前と体力のゲージを、上の中央の文字の下に組み立てる。最初は隠す。
+        /// </summary>
+        private void BuildTargetHealth(RectTransform canvas)
+        {
+            _targetHealthRoot = new GameObject("TargetHealth", typeof(RectTransform));
+            var rootRect = (RectTransform)_targetHealthRoot.transform;
+            rootRect.SetParent(canvas, false);
+            UiBuilder.SetAnchors(rootRect, new Vector2(0.3f, 0.7f), new Vector2(0.7f, 0.8f));
+
+            _targetHealthNameText = UiBuilder.CreateText(rootRect, "Name", LABEL_FONT_SIZE);
+            UiBuilder.SetAnchors(_targetHealthNameText.rectTransform, new Vector2(0f, 0.4f), Vector2.one);
+
+            _targetHealthFill = CreateGauge(rootRect, "TargetHealthGauge", new Vector2(0.05f, 0.05f),
+                new Vector2(0.95f, 0.35f), _targetHealthColor);
+            _targetHealthFillImage = _targetHealthFill.GetComponent<Image>();
+            _targetHealthRoot.SetActive(false);
         }
 
         /// <summary>

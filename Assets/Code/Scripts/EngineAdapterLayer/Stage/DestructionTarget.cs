@@ -49,6 +49,9 @@ namespace Kizami.EngineAdapter
             }
         }
 
+        /// <summary> 自身の位置 </summary>
+        public Vector3 Center => transform.position;
+
         /// <summary>
         /// 重要パーツの、読み込んだ時点の体積のうち削れた割合を返す。パーツが破棄されていれば1。
         /// 読み込んだあと、まだ体積を測っていなければ false。

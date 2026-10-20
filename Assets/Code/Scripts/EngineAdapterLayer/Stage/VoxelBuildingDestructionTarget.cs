@@ -22,6 +22,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 建物の体積が必要な割合以上削れているか。一度もボクセルにしていない建物は false </summary>
         public bool IsDestroyed => Building.LostVolumeRatio >= _requiredRatio;
 
+        /// <summary> 建物の、読み込んだ時点の範囲の中心 </summary>
+        public Vector3 Center => Building.InitialCenter;
+
         private VoxelBuilding Building => _building != null ? _building : _building = GetComponent<VoxelBuilding>();
 
         /// <summary>

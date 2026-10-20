@@ -15,7 +15,7 @@ namespace Kizami.EngineAdapter
                 // 破棄された Unity のオブジェクトは、インターフェース越しでは == null で見分けられない
                 if (target is not Component component || component == null || target.IsDestroyed) continue;
 
-                candidates.Add(component.transform.position);
+                candidates.Add(target.Center);
             }
         }
     }
