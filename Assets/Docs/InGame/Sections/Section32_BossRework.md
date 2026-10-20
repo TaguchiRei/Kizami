@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 計画済み（詳細仕様の確定待ち。2026-10-20） |
+| 状態 | 着手（2026-10-20） |
 | 目安の時期 | 未定 |
 | 前提となる区間 | 31, 26C, 23 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -72,14 +72,14 @@
 
 | # | 作業 | 層 | 内容 |
 |---|---|---|---|
-| 23-1 | 段階の流れと体力 | Application / BlackBoard | `BossBattleService` を上の流れにし、`TargetHealthService` の体力と表示の状態を切り替える |
-| 23-2 | 保護とダウン | EngineAdapter | `BossBattleAdapter` が止まるまですべてを保護する。ボスの根に `HealthTarget`（解除しない設定）を置く。Down でハイライトし、当たったら壊す |
-| 23-3 | 武装を 1 つ選んで壊す | EngineAdapter | `BossWeapons.BreakBest`：壊れていない武装のうち、カメラの正面からの角度が最も小さいものを選ぶ。角度の差が決めた値より小さければ、プレイヤーに近い方。選んだ武装のパーツを本体から外して落とす |
-| 23-4 | フィニッシャーのビームの開始の仕方 | EngineAdapter | `Shot.BeginFixed` と `Shot.BeginContinuous` |
-| 23-5 | 降下フィニッシャー | EngineAdapter | `BossFinisherStrikes`：撃つ時点のプレイヤーの真上にユニットを置き、地面にデカール、警告の時間のあとに `BeginFixed(Vector3.down)`。撃ち終えたらユニットを隠す。`Hatch` が壊れた番では撃たない |
-| 23-6 | 円形の空間 | EngineAdapter | `BossArena` のビームを `BeginContinuous` に置き換え、隙間のない本数を並べる |
-| 23-7 | 最終フェーズ | EngineAdapter | Final で、下部レーザーと衝撃波（今の総攻撃と同じ）に加えて、降下フィニッシャーを短い間隔で撃ち続ける |
-| 23-8 | 水晶の置き場 | Level（ローカル） | `Stage_Boss` の水晶の目印を、ボスの退く先 (0, 0, 250) の周りへ移す |
+| 32-1 | 段階の流れと体力 | Application / BlackBoard | `BossBattleService` を上の流れにし、`TargetHealthService` の体力と表示の状態を切り替える |
+| 32-2 | 保護とダウン | EngineAdapter | `BossBattleAdapter` が止まるまですべてを保護する。ボスの根に `HealthTarget`（解除しない設定）を置く。Down でハイライトし、当たったら壊す |
+| 32-3 | 武装を 1 つ選んで壊す | EngineAdapter | `BossWeapons.BreakBest`：壊れていない武装のうち、カメラの正面からの角度が最も小さいものを選ぶ。角度の差が決めた値より小さければ、プレイヤーに近い方。選んだ武装のパーツを本体から外して落とす |
+| 32-4 | フィニッシャーのビームの開始の仕方 | EngineAdapter | `Shot.BeginFixed` と `Shot.BeginContinuous` |
+| 32-5 | 降下フィニッシャー | EngineAdapter | `BossFinisherStrikes`：撃つ時点のプレイヤーの真上にユニットを置き、地面にデカール、警告の時間のあとに `BeginFixed(Vector3.down)`。撃ち終えたらユニットを隠す。`Hatch` が壊れた番では撃たない |
+| 32-6 | 円形の空間 | EngineAdapter | `BossArena` のビームを `BeginContinuous` に置き換え、隙間のない本数を並べる |
+| 32-7 | 最終フェーズ | EngineAdapter | Final で、下部レーザーと衝撃波（今の総攻撃と同じ）に加えて、降下フィニッシャーを短い間隔で撃ち続ける |
+| 32-8 | 水晶の置き場 | Level（ローカル） | `Stage_Boss` の水晶の目印を、ボスの退く先 (0, 0, 250) の周りへ移す |
 
 ## 完了条件
 
@@ -108,7 +108,7 @@
 | 12 | 使わなくなるコード | `BossMissiles` は消す（デカールの作り方は `BossFinisherStrikes` に移す）。`BossWeapons` の 5% の判定は残す |
 | 13 | ビームが重なったときのダメージ | 重なったビームはそれぞれダメージを与える（足し算）。円の柵では隣のビームと重なるので、柵に触れると 0.1 秒ごとに 2 になる所がある |
 
-2026-10-20 に、ユーザーが決めること #10（区間31と同じ体力とダメージの量）と #13（重なったビームのダメージは足し算）を案のとおりに決めた。ほかの項目は着手時に確かめる。
+2026-10-20 に、ユーザーが決めること #10（区間31と同じ体力とダメージの量）と #13（重なったビームのダメージは足し算）を案のとおりに決めた。2026-10-20 に、残りの項目もすべて案のとおりに決めた。
 
 ## 作業計画（2026-10-20）
 
@@ -118,9 +118,13 @@
 |---|---|---|
 | `BossFinisherStrikes`（降下フィニッシャー。ユニットのプール、デカール、`Shot`） | EngineAdapter、ボスのプレハブの根 | `BossBattleAdapter`（`TryFire`、Final での連続）、`BossInitializer`（配線） |
 
-既存の型の拡張：`BossBattleService`、`BossBattleState`（段階の名前）、`BossBattleAdapter`、`BossWeapons`、`BossArena`、`EnemyFinisherBeams.Shot`、`BossInitializer`。区間31の `TargetHealthService` / `HealthTarget` を使う。
+既存の型の拡張：`BossBattleService`、`BossBattleState`（段階の名前）、`BossBattleAdapter`、`BossWeapons`、`BossArena`、`EnemyFinisherBeams.Shot`、`BossInitializer`。区間31の型には次を足す。
 
-- 基準1：ダウンで当たったかは、区間31の `TargetHealthState` の「尽きてから当たった回数」で読む。ボス用の State や Event を足さない
+- `TargetHealthService.Restore()`：体力を全回復する
+- `TargetHealthMode.Draining`：灰色で赤く点滅する表示。減らすのは `BossBattleService` が毎フレーム `Damage` を呼ぶ
+- `HealthTarget`：尽きたあとに当たったことを知らせるコールバックと、尽きた状態を戻す `ResetDepleted()`
+
+- 基準1：ダウンで当たったかは、`HealthTarget` のコールバックを `BossBattleAdapter` が受けて知る。どちらも Adapter なので直接つなぎ、State や Event を足さない
 - 基準1：`BossMissiles` を残して中身だけ変える案もあるが、名前と中身が合わなくなるので、置き換えて消す（決めること #12）
 - 基準2：ボスの体力は `TargetHealthService` が持ち、段階は `BossBattleService` が持つ。どちらも Application なので、`BossBattleService` が `TargetHealthService` を直接呼んで状態を変える（`BossInitializer` が渡す）
 
@@ -128,12 +132,13 @@
 
 | # | 内容 | 確かめ方（ローカル） |
 |---|---|---|
-| 1 | 23-4：`Shot.BeginFixed` / `BeginContinuous` | 今のフィニッシャーの攻撃が今までどおり動く（`Begin` は変えない） |
-| 2 | 23-6：`BossArena` のビームの置き換えと本数 | デバッグキーで円を開くと、16 本のビームが隙間なく並び、触れると 0.1 秒ごとに 1 のダメージ。外へ出ると今のダメージ |
-| 3 | 23-5：`BossFinisherStrikes`、`BossMissiles` の削除、`BossBattleAdapter`・`BossInitializer` の配線 | ミサイルの代わりに、プレイヤーの真上にフィニッシャーが出て、デカールのあと真下へ撃つ。撃ったあとにプレイヤーが動いても追わない |
-| 4 | 23-1・23-2・23-3：段階の流れ、体力、保護、ダウン、武装の選択と破壊、ハイライト | 体力が尽きるまで削れない。尽きるとダウンして武装が赤くなり、攻撃が当たると 1 つだけ外れて落ちる。遠距離フェーズのゲージが灰色の「無敵」 |
-| 5 | 23-7：最終フェーズ | 体力が赤く点滅しながら 30 秒で減り、その間にフィニッシャーのビームが降り続ける。尽きると止まり、`Core` を削ってクリア |
-| 6 | 23-8（ローカル）と、計画書の実装結果、全体計画書・区間26 の計画書の更新 | 完了条件すべて |
+| 1 | 32-4：`Shot.BeginFixed` / `BeginContinuous` | 今のフィニッシャーの攻撃が今までどおり動く（`Begin` は変えない） |
+| 2 | 32-6：`BossArena` のビームの置き換えと本数 | デバッグキーで円を開くと、16 本のビームが隙間なく並び、触れると 0.1 秒ごとに 1 のダメージ。外へ出ると今のダメージ |
+| 3 | 32-5：`BossFinisherStrikes`、`BossMissiles` の削除、`BossBattleAdapter`・`BossInitializer` の配線 | ミサイルの代わりに、プレイヤーの真上にフィニッシャーが出て、デカールのあと真下へ撃つ。撃ったあとにプレイヤーが動いても追わない |
+| 4a | 区間31の型の拡張（`Restore`、`Draining`、尽きたあとの当たりのコールバック、`ResetDepleted`） | 区間31の崩壊ステージが今までどおり動く |
+| 4b | 32-1・32-2・32-3：段階の流れ、体力、保護、ダウン、武装の選択と破壊、ハイライト | 体力が尽きるまで削れない。尽きるとダウンして武装が赤くなり、攻撃が当たると 1 つだけ外れて落ちる。遠距離フェーズのゲージが灰色の「無敵」 |
+| 5 | 32-7：最終フェーズ | 体力が赤く点滅しながら 30 秒で減り、その間にフィニッシャーのビームが降り続ける。尽きると止まり、`Core` を削ってクリア |
+| 6 | 32-8（ローカル）と、計画書の実装結果、全体計画書・区間26 の計画書の更新 | 完了条件すべて |
 
 コミット 2・3・6 は、ボスのプレハブと `Stage_Boss` の配線（`_unitCount` を 16、`BossFinisherStrikes` の参照、水晶の目印の位置）をローカルで行う。クラウドではコードと手順までを書く。
 

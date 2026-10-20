@@ -377,6 +377,9 @@ namespace Kizami.EngineAdapter
             /// <summary> 撃つ所から狙う位置への向き。照準の間だけ更新する </summary>
             private Vector3 _aimDirection = Vector3.down;
 
+            /// <summary> 止めるまで照射を続けるか </summary>
+            private bool _isContinuous;
+
             /// <summary> 次にダメージを与えられるまでの時間（秒） </summary>
             private float _damageTimer;
 
@@ -408,7 +411,26 @@ namespace Kizami.EngineAdapter
             {
                 _headHistory.Clear();
                 _aimTime = 0f;
+                _isContinuous = false;
                 SetPhase(Phase.Aiming);
+            }
+
+            /// <summary>
+            /// 向きを決めて予兆から始め、照射の時間が過ぎたら終える。照準はしない。
+            /// </summary>
+            /// <param name="direction">ビームの向き（ワールド座標）</param>
+            public void BeginFixed(Vector3 direction)
+            {
+                BeginTelegraph(direction, false);
+            }
+
+            /// <summary>
+            /// 向きを決めて予兆から始め、Stop を呼ぶまで照射を続ける。照準はしない。
+            /// </summary>
+            /// <param name="direction">ビームの向き（ワールド座標）</param>
+            public void BeginContinuous(Vector3 direction)
+            {
+                BeginTelegraph(direction, true);
             }
 
             /// <summary>
@@ -442,7 +464,7 @@ namespace Kizami.EngineAdapter
                         break;
                     case Phase.Firing:
                         UpdateFiring(pivot, capsuleStart, capsuleEnd, capsuleRadius, deltaTime);
-                        if (_phaseTime >= _owner._firingDuration)
+                        if (!_isContinuous && _phaseTime >= _owner._firingDuration)
                         {
                             Stop();
                             return false;
@@ -466,6 +488,13 @@ namespace Kizami.EngineAdapter
                 if (_tipGlow != null) _tipGlow.gameObject.SetActive(false);
                 if (_sparks != null) _sparks.Stop();
                 SetPhase(Phase.Idle);
+            }
+
+            private void BeginTelegraph(Vector3 direction, bool isContinuous)
+            {
+                _aimDirection = direction.normalized;
+                _isContinuous = isContinuous;
+                SetPhase(Phase.Telegraph);
             }
 
             /// <summary>
