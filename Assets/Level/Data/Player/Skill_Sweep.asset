@@ -20,5 +20,5 @@ MonoBehaviour:
   _falloff: 0.3
   _healAmount: 0
   _distance: 5
-  _width: 12
-  _depth: 6
+  _width: 20
+  _depth: 10

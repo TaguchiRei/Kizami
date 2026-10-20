@@ -195,13 +195,13 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 指定した2点を結ぶカプセルで削る。ガラスの板は割る。
         /// カプセルに入った装甲のパネルすべてに1回ずつ当て、origin から見て装甲の奥にあるピースは削らない。
-        /// 硬い素材（鉄筋）を削るのは崩爆と羽天轟号だけにする為、破壊力を最大にしたときの強さの上乗せは使わない。
+        /// 強さは普通の融点と減衰率から決め、破壊力を最大にしたときの上乗せは使わない。
         /// </summary>
         /// <param name="start">カプセルの一方の端（ワールド空間）</param>
         /// <param name="end">カプセルのもう一方の端（ワールド空間）</param>
         /// <param name="radius">カプセルの半径（m）</param>
         /// <param name="origin">装甲の遮断を判定するレイの始点</param>
-        /// <param name="falloff">1m あたりに減る強さ。1 ÷ 半径以下なら、普通の素材を半径まで削り、硬い素材は削れない</param>
+        /// <param name="falloff">1m あたりに減る強さ。普通の素材は半径まで削れる。硬い素材は、減衰率 × 半径が 1 を超えると少しだけ削れる</param>
         public void CarveCapsuleWithArmor(Vector3 start, Vector3 end, float radius, Vector3 origin, float falloff)
         {
             CollectArmorPanels(Physics.OverlapCapsuleNonAlloc(start, end, radius, _armorHitBuffer, _armorLayers,

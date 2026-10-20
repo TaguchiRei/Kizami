@@ -47,11 +47,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.GlassPane
   _intact: {fileID: 2683960083172781304}
-  _shardsPrefab: {fileID: 933291206711204491, guid: b49577d73527efc4fbc942d236e273ec, type: 3}
   _shardSpeed: 4
   _speedJitter: 0.4
   _maxAngularSpeed: 10
-  _density: 2500
   _shardLifetime: 4
 --- !u!205 &1200924364588404003
 LODGroup:

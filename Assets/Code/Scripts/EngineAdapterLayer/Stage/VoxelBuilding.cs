@@ -886,6 +886,11 @@ namespace Kizami.EngineAdapter
         private void Start()
         {
             if (_floors.Count > 0) InitializeFloors();
+
+            if (Array.Exists(_sections, section => section.Attachments != null) && GlassShardPool.Instance == null)
+            {
+                UsefulLogger.LogWarning("GlassShardPool がステージにない為、ガラスの板は割れても破片が出ません。", this);
+            }
         }
 
         private void Update()

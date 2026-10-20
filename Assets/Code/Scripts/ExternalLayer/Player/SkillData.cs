@@ -57,7 +57,7 @@ namespace Kizami.External
         private float _duration = 0.3f;
 
         [SerializeField, Min(0.01f)]
-        [Tooltip("削る強さが 1m あたりに減る量。1 ÷ 半径以下にすると、普通の素材（コンクリート）を半径まで削り、硬い素材（鉄筋）は削れない。衝波と攻走でだけ使う")]
+        [Tooltip("削る強さが 1m あたりに減る量。普通の素材（コンクリート）は半径まで削れる。硬い素材（鉄筋）は、減衰率 × 半径が 1 を超えると少しだけ削れる。衝波と攻走でだけ使う")]
         private float _falloff = 0.5f;
 
         [SerializeField, Min(0)]
