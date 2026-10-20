@@ -542,6 +542,7 @@ MonoBehaviour:
   _enemySpawnAdapter: {fileID: 1539543158}
   _voxelDestructionAdapter: {fileID: 1734900002}
   _fragmentThrowAdapter: {fileID: 1258148392}
+  _voxelMoundAdapter: {fileID: 1734900004}
   _bombThrowAdapter: {fileID: 1258148394}
   _equippedSkills:
   - {fileID: 11400000, guid: 7ae116c07fce44eb9d3d2f376c7e56ab, type: 2}
@@ -660,6 +661,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967287
   _wallCheckDistance: 0.1
+  _glassContactDistance: 0.1
   _wallLayers:
     serializedVersion: 2
     m_Bits: 512
@@ -1782,9 +1784,6 @@ MonoBehaviour:
   _blockLayers:
     serializedVersion: 2
     m_Bits: 44545
-  _glassLayers:
-    serializedVersion: 2
-    m_Bits: 16384
 --- !u!1 &1579939515
 GameObject:
   m_ObjectHideFlags: 0
@@ -2099,6 +2098,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1734900003}
   - component: {fileID: 1734900002}
+  - component: {fileID: 1734900004}
   m_Layer: 0
   m_Name: VoxelDestruction
   m_TagString: Untagged
@@ -2145,6 +2145,27 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1734900004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1734900001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 837f15d55604e6440ae081359e65beb4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelMoundAdapter
+  _piecePrefab: {fileID: 7209276436324303460, guid: 61530eb9160a0774ea36b62e68332dba, type: 3}
+  _maxCount: 4
+  _boxSize: 8
+  _maxDistance: 30
+  _targetLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _interval: 0.25
+  _tickCost: 2
 --- !u!1 &1879736535
 GameObject:
   m_ObjectHideFlags: 0
