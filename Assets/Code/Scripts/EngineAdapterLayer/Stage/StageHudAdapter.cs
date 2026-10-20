@@ -7,7 +7,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// インゲームの HUD（HP とチャージのゲージ、スキルの枠、破壊の進み具合、制限時間の残り、ランチャーの装填状態、開始の文字）を出す Adapter。インゲームのシーンへ置く。
+    /// インゲームの HUD（HP とチャージのゲージ、スキルの枠、破壊の進み具合、倒した敵の数、制限時間の残り、ランチャーの装填状態、開始の文字）を出す Adapter。インゲームのシーンへ置く。
     /// 画面は uGUI の Canvas を初期化のときに組み立てる。値は State から読み、ランチャーの装填状態だけは State がない為、FragmentThrowAdapter から読む。
     /// </summary>
     /// <remarks>
@@ -99,6 +99,7 @@ namespace Kizami.EngineAdapter
         private Text _chargeValueText;
         private Text _targetText;
         private Text _timeText;
+        private Text _defeatText;
         private Text _launcherText;
         private Text _startText;
         private float _startHideTime = -1f;
@@ -109,6 +110,8 @@ namespace Kizami.EngineAdapter
         private int _shownChargeMax = REDRAW_REQUIRED;
         private int _shownDestroyedTargets = REDRAW_REQUIRED;
         private int _shownRequiredTargets = REDRAW_REQUIRED;
+        private int _shownDefeats = REDRAW_REQUIRED;
+        private int _shownRequiredDefeats = REDRAW_REQUIRED;
         /// <summary> 表示した残りの秒数。制限時間がないときは -1 </summary>
         private int _shownSeconds = REDRAW_REQUIRED;
         private bool _shownTimeWarning;
@@ -151,6 +154,7 @@ namespace Kizami.EngineAdapter
             UpdateGauges();
             UpdateSkills();
             UpdateTargetText();
+            UpdateDefeatText();
             UpdateTimeText();
             UpdateLauncherText();
             UpdateStartText();
@@ -230,6 +234,21 @@ namespace Kizami.EngineAdapter
             _shownDestroyedTargets = destroyed;
             _shownRequiredTargets = required;
             _targetText.text = $"Targets {destroyed} / {required}";
+        }
+
+        /// <summary>
+        /// 倒した敵の数と、クリアに要る数を出す。クリアに敵の数を要しないステージでは隠す。
+        /// </summary>
+        private void UpdateDefeatText()
+        {
+            var defeats = _flowState.DefeatCount;
+            var required = _flowState.RequiredDefeatCount;
+            if (defeats == _shownDefeats && required == _shownRequiredDefeats) return;
+
+            _shownDefeats = defeats;
+            _shownRequiredDefeats = required;
+            _defeatText.enabled = required > 0;
+            if (_defeatText.enabled) _defeatText.text = $"撃破 {defeats} / {required}";
         }
 
         /// <summary>
@@ -319,6 +338,10 @@ namespace Kizami.EngineAdapter
             _timeText = UiBuilder.CreateText(canvas, "Time", LABEL_FONT_SIZE);
             UiBuilder.SetAnchors(_timeText.rectTransform, new Vector2(0.4f, 0.86f), new Vector2(0.6f, 0.92f));
             _timeText.enabled = false;
+
+            _defeatText = UiBuilder.CreateText(canvas, "Defeats", LABEL_FONT_SIZE);
+            UiBuilder.SetAnchors(_defeatText.rectTransform, new Vector2(0.4f, 0.80f), new Vector2(0.6f, 0.86f));
+            _defeatText.enabled = false;
 
             _launcherText = UiBuilder.CreateText(canvas, "Launcher", LABEL_FONT_SIZE, TextAnchor.MiddleRight);
             UiBuilder.SetAnchors(_launcherText.rectTransform, new Vector2(0.7f, 0.03f), new Vector2(0.98f, 0.09f));

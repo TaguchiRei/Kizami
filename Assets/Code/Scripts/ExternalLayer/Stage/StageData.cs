@@ -48,6 +48,10 @@ namespace Kizami.External
         [Tooltip("クリアに必要な、破壊済みの対象の数。どの対象を壊してもよい。0 なら対象すべて")]
         private int _requiredTargetCount;
 
+        [SerializeField, Min(0)]
+        [Tooltip("クリアに必要な、倒した敵の数。0 なら敵の数を条件にしない")]
+        private int _requiredDefeatCount;
+
         [SerializeField, Min(-1)]
         [Tooltip("同時に弾を撃つアタッカーの数の上限。-1 なら敵の設定の既定の値、0 なら撃たない")]
         private int _maxAttackingAttackers = -1;
@@ -97,6 +101,9 @@ namespace Kizami.External
 
         /// <summary> クリアに必要な破壊済みの対象の数。0 なら対象すべて </summary>
         public int RequiredTargetCount => _requiredTargetCount;
+
+        /// <summary> クリアに必要な倒した敵の数。0 なら敵の数を条件にしない </summary>
+        public int RequiredDefeatCount => _requiredDefeatCount;
 
         /// <summary> 同時に弾を撃つアタッカーの数の上限。負の値なら既定の値、0 なら撃たない </summary>
         public int MaxAttackingAttackers => _maxAttackingAttackers;

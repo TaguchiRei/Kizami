@@ -46,12 +46,12 @@
 
 | # | 作業 | 層 | 内容 |
 |---|---|---|---|
-| 22-1 | 体力の持ち方 | Application / BlackBoard | `TargetHealthService` が、体力・最大値・表示の状態（通常・無敵・減り続ける）・名前を `TargetHealthState`（`StageBoard`）に書く |
-| 22-2 | ダメージの入口 | EngineAdapter | 対象の根に置く `HealthTarget` が、通常攻撃・スキル・落ちる塊の当たりを受け、種類ごとの量を Service へ報告する |
-| 22-3 | 保護と解除 | EngineAdapter | `HealthTarget` が、初期化で対象のピースをすべて保護し、体力が尽きたら保護を外して、通常攻撃で切れる印を付ける（解除するかは Inspector の設定。ボスは解除しない） |
-| 22-4 | 体力のゲージ | EngineAdapter | `StageHudAdapter` に、上部中央の名前とゲージを足す。灰色と「無敵」、赤の点滅を持つ（区間32で使う） |
-| 22-5 | 崩壊の対象 | Level / Art | 半球のモデルを作ってベイクし、`Town_CollapseSite.prefab` のコアと置き換える |
-| 22-6 | 殲滅の撃破数 | External / Application / BlackBoard / EngineAdapter | `StageData._requiredDefeatCount`、`IStageFlowState.RequiredDefeatCount`、`TryClear`、HUD の撃破数。`AnnihilationStageData` を 50 にする |
+| 31-1 | 体力の持ち方 | Application / BlackBoard | `TargetHealthService` が、体力・最大値・表示の状態（通常・無敵・減り続ける）・名前を `TargetHealthState`（`StageBoard`）に書く |
+| 31-2 | ダメージの入口 | EngineAdapter | 対象の根に置く `HealthTarget` が、通常攻撃・スキル・落ちる塊の当たりを受け、種類ごとの量を Service へ報告する |
+| 31-3 | 保護と解除 | EngineAdapter | `HealthTarget` が、初期化で対象のピースをすべて保護し、体力が尽きたら保護を外して、通常攻撃で切れる印を付ける（解除するかは Inspector の設定。ボスは解除しない） |
+| 31-4 | 体力のゲージ | EngineAdapter | `StageHudAdapter` に、上部中央の名前とゲージを足す。灰色と「無敵」、赤の点滅を持つ（区間32で使う） |
+| 31-5 | 崩壊の対象 | Level / Art | 半球のモデルを作ってベイクし、`Town_CollapseSite.prefab` のコアと置き換える |
+| 31-6 | 殲滅の撃破数 | External / Application / BlackBoard / EngineAdapter | `StageData._requiredDefeatCount`、`IStageFlowState.RequiredDefeatCount`、`TryClear`、HUD の撃破数。`AnnihilationStageData` を 50 にする |
 
 ## 完了条件
 
@@ -99,11 +99,11 @@
 
 | # | 内容 | 確かめ方（ローカル） |
 |---|---|---|
-| 1 | 22-6：殲滅の撃破数（`StageData`、`StageFlowState`、`StageFlowService`、HUD の撃破数） | 殲滅で、施設を全部壊しても 50 体までクリアにならない。撃破数が出る。ほかのステージは今までどおり |
-| 2 | 22-1：`TargetHealthState`・`TargetHealthMode`・`TargetDamageKind`・`TargetHealthService`。`StageInitializer` が作って DI に登録する | コンパイル。デバッグ表示（`GetLog`）に体力が出る |
-| 3 | 22-2・22-3：`HealthTarget`、攻撃の Adapter からの報告、落ちる塊の調べ方 | TestStage に仮の対象（ボクセルの物に `HealthTarget`）を置く。通常攻撃・スキル・落とした塊で体力が減り、尽きるまで削れない。尽きると削れて、通常攻撃で切れる |
-| 4 | 22-4：HUD の体力のゲージ | 上部中央に名前とゲージ。無敵・点滅の表示はデバッグの操作で確かめる |
-| 5 | 22-5：半球の対象と崩壊ステージ（ローカル。モデルとベイク、プレハブ、`DestructionTarget` の重要パーツ） | 崩壊ステージで完了条件 1〜3 |
+| 1 | 31-6：殲滅の撃破数（`StageData`、`StageFlowState`、`StageFlowService`、HUD の撃破数） | 殲滅で、施設を全部壊しても 50 体までクリアにならない。撃破数が出る。ほかのステージは今までどおり |
+| 2 | 31-1：`TargetHealthState`・`TargetHealthMode`・`TargetDamageKind`・`TargetHealthService`。`StageInitializer` が作って DI に登録する | コンパイル。デバッグ表示（`GetLog`）に体力が出る |
+| 3 | 31-2・31-3：`HealthTarget`、攻撃の Adapter からの報告、落ちる塊の調べ方 | TestStage に仮の対象（ボクセルの物に `HealthTarget`）を置く。通常攻撃・スキル・落とした塊で体力が減り、尽きるまで削れない。尽きると削れて、通常攻撃で切れる |
+| 4 | 31-4：HUD の体力のゲージ | 上部中央に名前とゲージ。無敵・点滅の表示はデバッグの操作で確かめる |
+| 5 | 31-5：半球の対象と崩壊ステージ（ローカル。モデルとベイク、プレハブ、`DestructionTarget` の重要パーツ） | 崩壊ステージで完了条件 1〜3 |
 | 6 | 計画書の実装結果、全体計画書の更新 | 完了条件すべて |
 
 コミット 5 はモデルの作成とベイク、シーンとプレハブの編集なので、ローカルで行う。クラウドではコミット 1〜4 のコードと、5 の手順までを書く。
