@@ -1549,16 +1549,16 @@ MonoBehaviour:
     _anchorSpeedRate: 0.8
     _anchorAcceleration: 1.5
     _anchorTurnSpeed: 90
-    _rowSpacing: 8
-    _lateralSpacing: 2.5
+    _rowSpacing: 9
+    _lateralSpacing: 4
     _maxColumns: 4
     _columnChangeDelay: 1
     _encircleApproachMargin: 5
     _encircleInnerRadius: 25
     _encircleLoopSpacing: 25
     _encircleSlotSpacing: 25
-    _memberLoopSpacing: 6
-    _memberSlotSpacing: 6
+    _memberLoopSpacing: 10
+    _memberSlotSpacing: 10
     _followDistance: 10
     _barrierLeaveMargin: 10
   _strandedReturnRadius: 4
