@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 計画済み（詳細仕様の確定待ち。2026-10-20） |
+| 状態 | 実装済み（動作の最終確認と値の調整はレビュー時。2026-10-20） |
 | 目安の時期 | 未定 |
 | 前提となる区間 | 29, 22, 19 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -107,6 +107,41 @@
 | 6 | 計画書の実装結果、全体計画書の更新 | 完了条件すべて |
 
 コミット 5 はモデルの作成とベイク、シーンとプレハブの編集なので、ローカルで行う。クラウドではコミット 1〜4 のコードと、5 の手順までを書く。
+
+## 実装結果（2026-10-20）
+
+### 決めたこと
+
+- 詳細仕様は案のとおり。ダメージの量（体力 100、通常攻撃 0.5、スキル 1、落ちる塊 1m³ あたり 2）は仮で、プレイで調整する
+- #9：今の配置のまま、倒す物（`CollapseOverhang`）の屋根の板が半球に落ちる。置き直しはしていない
+- 計画から外した型：`TargetDamageKind`（`HealthTarget` の 2 つのメソッド `ReportMeleeHit` / `ReportSkillHit` にした）、`TargetHealthMode.Draining`、回復、Tick、尽きてから当たった回数、HUD の赤の点滅（今の区間に利用者がなく、区間32 で足す）
+- `HealthTarget` は Application を参照できない為、体力を減らす処理は `Func<float, bool>` で受け取る（`StageInitializer` が `TargetHealthService.Damage` を渡す）
+- プレイヤーの攻撃でない破壊（倒れた塔の跡を削る処理、ボスの演出）は `notifiesCarved` が false なので体力を減らさない
+
+### 作った主なもの
+
+- `TargetHealthState` / `ITargetHealthState` / `TargetHealthMode`（Normal・Invincible）、`TargetHealthService`（`Setup`・`Damage`・`SetMode`）。`StageInitializer` が作って `StageBoard` に登録する
+- `HealthTarget`（読み込み後に全パーツを保護、通常攻撃・スキルの報告、落ちる塊の `OverlapBox` での判定、尽きたら保護を外して通常攻撃で切れる印を付ける。解除は `_releasesOnDepleted`）
+- `MeleeCutAdapter`・`VoxelDestructionAdapter` の報告、`VoxelPiece.SetCutByMelee`
+- `StageHudAdapter` の撃破数（「撃破 n / N」）と、上部中央の名前・体力のゲージ（無敵は灰色と「無敵」）
+- `StageData._requiredDefeatCount`、`IStageFlowState.RequiredDefeatCount`、`TryClear` と `AddDefeats` の判定。`AnnihilationStageData` は 50
+- 半球の対象：`CollapseDome_Mesh.asset`（半径 6m、底が平ら）、`CollapseDome_Voxel.asset`（0.2m でベイク、品質は Building の 0.4m）。`Town_CollapseSite.prefab` の旧コア（`CoreSystem` と 8 つの `CorePart`）を `CollapseDome` に置き換えた（`DestructionTarget`・`StageGimmick`（`Core_Collapse`）・`HealthTarget`）
+
+### 完了条件の確認結果
+
+- コンパイル：コミットごとに成功（エラー 0、警告 0。`TowerTopple.cs` の `Physics.BakeMesh` の廃止予定の警告は既存）
+- 殲滅の撃破数：コミット 1 の確かめ方をユーザーが確認した
+- 体力：TestStage の仮の対象で、スキル・通常攻撃が体力を減らして尽きるまで削れず、尽きたあとはスキルで削れて通常攻撃で切れることを、再生中の値で確認した
+- 崩壊の対象：半球が保護されて読み込まれ、体力が尽きたあとスキルで破壊の割合が 0.92（必要 0.7）になり破壊済みになることを確認した。倒す物の屋根の板（41.6m³）を落とすと体力が 99 → 15.83（41.6 × 2 の分）に減り、同じ塊を二重に数えないことも確認した
+- 未確認：アウトゲームから崩壊・殲滅を選んだ通しの流れ、ステージ定義どおりのクリア、画面での見た目（半球の大きさと位置、HUD の配置）。レビュー時に確かめる
+
+### 次の区間へ持ち越すこと
+
+- 屋根の板を落とすには、板の厚み（4m）全体を切る必要がある（切り離した塊のうち大きいほうが元の位置に残る為）。柱だけを削っても落ちない。1 回で体力の 83% が減るので、`_collapseDamagePerCubicMeter` の調整をレビュー時にする
+- 半球の右端が `CollapseOverhang` の柱と約 14m³ 重なっている。見た目で気になるなら半球を左へずらす
+- `CoreSystem` / `CorePart` のコードは残した。消すかは区間33 で決める
+- 区間32：`TargetHealthMode.Draining`、回復、体力の時間減少、赤の点滅、ボスの `BossBattleAdapter` の自前の保護（`UpdateProtection`）を `HealthTarget`（`_releasesOnDepleted` を false）へ置き換える
+- `HealthTarget` の落ちる塊の判定は `OverlapBox` が対象自身の箱を拾う。負荷の計測は、半球とボスで体感に問題が出たときに行う
 
 ## 見つけた問題（今回は扱わない）
 
