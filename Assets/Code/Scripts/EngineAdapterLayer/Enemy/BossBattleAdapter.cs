@@ -10,9 +10,9 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// ボス戦で、BossBattleState の段階に合わせてボスの武装を動かし、段階が進む出来事を報告する。ボスのボクセルのモデル（VoxelModelLoader）と同じ GameObject に付ける。
     /// 1 周目の飛来は、プレイヤーの正面の着地点へ降りてくる。
-    /// 水晶の段階は、退く所へ飛び去ってから水晶を投げて置き、上部タレット・ミサイル・頭部のレーザーで遠くから攻撃する。水晶がすべて壊れたら、飛来の段階で水晶のあった所へ飛ぶ。
-    /// 足踏みの段階はアウトリガーで足踏みし、コアを出す段階は下部レーザーとミサイルで攻撃する。隙の段階はコアを出したまま、武装が壊れるのを待つ。
-    /// 総攻撃は、レーザーを撃ち続け、ミサイルを撃ち切り、衝撃波を消えるたびに出す。止まったあとは攻撃をやめる。
+    /// 水晶の段階は、退く所へ飛び去ってから水晶を投げて置き、上部タレット・降下フィニッシャー・頭部のレーザーで遠くから攻撃する。水晶がすべて壊れたら、飛来の段階で水晶のあった所へ飛ぶ。
+    /// 足踏みの段階はアウトリガーで足踏みし、コアを出す段階は下部レーザーと降下フィニッシャーで攻撃する。隙の段階はコアを出したまま、武装が壊れるのを待つ。
+    /// 総攻撃は、レーザーを撃ち続け、降下フィニッシャーを出し、衝撃波を消えるたびに出す。止まったあとは攻撃をやめる。
     /// </summary>
     /// <remarks>
     /// ボス戦の間、ボスは自分では歩かない（飛来でだけ動く）。武装以外のパーツは止まるまで保護し、削れないようにする。
@@ -39,8 +39,8 @@ namespace Kizami.EngineAdapter
         private BossLaser _laser;
 
         [SerializeField]
-        [Tooltip("ボスの脚のミサイル")]
-        private BossMissiles _missiles;
+        [Tooltip("ボスの脚の Hatch が呼ぶ降下フィニッシャー")]
+        private BossFinisherStrikes _finisherStrikes;
 
         [SerializeField]
         [Tooltip("ボスの上部タレット。水晶の段階で使う")]
@@ -151,9 +151,9 @@ namespace Kizami.EngineAdapter
         {
             _loader = GetComponent<VoxelModelLoader>();
 
-            if (_body == null || _weapons == null || _shockwaves == null || _laser == null || _missiles == null)
+            if (_body == null || _weapons == null || _shockwaves == null || _laser == null || _finisherStrikes == null)
             {
-                UsefulLogger.LogError("ボスの胴体・武装・衝撃波・下部レーザー・ミサイルのどれかが設定されていない為、直接戦闘は動きません。", this);
+                UsefulLogger.LogError("ボスの胴体・武装・衝撃波・下部レーザー・降下フィニッシャーのどれかが設定されていない為、直接戦闘は動きません。", this);
                 enabled = false;
             }
         }
@@ -229,7 +229,7 @@ namespace Kizami.EngineAdapter
                 case BossBattlePhase.AllOutAttack:
                     _laser.HoldCoreExposed(false);
                     _laser.FireFor(_allOutDuration);
-                    _missiles.FireAll();
+                    _finisherStrikes.FireNow();
                     _allOutTime = 0f;
                     break;
                 case BossBattlePhase.Stopped:
@@ -243,7 +243,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 飛び去り終えたら水晶を投げ、上部タレット・ミサイル・頭部のレーザーを、それぞれのクールタイムごとに撃つ。水晶がすべて壊れたら報告する。
+        /// 飛び去り終えたら水晶を投げ、上部タレット・降下フィニッシャー・頭部のレーザーを、それぞれのクールタイムごとに撃つ。水晶がすべて壊れたら報告する。
         /// </summary>
         private void TickCrystal()
         {
@@ -263,7 +263,7 @@ namespace Kizami.EngineAdapter
             }
 
             if (_turret != null) _turret.TryFire();
-            _missiles.TryFire();
+            _finisherStrikes.TryFire();
             if (_headLaser != null) _headLaser.TryFire();
         }
 
@@ -300,7 +300,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 下部レーザーを撃ち、撃っている間はミサイルも撃つ。レーザーを撃ち終えたら報告する。
+        /// 下部レーザーを撃ち、撃っている間は降下フィニッシャーも撃つ。レーザーを撃ち終えたら報告する。
         /// 番のレーザーが壊れていれば、撃たずにクールタイムだけ過ぎるので、撃ち終えたものとして報告する。
         /// </summary>
         private void TickCoreExposed()
@@ -312,7 +312,7 @@ namespace Kizami.EngineAdapter
 
             if (_laser.IsFiring)
             {
-                _missiles.TryFire();
+                _finisherStrikes.TryFire();
                 return;
             }
 
@@ -328,7 +328,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 衝撃波が消えていれば新しく出し、決めた時間が過ぎたら報告する。レーザーとミサイルは始めたときに出してある。
+        /// 衝撃波が消えていれば新しく出し、決めた時間が過ぎたら報告する。レーザーと降下フィニッシャーは始めたときに出してある。
         /// </summary>
         private void TickAllOutAttack(float deltaTime)
         {

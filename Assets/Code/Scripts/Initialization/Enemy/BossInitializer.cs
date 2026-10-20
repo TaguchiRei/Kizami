@@ -58,11 +58,11 @@ namespace Kizami.Initialization
                     _movementService != null ? _movementService.RequestKnockback : null);
             }
 
-            var missiles = boss.GetComponentInChildren<BossMissiles>(true);
-            if (missiles != null)
+            var finisherStrikes = boss.GetComponentInChildren<BossFinisherStrikes>(true);
+            if (finisherStrikes != null)
             {
-                missiles.SetTarget(target);
-                missiles.Initialize(applyDamage);
+                finisherStrikes.SetTarget(target);
+                finisherStrikes.Initialize(applyDamage);
             }
 
             var laser = boss.GetComponentInChildren<BossLaser>(true);
