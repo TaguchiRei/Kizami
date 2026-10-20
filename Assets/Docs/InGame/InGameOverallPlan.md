@@ -166,7 +166,7 @@
 | 29 | 土遁・造山 | 覇剣を置き換える。長押しでボクセルを盛って大きくし、通常攻撃で切れる | 18, OutGame 5 | 未定 | 未定 | 実装済み（最終確認はレビュー時） | [Section29](Sections/Section29_Zouzan.md) |
 | 30 | 敵の広がり | 隊列の間隔を広げ、通常攻撃でまとめて倒せる数を減らす。着いたグループのメンバーを空いている床に割り当て、遠回りでしかたどり着けない列を置き場から外す | 16 | 未定 | 未定 | 完了（2026-10-20） | [Section30](Sections/Section30_EnemySpread.md) |
 | 31 | 体力制の破壊対象 | 体力が尽きるまで壊せない対象、上部の体力ゲージ、崩壊の半球の対象、殲滅の撃破数の条件 | 29, 22, 19 | 未定 | 未定 | 実装済み（最終確認はレビュー時） | [Section31](Sections/Section31_TargetHealth.md) |
-| 32 | ボス戦の作り直し | ボスの体力、直接戦闘 → 遠距離 → 直接戦闘 → 最終、降下フィニッシャー、武装を 1 つ選んで壊す、隙間のない円形の空間 | 31, 26C, 23 | 未定 | 未定 | 計画済み（詳細仕様の確定待ち） | [Section32](Sections/Section32_BossRework.md) |
+| 32 | ボス戦の作り直し | ボスの体力、直接戦闘 → 遠距離 → 直接戦闘 → 最終、降下フィニッシャー、武装を 1 つ選んで壊す、隙間のない円形の空間 | 31, 26C, 23 | 未定 | 未定 | 実装済み（2026-10-21。通して遊ぶ確認はレビュー時） | [Section32](Sections/Section32_BossRework.md) |
 | 33 | 仕上げ | 負荷調整、エフェクト、SE、パラメータ調整 | 全部 | 12/04〜12/17 | 10/28〜10/31 | 未着手 | [Section33](Sections/Section33_Polish.md) |
 
 - 目安の時期と最速の推定は、そのときどきの割り方で引いた値のまま残している。区間0〜3 は計画の約 4 倍、区間4〜19 は約 20 倍の速さで終わった。最後に引き直したのは 2026-10-15（区間20-3）で、そのときの完了の目安は 2026/12/17、完了の最速の推定は 2026/10/31
@@ -278,7 +278,7 @@ flowchart LR
 | 遠くの敵の待機姿勢 | 部位ごとの待機姿勢（`EnemyPart`）を、エディタのメニュー（Kizami/Enemy/Bake Idle Poses）で焼き込む（区間23） |
 | ビームの見た目 | URP の HLSL シェーダー（`Assets/Code/Shader/FinisherBeam/`）、`MaterialPropertyBlock`、`ParticleSystem`（火花）、Cinemachine の `CinemachineImpulseSource`（画面の揺れ。カメラに `CinemachineImpulseListener`）（区間23） |
 | 破壊スキルの演出 | 既存のボクセルの融解（Thermal / Melt）が候補。区間8では使わず、区間33（または区間18）で決める。`VoxelMeltSystem` は InGame にも TestStage にも置かれていない |
-| 体力制の破壊対象 | 区間31の `HealthTarget`（`VoxelPiece.SetProtected` で全パーツを保護し、体力が尽きたら外す）と `TargetHealthService` / `TargetHealthState`（`StageBoard`）。落ちる塊は `Physics.OverlapBox` で調べる（接触のコールバックは Rigidbody の側にしか届かない為） |
+| 体力制の破壊対象 | 区間31の `HealthTarget`（`VoxelPiece.SetProtected` で全パーツを保護し、体力が尽きたら外す）と `TargetHealthService` / `TargetHealthState`（`StageBoard`）。落ちる塊は `Physics.OverlapBox` で調べる（接触のコールバックは Rigidbody の側にしか届かない為）。対象はステージの破壊対象のギミックで選ぶ。`TargetHealthService` は `InGameCompositor` に登録され、ボスは区間32 で全回復・無敵・時間で減る・停止のひびの表示に使う |
 
 ## 7. 未確定の仕様と、決める区間
 

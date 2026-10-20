@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 着手（2026-10-20） |
+| 状態 | 実装済み（2026-10-21。通常の攻撃で通して遊ぶ確認はレビュー時） |
 | 目安の時期 | 未定 |
 | 前提となる区間 | 31, 26C, 23 |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -144,4 +144,44 @@
 
 ## 見つけた問題（今回は扱わない）
 
-- なし
+- 外れた武装のパーツのうち、地面にめり込んだ状態で外れたもの（脚の `Pad`）は、地面を突き抜けて落ちる。外すときに少し持ち上げれば直せる見込み。2026-10-20 に、ユーザーが今回は直さないと決めた
+- ミサイル用のアセット（`BossEnemy.prefab` の `MissileLaunchSmoke` / `MissileImpactBurst`、`BossMissile` のプレハブ）が使われずに残っている
+
+## 実装結果（2026-10-21）
+
+### 決めたこと
+
+- 詳細仕様で決めることは、すべて案のとおり。ただし #9 の最終フェーズは 20 秒にし、体力は時間でだけ減らす（`TargetHealthService.Drain`。攻撃の `Damage` は表示が通常のときだけ効く）
+- 停止したボスの体力のゲージは隠さず、灰色のゲージをひびで左右に割った見た目にし、名前に「停止」を添える（`TargetHealthMode.Broken`）
+- 体力制の対象は、ステージの破壊対象のギミック（`TargetGimmickIds`）で選ぶ。町のシーンは共有で、ほかのステージの対象（崩壊の「コア」）も置かれている為。区間31 の `FindFirstObjectByType` では、ボスステージで「コア」がつながっていた
+- `TargetHealthService` は `StageInitializer` が `Awake` で作って `InGameCompositor` に登録し、`BossInitializer` が DI で受け取る（`BossInitializer` が先に初期化される為）
+- ダウン中の当たりは `HealthTarget.SetOnHitWhileDepleted` で `BossBattleAdapter` が受ける。`Initialize` は `StageInitializer` が呼ぶので分けた
+- 水晶の目印は 1 つで、(0, 0, 200)（退く先 (0, 0, 250) の手前）に置いた
+
+### 作った主なもの
+
+- `BossFinisherStrikes`（降下フィニッシャー。`BossMissiles` を置き換えて削除）
+- `EnemyFinisherBeams.Shot.BeginFixed` / `BeginContinuous`、撃ち続ける間の模様を止める `_continuousPatternTime`
+- `BossArena`：柵を撃ち続けるフィニッシャーのビーム 16 本に置き換え。円の外のダメージは残す
+- `BossBattleService`：直接戦闘 → ダウン → 遠距離 → 直接戦闘 → ダウン → 最終 → 停止。`Tick` で体力の尽きと最終の減少を扱う。段階の名前は `Down` / `Final`
+- `BossBattleAdapter`：止まるまで全パーツを保護、ダウンのハイライトと武装の破壊、最終の攻撃（レーザーの撃ち直し、衝撃波、1.5 秒ごとの降下フィニッシャー）
+- `BossWeapons.BreakBest`（画面の中央からの角度、差が 10° 以内ならプレイヤーに近い方）と `SetHighlight`（URP Lit の `_BaseColor` を `MaterialPropertyBlock` で塗る）
+- `TargetHealthService`：`Register`、`Restore`、`Drain`、`Max`、`IsDepleted`。`TargetHealthMode`：`Draining`、`Broken`。`HealthTarget`：`SetOnHitWhileDepleted`、`ResetDepleted`
+- `StageHudAdapter`：`Draining` の灰色と赤の点滅、`Broken` のひび
+- ローカル：`BossEnemy.prefab`（`HealthTarget`「ボス」体力 100・解除しない、`EnemyFinisherBeams`、`BossFinisherStrikes`）、`Stage_Boss`（`BossArena` に `EnemyFinisherBeams`、`_unitCount` 16、水晶の目印）
+
+### 完了条件の確認結果
+
+| 完了条件 | 結果 |
+|---|---|
+| 通して遊べる | 段階の流れは、プレイモードで直接戦闘 → ダウン → 遠距離 → 直接戦闘 → ダウン → 最終 → 停止まで確かめた。水晶を壊した報告と体力の減少は、テストの為に直接呼んだ。通常の攻撃だけで最後まで通す確認と、`Core` を削ってのクリアはレビュー時に行う |
+| 体力が尽きるまで削れない | パーツ 55 個すべてが停止まで保護され、停止で外れることを確かめた |
+| ダウン中に 1 つだけ壊れる | ダウンで武装がすべて赤くなり、当たると 1 つだけ外れて落ち、赤が消えることを確かめた |
+| 遠距離フェーズ | 無敵の間、攻撃で体力が減らないことを確かめた。水晶は退く先の手前 (0, 0, 200) に置かれる |
+| 降下フィニッシャー | プレイヤーの真上 30m に出て、デカールのあと真下へ撃ち、ダメージが入ることを確かめた。撃ったあとにプレイヤーが動いたときは、コードで確かめた（位置は置いたときに決める） |
+| 円形の空間 | 16 本が並び、柵の上で体力が減ることを確かめた。一周して隙間を見る確認はレビュー時に行う |
+
+### 次の区間へ持ち越すこと
+
+- 最終フェーズの難しさ（テストでは 20 秒を耐えきれなかった）は、通して遊んで調整する
+- 外れた武装のパーツが地面を突き抜けること、使われなくなったミサイル用のアセット（「見つけた問題」）
