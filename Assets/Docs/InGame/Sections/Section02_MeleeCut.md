@@ -87,7 +87,7 @@ UsefulToolkit.MeshCut（`Library/PackageCache/com.rei.usefultoolkit.meshcut@*/RE
 | 5 | 切断判定の方式 | 攻撃した瞬間に、範囲内をまとめて 1 枚の平面で切る（`ExecuteCut` は 1 回に 1 枚の平面で切る為）。振りの軌跡に沿った判定はしない。刃と範囲は下の「設計」 |
 | 6 | 攻撃の範囲と間隔 | 範囲は距離 3m、幅 2m、厚み 0.2m（仮。Adapter の Inspector に置く）。攻撃間隔は 0.3 秒（仮。`PlayerParameterData` に置く）。攻撃間隔はスロー中も等速（unscaled）で数える |
 | 7 | 切断面の回転 | 段階で持ち、0° 以上 180° 未満で巡回させる（180° 回すと同じ面になる為）。1段あたりの角度は `AccessibilitySettingState` に置き、初期値は 15°。ホイールの値は符号だけを使う。上に回すと、画面上で反時計回りに回る |
-| 8 | 剣のアニメーション | 区間2では付けない（区間13）。付けるときは、Animator の Update Mode を UnscaledTime にする |
+| 8 | 剣のアニメーション | 区間2では付けない（区間33）。付けるときは、Animator の Update Mode を UnscaledTime にする |
 | 9 | 何度も切れる設定 | ダミーのパーツは `Can Multi Cut` を true にし、かけらも切り直せるようにする。かけらのプールの生成数は 128。切り直したときのチャージの数え方は区間3で決める |
 
 ## 設計
@@ -144,7 +144,7 @@ sequenceDiagram
 
 拡張する型：`AccessibilitySettingState`（1段あたりの角度）、`ApplicationManagementInitializer`（その初期値）、`PlayerParameterData`（攻撃間隔）、`PlayerInitializer`（`MeleeCutService` の生成とプレビューの配線）
 
-作らないもの：かけらの通知の Event や State（区間3）、剣のアニメーション（区間13）、ステージシーン（区間4）
+作らないもの：かけらの通知の Event や State（区間3）、剣のアニメーション（区間33）、ステージシーン（区間4）
 
 ### コミットの分け方
 
@@ -224,7 +224,7 @@ sequenceDiagram
 - 区間3：プールが 1 回の切断の中で一周すると、`Original` が同じ切断の別の組の `Front` / `Back` として使い回されることがある（MeshCut の README「結果の参照の扱い」）
 - 区間4：MeshCut は拡大率を `localScale` で扱うので、切断対象の親に拡大率を持たせない（親に拡大率があると切断面がずれる）
 - 区間4：刃はカメラの高さを通る為、水平（0°）に振るとカメラより低い部分は切れない。敵の大きさを決めるときに考える。実際の操作での感触はレビューで確かめる
-- 区間11：操作シーンはアウトゲームでも残るので、プレビューの線がアウトゲームでも出る
+- 区間19：操作シーンはアウトゲームでも残るので、プレビューの線がアウトゲームでも出る
 - 区間13：剣のアニメーション（Animator の Update Mode は UnscaledTime）、切断のエフェクト
 
 ### 使い方

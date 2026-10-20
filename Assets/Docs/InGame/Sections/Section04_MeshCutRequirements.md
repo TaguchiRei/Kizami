@@ -1,6 +1,6 @@
 # 要件定義：敵のパーツを実行中に登録し、切断回数と切断後の形を扱う
 
-区間4A（[Section04_Enemy.md](Section04_Enemy.md)）の作業 4-1。作業するのは UsefulToolkit のリポジトリ（https://github.com/TaguchiRei/UsefulToolkit）。
+区間4（[Section04_Enemy.md](Section04_Enemy.md)）の作業 4-1。作業するのは UsefulToolkit のリポジトリ（https://github.com/TaguchiRei/UsefulToolkit）。
 
 | 項目 | 内容 |
 |---|---|
@@ -114,4 +114,4 @@ UsefulToolkit のサンドボックスで、次のことを確かめる。
 
 ## 刻断の側の作業（参考）
 
-UsefulToolkit 側のマージの後で、刻断の `Packages/packages-lock.json` の meshcut の参照を、マージ後のコミットに更新する。この更新は、区間4A のコミット 3（敵のプレハブ・プール・生成）の最初に行う。
+UsefulToolkit 側のマージの後で、刻断の `Packages/packages-lock.json` の meshcut の参照を、マージ後のコミットに更新する。この更新は、区間4 のコミット 3（敵のプレハブ・プール・生成）の最初に行う。

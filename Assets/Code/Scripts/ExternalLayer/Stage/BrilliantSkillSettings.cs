@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Kizami.External
 {
     /// <summary>
-    /// Brilliant Skill の判定の条件と追加スコア。値は仮で、区間14C の街のマップができてから調整する。
+    /// Brilliant Skill の判定の条件と追加スコア。値は仮で、区間25 の街のマップができてから調整する。
     /// </summary>
     [Serializable]
     public sealed class BrilliantSkillSettings

@@ -1,6 +1,6 @@
 # 要件定義：切断後の形の当たり判定に隙間を作らない
 
-区間4A（[Section04_Enemy.md](Section04_Enemy.md)）のコミット 4 で見つかった問題への対応。作業するのは UsefulToolkit のリポジトリ（https://github.com/TaguchiRei/UsefulToolkit）。[Section04_MeshCutRequirements.md](Section04_MeshCutRequirements.md)（`Register`・切断回数・`AdoptCutShape`・`RestoreInitialShape`）の続き。
+区間4（[Section04_Enemy.md](Section04_Enemy.md)）のコミット 4 で見つかった問題への対応。作業するのは UsefulToolkit のリポジトリ（https://github.com/TaguchiRei/UsefulToolkit）。[Section04_MeshCutRequirements.md](Section04_MeshCutRequirements.md)（`Register`・切断回数・`AdoptCutShape`・`RestoreInitialShape`）の続き。
 
 | 項目 | 内容 |
 |---|---|
@@ -38,7 +38,7 @@
 | F2 | F1 で元から持っていたコライダーの中心や大きさを変える場合は、`RestoreInitialShape` で初期化の時点の値に戻す |
 | F3 | F1 の動作を選べるようにする場合は、選び方（引数、Inspector の設定など）を作業者が決める。刻断の敵の部位では、F1 を満たす動作を使う |
 | F4（任意） | かけらそのもの（プールの破片）の球コライダーにも、長い形で隙間ができないようにする。対応が大きくなる場合は対象外にしてよい。その場合は README の制約に書く |
-| F5（任意） | `MeshDataCache.Register` で、メッシュの Read/Write が無効（`mesh.isReadable` が false）なときは、原因が分かるエラーログを出して false を返す。今は `NativeMeshDataStore.Add` で「source and destination length must be the same」という `ArgumentException` になり、原因が分かりにくい（刻断の区間4A のコミット 3 で発生） |
+| F5（任意） | `MeshDataCache.Register` で、メッシュの Read/Write が無効（`mesh.isReadable` が false）なときは、原因が分かるエラーログを出して false を返す。今は `NativeMeshDataStore.Add` で「source and destination length must be the same」という `ArgumentException` になり、原因が分かりにくい（刻断の区間4 のコミット 3 で発生） |
 
 ### 互換性
 
@@ -74,4 +74,4 @@ UsefulToolkit のサンドボックスで、次のことを確かめる。
 
 ## 刻断の側の作業（参考）
 
-UsefulToolkit 側のマージの後で、刻断の `Packages/packages-lock.json` の meshcut の参照を更新する。`EnemyBody.ReceiveCut` で F1 の動作を使うようにし、区間4A の完了条件 5（同じ部位の系統を上限まで切れる）を確かめる。
+UsefulToolkit 側のマージの後で、刻断の `Packages/packages-lock.json` の meshcut の参照を更新する。`EnemyBody.ReceiveCut` で F1 の動作を使うようにし、区間4 の完了条件 5（同じ部位の系統を上限まで切れる）を確かめる。

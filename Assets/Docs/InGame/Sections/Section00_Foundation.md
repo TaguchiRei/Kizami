@@ -87,7 +87,7 @@
 |---|---|---|
 | 1 | TimeScale State の置き場所と寿命 | AppBoard の GameState（常駐）。インゲームから出るときに倍率を 1 に戻す |
 | 2 | シーンの作り方と置き場所 | 既存の分け方（場面シーン ＋ 操作シーン）に合わせる。① インゲームの場面シーン：地面などのステージだけを置く。② PC とスマホが共用する操作シーン：PlayerMoveTest からプレイヤー一式（PlayerRoot、カメラ、入力の配線、Initializer）を移す。③ 仮のアウトゲームの場面シーン：ほぼ空。置き場所は `Assets/Level/Scenes/Master/` の下、SceneGroup アセットは `Assets/Level/Data/SceneGroup/` を想定する。PlayerMoveTest は開発用として残すか消すかを決める。旧構成の `Test/InGame.unity` は Build Settings から外す（`BuildScenes.InGame` の名前が新しいシーンとぶつからないようにする） |
-| 3 | アウトゲームからインゲームへの仮の入り方 | 仮のアウトゲームに、キー入力（またはボタン）で `GoToInGameAsync` を呼ぶだけの仕組みを置く。区間11で本物のアウトゲームの流れに置き換える |
+| 3 | アウトゲームからインゲームへの仮の入り方 | 仮のアウトゲームに、キー入力（またはボタン）で `GoToInGameAsync` を呼ぶだけの仕組みを置く。区間19で本物のアウトゲームの流れに置き換える |
 | 4 | VR アダプタの `Time.deltaTime` | 時間制御の設計どおり、`Time.unscaledDeltaTime` に直す |
 | 5 | 入力の割り当て | 下の表（仮） |
 
@@ -117,7 +117,7 @@
 
 | # | 項目 | 結果 |
 |---|---|---|
-| 1 | TimeScale State | 案どおり `AppBoard` の GameState。倍率は 0〜1 にクランプ。インゲームから出るときに 1 へ戻す処理は未実装（区間7または11で入れる） |
+| 1 | TimeScale State | 案どおり `AppBoard` の GameState。倍率は 0〜1 にクランプ。インゲームから出るときに 1 へ戻す処理は未実装（区間9または11で入れる） |
 | 2 | シーン構成 | 案どおり。`Assets/Level/Scenes/Master/` に `OutGame/OutGame`、`InGame/InGame`、`Player/StandardPlayerControl`。インゲームとアウトゲームの両方に地面を置いた（操作シーンが場面をまたいで残る為、地面がないとアウトゲームでプレイヤーが落ちる）。PlayerMoveTest は開発用に残す。旧 `Test/InGame` は Build Settings から外した（`Test/` の旧シーンは未使用のまま残っている） |
 | 3 | 仮の遷移 | `OutGameStartInitializer` が OnGUI のボタン「インゲームへ」を出し、`GoToInGameAsync` を呼ぶ |
 | 4 | VR アダプタ | `Time.unscaledDeltaTime` に変更（コンパイルのみ確認。VR 実機は未確認） |
@@ -157,8 +157,8 @@
 
 ### 次の区間へ持ち越すこと
 
-- 区間7：インゲームから出るときの倍率のリセット
-- 区間11：仮のアウトゲーム（`OutGameStartInitializer`）を本来の流れに置き換える
+- 区間9：インゲームから出るときの倍率のリセット
+- 区間19：仮のアウトゲーム（`OutGameStartInitializer`）を本来の流れに置き換える
 - スマホと VR の入力マップへの追加（対応時に Smartphone マップと VRControllers マップへ同じ意味のアクションを足す）
 
 ## 他プラットフォームへの対応

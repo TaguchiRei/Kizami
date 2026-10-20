@@ -70,7 +70,7 @@
 | 8 | 壁ジャンプ | 水平方向は、入力から壁へ押し込む成分を取り除いたものと、壁の法線とを、割合（仮に 0.5）で混ぜる。入力がなければ法線の向き。横の速さは仮に 6 m/s、上向きの速度はジャンプと同じ |
 | 9 | ワープ | 方向は「視線の向き ＋ ワールドの入力の向き × 割合（仮に 0.2）」を正規化したもの（仕様変更。2026-10-04）。距離 8m、所要 0.15 秒、クールタイムはワープ終了から 0.5 秒。空中や壁走り中でも使え、壁走り中なら壁走りを抜ける。ワープ中は重力を切る。終わったら、水平速度はワープ前の速度に戻し、垂直速度は 0 にする |
 | 10 | ワープ中の軽減率 | 100（無敵）。0〜100 で調整できる |
-| 11 | HP | 最大 100 の整数。HP が 0 になったあとのダメージは無視する。回復は区間4、ステージ開始時のリセットは区間11で決める |
+| 11 | HP | 最大 100 の整数。HP が 0 になったあとのダメージは無視する。回復は区間4、ステージ開始時のリセットは区間19で決める |
 | 12 | パラメータの置き場所 | 遊びのルールに関わる値は ScriptableObject（`PlayerParameterData`）にまとめる。物理の反映の調整値（加速・減速レート、接触判定の距離）は Adapter の Inspector に置く（Adapter は ExternalLayer を参照できない為） |
 | 13 | 時間の数え方 | ワープの所要時間、クールタイム、壁走りの持ち時間は FixedUpdate の経過時間で数える。スローモード中は一緒に遅くなる |
 | 14 | エンジン側の情報を渡す経路 | 接触（地面・壁・壁の法線）は、Adapter が所有して書き込む `PlayerContactState` で渡す（設計「EngineAdapterLayer による State の所有」）。視線の向きと経過時間は毎ステップ変わる値なので、直接配線で Adapter の FixedUpdate から `PlayerMovementService.Step` に渡す |
@@ -141,7 +141,7 @@ sequenceDiagram
 
 ## 見つけた問題（今回は扱わない）
 
-- 壁の判定は `Collider.ClosestPoint` で壁の面上の点を求める為、凸でない MeshCollider の壁は判定できない（ボクセルの壁を壁走りの対象にするとき、区間5以降で見直す）
+- 壁の判定は `Collider.ClosestPoint` で壁の面上の点を求める為、凸でない MeshCollider の壁は判定できない（ボクセルの壁を壁走りの対象にするとき、区間7以降で見直す）
 - 古い名前「PlayerMovementAbstractor」が `PlayerInitializer.cs` の XML コメントとエラーメッセージに残っている（`PlayerMovementService.cs` の分は、コミット1で XML コメントを書き直した際に消えた）
 
 ## 実装結果（2026-10-04）
@@ -198,9 +198,9 @@ sequenceDiagram
 ### 次の区間へ持ち越すこと
 
 - 区間4：敵から `PlayerHealthService.ApplyDamage` を呼ぶ経路を決める。DI のスコープは Compositor ごとに分かれており、InGame シーンからは StandardPlayerControl のスコープに登録した Service を受け取れない。HP が 0 になったことは `IPlayerHealthState.RegisterOnHealthChanged` で受け取れる
-- 区間11：ステージ開始時の HP のリセット、HUD での HP の表示
-- 区間13：ワープのエフェクト（`RegisterOnModeChanged` に差し込む）、移動パラメータの調整
-- 区間5以降：凸でない MeshCollider の壁（ボクセルの壁）を壁走りの対象にするときの、壁の判定の見直し（issue 化済み）
+- 区間19：ステージ開始時の HP のリセット、HUD での HP の表示
+- 区間33：ワープのエフェクト（`RegisterOnModeChanged` に差し込む）、移動パラメータの調整
+- 区間7以降：凸でない MeshCollider の壁（ボクセルの壁）を壁走りの対象にするときの、壁の判定の見直し（issue 化済み）
 - 一度だけ、壁へ押し込む入力のまま壁ジャンプをしたら後ろ向きに飛んだ。その後は再現せず、原因は分かっていない。レビューで実際の操作を試す
 - 古い名前「PlayerMovementAbstractor」が `PlayerInitializer.cs` に残っている
 
