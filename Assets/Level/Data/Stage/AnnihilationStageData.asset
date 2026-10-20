@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.StageData
   _displayName: Annihilation
   _id: Annihilation
-  _unlockSkill: {fileID: 0}
+  _unlockSkill: {fileID: 11400000, guid: 0c793d0174964ef6838fd5590e1c1f56, type: 2}
   _sceneGroup: {fileID: 11400000, guid: ed02e6f189a99474d990e5b1bdf3fb4f, type: 2}
   _clearScore: 1000
   _initialCharge: 100

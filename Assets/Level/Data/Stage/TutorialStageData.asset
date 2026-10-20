@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.StageData
   _displayName: Tutorial
   _id: Tutorial
-  _unlockSkill: {fileID: 0}
+  _unlockSkill: {fileID: 11400000, guid: a675f8b6e9034b08af98d5e6ac7c9fb3, type: 2}
   _sceneGroup: {fileID: 11400000, guid: deff499e279adf3479e73947dc86eca4, type: 2}
   _clearScore: 1000
   _initialCharge: 100
