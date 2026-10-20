@@ -19,6 +19,7 @@ namespace Kizami.Initialization
     /// <summary>
     /// インゲームの流れ（StageFlowService / StageFlowState）と、ステージの案内（StageGuideService / StageGuideState）、破壊対象・制限時間・HUD・案内・ポーズ・リザルトの Adapter、ステージシーンにある台本（StageGuideScript）と開始位置の目印（PlayerStartPoint）を繋いで、プレイを始める配線役。インゲームのシーンへ置く。
     /// 倒れる塔があるステージでは、塔を渡りきったらクリアにする（TowerCrossingAdapter）。
+    /// ステージシーンに目標を選ぶ物（TargetSelectorBase）があれば、最も近い目標の位置を画面に出す（TargetIndicatorAdapter）。
     /// Brilliant Skill の判定（BrilliantSkillService）に、敵を倒した通知、ボクセルを壊した体積、建物の倒壊を繋ぎ、成立したら追加スコアを足す。
     /// 失敗条件の判定と、案内のログにプレイヤーの State と出来事の通知を使う為、PlayerInitializer より後に初期化する。
     /// 流れの状態、破壊済みの破壊対象の数、破壊対象ごとの壊れ具合（ボクセルは重要パーツごとの削れた割合、コアは分離した部位の数）を画面に出す。表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
@@ -107,6 +108,7 @@ namespace Kizami.Initialization
             }
 
             ConnectTowerCrossing();
+            ConnectTargetIndicator();
 
             _resultAdapter.Initialize(blackBoard, Retry, BackToOutGame);
             _hudAdapter.Initialize(blackBoard, _fragmentThrowAdapter);
@@ -150,6 +152,27 @@ namespace Kizami.Initialization
             var adapterObject = new GameObject(nameof(TowerCrossingAdapter));
             SceneManager.MoveGameObjectToScene(adapterObject, gameObject.scene);
             adapterObject.AddComponent<TowerCrossingAdapter>().Initialize(tower, movementAdapter.transform, _flowService.Clear);
+        }
+
+        /// <summary>
+        /// ステージシーンに目標を選ぶ物（TargetSelectorBase）があれば、目標の位置を出す Adapter を作って繋ぐ。置いていないステージでは何もしない。ステージを読み直すとシーンごと消える。
+        /// </summary>
+        private void ConnectTargetIndicator()
+        {
+            var selector = FindFirstObjectByType<TargetSelectorBase>();
+            if (selector == null) return;
+
+            var movementAdapter = FindFirstObjectByType<PlayerMovementAdapterBase>();
+            if (movementAdapter == null)
+            {
+                UsefulLogger.LogError("PlayerMovementAdapterBase が見つからない為、目標の位置を出せません。", this);
+                return;
+            }
+
+            selector.Initialize(_stageClearAdapter.Targets);
+            var adapterObject = new GameObject(nameof(TargetIndicatorAdapter));
+            SceneManager.MoveGameObjectToScene(adapterObject, gameObject.scene);
+            adapterObject.AddComponent<TargetIndicatorAdapter>().Initialize(selector, movementAdapter.transform);
         }
 
         /// <summary>

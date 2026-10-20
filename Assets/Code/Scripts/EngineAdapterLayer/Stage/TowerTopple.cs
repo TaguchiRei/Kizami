@@ -97,6 +97,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 倒れた塔の軸に沿った長さ（m）。軸の原点は SettledBody の位置。上の部分の凸包を作る前は 0 </summary>
         public float AxisLength => _upperHullMesh != null ? _upperHullMesh.bounds.max.y : 0f;
 
+        /// <summary> 塔の帯を積んだ建物 </summary>
+        public VoxelBuilding Building => _building;
+
+        /// <summary> 帯が倒壊して、塔が倒れ始めたか </summary>
+        public bool HasToppled => _hasToppled;
+
         private void Awake()
         {
             _subscription = _building.RegisterOnCollapsed(OnCollapsed);
