@@ -62,8 +62,12 @@ namespace Kizami.EngineAdapter
         private float _absorbDuration = 0.75f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("攻撃を終えるかやめてから、次に攻撃できるまでの時間（秒）")]
-        private float _cooldown = 10f;
+        [Tooltip("攻撃を終えるかやめてから、そのフィニッシャーが次に攻撃できるまでの時間（秒）")]
+        private float _cooldown = 25f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("どれかのフィニッシャーが攻撃を終えるかやめてから、全体で次の攻撃を始められるまでの時間（秒）。この間は、どのフィニッシャーも攻撃を始めない")]
+        private float _globalCooldown = 20f;
 
         [SerializeField, Min(0f)]
         [Tooltip("出てから最初の攻撃までの時間（秒）の下限。上限との間でランダムに決める")]
@@ -105,6 +109,9 @@ namespace Kizami.EngineAdapter
         private bool _hasBeams;
 
         private bool _isReady;
+
+        /// <summary> 全体で次の攻撃を始められるまでの時間（秒） </summary>
+        private float _globalCooldownTimer;
 
         /// <summary>
         /// 敵の体の脚を返す。体を貸していないか、脚を持たない体では null。
@@ -268,6 +275,7 @@ namespace Kizami.EngineAdapter
             if (!_isReady) return;
 
             AdvanceCooldowns(agents, deltaTime);
+            _globalCooldownTimer -= deltaTime;
 
             var activeCount = 0;
             foreach (var attack in _attacks)
@@ -276,12 +284,12 @@ namespace Kizami.EngineAdapter
                 if (attack.IsActive) activeCount++;
             }
 
-            while (activeCount < _maxAttacks && TryStart(agents, groups)) activeCount++;
+            while (_globalCooldownTimer <= 0f && activeCount < _maxAttacks && TryStart(agents, groups)) activeCount++;
         }
 
         /// <summary>
         /// 攻撃を始められるフィニッシャーと、その吸収の対象を探し、見つかれば空いた枠で始める。
-        /// 始められるのは、地面に立って歩ける状態で、冷却中でなく、グループがプレイヤーを追跡しているフィニッシャー。
+        /// 始められるのは、地面に立って歩ける状態で、冷却中でなく、グループがプレイヤーを追跡していて、プレイヤーまでの直線に壁（ボクセルを含む）がないフィニッシャー。
         /// </summary>
         /// <returns>始めたか</returns>
         private bool TryStart(NativeArray<EnemyAgent> agents, EnemyGroups groups)
@@ -296,8 +304,15 @@ namespace Kizami.EngineAdapter
 
                 if (!IsTracking(groupStates[agent.GroupIndex])) continue;
 
+                // 今の位置からプレイヤーまで、ボクセルを含む壁があるフィニッシャーは、吸収の対象を探さずに候補から外す
+                if (_hasBeams && !_beams.CanSeeTarget((Vector3)agent.Position + Vector3.up * _pivotHeight)) continue;
+
                 var absorbTarget = FindAbsorbTarget(agents, i);
                 if (absorbTarget < 0) continue;
+
+                // 吸収のあとにフィニッシャーが浮く位置からも、プレイヤーが見えなければ始めない
+                var pivot = (Vector3)agents[absorbTarget].Position + Vector3.up * (_hoverHeight + _pivotHeight);
+                if (_hasBeams && !_beams.CanSeeTarget(pivot)) continue;
 
                 GetFreeAttack().Begin(agents, i, absorbTarget);
                 return true;
@@ -580,6 +595,7 @@ namespace Kizami.EngineAdapter
                 agent.FlyTarget = _homePosition;
                 agent.AttackCooldown = _owner._cooldown;
                 agents[_finisher] = agent;
+                _owner._globalCooldownTimer = _owner._globalCooldown;
                 SetPhase(Phase.Returning);
             }
 

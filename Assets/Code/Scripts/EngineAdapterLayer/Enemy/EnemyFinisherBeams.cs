@@ -185,6 +185,21 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// pivot からプレイヤーの頭まで、ボクセルを含む遮る物がないか。撃つ前に、撃てる位置かを調べるのに使う。
+        /// </summary>
+        /// <param name="pivot">ビームを撃つ所（ワールド座標）</param>
+        public bool CanSeeTarget(Vector3 pivot)
+        {
+            if (!_isReady) return false;
+
+            CapsuleGeometry.GetAxis(_targetCapsule, out _, out var capsuleEnd, out var capsuleRadius);
+            var toHead = (Vector3)capsuleEnd + Vector3.up * capsuleRadius - pivot;
+            var distance = toHead.magnitude;
+            return distance <= 0f || !Physics.Raycast(pivot, toHead / distance, distance, _blockLayers,
+                QueryTriggerInteraction.Ignore);
+        }
+
+        /// <summary>
         /// ビーム1本の状態と見た目を作る。Initialize で使えるようになっていなければ null。
         /// </summary>
         public Shot CreateShot()
@@ -474,7 +489,7 @@ namespace Kizami.EngineAdapter
             }
 
             /// <summary>
-            /// 溶かす先端を進め、ビームを pivot から先端か、ボクセルでない物の近いほうまで出す。プレイヤーが半径の中に入っていれば、間隔ごとにダメージを与える。
+            /// 溶かす先端を進め、ビームを pivot からボクセルでない物まで出す。プレイヤーが、pivot から溶かす先端までの半径の中に入っていれば、間隔ごとにダメージを与える。
             /// </summary>
             private void UpdateFiring(Vector3 pivot, float3 capsuleStart, float3 capsuleEnd, float capsuleRadius,
                 float deltaTime)
@@ -482,11 +497,14 @@ namespace Kizami.EngineAdapter
                 var blockDistance = CastBlock(pivot, out var blockNormal);
                 Melt(pivot, blockDistance, deltaTime);
 
-                var isBlocked = blockDistance <= _meltFrontDistance;
-                var stopDistance = isBlocked ? blockDistance : _meltFrontDistance;
-                var stop = pivot + _aimDirection * stopDistance;
-                var hasHit = stopDistance < MAX_BEAM_LENGTH;
-                var normal = isBlocked ? blockNormal : -_aimDirection;
+                // 見た目は、溶かす先端に関わらず、撃つ所からボクセルでない物まで最初から伸ばす
+                var stop = pivot + _aimDirection * blockDistance;
+                var hasHit = blockDistance < MAX_BEAM_LENGTH;
+                var normal = blockNormal;
+
+                // 当たり判定は、溶かして進んだ先端までの範囲
+                var hitDistance = Mathf.Min(_meltFrontDistance, blockDistance);
+                var hitEnd = pivot + _aimDirection * hitDistance;
 
                 var flicker = 1f + 0.25f * Mathf.Sin(_phaseTime * 60f);
                 _owner.ShowGlow(_muzzleGlow, pivot, _owner._muzzleSize * flicker, _owner._glowColor, 2f, 1f);
@@ -498,7 +516,7 @@ namespace Kizami.EngineAdapter
                 if (_damageTimer > 0f) return;
 
                 var reach = _owner._beamRadius + capsuleRadius;
-                if (CapsuleGeometry.GetSegmentDistanceSq(pivot, stop, capsuleStart, capsuleEnd, out _) > reach * reach) return;
+                if (CapsuleGeometry.GetSegmentDistanceSq(pivot, hitEnd, capsuleStart, capsuleEnd, out _) > reach * reach) return;
 
                 _damageTimer = _owner._damageInterval;
                 _owner._applyDamage?.Invoke(_owner._damage);

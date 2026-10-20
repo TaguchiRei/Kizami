@@ -1656,7 +1656,8 @@ MonoBehaviour:
   _maxAttacks: 1
   _hoverHeight: 1
   _absorbDuration: 0.75
-  _cooldown: 10
+  _cooldown: 25
+  _globalCooldown: 20
   _firstCooldownMin: 10
   _firstCooldownMax: 15
   _pivotHeight: 2
@@ -1691,7 +1692,7 @@ MonoBehaviour:
   _aimDuration: 3
   _aimDelay: 2
   _telegraphDuration: 1
-  _firingDuration: 1
+  _firingDuration: 2
   _noiseLevelCurve:
     serializedVersion: 2
     m_Curve:
@@ -1778,9 +1779,9 @@ MonoBehaviour:
     m_RotationOrder: 4
   _damage: 1
   _damageInterval: 0.1
-  _meltSpeed: 10
+  _meltSpeed: 20
   _meltRadius: 14
-  _meltInterval: 0.05
+  _meltInterval: 0.3
   _blockLayers:
     serializedVersion: 2
     m_Bits: 44545
