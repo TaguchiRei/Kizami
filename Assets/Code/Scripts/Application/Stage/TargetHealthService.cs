@@ -39,16 +39,27 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 体力を減らす。無敵のとき、ダメージが0以下のときは減らさない。
+        /// 攻撃で体力を減らす。通常の表示のときだけ減らし、無敵と時間で減っていく間は減らさない。
         /// </summary>
         /// <param name="amount">減らす量</param>
         /// <returns>この呼び出しで体力が0になったら true</returns>
         public bool Damage(float amount)
         {
-            if (_state.Mode == TargetHealthMode.Invincible || amount <= 0f || _state.Current <= 0f) return false;
+            if (_state.Mode != TargetHealthMode.Normal) return false;
 
-            _state.SetCurrent(_state.Current - amount);
-            return _state.Current <= 0f;
+            return Reduce(amount);
+        }
+
+        /// <summary>
+        /// 時間で減っていく間に、体力を減らす。表示の状態が Draining のときだけ減らす。
+        /// </summary>
+        /// <param name="amount">減らす量</param>
+        /// <returns>この呼び出しで体力が0になったら true</returns>
+        public bool Drain(float amount)
+        {
+            if (_state.Mode != TargetHealthMode.Draining) return false;
+
+            return Reduce(amount);
         }
 
         /// <summary>
@@ -66,6 +77,14 @@ namespace Kizami.Application
         public void SetMode(TargetHealthMode mode)
         {
             _state.SetMode(mode);
+        }
+
+        private bool Reduce(float amount)
+        {
+            if (amount <= 0f || _state.Current <= 0f) return false;
+
+            _state.SetCurrent(_state.Current - amount);
+            return _state.Current <= 0f;
         }
     }
 }

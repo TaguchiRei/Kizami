@@ -26,7 +26,7 @@ namespace Kizami.Initialization
 
         [SerializeField, Min(1f)]
         [Tooltip("最終の段階で、ボスの体力が満タンから尽きるまでの時間（秒）")]
-        private float _finalDuration = 30f;
+        private float _finalDuration = 20f;
 
         [SerializeField]
         [Tooltip("初期化の終わりにボス戦を始める")]

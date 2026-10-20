@@ -146,7 +146,7 @@ namespace Kizami.Application
         {
             _finalTime += deltaTime;
             var hasHealth = _health != null && _health.Max > 0f;
-            if (hasHealth) _health.Damage(_health.Max / _finalDuration * deltaTime);
+            if (hasHealth) _health.Drain(_health.Max / _finalDuration * deltaTime);
 
             var isFinished = hasHealth ? _health.IsDepleted : _finalTime >= _finalDuration;
             if (isFinished) _state.SetPhase(BossBattlePhase.Stopped);
