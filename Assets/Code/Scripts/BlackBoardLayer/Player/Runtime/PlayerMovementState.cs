@@ -14,10 +14,20 @@ namespace Kizami.BlackBoard
 
         public Vector3 TargetVelocity { get; private set; }
         public PlayerMoveMode Mode { get; private set; }
+        public bool IsJumpHolding { get; private set; }
 
         public override string GetLog()
         {
-            return $"Mode: {Mode}  \nTargetVelocity: {TargetVelocity}";
+            return $"Mode: {Mode}  \nTargetVelocity: {TargetVelocity}  \nIsJumpHolding: {IsJumpHolding}";
+        }
+
+        /// <summary>
+        /// ジャンプの長押し中かどうかを設定する。
+        /// </summary>
+        /// <param name="isJumpHolding">ジャンプしてから押し続けていて、長押しの上限時間に達していないとき true</param>
+        public void SetJumpHolding(bool isJumpHolding)
+        {
+            IsJumpHolding = isJumpHolding;
         }
 
         /// <summary>
@@ -59,6 +69,9 @@ namespace Kizami.BlackBoard
 
         /// <summary> 移動モード </summary>
         PlayerMoveMode Mode { get; }
+
+        /// <summary> ジャンプしてからボタンを押し続けていて、長押しの上限時間に達していないか。壁走り・ワープ・打ち上げで解ける </summary>
+        bool IsJumpHolding { get; }
 
         /// <summary>
         /// 移動モードが変化した際に発火するイベントを登録する。ワープのエフェクトなどの差し込み口。

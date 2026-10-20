@@ -55,7 +55,32 @@ namespace Kizami.EngineAdapter
         [Header("空中の水平速度")]
         [SerializeField, Min(0f)]
         [Tooltip("空中で目標速度へ近づける加速度（m/s^2）。地上と壁走り中は目標速度へ即座に合わせる")]
-        private float _airAcceleration = 125f;
+        private float _airAcceleration = 25f;
+
+        [Header("ジャンプの軌道（重力の倍率）")]
+        [SerializeField, Min(0f)]
+        [Tooltip("上昇中の倍率。大きいほど素早く上がり、ボタンを放して跳ぶ低いジャンプが低くなる")]
+        private float _riseGravityScale = 2f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ジャンプボタンの長押し中の、上昇中の倍率。上昇中の倍率より小さくして、高く跳べるようにする")]
+        private float _holdRiseGravityScale = 0.8f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("最高点の前後（縦の速さが閾値より小さいとき）の倍率。小さいほどふわっとする")]
+        private float _apexGravityScale = 0.6f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("最高点の前後とみなす、縦の速さの閾値（m/s）")]
+        private float _apexSpeedThreshold = 1.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("下降中の倍率。落下の速さが増えると、最高点の前後の倍率からここへ近づく")]
+        private float _fallGravityScale = 2f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("下降の倍率に達するまでの、落下の速さの幅（m/s）。大きいほど加速度が緩やかに上がる")]
+        private float _fallRampSpeed = 12f;
 
         private IPlayerMovementState _movementState;
         private Func<Vector3, float, Vector3?> _step;
@@ -64,6 +89,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 縦の速度の正本。重力は Rigidbody ではなくこの値に足す </summary>
         private float _verticalVelocity;
+
+        /// <summary> 今の空中が、ジャンプや打ち上げで始まったか。足場から歩いて落ちたときは false </summary>
+        private bool _isJumpArc;
 
         /// <summary> ワープを始める直前の水平速度。ワープが終わったときにこの値へ戻す </summary>
         private Vector3 _preWarpHorizontalVelocity;
@@ -218,20 +246,42 @@ namespace Kizami.EngineAdapter
             if (resetsToZero)
             {
                 _verticalVelocity = 0f;
+                _isJumpArc = false;
                 return;
             }
 
             _verticalVelocity = Mathf.Min(_verticalVelocity, _rigidbody.linearVelocity.y);
-            _verticalVelocity += Physics.gravity.y * Time.fixedDeltaTime;
+            _verticalVelocity += Physics.gravity.y * GetGravityScale() * Time.fixedDeltaTime;
 
             if (launchVelocity.HasValue)
             {
                 _verticalVelocity = launchVelocity.Value.y;
+                _isJumpArc = true;
             }
             else if (isGrounded && _verticalVelocity < 0f)
             {
                 _verticalVelocity = 0f;
+                _isJumpArc = false;
             }
+        }
+
+        /// <summary>
+        /// 縦の速度から、最高点の前後・上昇中・下降中のどれかを判定し、重力の倍率を返す。
+        /// </summary>
+        private float GetGravityScale()
+        {
+            // ジャンプの軌道の緩急は、ジャンプや打ち上げの空中だけに付ける。歩いて落ちたときは最初から下降中の倍率で落ちる
+            if (!_isJumpArc) return _fallGravityScale;
+
+            if (Mathf.Abs(_verticalVelocity) < _apexSpeedThreshold) return _apexGravityScale;
+            if (_verticalVelocity < 0f)
+            {
+                // 落下の速さが増えるにつれて、最高点の前後の倍率から下降中の倍率へ緩やかに近づける
+                var ramp = Mathf.Clamp01((-_verticalVelocity - _apexSpeedThreshold) / Mathf.Max(_fallRampSpeed, 0.01f));
+                return Mathf.Lerp(_apexGravityScale, _fallGravityScale, ramp);
+            }
+
+            return _movementState.IsJumpHolding ? _holdRiseGravityScale : _riseGravityScale;
         }
 
         /// <summary>

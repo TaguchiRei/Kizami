@@ -667,7 +667,7 @@ MonoBehaviour:
     m_Bits: 512
   _rigidbody: {fileID: 903436360}
   _collider: {fileID: 903436363}
-  _airAcceleration: 125
+  _airAcceleration: 25
   _cameraTransform: {fileID: 1307013810}
 --- !u!114 &903436368
 MonoBehaviour:

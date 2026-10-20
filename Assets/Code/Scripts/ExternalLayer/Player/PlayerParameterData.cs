@@ -19,8 +19,12 @@ namespace Kizami.External
 
         [Header("ジャンプ")]
         [SerializeField, Min(0f)]
-        [Tooltip("ジャンプの高さ（m）。初速は重力の大きさから求める")]
+        [Tooltip("初速を決める高さ（m）。重力の倍率が 1 のときにこの高さまで上がる初速で跳ぶ。実際の高さは Adapter の重力の倍率で決まる")]
         private float _jumpHeight = 1.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ジャンプボタンの長押しで、上昇の重力を弱めていられる時間（秒）")]
+        private float _jumpHoldTime = 0.5f;
 
         [Header("壁走り")]
         [SerializeField, Min(0f)]
@@ -131,8 +135,11 @@ namespace Kizami.External
         /// <summary> ダッシュの速度（m/s） </summary>
         public float SprintSpeed => _sprintSpeed;
 
-        /// <summary> ジャンプの高さ（m） </summary>
+        /// <summary> 初速を決める高さ（m）。重力の倍率が 1 のときにこの高さまで上がる </summary>
         public float JumpHeight => _jumpHeight;
+
+        /// <summary> ジャンプボタンの長押しで、上昇の重力を弱めていられる時間（秒） </summary>
+        public float JumpHoldTime => _jumpHoldTime;
 
         /// <summary> 壁走りの速度（m/s） </summary>
         public float WallRunSpeed => _wallRunSpeed;

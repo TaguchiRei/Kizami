@@ -34,6 +34,12 @@ namespace Kizami.Application
         /// <summary> 次の Step で処理するジャンプ入力があるか </summary>
         private bool _isJumpRequested;
 
+        /// <summary> ジャンプボタンを押しているか </summary>
+        private bool _isJumpHeld;
+
+        /// <summary> ジャンプしてから、長押しの効果が残っている時間（秒）。ジャンプしていないときは 0 </summary>
+        private float _jumpHoldRemaining;
+
         /// <summary> 視線の向きを水平面へ投影した向き。視線が真上・真下を向いている間は直前の値を保つ </summary>
         private Vector3 _viewForward = Vector3.forward;
 
@@ -207,6 +213,8 @@ namespace Kizami.Application
 
             if (_state.Mode == PlayerMoveMode.Aiming) _state.SetMode(PlayerMoveMode.Normal);
 
+            UpdateJumpHold(deltaTime);
+
             var worldInput = ToWorldDirection(_moveInput);
             var isJumpRequested = _isJumpRequested;
             _isJumpRequested = false;
@@ -242,6 +250,7 @@ namespace Kizami.Application
                 _state.SetMode(PlayerMoveMode.Normal);
                 _isWaitingWallRelease = true;
                 _state.SetTargetVelocity(worldInput * speed);
+                StopJumpHold();
                 return launchHorizontalVelocity + Vector3.up * launchSpeed;
             }
 
@@ -263,6 +272,7 @@ namespace Kizami.Application
                     _isWaitingWallRelease = true;
                     _state.SetTargetVelocity(Vector3.zero);
                     _actionEvents?.Raise(new PlayerActionNotice(PlayerActionKind.WallKicked));
+                    StartJumpHold();
                     return CalculateWallJumpVelocity(worldInput);
                 }
 
@@ -289,6 +299,7 @@ namespace Kizami.Application
             if (!isJumpRequested || !IsGrounded) return null;
 
             _actionEvents?.Raise(new PlayerActionNotice(PlayerActionKind.Jumped));
+            StartJumpHold();
             return Vector3.up * CalculateJumpSpeed();
         }
 
@@ -301,6 +312,7 @@ namespace Kizami.Application
             _isRushRequested = false;
             _launchSpeed = 0f;
             _warpTimeRemaining = 0f;
+            StopJumpHold();
             _state.SetMode(PlayerMoveMode.Aiming);
             _state.SetTargetVelocity(Vector3.zero);
         }
@@ -399,6 +411,36 @@ namespace Kizami.Application
             return Mathf.Sqrt(2f * Mathf.Abs(Physics.gravity.y) * _parameters.JumpHeight);
         }
 
+        /// <summary>
+        /// ジャンプの長押しの効果を進める。通常の移動でボタンを押し続けていて、時間が残っている間だけ長押し中にする。
+        /// </summary>
+        private void UpdateJumpHold(float deltaTime)
+        {
+            if (!_isJumpHeld || _state.Mode != PlayerMoveMode.Normal || _jumpHoldRemaining <= 0f)
+            {
+                StopJumpHold();
+                return;
+            }
+
+            _jumpHoldRemaining -= deltaTime;
+            _state.SetJumpHolding(_jumpHoldRemaining > 0f);
+        }
+
+        /// <summary>
+        /// ジャンプの長押しの効果を始める。ボタンを押し続けている間、JumpHoldTime だけ続く。
+        /// </summary>
+        private void StartJumpHold()
+        {
+            _jumpHoldRemaining = _parameters.JumpHoldTime;
+            _state.SetJumpHolding(_isJumpHeld && _jumpHoldRemaining > 0f);
+        }
+
+        private void StopJumpHold()
+        {
+            _jumpHoldRemaining = 0f;
+            _state.SetJumpHolding(false);
+        }
+
         private void OnMove(InputContext<Vector2> context)
         {
             _moveInput = context.Phase == InputPhase.Canceled
@@ -427,9 +469,15 @@ namespace Kizami.Application
 
         private void OnJump(InputContext<float> context)
         {
-            if (context.Phase == InputPhase.Performed)
+            switch (context.Phase)
             {
-                _isJumpRequested = true;
+                case InputPhase.Performed:
+                    _isJumpRequested = true;
+                    _isJumpHeld = true;
+                    break;
+                case InputPhase.Canceled:
+                    _isJumpHeld = false;
+                    break;
             }
         }
 
