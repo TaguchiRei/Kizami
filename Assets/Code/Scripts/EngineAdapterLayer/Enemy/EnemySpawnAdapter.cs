@@ -622,9 +622,18 @@ namespace Kizami.EngineAdapter
 
                 using (_renderMarker.Auto())
                 {
+                    var handles = new NativeArray<JobHandle>(_crowdRenderers.Length, Allocator.Temp);
+                    for (var i = 0; i < _crowdRenderers.Length; i++)
+                    {
+                        if (_crowdRenderers[i] != null) handles[i] = _crowdRenderers[i].ScheduleMatrices(_agents);
+                    }
+
+                    JobHandle.CombineDependencies(handles).Complete();
+                    handles.Dispose();
+
                     foreach (var crowdRenderer in _crowdRenderers)
                     {
-                        crowdRenderer?.Render(_agents);
+                        crowdRenderer?.Draw(_agents.Length);
                     }
                 }
 

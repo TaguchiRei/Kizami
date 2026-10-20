@@ -85,24 +85,35 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// ステージに出ていて体を貸していない、この種類の敵の、残っている部位を、このフレームの描画に出す。
+        /// ステージに出ていて体を貸していない、この種類の敵の、残っている部位の行列を作る Job を発行する。
+        /// 返した JobHandle を完了させてから、同じ agents で Draw を呼ぶ。
         /// </summary>
-        public void Render(NativeArray<EnemyAgent> agents)
+        /// <remarks>
+        /// 発行と描画を分けているのは、全種類の Job を発行してから1回だけ待ち、種類×部位の数の Job を同時に動かす為。
+        /// </remarks>
+        public JobHandle ScheduleMatrices(NativeArray<EnemyAgent> agents)
         {
-            new BuildMatricesJob
+            return new BuildMatricesJob
             {
                 Agents = agents,
                 Kind = _kind,
                 PartLocalMatrices = _partLocalMatrices,
                 Matrices = _matrices,
                 Counts = _counts
-            }.Schedule(_meshes.Length, 1).Complete();
+            }.Schedule(_meshes.Length, 1);
+        }
 
+        /// <summary>
+        /// ScheduleMatrices で作った行列で、残っている部位をこのフレームの描画に出す。
+        /// </summary>
+        /// <param name="agentCount">ScheduleMatrices に渡した敵の状態の数</param>
+        public void Draw(int agentCount)
+        {
             var instanceData = _matrices.Reinterpret<Matrix4x4>();
 
             for (var part = 0; part < _meshes.Length; part++)
             {
-                var regionStart = part * agents.Length;
+                var regionStart = part * agentCount;
                 var count = _counts[part];
 
                 for (var offset = 0; offset < count; offset += MAX_INSTANCES_PER_DRAW)

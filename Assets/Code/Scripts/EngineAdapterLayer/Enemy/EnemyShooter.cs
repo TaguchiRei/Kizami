@@ -29,6 +29,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 弾の寿命を、射程を飛ぶ時間のこの倍にする </summary>
         private const float LIFETIME_RATE = 1.2f;
 
+        /// <summary> 弾を進める Job で、1つのワーカーがまとめて受け持つ弾の数 </summary>
+        private const int BULLET_BATCH_SIZE = 32;
+
         private static readonly int _statesId = Shader.PropertyToID("BulletStates");
         private static readonly int _velocitiesId = Shader.PropertyToID("BulletVelocities");
         private static readonly int _capacityId = Shader.PropertyToID("BulletCapacity");
@@ -308,7 +311,7 @@ namespace Kizami.EngineAdapter
                 CapsuleEnd = capsuleEnd,
                 CapsuleRadius = capsuleRadius,
                 Query = new QueryParameters(_blockLayers, false, QueryTriggerInteraction.Ignore)
-            }.Schedule(_maxBullets, 1);
+            }.Schedule(_maxBullets, BULLET_BATCH_SIZE);
             SpherecastCommand.ScheduleBatch(_castCommands, _castHits, 1, 1, handle).Complete();
 
             for (var i = 0; i < _maxBullets; i++)

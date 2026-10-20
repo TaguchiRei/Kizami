@@ -10,6 +10,9 @@ namespace Kizami.EngineAdapter
     /// インゲームの HUD（HP とチャージのゲージ、スキルの枠、破壊の進み具合、制限時間の残り、ランチャーの装填状態、開始の文字）を出す Adapter。インゲームのシーンへ置く。
     /// 画面は uGUI の Canvas を初期化のときに組み立てる。値は State から読み、ランチャーの装填状態だけは State がない為、FragmentThrowAdapter から読む。
     /// </summary>
+    /// <remarks>
+    /// 表示した値を覚えておき、値が変わった部分だけを書き直す。毎フレームの文字列の生成と、uGUI の作り直しを避ける為。
+    /// </remarks>
     public sealed class StageHudAdapter : InitializableMonoBehaviour
     {
         private const int SORTING_ORDER = 10;
@@ -23,6 +26,10 @@ namespace Kizami.EngineAdapter
         private const float LINE_OVERHANG = 0.3f;
         /// <summary> 枠の中でアイコンが占める横の割合。残りに文字を出す </summary>
         private const float ICON_WIDTH_RATIO = 0.55f;
+        /// <summary> 次のフレームで必ず書き直すように、表示した値へ入れておく値 </summary>
+        private const int REDRAW_REQUIRED = int.MinValue;
+        /// <summary> 装備していない枠の、表示した消費量 </summary>
+        private const int UNEQUIPPED_COST = -1;
 
         [SerializeField, Range(0.1f, 1f)]
         [Tooltip("ゲージの横幅（画面の横幅に対する割合）")]
@@ -96,6 +103,21 @@ namespace Kizami.EngineAdapter
         private Text _startText;
         private float _startHideTime = -1f;
 
+        private int _shownHealth = REDRAW_REQUIRED;
+        private int _shownHealthMax = REDRAW_REQUIRED;
+        private int _shownCharge = REDRAW_REQUIRED;
+        private int _shownChargeMax = REDRAW_REQUIRED;
+        private int _shownDestroyedTargets = REDRAW_REQUIRED;
+        private int _shownRequiredTargets = REDRAW_REQUIRED;
+        /// <summary> 表示した残りの秒数。制限時間がないときは -1 </summary>
+        private int _shownSeconds = REDRAW_REQUIRED;
+        private bool _shownTimeWarning;
+        /// <summary> 表示した装填状態。0が空、1が装填済み </summary>
+        private int _shownLoaded = REDRAW_REQUIRED;
+        /// <summary> 枠ごとの、表示した消費量。装備していない枠は UNEQUIPPED_COST </summary>
+        private int[] _shownSlotCosts;
+        private bool[] _shownSlotReached;
+
         /// <summary>
         /// 中央から左右へ、割合の分だけ伸ばした範囲にする。
         /// </summary>
@@ -126,18 +148,32 @@ namespace Kizami.EngineAdapter
         {
             if (!Initialized) return;
 
-            SetCenteredRatio(_healthFill, (float)_healthState.Current / _healthState.Max);
-            SetCenteredRatio(_chargeFill, (float)_chargeState.Current / _chargeState.Max);
-            _chargeValueText.text = _chargeState.Current.ToString();
+            UpdateGauges();
             UpdateSkills();
-
-            _targetText.text = $"Targets {_flowState.DestroyedTargetCount} / {_flowState.RequiredTargetCount}";
+            UpdateTargetText();
             UpdateTimeText();
-            _launcherText.text = _fragmentThrowAdapter != null && _fragmentThrowAdapter.IsLoaded
-                ? "Launcher: LOADED"
-                : "Launcher: EMPTY";
-
+            UpdateLauncherText();
             UpdateStartText();
+        }
+
+        /// <summary>
+        /// HP とチャージのゲージの長さと、チャージ量の数値を出す。スキルの線が読む最大量を覚えるのは UpdateSkills の後にする。
+        /// </summary>
+        private void UpdateGauges()
+        {
+            if (_healthState.Current != _shownHealth || _healthState.Max != _shownHealthMax)
+            {
+                _shownHealth = _healthState.Current;
+                _shownHealthMax = _healthState.Max;
+                SetCenteredRatio(_healthFill, (float)_shownHealth / _shownHealthMax);
+            }
+
+            if (_chargeState.Current != _shownCharge || _chargeState.Max != _shownChargeMax)
+            {
+                _shownCharge = _chargeState.Current;
+                SetCenteredRatio(_chargeFill, (float)_shownCharge / _chargeState.Max);
+                _chargeValueText.text = _shownCharge.ToString();
+            }
         }
 
         /// <summary>
@@ -146,10 +182,16 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void UpdateSkills()
         {
+            var isMaxChanged = _chargeState.Max != _shownChargeMax;
             for (var slot = 0; slot < _slotState.SlotCount; slot++)
             {
                 var isEquipped = _slotState.TryGetCost(slot, out var cost);
                 var isReached = isEquipped && _chargeState.Current >= cost;
+                var shownCost = isEquipped ? cost : UNEQUIPPED_COST;
+                if (!isMaxChanged && shownCost == _shownSlotCosts[slot] && isReached == _shownSlotReached[slot]) continue;
+
+                _shownSlotCosts[slot] = shownCost;
+                _shownSlotReached[slot] = isReached;
                 var color = isReached ? _reachedColor : _chargingColor;
                 _slots[slot].SetActive(isEquipped);
                 if (isEquipped)
@@ -172,6 +214,22 @@ namespace Kizami.EngineAdapter
                     SetLine(line.rectTransform, side == 0 ? 0.5f - half : 0.5f + half);
                 }
             }
+
+            _shownChargeMax = _chargeState.Max;
+        }
+
+        /// <summary>
+        /// 壊した目標の数と、クリアに要る数を出す。
+        /// </summary>
+        private void UpdateTargetText()
+        {
+            var destroyed = _flowState.DestroyedTargetCount;
+            var required = _flowState.RequiredTargetCount;
+            if (destroyed == _shownDestroyedTargets && required == _shownRequiredTargets) return;
+
+            _shownDestroyedTargets = destroyed;
+            _shownRequiredTargets = required;
+            _targetText.text = $"Targets {destroyed} / {required}";
         }
 
         /// <summary>
@@ -180,12 +238,29 @@ namespace Kizami.EngineAdapter
         private void UpdateTimeText()
         {
             var remaining = _flowState.RemainingTime;
-            _timeText.enabled = remaining >= 0f;
+            var seconds = remaining >= 0f ? Mathf.CeilToInt(remaining) : -1;
+            var isWarning = remaining >= 0f && remaining <= _timeWarningSeconds;
+            if (seconds == _shownSeconds && isWarning == _shownTimeWarning) return;
+
+            _shownSeconds = seconds;
+            _shownTimeWarning = isWarning;
+            _timeText.enabled = seconds >= 0;
             if (!_timeText.enabled) return;
 
-            var seconds = Mathf.CeilToInt(remaining);
             _timeText.text = $"{seconds / 60:00}:{seconds % 60:00}";
-            _timeText.color = remaining <= _timeWarningSeconds ? _timeWarningColor : _textColor;
+            _timeText.color = isWarning ? _timeWarningColor : _textColor;
+        }
+
+        /// <summary>
+        /// ランチャーに破片が装填されているかを出す。
+        /// </summary>
+        private void UpdateLauncherText()
+        {
+            var loaded = _fragmentThrowAdapter != null && _fragmentThrowAdapter.IsLoaded ? 1 : 0;
+            if (loaded == _shownLoaded) return;
+
+            _shownLoaded = loaded;
+            _launcherText.text = loaded == 1 ? "Launcher: LOADED" : "Launcher: EMPTY";
         }
 
         /// <summary>
@@ -225,6 +300,9 @@ namespace Kizami.EngineAdapter
             _slots = new GameObject[_slotState.SlotCount];
             _slotCostTexts = new Text[_slotState.SlotCount];
             _slotStatusTexts = new Text[_slotState.SlotCount];
+            _shownSlotCosts = new int[_slotState.SlotCount];
+            _shownSlotReached = new bool[_slotState.SlotCount];
+            System.Array.Fill(_shownSlotCosts, REDRAW_REQUIRED);
             var slotsLeft = 0.5f - (_slotState.SlotCount * SLOT_WIDTH + (_slotState.SlotCount - 1) * SLOT_GAP) * 0.5f;
             for (var slot = 0; slot < _slotState.SlotCount; slot++)
             {
