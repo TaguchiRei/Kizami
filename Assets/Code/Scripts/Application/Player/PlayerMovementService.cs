@@ -172,6 +172,21 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// 次の Step で、決めた時間で displacement だけ一直線に飛ぶよう要求する。向きは上下を含む。
+        /// </summary>
+        /// <param name="displacement">飛ぶ向きと距離（ワールド空間）</param>
+        /// <param name="duration">所要時間（秒）</param>
+        public void RequestFlight(Vector3 displacement, float duration)
+        {
+            if (displacement.sqrMagnitude <= Mathf.Epsilon || duration <= 0f) return;
+
+            _isRushRequested = true;
+            _rushDirection = displacement.normalized;
+            _rushDistance = displacement.magnitude;
+            _rushDuration = duration;
+        }
+
+        /// <summary>
         /// 次の Step でプレイヤーを真上へ打ち上げるよう要求する。同じステップに複数の要求があれば、最も速いものを使う。
         /// </summary>
         /// <param name="speed">上向きの打ち出し速度（m/s）</param>

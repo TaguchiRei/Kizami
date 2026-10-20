@@ -103,6 +103,19 @@ namespace Kizami.EngineAdapter
         /// <summary> 帯が倒壊して、塔が倒れ始めたか </summary>
         public bool HasToppled => _hasToppled;
 
+        /// <summary>
+        /// 倒れた塔の上の部分の根元（帯とつながっていた端の中心）のワールド位置を返す。倒れたまとまりと上の部分の凸包が揃うまでは false。
+        /// </summary>
+        public bool TryGetUpperBase(out Vector3 position)
+        {
+            var isReady = _toppledBody != null && _upperHullMesh != null;
+            var bounds = isReady ? _upperHullMesh.bounds : default;
+            position = isReady
+                ? _toppledBody.transform.TransformPoint(new Vector3(bounds.center.x, bounds.min.y, bounds.center.z))
+                : default;
+            return isReady;
+        }
+
         private void Awake()
         {
             _subscription = _building.RegisterOnCollapsed(OnCollapsed);

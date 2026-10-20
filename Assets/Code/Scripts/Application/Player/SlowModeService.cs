@@ -24,6 +24,7 @@ namespace Kizami.Application
         private readonly ITimeScaleController _timeScaleController;
         private readonly IChargeState _chargeState;
         private readonly ITimeScaleState _timeScaleState;
+        private readonly Func<bool> _tryFlight;
         private readonly List<IDisposable> _subscriptions = new();
 
         private CancellationTokenSource _drainCancellation;
@@ -32,10 +33,12 @@ namespace Kizami.Application
         /// <param name="parameters">倍率と消費量の取得元</param>
         /// <param name="chargeService">発動と継続に使うチャージの消費先</param>
         /// <param name="timeScaleController">時間の倍率を変える操作面</param>
+        /// <param name="tryFlight">飛び移れるときに飛んで true を返す関数。スローモードと同じ入力なので、先に呼ぶ</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SlowModeService(IBlackBoard blackBoard, PlayerParameterData parameters, ChargeService chargeService,
-            ITimeScaleController timeScaleController, int sceneId)
+            ITimeScaleController timeScaleController, Func<bool> tryFlight, int sceneId)
         {
+            _tryFlight = tryFlight;
             _parameters = parameters;
             _chargeService = chargeService;
             _timeScaleController = timeScaleController;
@@ -66,6 +69,7 @@ namespace Kizami.Application
         private void OnSlowMode(InputContext<float> context)
         {
             if (context.Phase != InputPhase.Performed) return;
+            if (_tryFlight != null && _tryFlight()) return;
 
             if (_state.IsActive)
             {

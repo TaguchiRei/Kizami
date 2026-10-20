@@ -21,6 +21,7 @@ namespace Kizami.EngineAdapter
         private const int CHARGE_FONT_SIZE = 16;
         private const int START_FONT_SIZE = 72;
         private const string START_TEXT = "START";
+        private const string FLIGHT_PROMPT_TEXT = "[F] JUMP";
         private const float SLOT_WIDTH = 0.06f;
         private const float SLOT_GAP = 0.01f;
         private const float LINE_OVERHANG = 0.3f;
@@ -142,6 +143,7 @@ namespace Kizami.EngineAdapter
         private ISkillSlotState _slotState;
         private IStageFlowState _flowState;
         private ITargetHealthState _targetHealthState;
+        private IFlightPromptState _flightPromptState;
         private FragmentThrowAdapter _fragmentThrowAdapter;
 
         private RectTransform _healthFill;
@@ -167,6 +169,7 @@ namespace Kizami.EngineAdapter
         private Text _defeatText;
         private Text _launcherText;
         private Text _startText;
+        private Text _flightText;
         private float _startHideTime = -1f;
 
         private int _shownHealth = REDRAW_REQUIRED;
@@ -209,7 +212,8 @@ namespace Kizami.EngineAdapter
                 !blackBoard.TryGetSceneState<PlayerBoard, IChargeState>(out _chargeState, this) ||
                 !blackBoard.TryGetSceneState<PlayerBoard, ISkillSlotState>(out _slotState, this) ||
                 !blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this) ||
-                !blackBoard.TryGetSceneState<StageBoard, ITargetHealthState>(out _targetHealthState, this)) return;
+                !blackBoard.TryGetSceneState<StageBoard, ITargetHealthState>(out _targetHealthState, this) ||
+                !blackBoard.TryGetSceneState<PlayerBoard, IFlightPromptState>(out _flightPromptState, this)) return;
 
             _fragmentThrowAdapter = fragmentThrowAdapter;
             BuildView();
@@ -228,6 +232,7 @@ namespace Kizami.EngineAdapter
             UpdateTimeText();
             UpdateLauncherText();
             UpdateStartText();
+            _flightText.enabled = _flightPromptState.IsVisible;
         }
 
         /// <summary>
@@ -541,6 +546,11 @@ namespace Kizami.EngineAdapter
             UiBuilder.SetAnchors(_startText.rectTransform, new Vector2(0f, 0.55f), new Vector2(1f, 0.7f));
             _startText.text = START_TEXT;
             _startText.enabled = false;
+
+            _flightText = UiBuilder.CreateText(canvas, "FlightPrompt", LABEL_FONT_SIZE);
+            UiBuilder.SetAnchors(_flightText.rectTransform, new Vector2(0.4f, 0.3f), new Vector2(0.6f, 0.36f));
+            _flightText.text = FLIGHT_PROMPT_TEXT;
+            _flightText.enabled = false;
         }
 
         /// <summary>

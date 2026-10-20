@@ -46,6 +46,10 @@ namespace Kizami.Initialization
         private BombThrowAdapter _bombThrowAdapter;
 
         [SerializeField]
+        [Tooltip("視線の先の飛び移りの目印を探す Adapter。未設定なら、既定の値でこの GameObject に付ける")]
+        private FlightAdapter _flightAdapter;
+
+        [SerializeField]
         [Tooltip("アウトゲームを通さずに始めたとき（インゲームのシーンから直接再生したときなど）に、スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
         private SkillData[] _equippedSkills = new SkillData[SkillService.SLOT_COUNT];
 
@@ -54,6 +58,7 @@ namespace Kizami.Initialization
         private ChargeService _chargeService;
         private SkillService _skillService;
         private SlowModeService _slowModeService;
+        private FlightService _flightService;
         private FragmentThrowService _fragmentThrowService;
         private ITimeScaleController _timeScaleController;
         private GameProgressService _progressService;
@@ -96,8 +101,14 @@ namespace Kizami.Initialization
             _enemyEnergyAdapter.Initialize(_chargeService.AddCollapsedEnemies);
             _meleeCutAdapter.Initialize(DistributeCutResults);
 
+            // F は、飛び移れるときは飛び移り、そうでなければスローモードになる為、FlightService を先に生成して渡す
+            _flightService = new FlightService(blackBoard, () => _movementService.CanRush, Fly, sceneId);
+            if (_flightAdapter == null) _flightAdapter = gameObject.AddComponent<FlightAdapter>();
+            _flightAdapter.Initialize(_flightService.SetCandidate);
+
             // SlowModeService は ChargeState を取得する為、ChargeService の生成より後に生成する
-            _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
+            _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController,
+                _flightService.TryFly, sceneId);
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, () => _voxelMoundAdapter.IsMounding, _actionEvents, sceneId);
             _voxelMoundAdapter.Initialize(_chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
@@ -144,6 +155,17 @@ namespace Kizami.Initialization
             _voxelDestructionAdapter.CarveCapsuleWithArmor(shifted, shifted + direction * distance, radius, body.center,
                 falloff);
             _movementService.RequestRush(direction, distance, duration);
+        }
+
+        /// <summary>
+        /// 目印へ一直線に飛ぶ。着地の周囲のボクセルを壊す目印なら、飛び始めに先に壊す。壊した所へ着地して、そのまま落ちる。
+        /// </summary>
+        private void Fly(FlightTarget target)
+        {
+            var displacement = target.Position - _movementAdapter.BodyBounds.center;
+            if (target.CarvesVoxels) _voxelDestructionAdapter.CarveExplosionAt(target.Position, target.CarveRadius);
+
+            _movementService.RequestFlight(displacement, displacement.magnitude / _parameters.FlightSpeed);
         }
 
         /// <summary>

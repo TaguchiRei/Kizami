@@ -26,7 +26,7 @@
 | スキル `usefultoolkit` | BlackBoard・State・Initializer・Compositor・SceneGroup・入力の書き方 |
 | [Section19_StageFlow.md](../InGame/Sections/Section19_StageFlow.md) | アウトゲームとインゲームの受け渡し（`GameProgressService`、`GameSceneController`）と、仮のアウトゲームの作り。区間0・1・2で読む |
 | [Section27_CloseRangeSkill.md](../InGame/Sections/Section27_CloseRangeSkill.md) | 体術・衝波（旧仮名：頑拳）と体術・攻走（旧仮名：突撃）の計画。区間5で読む |
-| [Section23_FinisherBeam.md](../InGame/Sections/Section23_FinisherBeam.md)、[FinisherReference.md](../InGame/FinisherReference.md) | フィニッシャーのビーム。羽天轟号の土台。区間6で読む |
+| [Section23_FinisherBeam.md](../InGame/Sections/Section23_FinisherBeam.md)、[FinisherReference.md](../InGame/FinisherReference.md) | フィニッシャーのビーム。羽天轟号の土台。インゲーム区間35で読む |
 
 ### 手本にする既存コード
 
@@ -92,14 +92,15 @@ PC を先に作る。スマホと VR の対応は、インゲームと同じく�
 | 0 | 進行のセーブと解放 | 進行（クリア済みのステージ、装備）とコンフィグの保存・読み込み、通貨の削除、ステージのロック、スキルの解放の判定 | ― | 未定 | 完了 | [Section00](Sections/Section00_ProgressSave.md) |
 | 1 | ホームとステージ選択 | uGUI のホーム、画面の切り替え、ステージ選択（ロック表示） | 0 | 未定 | 完了 | [Section01](Sections/Section01_HomeStageSelect.md) |
 | 2 | スキル装備 | 装備枠 3、スキル一覧（羽天轟号は専用の枠を上に置く）、解放の演出（羽天轟号は特別） | 0, 1 | 未定 | 完了 | [Section02](Sections/Section02_SkillEquip.md) |
-| 3 | 背景映像 | マップを周回するカメラの撮影と書き出し、アウトゲームでのループ再生 | ― | 未定 | 未着手 | [Section03](Sections/Section03_BackgroundVideo.md) |
+| 3 | 背景映像 | マップを周回するカメラの撮影と書き出し、アウトゲームでのループ再生 | ― | 未定 | インゲーム区間42 へ移した | [Section42](../InGame/Sections/Section42_BackgroundVideo.md) |
 | 4 | コンフィグ | 既存の設定の画面、キーコンフィグ、音量 | 0, 1 | 未定 | 完了 | [Section04](Sections/Section04_Config.md) |
 | 5 | スキルの作り直し | 7 種への整理、刃術 3 種（10 回振るまで、重ねがけ）、火術・崩爆、インゲーム区間27（衝波・攻走）との統合 | ― | 未定 | 完了 | [Section07](Sections/Section05_SkillRework.md) |
-| 6 | 火術奥義・羽天轟号 | 上空への飛び上がり、チャージ、視点操作できる無敵のビーム、0.5 秒ごとの破壊判定とエネルギー消費、止め方 | 5 | 未定 | 未着手 | [Section08](Sections/Section06_Utenkougou.md) |
-| 7 | アルファ版の UI | 仮の UI をデザインした画面に作り直す、プレハブ化、遷移の演出。インゲーム区間33（仕上げ）の一部 | 1, 2, 4 | 未定 | 未着手 | [Section07](Sections/Section07_AlphaUi.md) |
+| 6 | 火術奥義・羽天轟号 | 上空への飛び上がり、チャージ、視点操作できる無敵のビーム、0.5 秒ごとの破壊判定とエネルギー消費、止め方 | 5 | 未定 | インゲーム区間35 へ移した | [Section35](../InGame/Sections/Section35_Utenkougou.md) |
+| 7 | アルファ版の UI | 仮の UI をデザインした画面に作り直す、プレハブ化、遷移の演出。インゲーム区間33（仕上げ）の一部 | 1, 2, 4 | 未定 | インゲーム区間41 へ移した | [Section41](../InGame/Sections/Section41_AlphaUi.md) |
 | A | マイルストーンA | アウトゲームからステージを選び、装備を替えて遊び、クリアでスキルが解放される | | | | |
 
 - 目安の時期は、ユーザーとスケジュールを決めてから入れる
+- 区間3・6・7 は、アルファ版の仕上げとしてインゲームの区間 42・35・41 へ移した（2026-10-21）。計画書はインゲームの Sections にあり、進み具合はインゲームの全体計画書で管理する
 - 区間3・4・5 は互いに依存しないので、順番を入れ替えられる
 
 依存関係
