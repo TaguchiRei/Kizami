@@ -137,9 +137,6 @@ namespace Kizami.EngineAdapter
         [Tooltip("ビームを止める物のレイヤー。プレイヤー自身のレイヤーは外す")]
         private LayerMask _blockLayers;
 
-        [SerializeField]
-        [Tooltip("照射中に割るガラスの板のレイヤー。ビームの範囲（穴の半径）に入った板を割る")]
-        private LayerMask _glassLayers;
 
         private CapsuleCollider _targetCapsule;
         private Action<int> _applyDamage;
@@ -597,15 +594,7 @@ namespace Kizami.EngineAdapter
             /// </summary>
             private void ShatterGlass(Vector3 pivot, float distance)
             {
-                var overlapBuffer = _owner._overlapBuffer;
-                var end = pivot + _aimDirection * distance;
-                var count = Physics.OverlapCapsuleNonAlloc(pivot, end, _owner._meltRadius, overlapBuffer,
-                    _owner._glassLayers, QueryTriggerInteraction.Ignore);
-                for (var i = 0; i < count; i++)
-                {
-                    var glass = overlapBuffer[i].GetComponentInParent<GlassPane>();
-                    if (glass != null) glass.Shatter(pivot);
-                }
+                GlassPane.ShatterInCapsule(pivot, pivot + _aimDirection * distance, _owner._meltRadius, pivot);
             }
 
             /// <summary>

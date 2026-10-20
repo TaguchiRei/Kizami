@@ -14,6 +14,9 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
     [RequireComponent(typeof(Camera))]
     public sealed class VoxelDebugCarveTool : MonoBehaviour
     {
+        /// <summary> 左クリックで当たった点の周りのガラスの板を割る半径（m） </summary>
+        private const float GLASS_BREAK_RADIUS = 1f;
+
         private enum ToolShape
         {
             Sphere,
@@ -104,8 +107,7 @@ namespace Kizami.EngineAdapter.Voxel.DebugTools
             var target = RaycastPiece(mouse, out var hit);
             if (target == null && mouse.leftButton.wasPressedThisFrame && hit.collider != null)
             {
-                var glass = hit.collider.GetComponentInParent<GlassPane>();
-                if (glass != null) glass.Shatter(hit.point);
+                GlassPane.ShatterInSphere(hit.point, GLASS_BREAK_RADIUS, hit.point);
             }
 
             _hasCursorTemperature = target != null;
