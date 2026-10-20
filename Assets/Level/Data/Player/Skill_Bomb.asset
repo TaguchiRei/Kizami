@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Skill_Bomb
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u5D29\u7206"
+  _school: 4
   _effect: 9
   _cost: 50
   _radius: 15

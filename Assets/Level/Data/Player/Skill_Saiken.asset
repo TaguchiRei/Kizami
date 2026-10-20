@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Skill_Saiken
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u7815\u5263"
+  _school: 2
   _effect: 3
   _cost: 30
   _radius: 1

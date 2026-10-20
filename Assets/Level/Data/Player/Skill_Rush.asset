@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Skill_Rush
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u653B\u8D70"
+  _school: 1
   _effect: 11
   _cost: 15
   _radius: 5

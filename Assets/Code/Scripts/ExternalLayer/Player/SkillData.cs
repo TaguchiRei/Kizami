@@ -9,7 +9,11 @@ namespace Kizami.External
     public sealed class SkillData : ScriptableObject
     {
         [SerializeField]
-        [Tooltip("HUD に出す名前")]
+        [Tooltip("系統。None 以外なら、表示名の前に「系統・」が付く")]
+        private SkillSchool _school;
+
+        [SerializeField]
+        [Tooltip("系統を除いた名前")]
         private string _displayName = "Skill";
 
         [SerializeField, TextArea(2, 4)]
@@ -84,8 +88,21 @@ namespace Kizami.External
         [Tooltip("強化の倍率。範囲アップは刃の幅と届く距離に、速さアップは攻撃間隔に掛ける")]
         private float _enhanceScale = 1.5f;
 
-        /// <summary> HUD に出す名前 </summary>
-        public string DisplayName => _displayName;
+        /// <summary> HUD や一覧に出す名前。系統があれば「系統・名前」の形にする </summary>
+        public string DisplayName => _school == SkillSchool.None ? _displayName : $"{GetSchoolName(_school)}・{_displayName}";
+
+        private static string GetSchoolName(SkillSchool school)
+        {
+            return school switch
+            {
+                SkillSchool.Body => "体術",
+                SkillSchool.Blade => "刀術",
+                SkillSchool.Earth => "土術",
+                SkillSchool.Fire => "火術",
+                SkillSchool.FireUltimate => "火術奥義",
+                _ => string.Empty
+            };
+        }
 
         /// <summary> 保存データでスキルを見分ける ID。未設定ならアセット名 </summary>
         public string Id => string.IsNullOrEmpty(_id) ? name : _id;
@@ -143,6 +160,30 @@ namespace Kizami.External
 
         /// <summary> 強化型スキルか </summary>
         public bool IsEnhancement => _effect >= SkillEffect.EnhanceDestroy && _effect <= SkillEffect.ExplosiveFragment;
+    }
+
+    /// <summary>
+    /// スキルの系統。表示名の前に付く。
+    /// </summary>
+    public enum SkillSchool
+    {
+        /// <summary> 系統を持たない。テスト用や試作のスキル </summary>
+        None,
+
+        /// <summary> 体術 </summary>
+        Body,
+
+        /// <summary> 刃術 </summary>
+        Blade,
+
+        /// <summary> 土術 </summary>
+        Earth,
+
+        /// <summary> 火術 </summary>
+        Fire,
+
+        /// <summary> 火術奥義 </summary>
+        FireUltimate
     }
 
     /// <summary>

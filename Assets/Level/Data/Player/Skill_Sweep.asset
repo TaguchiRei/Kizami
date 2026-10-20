@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Skill_Sweep
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u885D\u6CE2"
+  _school: 1
   _effect: 10
   _cost: 10
   _radius: 1
