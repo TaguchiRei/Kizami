@@ -193,7 +193,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 指定した2点を結ぶカプセルで削る。ガラスの板は割る。
         /// カプセルに入った装甲のパネルすべてに1回ずつ当て、origin から見て装甲の奥にあるピースは削らない。
-        /// 強さは普通の融点と減衰率から決め、破壊力を最大にしたときの上乗せは使わない。
+        /// 強さは普通の融点と減衰率から決め、破壊力を最大にしているときは上乗せを足す。
         /// </summary>
         /// <param name="start">カプセルの一方の端（ワールド空間）</param>
         /// <param name="end">カプセルのもう一方の端（ワールド空間）</param>
@@ -206,7 +206,7 @@ namespace Kizami.EngineAdapter
                 QueryTriggerInteraction.Ignore));
             GlassPane.ShatterInCapsule(start, end, radius + _glassMargin, origin);
 
-            var reach = radius + VoxelThermalSettings.NORMAL_MELTING_POINT / falloff;
+            var reach = ReachRadius(radius, falloff);
             var hitCount = QueryCapsule(start, end, reach);
 
             // 遮断の判定は、当てて壊れる前のパネルで行う
