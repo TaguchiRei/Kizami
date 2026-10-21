@@ -123,6 +123,7 @@
 - `EnemyFinisherBeams.Shot` に、向きの更新（`SetDirection`）、溶かさない照射（`BeginContinuous(direction, false)`）、蓋のない筒（`_isOpenEnded`）を足した。`FinisherBeam.shader` に `_DitherOpacity`（既定 1）
 - `VoxelDestructionAdapter.CarveSkyBeamAt`（装甲とバリアを粉砕、体力制の対象には当たりを数えない）、`HealthTarget.ReportDamage`
 - `Skill_Utenkougou.asset`、`SkyBeam.mat`・`SkyBeamInner.mat`、InGame の `SkyBeam`。到達の `_unlockSkill`、常駐シーンの `GameSceneInitializer._skills` と `_ultimateSkill`
+- `AnnihilationUltimateStageData`（殲滅の複製、表示名 `Annihilation (Ultimate)`）を `GameSceneInitializer._stages` の最後に置き、羽天轟号の解放条件にした（到達の安定版を足すまでの代わり）
 
 完了条件の確認結果（殲滅ステージ、ローカル）
 
@@ -130,7 +131,7 @@
 - 使用中はダメージを受けず（`ApplyDamage(10)` で HP が変わらない）、通常攻撃が出ず、視点でビームの向きが変わる
 - 真下へ撃つと地面のボクセルが削れる
 - 確かめられなかったこと：雑魚の撃破、バリアと装甲の粉砕、体力制の対象への秒間ダメージ。uloop の視点操作で狙いを合わせられなかった為。手触りと合わせて、ユーザーがプレイで確かめる
-- スキル装備の画面に専用の枠が出る（未解放の為 LOCKED）
+- スキル装備の画面に専用の枠が出る（未解放の為 LOCKED）。ステージ選択の最後に `Annihilation (Ultimate)` が出る。クリアして解放されるところは未確認
 
 ## 見つけた問題（今回は扱わない）
 
