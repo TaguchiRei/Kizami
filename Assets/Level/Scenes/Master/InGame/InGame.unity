@@ -159,6 +159,16 @@ MonoBehaviour:
   _emptyIconColor: {r: 1, g: 1, b: 1, a: 0.25}
   _textColor: {r: 1, g: 1, b: 1, a: 1}
   _unavailableTextColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  _targetHealthColor: {r: 0.95, g: 0.6, b: 0.2, a: 1}
+  _invincibleColor: {r: 0.6, g: 0.6, b: 0.6, a: 1}
+  _crackColor: {r: 0.08, g: 0.08, b: 0.08, a: 1}
+  _crackWidth: 3
+  _brokenTilt: 2.5
+  _brokenGap: 4
+  _brokenShakeDuration: 0.2
+  _brokenShakeStrength: 6
+  _drainingFlashColor: {r: 0.95, g: 0.15, b: 0.15, a: 1}
+  _drainingFlashPeriod: 0.5
   _timeWarningSeconds: 30
   _timeWarningColor: {r: 0.95, g: 0.25, b: 0.25, a: 1}
 --- !u!4 &60550493
@@ -435,6 +445,175 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &810375394
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 810375395}
+  - component: {fileID: 810375397}
+  - component: {fileID: 810375396}
+  m_Layer: 0
+  m_Name: SkyBeam
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &810375395
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 810375394}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 903436366}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &810375396
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 810375394}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e62fe535968880f45b926b44ef3ed314, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.SkyBeamAdapter
+  _beams: {fileID: 810375397}
+  _pivotDown: 2
+  _pivotForward: 1
+--- !u!114 &810375397
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 810375394}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36b6c3ddb34b87844adb3289eeae309e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyFinisherBeams
+  _beamMaterial: {fileID: 2100000, guid: b846820112dbecd459f7ad79f8ed1be6, type: 2}
+  _beamInnerMaterial: {fileID: 2100000, guid: d4e39d00266d5a3479fcbdba9d306347, type: 2}
+  _telegraphMaterial: {fileID: 2100000, guid: 75145594f275da24eaabc61d61316f8c, type: 2}
+  _glowMaterial: {fileID: 2100000, guid: f665de0a18fffa2409bc87f9767ad42e, type: 2}
+  _glowColor: {r: 0.12, g: 0.3, b: 0.27, a: 1}
+  _telegraphGlowColor: {r: 2, g: 0.35, b: 0.1, a: 1}
+  _muzzleSize: 6
+  _tipSize: 60
+  _shakeForce: 0.5
+  _beamRadius: 16
+  _telegraphRadius: 16
+  _aimDuration: 3
+  _aimDelay: 2
+  _telegraphDuration: 1
+  _firingDuration: 2
+  _noiseLevelCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.167
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.667
+      value: 0.5
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.667
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  _tillingYCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.167
+      value: -4
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.167
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1.667
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  _continuousPatternTime: 0.3
+  _damage: 1
+  _damageInterval: 0.1
+  _meltSpeed: 20
+  _meltRadius: 14
+  _meltInterval: 0.3
+  _isOpenEnded: 1
+  _blockLayers:
+    serializedVersion: 2
+    m_Bits: 42497
 --- !u!1 &843275888
 GameObject:
   m_ObjectHideFlags: 0
@@ -544,6 +723,8 @@ MonoBehaviour:
   _fragmentThrowAdapter: {fileID: 1258148392}
   _voxelMoundAdapter: {fileID: 1734900004}
   _bombThrowAdapter: {fileID: 1258148394}
+  _flightAdapter: {fileID: 0}
+  _skyBeamAdapter: {fileID: 810375396}
   _equippedSkills:
   - {fileID: 11400000, guid: 7ae116c07fce44eb9d3d2f376c7e56ab, type: 2}
   - {fileID: 11400000, guid: ed106c18d54e42b7804f9237315ad9e8, type: 2}
@@ -642,6 +823,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1307013810}
+  - {fileID: 810375395}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &903436367
@@ -668,6 +850,12 @@ MonoBehaviour:
   _rigidbody: {fileID: 903436360}
   _collider: {fileID: 903436363}
   _airAcceleration: 25
+  _riseGravityScale: 2
+  _holdRiseGravityScale: 0.8
+  _apexGravityScale: 0.6
+  _apexSpeedThreshold: 1.5
+  _fallGravityScale: 2
+  _fallRampSpeed: 12
   _cameraTransform: {fileID: 1307013810}
 --- !u!114 &903436368
 MonoBehaviour:
@@ -1562,7 +1750,6 @@ MonoBehaviour:
   _strandedReturnDelay: 10
   _fallDefeatHeight: 3
   _floatingFallSpeed: 2
-  _crushMinFallSpeed: 3
   _crushMinVolume: 0.5
   _crushBodyCenterHeight: 1.5
   _crushSurfaceMargin: 0.3
@@ -1774,11 +1961,13 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  _continuousPatternTime: 0.3
   _damage: 1
   _damageInterval: 0.1
   _meltSpeed: 20
   _meltRadius: 14
   _meltInterval: 0.3
+  _isOpenEnded: 0
   _blockLayers:
     serializedVersion: 2
     m_Bits: 42497
@@ -2352,7 +2541,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.BossInitializer
   _enemySpawnAdapter: {fileID: 1539543158}
   _stompsPerRound: 3
-  _roundCount: 2
+  _finalDuration: 20
   _beginOnInitialize: 1
 --- !u!4 &1964918683
 Transform:

@@ -9,9 +9,15 @@ namespace Kizami.EngineAdapter
     /// </summary>
     /// <remarks>
     /// 円柱の長さと半径、ビームの模様の値は MaterialPropertyBlock で書く。マテリアルは共有のままなので、ビームと帯を同じシェーダーで何本出しても複製しない。
+    /// 撃つ所の真後ろから見るビーム（羽天轟号）は、両端の蓋がない筒にする。手前の蓋が画面を覆わない為。筒のメッシュは共有する。敵のビームは蓋のある円柱のまま。
     /// </remarks>
     public sealed class EnemyBeam
     {
+        /// <summary> 筒の周方向の分割数 </summary>
+        private const int TUBE_SEGMENTS = 24;
+
+        private static Mesh _tubeMesh;
+
         private static readonly int _beamLengthId = Shader.PropertyToID("_BeamLength");
         private static readonly int _beamRadiusId = Shader.PropertyToID("_BeamRadius");
         private static readonly int _noiseLevelId = Shader.PropertyToID("_NoiseLevel");
@@ -23,12 +29,22 @@ namespace Kizami.EngineAdapter
         private readonly MaterialPropertyBlock _properties = new();
 
         /// <param name="parent">円柱を置く親。拡大率を1に保つこと</param>
+        /// <param name="isOpenEnded">両端の蓋がない筒にするか</param>
         /// <param name="materials">円柱のマテリアル。複数あれば同じ円柱に重ねて描く</param>
-        public EnemyBeam(Transform parent, params Material[] materials)
+        public EnemyBeam(Transform parent, bool isOpenEnded, params Material[] materials)
         {
-            _cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            _cylinder.name = nameof(EnemyBeam);
-            Object.Destroy(_cylinder.GetComponent<Collider>());
+            if (isOpenEnded)
+            {
+                _cylinder = new GameObject(nameof(EnemyBeam), typeof(MeshFilter), typeof(MeshRenderer));
+                _cylinder.GetComponent<MeshFilter>().sharedMesh = GetTubeMesh();
+            }
+            else
+            {
+                _cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                _cylinder.name = nameof(EnemyBeam);
+                Object.Destroy(_cylinder.GetComponent<Collider>());
+            }
+
             var cylinderRenderer = _cylinder.GetComponent<MeshRenderer>();
             cylinderRenderer.sharedMaterials = materials;
             cylinderRenderer.shadowCastingMode = ShadowCastingMode.Off;
@@ -37,6 +53,48 @@ namespace Kizami.EngineAdapter
             _cylinderTransform = _cylinder.transform;
             _cylinderTransform.SetParent(parent, false);
             _cylinder.SetActive(false);
+        }
+
+        /// <summary>
+        /// 蓋のない筒のメッシュを返す。初めて呼んだときに作る。
+        /// 寸法・軸・UV は Unity の円柱のプリミティブの側面と同じ（高さ2・半径0.5で Y 軸に沿って立ち、u が周方向、v が軸方向）。
+        /// </summary>
+        private static Mesh GetTubeMesh()
+        {
+            if (_tubeMesh != null) return _tubeMesh;
+
+            // 継ぎ目で UV を 0 と 1 に分ける為、周方向は分割数 + 1 列の頂点を持つ
+            var columns = TUBE_SEGMENTS + 1;
+            var vertices = new Vector3[columns * 2];
+            var normals = new Vector3[columns * 2];
+            var uvs = new Vector2[columns * 2];
+            for (var i = 0; i < columns; i++)
+            {
+                var u = (float)i / TUBE_SEGMENTS;
+                var angle = u * Mathf.PI * 2f;
+                var normal = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+                vertices[i] = normal * 0.5f + Vector3.down;
+                vertices[i + columns] = normal * 0.5f + Vector3.up;
+                normals[i] = normals[i + columns] = normal;
+                uvs[i] = new Vector2(u, 0f);
+                uvs[i + columns] = new Vector2(u, 1f);
+            }
+
+            var triangles = new int[TUBE_SEGMENTS * 6];
+            for (var i = 0; i < TUBE_SEGMENTS; i++)
+            {
+                var t = i * 6;
+                triangles[t] = i;
+                triangles[t + 1] = i + columns;
+                triangles[t + 2] = i + 1;
+                triangles[t + 3] = i + 1;
+                triangles[t + 4] = i + columns;
+                triangles[t + 5] = i + 1 + columns;
+            }
+
+            _tubeMesh = new Mesh { name = "EnemyBeamTube", vertices = vertices, normals = normals, uv = uvs, triangles = triangles };
+            _tubeMesh.RecalculateBounds();
+            return _tubeMesh;
         }
 
         /// <summary>

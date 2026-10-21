@@ -141,6 +141,10 @@ namespace Kizami.EngineAdapter
         private float _meltInterval = 0.05f;
 
         [SerializeField]
+        [Tooltip("ビームと帯を両端の蓋がない筒で描くか。撃つ所の真後ろから見るビーム（羽天轟号）で有効にする")]
+        private bool _isOpenEnded;
+
+        [SerializeField]
         [Tooltip("ビームを止める物のレイヤー。プレイヤー自身のレイヤーは外す。敵（EnemyBody）に当たったものは、レイヤーに関わらず貫通する")]
         private LayerMask _blockLayers;
 
@@ -384,6 +388,9 @@ namespace Kizami.EngineAdapter
             /// <summary> 止めるまで照射を続けるか </summary>
             private bool _isContinuous;
 
+            /// <summary> 照射中にボクセルを溶かして進み、プレイヤーにダメージを与えるか。false なら見た目だけを最初に当たった物まで出す </summary>
+            private bool _melts = true;
+
             /// <summary> 次にダメージを与えられるまでの時間（秒） </summary>
             private float _damageTimer;
 
@@ -398,9 +405,9 @@ namespace Kizami.EngineAdapter
                 _owner = owner;
                 var parent = owner.transform;
                 _beam = owner._beamInnerMaterial != null
-                    ? new EnemyBeam(parent, owner._beamInnerMaterial, owner._beamMaterial)
-                    : new EnemyBeam(parent, owner._beamMaterial);
-                if (owner._telegraphMaterial != null) _telegraph = new EnemyBeam(parent, owner._telegraphMaterial);
+                    ? new EnemyBeam(parent, owner._isOpenEnded, owner._beamInnerMaterial, owner._beamMaterial)
+                    : new EnemyBeam(parent, owner._isOpenEnded, owner._beamMaterial);
+                if (owner._telegraphMaterial != null) _telegraph = new EnemyBeam(parent, owner._isOpenEnded, owner._telegraphMaterial);
                 if (owner._glowMaterial == null) return;
 
                 _muzzleGlow = owner.CreateGlowQuad("MuzzleGlow");
@@ -416,6 +423,7 @@ namespace Kizami.EngineAdapter
                 _headHistory.Clear();
                 _aimTime = 0f;
                 _isContinuous = false;
+                _melts = true;
                 SetPhase(Phase.Aiming);
             }
 
@@ -425,16 +433,26 @@ namespace Kizami.EngineAdapter
             /// <param name="direction">ビームの向き（ワールド座標）</param>
             public void BeginFixed(Vector3 direction)
             {
-                BeginTelegraph(direction, false);
+                BeginTelegraph(direction, false, true);
             }
 
             /// <summary>
             /// 向きを決めて予兆から始め、Stop を呼ぶまで照射を続ける。照準はしない。
             /// </summary>
             /// <param name="direction">ビームの向き（ワールド座標）</param>
-            public void BeginContinuous(Vector3 direction)
+            /// <param name="melts">照射中にボクセルを溶かして進み、プレイヤーにダメージを与えるか。false なら見た目だけを出し、壊すのは呼び出し側が受け持つ</param>
+            public void BeginContinuous(Vector3 direction, bool melts = true)
             {
-                BeginTelegraph(direction, true);
+                BeginTelegraph(direction, true, melts);
+            }
+
+            /// <summary>
+            /// ビームの向きを変える。予兆と照射の間に、呼び出し側が向きを動かすときに使う。
+            /// </summary>
+            /// <param name="direction">ビームの向き（ワールド座標）</param>
+            public void SetDirection(Vector3 direction)
+            {
+                if (direction.sqrMagnitude > 0f) _aimDirection = direction.normalized;
             }
 
             /// <summary>
@@ -494,10 +512,11 @@ namespace Kizami.EngineAdapter
                 SetPhase(Phase.Idle);
             }
 
-            private void BeginTelegraph(Vector3 direction, bool isContinuous)
+            private void BeginTelegraph(Vector3 direction, bool isContinuous, bool melts)
             {
                 _aimDirection = direction.normalized;
                 _isContinuous = isContinuous;
+                _melts = melts;
                 SetPhase(Phase.Telegraph);
             }
 
@@ -541,27 +560,25 @@ namespace Kizami.EngineAdapter
             }
 
             /// <summary>
+            /// 溶かさないビームは、見た目だけを pivot から最初に当たった物まで出す。
             /// 溶かす先端を進め、ビームを pivot からボクセルでない壁まで出す。プレイヤーが、当たり判定のレイの範囲（IsPlayerHit）に入っていれば、間隔ごとにダメージを与える。
             /// </summary>
             private void UpdateFiring(Vector3 pivot, float3 capsuleStart, float3 capsuleEnd, float capsuleRadius,
                 float deltaTime)
             {
+                if (!_melts)
+                {
+                    ShowFiring(pivot, CastBeam(pivot, out var firstHit, out var firstNormal), firstNormal, firstHit);
+                    return;
+                }
+
                 var blockDistance = CastBlock(pivot, out var blockNormal);
                 Melt(pivot, blockDistance, deltaTime);
 
                 // 見た目は、溶かす先端に関わらず、撃つ所からボクセルでない壁まで最初から伸ばす
-                var stop = pivot + _aimDirection * blockDistance;
-                var hasHit = blockDistance < MAX_BEAM_LENGTH;
-                var normal = blockNormal;
+                ShowFiring(pivot, pivot + _aimDirection * blockDistance, blockNormal, blockDistance < MAX_BEAM_LENGTH);
 
                 // 当たり判定は、溶かして進んだ先端までの範囲。敵は貫通する
-                var flicker = 1f + 0.25f * Mathf.Sin(_phaseTime * 60f);
-                _owner.ShowGlow(_muzzleGlow, pivot, _owner._muzzleSize * flicker, _owner._glowColor, 2f, 1f);
-                ShowTipEffects(stop, normal, hasHit, _owner._glowColor, true);
-                var patternTime = _isContinuous ? Mathf.Min(_phaseTime, _owner._continuousPatternTime) : _phaseTime;
-                _beam.SetPattern(_owner._noiseLevelCurve.Evaluate(patternTime), _owner._tillingYCurve.Evaluate(patternTime));
-                _beam.ShowBeam(pivot, stop, _owner._beamRadius);
-
                 _damageTimer -= deltaTime;
                 if (_damageTimer > 0f) return;
 
@@ -569,6 +586,21 @@ namespace Kizami.EngineAdapter
 
                 _damageTimer = _owner._damageInterval;
                 _owner._applyDamage?.Invoke(_owner._damage);
+            }
+
+            /// <summary>
+            /// 照射中のビーム・発射口の光・先端の光と火花を、pivot から stop まで出す。
+            /// </summary>
+            /// <param name="normal">stop で当たった面の向き</param>
+            /// <param name="hasHit">stop で何かに当たったか</param>
+            private void ShowFiring(Vector3 pivot, Vector3 stop, Vector3 normal, bool hasHit)
+            {
+                var flicker = 1f + 0.25f * Mathf.Sin(_phaseTime * 60f);
+                _owner.ShowGlow(_muzzleGlow, pivot, _owner._muzzleSize * flicker, _owner._glowColor, 2f, 1f);
+                ShowTipEffects(stop, normal, hasHit, _owner._glowColor, true);
+                var patternTime = _isContinuous ? Mathf.Min(_phaseTime, _owner._continuousPatternTime) : _phaseTime;
+                _beam.SetPattern(_owner._noiseLevelCurve.Evaluate(patternTime), _owner._tillingYCurve.Evaluate(patternTime));
+                _beam.ShowBeam(pivot, stop, _owner._beamRadius);
             }
 
             /// <summary>
