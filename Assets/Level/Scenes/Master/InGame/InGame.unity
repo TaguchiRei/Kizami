@@ -2435,8 +2435,11 @@ MonoBehaviour:
   _armorLayers:
     serializedVersion: 2
     m_Bits: 3072
+  _blastEffectPrefab: {fileID: 7896128813191946642, guid: bcebc7948a297bd4189558ff5c685ec4, type: 3}
+  _blastEffectCount: 8
+  _blastScalePerMeter: 0.03
   _explosionEffect: {fileID: 477178112}
-  _explosionParticlesPerMeter: 60
+  _explosionParticlesPerMeter: 150
 --- !u!4 &1734900003
 Transform:
   m_ObjectHideFlags: 0

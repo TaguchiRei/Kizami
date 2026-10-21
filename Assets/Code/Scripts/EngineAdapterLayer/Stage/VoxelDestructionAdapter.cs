@@ -70,15 +70,33 @@ namespace Kizami.EngineAdapter
         private LayerMask _armorLayers;
 
         [SerializeField]
-        [Tooltip("爆発を描く VisualEffect。VFX Graph は Explosion.vfx。未設定なら爆発は削るだけで何も出さない")]
+        [Tooltip("爆発の球と火花。未設定なら出さない")]
+        private BlastEffect _blastEffectPrefab;
+
+        [SerializeField, Min(1)]
+        [Tooltip("爆発の球と火花を同時に出せる数。全部再生中なら、最も古いものを頭から再生し直す")]
+        private int _blastEffectCount = 8;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("爆発の半径 1m あたりの、球と火花の大きさの倍率。プレハブの大きさ 1 のとき、一番外の球が半径 50m まで広がる。0.02 で球が爆発の半径と一致する")]
+        private float _blastScalePerMeter = 0.03f;
+
+        [SerializeField]
+        [Tooltip("火花だけを描く VisualEffect。VFX Graph は Explosion.vfx。未設定なら出さない")]
         private VisualEffect _explosionEffect;
 
         [SerializeField, Min(1)]
         [Tooltip("爆発の半径 1m あたりに出す粒の数")]
-        private int _explosionParticlesPerMeter = 60;
+        private int _explosionParticlesPerMeter = 150;
 
         /// <summary> 爆発の位置・半径・粒の数を VFX Graph へ渡すイベント属性 </summary>
         private VFXEventAttribute _explosionEventAttribute;
+
+        /// <summary> 初期化のときに作った、爆発の球と火花 </summary>
+        private BlastEffect[] _blastEffects;
+
+        /// <summary> 次に使う _blastEffects の番号。全部再生中のときも、この番号から順に古い物を使い回す </summary>
+        private int _nextBlastIndex;
 
         /// <summary> 1回の攻撃で壊したボクセルの体積（m3）を受け取る処理 </summary>
         private Action<float> _onCarved;
@@ -288,15 +306,33 @@ namespace Kizami.EngineAdapter
             Carve(new SphereShape(center, reach), _explosionFalloff, hitCount, reportsHealthHit: false);
         }
 
+        private void Awake()
+        {
+            if (_blastEffectPrefab == null) return;
+
+            _blastEffects = new BlastEffect[_blastEffectCount];
+            for (var i = 0; i < _blastEffects.Length; i++)
+            {
+                _blastEffects[i] = Instantiate(_blastEffectPrefab, transform);
+                _blastEffects[i].gameObject.SetActive(false);
+            }
+        }
+
         /// <summary>
-        /// 爆発の火花を center に出す。VFX Graph の粒は、イベント属性の size を半径として、その大きさに広がる。
+        /// 爆発の球と火花を center に出す。VFX Graph の粒は、イベント属性の size を半径として、その大きさに広がる。
         /// </summary>
         private void PlayExplosionEffect(Vector3 center, float radius)
         {
+            if (_blastEffects != null)
+            {
+                _blastEffects[_nextBlastIndex].Play(center, radius * _blastScalePerMeter);
+                _nextBlastIndex = (_nextBlastIndex + 1) % _blastEffects.Length;
+            }
+
             if (_explosionEffect == null) return;
 
             _explosionEventAttribute ??= _explosionEffect.CreateVFXEventAttribute();
-            _explosionEventAttribute.SetVector3(_positionId, center);
+            _explosionEventAttribute.SetVector3(_positionId, _explosionEffect.transform.InverseTransformPoint(center));
             _explosionEventAttribute.SetFloat(_sizeId, radius);
             _explosionEventAttribute.SetFloat(_spawnCountId, radius * _explosionParticlesPerMeter);
             _explosionEffect.SendEvent(_explosionEventId, _explosionEventAttribute);
