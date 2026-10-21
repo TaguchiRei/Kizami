@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 |---|---|
-| 状態 | 計画済み・未着手（区間34 の完了後に着手する。着手するときは「既存コードの確認結果」が今のコードと合っているかだけ確かめる） |
+| 状態 | 実装済み（2026-10-21。手触りと、敵・バリア・ボスへの効きの確認はユーザーが行う） |
 | 目安の時期 | 未定 |
 | 前提となる区間 | 34、アウトゲームの区間5（2026-10-21、ユーザーの優先度で並べた順。アウトゲームの区間6 から移した） |
 | 全体計画 | [InGameOverallPlan.md](../InGameOverallPlan.md) |
@@ -106,8 +106,34 @@
 
 ## 実装結果
 
-区間を終えるときに書く。
+決めたこと
+
+| # | 項目 | 決定 |
+|---|---|---|
+| 1 | 上昇先の高度とチャージ | 高度 100m（`Skill_Utenkougou` の `_altitude`）、上昇と戻り 0.7 秒、チャージ 1 秒（`SkyBeam` の `EnemyFinisherBeams._telegraphDuration`。`SkillData.Duration` は使わない） |
+| 2 | ビームの太さ | 見た目・射線の球ともに半径 16m、判定で壊す球も半径 16m |
+| 3 | ビームの見え方（2026-10-21、ユーザー） | 撃つ所の真後ろから見るので、蓋のない筒で描き、ディザーで透かす（不透明度 0.25、発光は元の 10）。発射口の光は大きさ 6・暗めの色。敵のビームは蓋のある円柱のまま |
+| 4 | 撃つ所 | カメラの下 2m・前 1m |
+| 5 | 雑魚を倒す間隔 | 0.1 秒。射線に沿ってビームの半径の球を並べて倒す |
+
+作った主なもの
+
+- `SkyBeamService`（Application）：使用中の流れ、静止と無敵（`PlayerMovementService.SetSkyBeamActive` で `Aiming`）、通常攻撃とほかのスキルの禁止（`MeleeCutService` の `isActionBlocked`）、判定ごとの消費（`TryContinue`）
+- `SkyBeamAdapter`（EngineAdapter/Player）：上昇・チャージ・照射・戻り。照射中の基準の探し方、破壊、敵の撃破、体力制の対象へのダメージ
+- `EnemyFinisherBeams.Shot` に、向きの更新（`SetDirection`）、溶かさない照射（`BeginContinuous(direction, false)`）、蓋のない筒（`_isOpenEnded`）を足した。`FinisherBeam.shader` に `_DitherOpacity`（既定 1）
+- `VoxelDestructionAdapter.CarveSkyBeamAt`（装甲とバリアを粉砕、体力制の対象には当たりを数えない）、`HealthTarget.ReportDamage`
+- `Skill_Utenkougou.asset`、`SkyBeam.mat`・`SkyBeamInner.mat`、InGame の `SkyBeam`。到達の `_unlockSkill`、常駐シーンの `GameSceneInitializer._skills` と `_ultimateSkill`
+
+完了条件の確認結果（殲滅ステージ、ローカル）
+
+- 発動で 10、判定ごとに 15 を使い、6 回で切れて発動地点へ戻る。再発動でも止まって戻る（止めるときは消費しない）
+- 使用中はダメージを受けず（`ApplyDamage(10)` で HP が変わらない）、通常攻撃が出ず、視点でビームの向きが変わる
+- 真下へ撃つと地面のボクセルが削れる
+- 確かめられなかったこと：雑魚の撃破、バリアと装甲の粉砕、体力制の対象への秒間ダメージ。uloop の視点操作で狙いを合わせられなかった為。手触りと合わせて、ユーザーがプレイで確かめる
+- スキル装備の画面に専用の枠が出る（未解放の為 LOCKED）
 
 ## 見つけた問題（今回は扱わない）
 
-なし
+| # | 内容 | 場所 |
+|---|---|---|
+| 1 | 到達（`ArrivalStageData`）が `GameSceneInitializer._stages` に入っていない為、到達をクリアしても羽天轟号が解放されない。今は解放する手段がない | 常駐シーン `UsefulToolkitPersistent` の `GameSceneInitializer` |
