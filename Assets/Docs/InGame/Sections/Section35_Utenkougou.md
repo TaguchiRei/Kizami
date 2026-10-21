@@ -136,4 +136,4 @@
 
 | # | 内容 | 場所 |
 |---|---|---|
-| 1 | 到達（`ArrivalStageData`）が `GameSceneInitializer._stages` に入っていない為、到達をクリアしても羽天轟号が解放されない。今は解放する手段がない | 常駐シーン `UsefulToolkitPersistent` の `GameSceneInitializer` |
+| 1 | 到達（`ArrivalStageData`）は不安定な為、`GameSceneInitializer._stages` に入れていない（安定版を最後に足す、2026-10-21 ユーザー）。それまでの解放の口として、殲滅を複製した `AnnihilationUltimateStageData`（ID `AnnihilationUltimate`）を一覧の最後に置き、羽天轟号の解放条件にした。到達を足すときに、この複製を外す | 常駐シーン `UsefulToolkitPersistent` の `GameSceneInitializer`、`Assets/Level/Data/Stage/` |
