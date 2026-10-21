@@ -437,6 +437,7 @@ Transform:
   - {fileID: 6789378368883192343}
   - {fileID: 3434652218932608281}
   - {fileID: 6183696640264960462}
+  - {fileID: 7029905147094569729}
   m_Father: {fileID: 3714870188464862741}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &9044545559408731268
@@ -718,6 +719,7 @@ Transform:
   - {fileID: 6285065794300468661}
   - {fileID: 1390852908862199366}
   - {fileID: 1880897403851215051}
+  - {fileID: 1869696059294721680}
   m_Father: {fileID: 3714870188464862741}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &6648713749439135162
@@ -733,6 +735,55 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.TowerFace
   _normal: {x: 0, y: 0, z: -1}
+--- !u!1 &3384562226675939731
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1869696059294721680}
+  - component: {fileID: 120296841130304785}
+  m_Layer: 0
+  m_Name: FlightLanding
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1869696059294721680
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3384562226675939731}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 100, z: -15.633333}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6994847466474866620}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &120296841130304785
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3384562226675939731}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b703246554743de4582bf24b38666e0b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.FlightAnchor
+  _isFallenTowerFace: 1
+  _carveRadius: 10
+  _surfaceOffset: 1
+  _fallenTowerLift: 2
+  _fallenTowerClearance: 15
 --- !u!1 &3721437637740808019
 GameObject:
   m_ObjectHideFlags: 0
@@ -1170,6 +1221,7 @@ Transform:
   - {fileID: 4923030411635808224}
   - {fileID: 5642739843757302674}
   - {fileID: 8537309642386130132}
+  - {fileID: 2593317687737264864}
   m_Father: {fileID: 3714870188464862741}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1885478457162515049
@@ -1242,6 +1294,55 @@ MonoBehaviour:
   _isOnStructure: 1
   _isPinned: 1
   _isHeld: 1
+--- !u!1 &5841510178275528806
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4781311527121136638}
+  - component: {fileID: 501240858565771647}
+  m_Layer: 0
+  m_Name: FlightLanding
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4781311527121136638
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5841510178275528806}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 100, z: 15.633333}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5567771981121271677}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &501240858565771647
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5841510178275528806}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b703246554743de4582bf24b38666e0b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.FlightAnchor
+  _isFallenTowerFace: 1
+  _carveRadius: 10
+  _surfaceOffset: 1
+  _fallenTowerLift: 2
+  _fallenTowerClearance: 15
 --- !u!1 &5997689740813647299
 GameObject:
   m_ObjectHideFlags: 0
@@ -1641,6 +1742,55 @@ MonoBehaviour:
   _isOnStructure: 1
   _isPinned: 1
   _isHeld: 1
+--- !u!1 &6825347418949557482
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7029905147094569729}
+  - component: {fileID: 2552317751512598195}
+  m_Layer: 0
+  m_Name: FlightLanding
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7029905147094569729
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6825347418949557482}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 15.633333, y: 100, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6419238317296370188}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2552317751512598195
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6825347418949557482}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b703246554743de4582bf24b38666e0b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.FlightAnchor
+  _isFallenTowerFace: 1
+  _carveRadius: 10
+  _surfaceOffset: 1
+  _fallenTowerLift: 2
+  _fallenTowerClearance: 15
 --- !u!1 &6852374952926240481
 GameObject:
   m_ObjectHideFlags: 0
@@ -1964,6 +2114,7 @@ Transform:
   - {fileID: 1349120716843322736}
   - {fileID: 8270926432410903155}
   - {fileID: 8872342611778540310}
+  - {fileID: 4781311527121136638}
   m_Father: {fileID: 3714870188464862741}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &6322617146124962640
@@ -2036,6 +2187,55 @@ MonoBehaviour:
   _isOnStructure: 1
   _isPinned: 1
   _isHeld: 1
+--- !u!1 &8982890739991280647
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2593317687737264864}
+  - component: {fileID: 6797463876572061160}
+  m_Layer: 0
+  m_Name: FlightLanding
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2593317687737264864
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8982890739991280647}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -15.633333, y: 100, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1005092106872253813}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6797463876572061160
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8982890739991280647}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b703246554743de4582bf24b38666e0b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.FlightAnchor
+  _isFallenTowerFace: 1
+  _carveRadius: 10
+  _surfaceOffset: 1
+  _fallenTowerLift: 2
+  _fallenTowerClearance: 15
 --- !u!1001 &3749079273783136766
 PrefabInstance:
   m_ObjectHideFlags: 0

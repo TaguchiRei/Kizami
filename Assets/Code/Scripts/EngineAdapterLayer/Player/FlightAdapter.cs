@@ -42,7 +42,9 @@ namespace Kizami.EngineAdapter
             var bestAngle = _aimAngle;
             foreach (var anchor in FlightAnchor.Anchors)
             {
-                if (!anchor.IsAvailable || !anchor.TryGetTarget(out var target)) continue;
+                if (!anchor.IsAvailable) continue;
+
+                var target = anchor.GetTarget();
 
                 var toTarget = target.Position - cameraTransform.position;
                 if (toTarget.sqrMagnitude > _range * _range) continue;

@@ -103,19 +103,6 @@ namespace Kizami.EngineAdapter
         /// <summary> 帯が倒壊して、塔が倒れ始めたか </summary>
         public bool HasToppled => _hasToppled;
 
-        /// <summary>
-        /// 倒れた塔の上の部分の根元（帯とつながっていた端の中心）のワールド位置を返す。倒れたまとまりと上の部分の凸包が揃うまでは false。
-        /// </summary>
-        public bool TryGetUpperBase(out Vector3 position)
-        {
-            var isReady = _toppledBody != null && _upperHullMesh != null;
-            var bounds = isReady ? _upperHullMesh.bounds : default;
-            position = isReady
-                ? _toppledBody.transform.TransformPoint(new Vector3(bounds.center.x, bounds.min.y, bounds.center.z))
-                : default;
-            return isReady;
-        }
-
         private void Awake()
         {
             _subscription = _building.RegisterOnCollapsed(OnCollapsed);
@@ -349,7 +336,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 塔の上の部分の面のうち、法線が最も上を向いた面を選び、その面の子のスポーン位置の保留を解く。
+        /// 塔の上の部分の面のうち、法線が最も上を向いた面を選び、その面の子のスポーン位置の保留と、飛び移りの目印の保留を解く。
         /// </summary>
         private void ReleaseTopFaceSpawns()
         {
@@ -377,7 +364,14 @@ namespace Kizami.EngineAdapter
                 count++;
             }
 
-            UsefulLogger.Log($"橋の上の面 {top.name} のスポーン位置 {count} 個を解放しました。", this);
+            var anchorCount = 0;
+            foreach (var anchor in top.GetComponentsInChildren<FlightAnchor>(true))
+            {
+                anchor.Release();
+                anchorCount++;
+            }
+
+            UsefulLogger.Log($"橋の上の面 {top.name} のスポーン位置 {count} 個と、飛び移りの目印 {anchorCount} 個を解放しました。", this);
         }
 
         /// <summary>

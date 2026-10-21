@@ -158,14 +158,27 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 目印へ一直線に飛ぶ。着地の周囲のボクセルを壊す目印なら、飛び始めに先に壊す。壊した所へ着地して、そのまま落ちる。
+        /// 目印へ飛ぶ。着地の周囲のボクセルを壊す目印なら、飛び始めに先に壊す。
+        /// 余裕の高さがある目印へは、真上へ上がってから目印へ下りる。目印が壁に取りつく目印なら、着いたその場で壁に取りつく。
         /// </summary>
         private void Fly(FlightTarget target)
         {
-            var displacement = target.Position - _movementAdapter.BodyBounds.center;
+            var start = _movementAdapter.BodyBounds.center;
             if (target.CarvesVoxels) _voxelDestructionAdapter.CarveExplosionAt(target.Position, target.CarveRadius);
 
-            _movementService.RequestFlight(displacement, displacement.magnitude / _parameters.FlightSpeed);
+            var riseHeight = Mathf.Max(0f, target.Position.y + target.ApproachClearance - start.y);
+            if (target.ApproachClearance > 0f && riseHeight > 0f)
+            {
+                var rise = Vector3.up * riseHeight;
+                var descent = target.Position - (start + rise);
+                _movementService.RequestFlight(rise, rise.magnitude / _parameters.FlightSpeed, descent,
+                    descent.magnitude / _parameters.FlightSpeed);
+                return;
+            }
+
+            var displacement = target.Position - start;
+            _movementService.RequestFlight(displacement, displacement.magnitude / _parameters.FlightSpeed, Vector3.zero,
+                0f);
         }
 
         /// <summary>

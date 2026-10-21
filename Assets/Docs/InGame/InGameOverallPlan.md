@@ -170,7 +170,7 @@
 | 33 | 仕上げ（アルファ版の完了） | 34〜43 の親。作業は子の区間で行う | 全部 | 12/04〜12/17 | 10/28〜10/31 | 未着手（子の区間に分けた） | [Section33](Sections/Section33_Polish.md) |
 | 34 | プレイヤーの挙動の修正とスキルの範囲 | 段差で空へ飛ぶ不具合、慣性の強すぎる移動、向いている方向への壁キック、スキルの範囲を正面に広げる | 32 | 未定 | 未定 | 未着手 | [Section34](Sections/Section34_PlayerFix.md) |
 | 35 | 火術奥義・羽天轟号 | 上空から撃つ、視点を動かせる無敵のビーム | 34、アウトゲームの区間5 | 未定 | 未定 | 未着手 | [Section35](Sections/Section35_Utenkougou.md) |
-| 36 | SE と BGM | 音の土台（AudioMixer と音量の反映）、BGM、SE、スロー中の音 | 35 | 未定 | 未定 | 未着手 | [Section36](Sections/Section36_Sound.md) |
+| 36 | SE と BGM | 音の土台（AudioMixer と音量の反映）、BGM、SE 4 つ（ガラス・装甲・ボクセル攻撃・崩壊）。ほかの SE とスロー中の音は持ち越し | 35 | 未定 | 未定 | 未着手 | [Section36](Sections/Section36_Sound.md) |
 | 37 | 爆発とがれき | 爆発のエフェクト、壊した物から落ちるがれき（エフェクト） | 36 | 未定 | 未定 | 未着手 | [Section37](Sections/Section37_ExplosionDebris.md) |
 | 38 | プレイヤーの行動の演出 | 腕のアニメーション、行動のエフェクト、ヒットストップ | 37 | 未定 | 未定 | 未着手 | [Section38](Sections/Section38_PlayerFeel.md) |
 | 39 | 敵の弾道とシールドの表示 | アタッカーの弾道の軌跡、ディフェンダーのシールドの耐久値の表示 | 38 | 未定 | 未定 | 未着手 | [Section39](Sections/Section39_EnemyVisual.md) |
