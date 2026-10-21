@@ -108,6 +108,7 @@ namespace Kizami.EngineAdapter
 
             _intactPanes.Remove(this);
             _intact.SetActive(false);
+            SoundPlayer.Play(SoundEffectKind.GlassBreak, _worldCenter);
             var pool = GlassShardPool.Instance;
             if (pool != null) pool.Spawn(transform, origin, _shardSpeed, _speedJitter, _maxAngularSpeed, _shardLifetime);
         }

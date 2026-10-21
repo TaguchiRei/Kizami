@@ -69,6 +69,13 @@ State と Event は足さない。クリップが空なら鳴らさず、エラ�
 | 3 | ボクセル攻撃の鳴らし方 | 1 回の攻撃につき 1 回にする（広範囲の攻撃で重ならないようにする）案 |
 | 4 | 同時再生数の上限 | 値は実装時に聞きながら決める |
 
+## 実装結果（2026-10-21、実機での聴き取りは未確認）
+
+- 作ったもの：`SoundPlayer`・`SoundEffectKind`（EngineAdapterLayer/CoreSystem）。クリップの登録は ScriptableObject を作らず、`SoundPlayer` の SerializeField に直接置いた（利用者が `SoundPlayer` だけなので）
+- 常駐シーン（`UsefulToolkitPersistent`）に `SoundPlayer` を置き、`MainMixer` の SE / BGM グループと、素材を割り当てた
+- 呼び出し：`GlassPane.Shatter`、`ArmorPanel.ApplyDamage`（攻撃・破壊・粉砕が当たったとき）、`VoxelDestructionAdapter.Carve`（体積を削れた攻撃ごとに 1 回。倒壊の跡を削るなど `notifiesCarved` が false のものは鳴らさない）、`VoxelBuilding` の倒壊 2 か所
+- 確認：コンパイルは成功。プレイモードで BGM と SE 2 つが再生状態になり、エラーログは出なかった。音の聴こえ方・素材の対応・音量バランスはレビュー時に確認する
+
 ## 次の区間へ持ち越すこと
 
 | 内容 | 持ち越す条件 |

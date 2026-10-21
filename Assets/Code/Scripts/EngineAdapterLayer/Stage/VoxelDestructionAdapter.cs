@@ -390,17 +390,24 @@ namespace Kizami.EngineAdapter
             }
 
             var carvedVolume = 0f;
+            var carvedPosition = Vector3.zero;
             HealthTarget hitHealthTarget = null;
             foreach (var piece in _pieces)
             {
                 if (checkArmor && IsBehindArmor(origin, piece.WorldBounds.center)) continue;
 
                 if (hitHealthTarget == null) hitHealthTarget = piece.GetComponentInParent<HealthTarget>();
-                carvedVolume += piece.ApplyStrike(reach, falloff, Space.World) * piece.VoxelCubicVolume;
+                var pieceVolume = piece.ApplyStrike(reach, falloff, Space.World) * piece.VoxelCubicVolume;
+                if (pieceVolume > 0f && carvedVolume <= 0f) carvedPosition = piece.WorldBounds.center;
+                carvedVolume += pieceVolume;
             }
 
             _pieces.Clear();
-            if (notifiesCarved && carvedVolume > 0f) _onCarved?.Invoke(carvedVolume);
+            if (notifiesCarved && carvedVolume > 0f)
+            {
+                SoundPlayer.Play(SoundEffectKind.VoxelHit, carvedPosition);
+                _onCarved?.Invoke(carvedVolume);
+            }
 
             // 倒壊の跡を削る塔のように、プレイヤーの攻撃でない破壊は体力を減らさない
             if (notifiesCarved && reportsHealthHit && hitHealthTarget != null) hitHealthTarget.ReportSkillHit();

@@ -474,6 +474,7 @@ namespace Kizami.EngineAdapter
             var body = AddGroupBody(groupObject);
             _fallingBodies.Add(body);
             ShatterGlass(groupObject.transform, body.worldCenterOfMass);
+            SoundPlayer.Play(SoundEffectKind.VoxelCollapse, body.worldCenterOfMass);
             _collapsed.Invoke(body);
         }
 
@@ -515,6 +516,7 @@ namespace Kizami.EngineAdapter
             body.linearVelocity = source.GetPointVelocity(body.worldCenterOfMass);
             body.angularVelocity = source.angularVelocity;
             _fallingBodies.Add(body);
+            SoundPlayer.Play(SoundEffectKind.VoxelCollapse, body.worldCenterOfMass);
             _collapsed.Invoke(body);
         }
 

@@ -52,6 +52,11 @@ namespace Kizami.EngineAdapter
         {
             if (IsBroken) return;
 
+            if ((damageType & (DamageType.Shatter | DamageType.Attack | DamageType.Destroy)) != 0)
+            {
+                SoundPlayer.Play(SoundEffectKind.ArmorCut, transform.position);
+            }
+
             if ((damageType & DamageType.Shatter) != 0)
             {
                 Durability = 0;
