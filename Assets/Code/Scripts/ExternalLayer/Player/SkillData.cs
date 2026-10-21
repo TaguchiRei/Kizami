@@ -68,6 +68,14 @@ namespace Kizami.External
         [Tooltip("削る強さが 1m あたりに減る量。普通の素材（コンクリート）は半径まで削れる。硬い素材（鉄筋）は、減衰率 × 半径が 1 を超えると少しだけ削れる。衝波と攻走でだけ使う")]
         private float _falloff = 0.5f;
 
+        [SerializeField]
+        [Tooltip("上昇先のワールド高度（Y）。今の高さがこれより高ければ上がらない。羽天轟号でだけ使う")]
+        private float _altitude = 100f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("上昇と戻りの所要時間（秒）。羽天轟号でだけ使う")]
+        private float _riseDuration = 0.7f;
+
         [SerializeField, Min(0)]
         [Tooltip("回復する HP。回復でだけ使う")]
         private int _healAmount = 30;
@@ -142,6 +150,12 @@ namespace Kizami.External
 
         /// <summary> 削る強さが 1m あたりに減る量 </summary>
         public float Falloff => _falloff;
+
+        /// <summary> 上昇先のワールド高度（Y） </summary>
+        public float Altitude => _altitude;
+
+        /// <summary> 上昇と戻りの所要時間（秒） </summary>
+        public float RiseDuration => _riseDuration;
 
         /// <summary> 回復する HP </summary>
         public int HealAmount => _healAmount;
@@ -226,6 +240,9 @@ namespace Kizami.External
 
         /// <summary> 移動入力の向き（なければ正面）へ突進し、通る経路を削る </summary>
         Rush,
+
+        /// <summary> 上空へ上がって無敵で静止し、視点の先へ止めるまでビームを撃つ。もう一度発動すると止めて、発動した地点へ戻る </summary>
+        SkyBeam,
     }
 
     /// <summary>

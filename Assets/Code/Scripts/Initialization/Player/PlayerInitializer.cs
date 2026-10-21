@@ -50,6 +50,10 @@ namespace Kizami.Initialization
         private FlightAdapter _flightAdapter;
 
         [SerializeField]
+        [Tooltip("火術奥義・羽天轟号の上昇と戻りでプレイヤーの位置を動かす Adapter。未設定なら、既定の値でこの GameObject に付ける")]
+        private SkyBeamAdapter _skyBeamAdapter;
+
+        [SerializeField]
         [Tooltip("アウトゲームを通さずに始めたとき（インゲームのシーンから直接再生したときなど）に、スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
         private SkillData[] _equippedSkills = new SkillData[SkillService.SLOT_COUNT];
 
@@ -59,6 +63,7 @@ namespace Kizami.Initialization
         private SkillService _skillService;
         private SlowModeService _slowModeService;
         private FlightService _flightService;
+        private SkyBeamService _skyBeamService;
         private FragmentThrowService _fragmentThrowService;
         private ITimeScaleController _timeScaleController;
         private GameProgressService _progressService;
@@ -109,8 +114,14 @@ namespace Kizami.Initialization
             // SlowModeService は ChargeState を取得する為、ChargeService の生成より後に生成する
             _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController,
                 _flightService.TryFly, sceneId);
+            // MeleeCutService が羽天轟号の使用中かを見る為、MeleeCutService の生成より前に生成する
+            if (_skyBeamAdapter == null) _skyBeamAdapter = gameObject.AddComponent<SkyBeamAdapter>();
+            _skyBeamService = new SkyBeamService(_movementService, _skyBeamAdapter.Begin, _skyBeamAdapter.Stop);
+            _skyBeamAdapter.Initialize(_movementAdapter, _skyBeamService.OnFinished);
+
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
-                _slowModeService.TryUseCut, () => _voxelMoundAdapter.IsMounding, _actionEvents, sceneId);
+                _slowModeService.TryUseCut, () => _voxelMoundAdapter.IsMounding || _skyBeamService.IsActive, _actionEvents,
+                sceneId);
             _voxelMoundAdapter.Initialize(_chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
                 _enemySpawnAdapter.RefreshRegion);
             if (_bombThrowAdapter == null) _bombThrowAdapter = gameObject.AddComponent<BombThrowAdapter>();
@@ -119,7 +130,7 @@ namespace Kizami.Initialization
             _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService, _enhanceService,
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
                 _bombThrowAdapter.Throw, _voxelDestructionAdapter.CarveSweep, Rush, _voxelMoundAdapter.Begin, _voxelMoundAdapter.End, () => _movementService.CanRush,
-                _meleeCutService.CanAct, _meleeCutService.MarkActed, _actionEvents, sceneId);
+                _meleeCutService.CanAct, _meleeCutService.MarkActed, _skyBeamService, _actionEvents, sceneId);
 
             _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake, _voxelDestructionAdapter.CarveExplosionAt);
 

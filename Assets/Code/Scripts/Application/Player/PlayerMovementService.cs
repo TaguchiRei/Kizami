@@ -88,6 +88,9 @@ namespace Kizami.Application
         /// <summary> 言葉をつかんでいる間は true になり、その間は移動モードを Aiming にして静止する </summary>
         private bool _isHoldingWord;
 
+        /// <summary> 羽天轟号の使用中は true になり、その間は移動モードを Aiming にして静止する </summary>
+        private bool _isSkyBeamActive;
+
         /// <summary> 言葉をつかんでいるか </summary>
         public bool IsHoldingWord => _isHoldingWord;
 
@@ -148,8 +151,17 @@ namespace Kizami.Application
             _isHoldingWord = isHolding;
         }
 
-        /// <summary> 突進を始められるか。突進中と、突進の要求を受け付け済みのときと、言葉をつかんでいる間は false </summary>
-        public bool CanRush => !_isHoldingWord && !_isRushRequested && _state.Mode != PlayerMoveMode.Warping;
+        /// <summary>
+        /// 羽天轟号の使用中かを設定する。使用中は、言葉をつかんでいる間と同じく、移動モードを Aiming にして静止する。
+        /// </summary>
+        /// <param name="isActive">羽天轟号の使用中か</param>
+        public void SetSkyBeamActive(bool isActive)
+        {
+            _isSkyBeamActive = isActive;
+        }
+
+        /// <summary> 突進を始められるか。突進中と、突進の要求を受け付け済みのときと、言葉をつかんでいる間と、羽天轟号の使用中は false </summary>
+        public bool CanRush => !_isHoldingWord && !_isSkyBeamActive && !_isRushRequested && _state.Mode != PlayerMoveMode.Warping;
 
         /// <summary>
         /// 突進する向きを返す。水平な移動入力があればその向き、なければ水平な視線の向き。
@@ -236,7 +248,7 @@ namespace Kizami.Application
 
             UpdateViewForward(viewDirection);
 
-            if (_isHoldingWord)
+            if (_isHoldingWord || _isSkyBeamActive)
             {
                 HoldStill();
                 return null;

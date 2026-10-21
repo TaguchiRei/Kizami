@@ -31,6 +31,7 @@ namespace Kizami.Application
         private readonly Func<bool> _canAct;
         private readonly Func<bool> _canRush;
         private readonly Action _onActed;
+        private readonly SkyBeamService _skyBeamService;
         private readonly List<IDisposable> _subscriptions = new();
         private readonly PlayerActionEvents _actionEvents;
         private readonly IPlayerHealthState _healthState;
@@ -51,14 +52,16 @@ namespace Kizami.Application
         /// <param name="canRush">突進を始められるかを返す関数。攻走でだけ使う</param>
         /// <param name="canAct">スキルを出せる攻撃間隔が経っているかを返す関数。通常攻撃と共有する</param>
         /// <param name="onActed">スキルを出したときに呼ぶ関数。通常攻撃と共有する攻撃間隔を数え直す</param>
+        /// <param name="skyBeamService">羽天轟号の使用中の流れ。使用中は、ほかのスキルを出せず、同じスキルの発動は止める操作になる</param>
         /// <param name="actionEvents">スキルの発動とチャージの消費を流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
             ChargeService chargeService, PlayerEnhanceService enhanceService, Action<float, float> onBeam,
             Action<float> onExplosion, Action<int> onHeal, Action<float, float, float> onBomb, Action<float, float, float, float> onSweep,
-            Action<float, float, float, float, float> onRush, Func<float, bool> onMoundBegin, Action onMoundEnd, Func<bool> canRush, Func<bool> canAct, Action onActed, PlayerActionEvents actionEvents,
-            int sceneId)
+            Action<float, float, float, float, float> onRush, Func<float, bool> onMoundBegin, Action onMoundEnd, Func<bool> canRush, Func<bool> canAct, Action onActed,
+            SkyBeamService skyBeamService, PlayerActionEvents actionEvents, int sceneId)
         {
+            _skyBeamService = skyBeamService;
             _actionEvents = actionEvents;
             _chargeService = chargeService;
             _enhanceService = enhanceService;
@@ -96,6 +99,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// 羽天轟号の使用中は、その枠を押すと止め（チャージは消費しない）、ほかの枠は何もしない。
         /// 枠にスキルがあり、通常攻撃と共有する攻撃間隔が経っていて、その消費量だけチャージを消費できたら、スキルの発動とチャージの消費を通知して、効果を出す。
         /// 回復は、HP が0のときと最大のときは発動せず、チャージも消費しない。造山は、押した枠を離すまで盛り続け、視線が何にも当たらないときは発動せず、チャージも消費しない。攻走は、突進を始められないときは発動せず、チャージも消費しない。
         /// </summary>
@@ -111,6 +115,14 @@ namespace Kizami.Application
             }
 
             if (context.Phase != InputPhase.Performed) return;
+
+            if (_skyBeamService.IsActive)
+            {
+                if (skill.Effect == SkillEffect.SkyBeam) _skyBeamService.Stop();
+                return;
+            }
+
+            if (skill.Effect == SkillEffect.SkyBeam && !_skyBeamService.CanBegin) return;
             if (_canAct != null && !_canAct()) return;
             if (skill.Effect == SkillEffect.Heal && !CanHeal()) return;
             if (skill.Effect == SkillEffect.Rush && _canRush != null && !_canRush()) return;
@@ -153,6 +165,9 @@ namespace Kizami.Application
                     break;
                 case SkillEffect.Rush:
                     _onRush?.Invoke(skill.Distance, skill.Duration, skill.Radius, skill.Falloff, skill.ForwardOffset);
+                    break;
+                case SkillEffect.SkyBeam:
+                    _skyBeamService.Begin(skill);
                     break;
             }
         }
