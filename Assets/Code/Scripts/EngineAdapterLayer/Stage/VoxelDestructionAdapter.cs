@@ -247,6 +247,29 @@ namespace Kizami.EngineAdapter
             _armorPanels.Clear();
         }
 
+        /// <summary>
+        /// 羽天轟号の 1 回の判定で、center を中心に球で削る。CarveExplosionAt と違い、球に入った装甲（バリアを含む）は粉砕で一撃で壊し、装甲の奥も削る。
+        /// 体力制の対象には当たりを報告しない（体力は羽天轟号が秒間のダメージで減らす）。
+        /// </summary>
+        /// <param name="center">球の中心（ワールド空間）</param>
+        /// <param name="radius">球の半径（m）</param>
+        public void CarveSkyBeamAt(Vector3 center, float radius)
+        {
+            CollectArmorPanels(Physics.OverlapSphereNonAlloc(center, radius, _armorHitBuffer, _armorLayers,
+                QueryTriggerInteraction.Ignore));
+            foreach (var armorPanel in _armorPanels)
+            {
+                armorPanel.ApplyDamage(DamageType.Shatter);
+            }
+
+            _armorPanels.Clear();
+            GlassPane.ShatterInSphere(center, radius + _glassMargin, center);
+
+            var reach = ReachRadius(radius, _explosionFalloff);
+            var hitCount = QuerySphere(center, reach);
+            Carve(new SphereShape(center, reach), _explosionFalloff, hitCount, reportsHealthHit: false);
+        }
+
         private bool TryGetCameraTransform(out Transform cameraTransform)
         {
             var cameraMain = Camera.main;
@@ -335,8 +358,9 @@ namespace Kizami.EngineAdapter
         /// <param name="hitCount">_hitBuffer に集めたコライダーの数</param>
         /// <param name="checkArmor">true なら、origin から見て装甲の奥にあるピースを削らない</param>
         /// <param name="origin">装甲の遮断を判定するレイの始点</param>
+        /// <param name="reportsHealthHit">体力制の対象を削ったときに、スキルの当たりとして体力を減らすか。体力を別の口で減らす攻撃では false</param>
         private void Carve<TShape>(in TShape reach, float falloff, int hitCount, bool checkArmor = false,
-            Vector3 origin = default, bool notifiesCarved = true)
+            Vector3 origin = default, bool notifiesCarved = true, bool reportsHealthHit = true)
             where TShape : struct, ITransformableVoxelShape<TShape>
         {
             if (hitCount == _hitBuffer.Length)
@@ -379,7 +403,7 @@ namespace Kizami.EngineAdapter
             if (notifiesCarved && carvedVolume > 0f) _onCarved?.Invoke(carvedVolume);
 
             // 倒壊の跡を削る塔のように、プレイヤーの攻撃でない破壊は体力を減らさない
-            if (notifiesCarved && hitHealthTarget != null) hitHealthTarget.ReportSkillHit();
+            if (notifiesCarved && reportsHealthHit && hitHealthTarget != null) hitHealthTarget.ReportSkillHit();
         }
 
         /// <summary>

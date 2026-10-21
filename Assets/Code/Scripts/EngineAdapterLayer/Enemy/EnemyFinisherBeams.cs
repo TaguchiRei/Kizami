@@ -156,6 +156,18 @@ namespace Kizami.EngineAdapter
         private Transform _camera;
         private bool _isReady;
 
+        /// <summary> ビームの半径（m） </summary>
+        public float BeamRadius => _beamRadius;
+
+        /// <summary> 予兆から照射に移るまでの時間（秒） </summary>
+        public float TelegraphDuration => _telegraphDuration;
+
+        /// <summary> ビームを止める物のレイヤー </summary>
+        public LayerMask BlockLayers => _blockLayers;
+
+        /// <summary> ビームが何にも当たらないときの長さ（m） </summary>
+        public static float MaxBeamLength => MAX_BEAM_LENGTH;
+
         /// <summary>
         /// 敵の体か。ビームは敵を貫通する。
         /// </summary>

@@ -77,6 +77,18 @@ namespace Kizami.External
         private float _riseDuration = 0.7f;
 
         [SerializeField, Min(0)]
+        [Tooltip("照射中の判定 1 回ごとに使うチャージ量。足りなければ止める。羽天轟号でだけ使う")]
+        private int _sustainCost = 15;
+
+        [SerializeField, Min(0.05f)]
+        [Tooltip("照射中に地形を壊す判定の間隔（秒）。照射の開始時に 1 回目を行う。羽天轟号でだけ使う")]
+        private float _sustainInterval = 0.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("照射が当たっている体力制の対象（ボスなど）の体力を、1 秒あたりに減らす量。羽天轟号でだけ使う")]
+        private float _healthDamagePerSecond = 12f;
+
+        [SerializeField, Min(0)]
         [Tooltip("回復する HP。回復でだけ使う")]
         private int _healAmount = 30;
 
@@ -156,6 +168,15 @@ namespace Kizami.External
 
         /// <summary> 上昇と戻りの所要時間（秒） </summary>
         public float RiseDuration => _riseDuration;
+
+        /// <summary> 照射中の判定 1 回ごとに使うチャージ量 </summary>
+        public int SustainCost => _sustainCost;
+
+        /// <summary> 照射中に地形を壊す判定の間隔（秒） </summary>
+        public float SustainInterval => _sustainInterval;
+
+        /// <summary> 照射が当たっている体力制の対象の体力を、1 秒あたりに減らす量 </summary>
+        public float HealthDamagePerSecond => _healthDamagePerSecond;
 
         /// <summary> 回復する HP </summary>
         public int HealAmount => _healAmount;

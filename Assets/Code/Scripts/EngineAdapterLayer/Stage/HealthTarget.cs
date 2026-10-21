@@ -100,6 +100,15 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 量を決めて体力を減らす。当たっている間、続けて減らす攻撃（羽天轟号）が毎フレーム呼ぶ。
+        /// </summary>
+        /// <param name="amount">減らす体力</param>
+        public void ReportDamage(float amount)
+        {
+            ApplyDamage(amount);
+        }
+
+        /// <summary>
         /// 体力が尽きたあとに、通常攻撃かスキルが当たったときに呼ぶ処理を受け取る。体力の配線とは別の Initializer から渡せるよう、Initialize と分ける。
         /// </summary>
         public void SetOnHitWhileDepleted(Action onHitWhileDepleted)

@@ -116,8 +116,10 @@ namespace Kizami.Initialization
                 _flightService.TryFly, sceneId);
             // MeleeCutService が羽天轟号の使用中かを見る為、MeleeCutService の生成より前に生成する
             if (_skyBeamAdapter == null) _skyBeamAdapter = gameObject.AddComponent<SkyBeamAdapter>();
-            _skyBeamService = new SkyBeamService(_movementService, _skyBeamAdapter.Begin, _skyBeamAdapter.Stop);
-            _skyBeamAdapter.Initialize(_movementAdapter, _skyBeamService.OnFinished);
+            _skyBeamService = new SkyBeamService(_movementService, _chargeService, _actionEvents, _skyBeamAdapter.Begin,
+                _skyBeamAdapter.Stop);
+            _skyBeamAdapter.Initialize(_movementAdapter, _skyBeamService.OnFinished, _skyBeamService.TryContinue,
+                _voxelDestructionAdapter.CarveSkyBeamAt, _enemySpawnAdapter.DefeatInRadius);
 
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, () => _voxelMoundAdapter.IsMounding || _skyBeamService.IsActive, _actionEvents,
