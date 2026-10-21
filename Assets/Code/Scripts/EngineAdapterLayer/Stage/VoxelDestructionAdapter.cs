@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Kizami.BlackBoard;
 using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
+using UnityEngine.VFX;
 using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter
@@ -25,6 +26,11 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 破壊力を最大にしたときに強さへ足す値。硬い素材の融点 2 と普通の素材の融点 1 の差 </summary>
         private const float MAX_POWER_BONUS = 1f;
+
+        private static readonly int _explosionEventId = Shader.PropertyToID("OnExplosion");
+        private static readonly int _positionId = Shader.PropertyToID("position");
+        private static readonly int _sizeId = Shader.PropertyToID("size");
+        private static readonly int _spawnCountId = Shader.PropertyToID("spawnCount");
 
         private Collider[] _hitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly Collider[] _armorHitBuffer = new Collider[MAX_HIT_COUNT];
@@ -62,6 +68,17 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("装甲のパネルのレイヤー。遮断の判定と、当たったパネルの収集に使う")]
         private LayerMask _armorLayers;
+
+        [SerializeField]
+        [Tooltip("爆発を描く VisualEffect。VFX Graph は Explosion.vfx。未設定なら爆発は削るだけで何も出さない")]
+        private VisualEffect _explosionEffect;
+
+        [SerializeField, Min(1)]
+        [Tooltip("爆発の半径 1m あたりに出す粒の数")]
+        private int _explosionParticlesPerMeter = 60;
+
+        /// <summary> 爆発の位置・半径・粒の数を VFX Graph へ渡すイベント属性 </summary>
+        private VFXEventAttribute _explosionEventAttribute;
 
         /// <summary> 1回の攻撃で壊したボクセルの体積（m3）を受け取る処理 </summary>
         private Action<float> _onCarved;
@@ -232,6 +249,7 @@ namespace Kizami.EngineAdapter
             CollectArmorPanels(Physics.OverlapSphereNonAlloc(center, radius, _armorHitBuffer, _armorLayers,
                 QueryTriggerInteraction.Ignore));
             GlassPane.ShatterInSphere(center, radius + _glassMargin, center);
+            PlayExplosionEffect(center, radius);
 
             var reach = ReachRadius(radius, _explosionFalloff);
             var hitCount = QuerySphere(center, reach);
@@ -268,6 +286,20 @@ namespace Kizami.EngineAdapter
             var reach = ReachRadius(radius, _explosionFalloff);
             var hitCount = QuerySphere(center, reach);
             Carve(new SphereShape(center, reach), _explosionFalloff, hitCount, reportsHealthHit: false);
+        }
+
+        /// <summary>
+        /// 爆発の火花を center に出す。VFX Graph の粒は、イベント属性の size を半径として、その大きさに広がる。
+        /// </summary>
+        private void PlayExplosionEffect(Vector3 center, float radius)
+        {
+            if (_explosionEffect == null) return;
+
+            _explosionEventAttribute ??= _explosionEffect.CreateVFXEventAttribute();
+            _explosionEventAttribute.SetVector3(_positionId, center);
+            _explosionEventAttribute.SetFloat(_sizeId, radius);
+            _explosionEventAttribute.SetFloat(_spawnCountId, radius * _explosionParticlesPerMeter);
+            _explosionEffect.SendEvent(_explosionEventId, _explosionEventAttribute);
         }
 
         private bool TryGetCameraTransform(out Transform cameraTransform)
