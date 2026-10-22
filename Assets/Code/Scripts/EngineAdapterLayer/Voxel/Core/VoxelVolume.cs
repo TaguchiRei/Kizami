@@ -45,6 +45,9 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 温度が0より高いサンプルを含みうるチャンクがあるか </summary>
         public bool HasHotChunks => _hotChunks.Count > 0;
 
+        /// <summary> このボリュームを読む実行中のジョブがあるか。あれば、サンプルを書き換える処理はその完了を待つ </summary>
+        public bool HasRunningReaders => !_readers.IsCompleted;
+
         /// <summary> 点ごとの丸みを持つか </summary>
         public bool HasRoundness => _roundness.IsCreated;
 
@@ -421,13 +424,25 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="components">塊の一覧の出力先。添字が塊の番号と一致する</param>
         public void LabelComponents(NativeArray<int> labels, NativeList<VoxelComponent> components)
         {
-            new VoxelComponentLabelJob
+            ScheduleLabelComponents(labels, components).Complete();
+        }
+
+        /// <summary>
+        /// LabelComponents のジョブを予約し、完了を待たずに返す。ジョブは読み手として記録し、書き換える編集はその完了を待ってから書く。
+        /// </summary>
+        /// <param name="labels">サンプルごとの塊の番号の出力先。長さは Layout.SampleTotal</param>
+        /// <param name="components">塊の一覧の出力先。添字が塊の番号と一致する</param>
+        public JobHandle ScheduleLabelComponents(NativeArray<int> labels, NativeList<VoxelComponent> components)
+        {
+            var handle = new VoxelComponentLabelJob
             {
                 Samples = _samples,
                 Layout = Layout,
                 Labels = labels,
                 Components = components
-            }.Schedule().Complete();
+            }.Schedule();
+            TrackReader(handle);
+            return handle;
         }
 
         /// <summary>

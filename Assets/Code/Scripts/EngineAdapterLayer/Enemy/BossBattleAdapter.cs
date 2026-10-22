@@ -179,8 +179,9 @@ namespace Kizami.EngineAdapter
             _towerThrow = GetComponent<BossTowerThrow>();
             if (_healthTarget != null) _healthTarget.SetOnHitWhileDepleted(OnHitWhileDepleted);
 
-            // 1 周目の着地点は初めから決まっている為、戦いが始まる前から先読みを始める
+            // 1 周目の着地点は初めから決まっている為、ステージの読み込み中に先読みを済ませる
             PreloadArrivalArea();
+            VoxelBuilding.LoadPreloadAreaNow();
         }
 
         /// <summary>

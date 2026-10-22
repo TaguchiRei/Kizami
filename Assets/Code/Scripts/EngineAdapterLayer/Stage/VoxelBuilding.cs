@@ -203,6 +203,25 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 先読みの円にかかる建物の立っている階を、今すぐ全部ボクセルにする。ステージの読み込み中など、止まっても構わないときに呼ぶ。
+        /// 階を置き終えていない建物は、差し替えの空いたフレームに1階ずつ読み込む。
+        /// </summary>
+        public static void LoadPreloadAreaNow()
+        {
+            if (!_hasPreloadArea) return;
+
+            foreach (var building in FindObjectsByType<VoxelBuilding>(FindObjectsSortMode.None))
+            {
+                if (!building.IsConnectionReady || !building.IsInPreloadArea()) continue;
+
+                for (var i = 0; i < building._standingFloorCount; i++)
+                {
+                    if (building._floors[i].IsStatic) building._floors[i].Load();
+                }
+            }
+        }
+
+        /// <summary>
         /// 境目が切れて上の階が倒れ始めたときに呼ぶ処理を登録する。引数は、倒れた階をまとめた Rigidbody。
         /// 倒れた階のピースは、その Rigidbody の子孫にある。
         /// </summary>

@@ -751,7 +751,7 @@ namespace Kizami.EngineAdapter
                 var shape = new CapsuleShape(start, end, meltRadius + VoxelThermalSettings.NORMAL_MELTING_POINT / MELT_FALLOFF);
                 foreach (var piece in pieces)
                 {
-                    piece.ApplyStrike(shape, MELT_FALLOFF, Space.World);
+                    piece.QueueStrike(shape, MELT_FALLOFF, Space.World);
                 }
 
                 pieces.Clear();

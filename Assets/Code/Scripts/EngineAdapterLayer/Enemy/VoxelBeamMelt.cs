@@ -31,7 +31,7 @@ namespace Kizami.EngineAdapter
             var start = surface - direction * radius;
             var end = start + direction * depth;
             var reach = radius + VoxelThermalSettings.NORMAL_MELTING_POINT / falloff;
-            piece.ApplyStrike(new CapsuleShape(start, end, reach), falloff, Space.World);
+            piece.QueueStrike(new CapsuleShape(start, end, reach), falloff, Space.World);
             return true;
         }
     }
