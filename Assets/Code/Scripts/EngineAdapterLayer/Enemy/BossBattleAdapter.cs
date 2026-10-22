@@ -96,6 +96,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("足踏みを始めてから、落ちてくる塊のダメージを数え始めるまでの猶予（秒）。飛来で崩れた塊が落ちきるのを待つ")]
         private float _collapseGrace = 2f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("飛来の間に建物を前もってボクセルにする円の、円形の空間の半径に足す幅（m）。柵のビームが溶かす穴の半径より大きくする")]
+        private float _preloadMargin = 8f;
+
         [SerializeField, Min(1)]
         [Tooltip("最終の段階で、コアを出す攻撃の前に足踏みする回数")]
         private int _finalStomps = 3;
@@ -174,6 +178,9 @@ namespace Kizami.EngineAdapter
             _target = target;
             _towerThrow = GetComponent<BossTowerThrow>();
             if (_healthTarget != null) _healthTarget.SetOnHitWhileDepleted(OnHitWhileDepleted);
+
+            // 1 周目の着地点は初めから決まっている為、戦いが始まる前から先読みを始める
+            PreloadArrivalArea();
         }
 
         /// <summary>
@@ -209,6 +216,11 @@ namespace Kizami.EngineAdapter
                 UsefulLogger.LogError("ボスの胴体・武装・衝撃波・下部レーザー・降下フィニッシャーのどれかが設定されていない為、直接戦闘は動きません。", this);
                 enabled = false;
             }
+        }
+
+        private void OnDestroy()
+        {
+            VoxelBuilding.ClearPreloadArea();
         }
 
         private void Update()
@@ -269,6 +281,7 @@ namespace Kizami.EngineAdapter
                 case BossBattlePhase.Arriving:
                     if (_headLaser != null) _headLaser.Cancel();
                     _landedTime = 0f;
+                    PreloadArrivalArea();
                     if (_arrival != null) _arrival.Begin(GetArrivalDestination());
                     break;
                 case BossBattlePhase.Stomping:
@@ -296,6 +309,7 @@ namespace Kizami.EngineAdapter
                     _isLaserStarted = false;
                     break;
                 case BossBattlePhase.Stopped:
+                    VoxelBuilding.ClearPreloadArea();
                     if (_towerThrow != null) _towerThrow.Clear();
                     _body.SetMoving(false);
                     _weapons.SetHighlight(false);
@@ -352,6 +366,14 @@ namespace Kizami.EngineAdapter
             if (_state.Round <= 1) return _openingLandingPoint != null ? _openingLandingPoint.position : transform.position;
 
             return _crystals != null ? _crystals.PlacedCenter : transform.position;
+        }
+
+        /// <summary>
+        /// 飛来の着く所の周りの建物を、前もってボクセルにさせる。着いて柵を張ると周りの建物がまとめて崩れ、崩れる階を 1 フレームでボクセルにする負荷を散らす為。
+        /// </summary>
+        private void PreloadArrivalArea()
+        {
+            if (_arena != null) VoxelBuilding.SetPreloadArea(GetArrivalDestination(), _arena.Radius + _preloadMargin);
         }
 
         /// <summary>

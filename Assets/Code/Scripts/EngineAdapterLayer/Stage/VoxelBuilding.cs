@@ -34,6 +34,17 @@ namespace Kizami.EngineAdapter
 
         private static readonly int _patternOffsetId = Shader.PropertyToID("_PatternOffset");
 
+        /// <summary> 先読みの円の中心（ワールド座標の x・z） </summary>
+        private static Vector2 _preloadCenter;
+
+        /// <summary> 先読みの円の半径（m） </summary>
+        private static float _preloadRadius;
+
+        private static bool _hasPreloadArea;
+
+        /// <summary> 先読みで最後に階をボクセルにしたフレーム。全部の建物を合わせて1フレーム1階にする </summary>
+        private static int _preloadFrame = -1;
+
         private readonly List<VoxelModelLoader> _floors = new();
 
         /// <summary> 階ごとの、本体のピースに当たった攻撃と切断の記録を、起きた順に持つ。上限を超えた階は上限 ＋ 1件で止める </summary>
@@ -168,6 +179,27 @@ namespace Kizami.EngineAdapter
                 if (initialVolume > 0f) _lostVolumeRatio = Mathf.Max(_lostVolumeRatio, 1f - volume / initialVolume);
                 return _lostVolumeRatio;
             }
+        }
+
+        /// <summary>
+        /// 先読みの円（ワールド座標の x・z）を設定する。円にかかる建物の立っている階を、差し替えの空いたフレームに1階ずつボクセルにし、プレイヤーから遠くてもメッシュに戻さない。
+        /// 大量の破壊が来ると分かっている場所（ボスの着地点など）で、崩落の瞬間にまとめてボクセルにする負荷を前もって散らす。
+        /// </summary>
+        /// <param name="center">円の中心（ワールド座標）。高さは見ない</param>
+        /// <param name="radius">円の半径（m）</param>
+        public static void SetPreloadArea(Vector3 center, float radius)
+        {
+            _preloadCenter = new Vector2(center.x, center.z);
+            _preloadRadius = radius;
+            _hasPreloadArea = true;
+        }
+
+        /// <summary>
+        /// 先読みの円を外す。ボクセルにした階は、以後ふつうの差し替えの規則でメッシュに戻る。
+        /// </summary>
+        public static void ClearPreloadArea()
+        {
+            _hasPreloadArea = false;
         }
 
         /// <summary>
@@ -309,6 +341,7 @@ namespace Kizami.EngineAdapter
         /// メッシュのままの階のうち、プレイヤーから差し替える距離の中にかかる階と、傷の記録があり傷を残す範囲にかかる階を、
         /// 近い順に1フレーム1階ずつボクセルにする。
         /// 1階の差し替えに数 ms かかる為、近づいて何階も範囲に入っても1フレームに集めない。
+        /// どちらにも当たらなければ、先読みの範囲にかかる建物の階を、全部の建物を合わせて1フレーム1階まで、下から順にボクセルにする。
         /// </summary>
         private void SwapNearFloors(Vector3 position)
         {
@@ -327,16 +360,31 @@ namespace Kizami.EngineAdapter
                 nearestSqrDistance = sqrDistance;
             }
 
-            if (nearest >= 0) _floors[nearest].Load();
+            if (nearest >= 0)
+            {
+                _floors[nearest].Load();
+                return;
+            }
+
+            if (_preloadFrame == Time.frameCount || !IsInPreloadArea()) return;
+
+            for (var i = 0; i < _standingFloorCount; i++)
+            {
+                if (!_floors[i].IsStatic) continue;
+
+                _preloadFrame = Time.frameCount;
+                _floors[i].Load();
+                return;
+            }
         }
 
         /// <summary>
         /// ボクセルにした倒れていない階のうち、傷を残す範囲の外にあり、プレイヤーから差し替える距離より遠い階を、1フレーム1階ずつメッシュに戻す。
-        /// 記録が上限を超えた階は、当て直せないので戻さない。範囲を渡されていなければ戻さない。
+        /// 記録が上限を超えた階は、当て直せないので戻さない。範囲を渡されていなければ戻さない。先読みの範囲にかかる建物の階は戻さない。
         /// </summary>
         private void RestoreFarFloors(Vector3 position)
         {
-            if (!_hasRetainArea) return;
+            if (!_hasRetainArea || IsInPreloadArea()) return;
 
             var swapSqrDistance = _swapDistance * _swapDistance;
             for (var i = 0; i < _standingFloorCount; i++)
@@ -347,6 +395,26 @@ namespace Kizami.EngineAdapter
                 _floors[i].Unload();
                 return;
             }
+        }
+
+        /// <summary>
+        /// 立っている階のどれかの水平の範囲が、先読みの円にかかるか。崩れると上の階がまとめてボクセルになる為、建物単位で決める。
+        /// </summary>
+        private bool IsInPreloadArea()
+        {
+            if (!_hasPreloadArea) return false;
+
+            var radiusSqr = _preloadRadius * _preloadRadius;
+            for (var i = 0; i < _standingFloorCount; i++)
+            {
+                var bounds = _floorBounds[i];
+                var nearest = new Vector2(
+                    Mathf.Clamp(_preloadCenter.x, bounds.min.x, bounds.max.x),
+                    Mathf.Clamp(_preloadCenter.y, bounds.min.z, bounds.max.z));
+                if ((nearest - _preloadCenter).sqrMagnitude <= radiusSqr) return true;
+            }
+
+            return false;
         }
 
         private bool IsInRetainArea(int floorIndex)
