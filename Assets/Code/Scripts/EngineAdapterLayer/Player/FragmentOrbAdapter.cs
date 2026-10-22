@@ -10,7 +10,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 切断で生まれたかけらを管理し、オーブに変えてプレイヤーに吸収させる Adapter。
-    /// かけらは寿命が来るとオーブになり、オーブは MainCamera の位置へ向かって吸収される。
+    /// かけらは寿命が来るとオーブになり、オーブはチャージのゲージの中心へ向かって吸収される。
     /// 何かにぶつかってもオーブにしない。切った直後のかけらは敵の残りの部位や地面に触れていることがあり、すぐオーブになるとスロー中につかめない為。
     /// </summary>
     /// <remarks>
@@ -47,8 +47,16 @@ namespace Kizami.EngineAdapter
         [Tooltip("オーブがプレイヤーへ向かう速さ（m/s）")]
         private float _orbSpeed = 15f;
 
+        [SerializeField]
+        [Tooltip("チャージのゲージの位置を知る HUD。未設定、または HUD の組み立て前は、カメラの位置へ向かう")]
+        private StageHudAdapter _hud;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("オーブが吸い込まれる、ゲージの中心を指す位置のカメラからの距離（m）")]
+        private float _gaugeDepth = 1.5f;
+
         [SerializeField, Min(0f)]
-        [Tooltip("オーブがプレイヤーにこの距離（m）まで近づいたら吸収する")]
+        [Tooltip("オーブが行き先にこの距離（m）まで近づいたら吸収する")]
         private float _absorbDistance = 0.5f;
 
         [SerializeField, Min(1)]
@@ -205,7 +213,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// オーブを MainCamera の位置へ動かし、吸収する距離に入ったものを吸収する。
+        /// オーブをチャージのゲージの中心へ（HUD がなければ MainCamera の位置へ）動かし、吸収する距離に入ったものを吸収する。
         /// </summary>
         private void MoveOrbs()
         {
@@ -215,6 +223,8 @@ namespace Kizami.EngineAdapter
             if (cameraMain == null) return;
 
             var target = cameraMain.transform.position;
+            if (_hud != null && _hud.TryGetChargeGaugePoint(cameraMain, _gaugeDepth, out var gaugePoint)) target = gaugePoint;
+
             var step = _orbSpeed * Time.deltaTime;
             var absorbed = 0;
 

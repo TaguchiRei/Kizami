@@ -19,6 +19,11 @@ namespace Kizami.EngineAdapter
         private const int LABEL_FONT_SIZE = 28;
         private const int SLOT_FONT_SIZE = 22;
         private const int CHARGE_FONT_SIZE = 16;
+
+        /// <summary> チャージのゲージの下端と上端の高さ（画面の割合） </summary>
+        private const float CHARGE_GAUGE_MIN_Y = 0.055f;
+
+        private const float CHARGE_GAUGE_MAX_Y = 0.065f;
         private const int START_FONT_SIZE = 72;
         private const string START_TEXT = "START";
         private const string FLIGHT_PROMPT_TEXT = "[F] JUMP";
@@ -191,6 +196,26 @@ namespace Kizami.EngineAdapter
         /// <summary> 枠ごとの、表示した消費量。装備していない枠は UNEQUIPPED_COST </summary>
         private int[] _shownSlotCosts;
         private bool[] _shownSlotReached;
+
+        /// <summary>
+        /// チャージのゲージの中心が camera の画面に映る方向で、camera から depth だけ前の位置を返す。吸い込む粒の行き先に使う。
+        /// ゲージは HUD を組み立てたあとに位置が決まる為、組み立て前は false を返す。
+        /// </summary>
+        /// <param name="camera">位置を求める基準のカメラ</param>
+        /// <param name="depth">カメラからの前方の距離（m）</param>
+        /// <param name="point">ゲージの中心を指す位置（ワールド空間）</param>
+        public bool TryGetChargeGaugePoint(Camera camera, float depth, out Vector3 point)
+        {
+            if (!Initialized || camera == null)
+            {
+                point = default;
+                return false;
+            }
+
+            var viewport = new Vector3(0.5f, (CHARGE_GAUGE_MIN_Y + CHARGE_GAUGE_MAX_Y) * 0.5f, depth);
+            point = camera.ViewportToWorldPoint(viewport);
+            return true;
+        }
 
         /// <summary>
         /// 中央から左右へ、割合の分だけ伸ばした範囲にする。
@@ -500,8 +525,8 @@ namespace Kizami.EngineAdapter
 
             _healthFill = CreateGauge(canvas, "Health", new Vector2(0.5f - halfWidth, 0.03f),
                 new Vector2(0.5f + halfWidth, 0.045f), _healthColor);
-            _chargeFill = CreateGauge(canvas, "Charge", new Vector2(0.5f - halfWidth, 0.055f),
-                new Vector2(0.5f + halfWidth, 0.065f), _chargeColor);
+            _chargeFill = CreateGauge(canvas, "Charge", new Vector2(0.5f - halfWidth, CHARGE_GAUGE_MIN_Y),
+                new Vector2(0.5f + halfWidth, CHARGE_GAUGE_MAX_Y), _chargeColor);
 
             _chargeValueText = UiBuilder.CreateText(_chargeFill.parent, "Value", CHARGE_FONT_SIZE);
             UiBuilder.SetAnchors(_chargeValueText.rectTransform, Vector2.zero, Vector2.one);

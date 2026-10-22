@@ -28,6 +28,7 @@ namespace Kizami.EngineAdapter
         private const float MAX_POWER_BONUS = 1f;
 
         private static readonly int _explosionEventId = Shader.PropertyToID("OnExplosion");
+        private static readonly int _debrisEventId = Shader.PropertyToID("OnDebris");
         private static readonly int _positionId = Shader.PropertyToID("position");
         private static readonly int _sizeId = Shader.PropertyToID("size");
         private static readonly int _spawnCountId = Shader.PropertyToID("spawnCount");
@@ -89,8 +90,27 @@ namespace Kizami.EngineAdapter
         [Tooltip("爆発の半径 1m あたりに出す粒の数")]
         private int _explosionParticlesPerMeter = 150;
 
+        [SerializeField]
+        [Tooltip("がれきを出す VisualEffect。VFX Graph は Debris.vfx。未設定なら出さない")]
+        private VisualEffect _debrisEffect;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("壊したボクセルの体積 1m3 あたりに出すがれきの数")]
+        private float _debrisPerCubicMeter = 8f;
+
+        [SerializeField, Min(1)]
+        [Tooltip("1回の攻撃で出すがれきの数の上限")]
+        private int _maxDebrisPerCarve = 200;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("がれきが飛び散る速さ（m/s）。上向きは水平の0.4〜1.4倍")]
+        private float _debrisSpeed = 6f;
+
         /// <summary> 爆発の位置・半径・粒の数を VFX Graph へ渡すイベント属性 </summary>
         private VFXEventAttribute _explosionEventAttribute;
+
+        /// <summary> がれきの位置・飛ぶ速さ・数を VFX Graph へ渡すイベント属性 </summary>
+        private VFXEventAttribute _debrisEventAttribute;
 
         /// <summary> 初期化のときに作った、爆発の球と火花 </summary>
         private BlastEffect[] _blastEffects;
@@ -338,6 +358,22 @@ namespace Kizami.EngineAdapter
             _explosionEffect.SendEvent(_explosionEventId, _explosionEventAttribute);
         }
 
+        /// <summary>
+        /// 削った範囲の中心から、がれきを削った体積に比例した数だけ飛び散らせる。
+        /// </summary>
+        /// <param name="center">削った範囲の中心（ワールド空間）</param>
+        /// <param name="carvedVolume">壊したボクセルの体積（m3）</param>
+        private void PlayDebrisEffect(Vector3 center, float carvedVolume)
+        {
+            if (_debrisEffect == null) return;
+
+            _debrisEventAttribute ??= _debrisEffect.CreateVFXEventAttribute();
+            _debrisEventAttribute.SetVector3(_positionId, _debrisEffect.transform.InverseTransformPoint(center));
+            _debrisEventAttribute.SetFloat(_sizeId, _debrisSpeed);
+            _debrisEventAttribute.SetFloat(_spawnCountId, Mathf.Clamp(carvedVolume * _debrisPerCubicMeter, 1f, _maxDebrisPerCarve));
+            _debrisEffect.SendEvent(_debrisEventId, _debrisEventAttribute);
+        }
+
         private bool TryGetCameraTransform(out Transform cameraTransform)
         {
             var cameraMain = Camera.main;
@@ -474,6 +510,7 @@ namespace Kizami.EngineAdapter
             if (notifiesCarved && carvedVolume > 0f)
             {
                 SoundPlayer.Play(SoundEffectKind.VoxelHit, carvedPosition);
+                PlayDebrisEffect(reach.Bounds.Center, carvedVolume);
                 _onCarved?.Invoke(carvedVolume);
             }
 
