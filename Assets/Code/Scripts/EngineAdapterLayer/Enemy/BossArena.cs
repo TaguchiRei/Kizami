@@ -1,4 +1,5 @@
 using System;
+using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 
@@ -165,6 +166,8 @@ namespace Kizami.EngineAdapter
 
             if (_shots != null)
             {
+                // 柵のビームは一斉に多くのピースを削る為、削るジョブをまとめて待つ
+                using var strikeBatch = VoxelPiece.BeginStrikeBatch();
                 for (var i = 0; i < _unitCount; i++)
                 {
                     _shots[i].Tick(_emitters[i], Time.deltaTime, out _);

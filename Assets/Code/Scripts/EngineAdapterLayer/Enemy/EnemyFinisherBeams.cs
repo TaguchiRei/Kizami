@@ -43,6 +43,9 @@ namespace Kizami.EngineAdapter
         private static readonly int _intensityId = Shader.PropertyToID("_Intensity");
         private static readonly int _ringIntensityId = Shader.PropertyToID("_RingIntensity");
 
+        /// <summary> 全部のビームで共有する、今の揺れが終わる時刻（Time.time） </summary>
+        private static float _shakeEndTime;
+
         /// <summary> 溶かす範囲とガラスを割る範囲に重なるコライダーを集める作業用の配列。Shot のあいだで使い回す </summary>
         private readonly Collider[] _overlapBuffer = new Collider[MAX_HIT_COUNT];
 
@@ -177,6 +180,15 @@ namespace Kizami.EngineAdapter
 
         /// <summary> ビームが何にも当たらないときの長さ（m） </summary>
         public static float MaxBeamLength => MAX_BEAM_LENGTH;
+
+        /// <summary>
+        /// 揺れの終わる時刻を、プレイの始まりに戻す。ドメインのリロードを省いてプレイを始めても、前のプレイの時刻で揺れを止めないようにする。
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetShake()
+        {
+            _shakeEndTime = 0f;
+        }
 
         /// <summary>
         /// 敵の体か。ビームは敵を貫通する。
@@ -367,6 +379,18 @@ namespace Kizami.EngineAdapter
             sparksRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             sparksRenderer.receiveShadows = false;
             return sparks;
+        }
+
+        /// <summary>
+        /// 照射の始まりに画面を揺らす。全部のビームを合わせて、揺れている間は新しい揺れを足さない。
+        /// 揺れは重ねると強さが足し合わされ、多くのビームが同時に撃つとカメラが地面を突き抜ける為。
+        /// </summary>
+        private void Shake()
+        {
+            if (_impulseSource == null || Time.time < _shakeEndTime) return;
+
+            _shakeEndTime = Time.time + _impulseSource.ImpulseDefinition.ImpulseDuration;
+            _impulseSource.GenerateImpulseWithForce(_shakeForce);
         }
 
         /// <summary>
@@ -578,7 +602,7 @@ namespace Kizami.EngineAdapter
                 _meltTimer = 0f;
                 _meltFrontDistance = 0f;
                 SetPhase(Phase.Firing);
-                _owner._impulseSource?.GenerateImpulseWithForce(_owner._shakeForce);
+                _owner.Shake();
             }
 
             /// <summary>
@@ -749,9 +773,13 @@ namespace Kizami.EngineAdapter
                 }
 
                 var shape = new CapsuleShape(start, end, meltRadius + VoxelThermalSettings.NORMAL_MELTING_POINT / MELT_FALLOFF);
-                foreach (var piece in pieces)
+                // 穴は数個のピースにまたがる為、削るジョブを並列に走らせてからまとめて待つ
+                using (VoxelPiece.BeginStrikeBatch())
                 {
-                    piece.QueueStrike(shape, MELT_FALLOFF, Space.World);
+                    foreach (var piece in pieces)
+                    {
+                        piece.QueueStrike(shape, MELT_FALLOFF, Space.World);
+                    }
                 }
 
                 pieces.Clear();

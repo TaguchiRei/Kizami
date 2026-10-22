@@ -27,7 +27,14 @@ namespace Kizami.EngineAdapter.Voxel
         private const float MIN_MELTING_POINT = 0.01f;
 
         /// <summary> QueueStrike で積んだ攻撃を、ジョブを待たずに当てられるまで待つフレーム数の上限 </summary>
-        private const int MAX_QUEUED_STRIKE_FRAMES = 3;
+        private const int MAX_QUEUED_STRIKE_FRAMES = 10;
+
+        /// <summary>
+        /// 全部のピースを合わせて、LateUpdate で1フレームに作り直しを予約するチャンク数の上限。
+        /// 崩落で多くのピースが同時に削られても、メッシュ化のジョブでワーカーが埋まって他のジョブを待たせないようにする
+        /// </summary>
+        // TODO: モバイルと VR で値を見直す
+        private const int GLOBAL_REMESH_CHUNKS_PER_FRAME = 48;
 
         private const MeshColliderCookingOptions COLLIDER_COOKING_OPTIONS =
             MeshColliderCookingOptions.CookForFasterSimulation |
@@ -40,6 +47,18 @@ namespace Kizami.EngineAdapter.Voxel
         private static readonly ProfilerMarker _scheduleRemeshMarker = new("Voxel.ScheduleRemesh");
         private static readonly ProfilerMarker _completeRemeshMarker = new("Voxel.CompleteRemesh");
         private static readonly ProfilerMarker _colliderMarker = new("Voxel.Collider");
+
+        /// <summary> BeginStrikeBatch の範囲で、削る編集のジョブを集める先 </summary>
+        private static readonly VoxelWriteBatch _strikeBatch = new();
+
+        /// <summary> 開いている BeginStrikeBatch の範囲の数。入れ子にした範囲は、一番外を閉じるときにまとめて待つ </summary>
+        private static int _strikeBatchDepth;
+
+        /// <summary> 作り直しの予算を数えているフレーム </summary>
+        private static int _remeshBudgetFrame = -1;
+
+        /// <summary> このフレームに全部のピースで予約したチャンク数 </summary>
+        private static int _remeshBudgetUsed;
 
         private readonly Queue<int> _dirtyQueue = new();
         private readonly List<VoxelShapeChange> _pendingShapeChanges = new();
@@ -307,6 +326,56 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> ボリュームが素材を持ち、素材ごとのマテリアルが設定されているか </summary>
         private bool UsesMaterials => _volume != null && _volume.HasMaterials && _materials.Length > 0;
 
+        /// <summary>
+        /// 削る攻撃（ApplyStrike）をまとめる範囲を開く。範囲の中の攻撃はジョブの完了を待たずに集め、Dispose で範囲を閉じるときにまとめて待つ。
+        /// 多くのピースを一度に削るビームの更新を囲み、ピースごとに順番に待つのをやめて並列に走らせる。
+        /// </summary>
+        /// <remarks>
+        /// 範囲は Update の中で閉じる。範囲の中では、削ったピースの形を読まない（SampleDistance など）。
+        /// </remarks>
+        /// <returns>using で受け、範囲を閉じる</returns>
+        public static StrikeBatchScope BeginStrikeBatch()
+        {
+            _strikeBatchDepth++;
+            return new StrikeBatchScope();
+        }
+
+        /// <summary>
+        /// BeginStrikeBatch の範囲を閉じる。一番外の範囲なら、集めたジョブをまとめて待つ。
+        /// </summary>
+        private static void EndStrikeBatch()
+        {
+            _strikeBatchDepth--;
+            if (_strikeBatchDepth > 0) return;
+
+            _strikeBatchDepth = 0;
+            _strikeBatch.Complete();
+        }
+
+        /// <summary>
+        /// このフレームに、全部のピースを合わせて LateUpdate で予約できる残りのチャンク数。
+        /// </summary>
+        private static int GetRemainingRemeshBudget()
+        {
+            if (_remeshBudgetFrame != Time.frameCount) return GLOBAL_REMESH_CHUNKS_PER_FRAME;
+
+            return math.max(0, GLOBAL_REMESH_CHUNKS_PER_FRAME - _remeshBudgetUsed);
+        }
+
+        /// <summary>
+        /// このフレームの予算から count チャンク分を引く。すぐに作り直す必要がある予約（分離の直後など）は予算を超えても行い、その分も引く。
+        /// </summary>
+        private static void UseRemeshBudget(int count)
+        {
+            if (_remeshBudgetFrame != Time.frameCount)
+            {
+                _remeshBudgetFrame = Time.frameCount;
+                _remeshBudgetUsed = 0;
+            }
+
+            _remeshBudgetUsed += count;
+        }
+
         private static void BakeColliders(List<ChunkSlot> slots)
         {
             if (slots.Count == 0) return;
@@ -509,8 +578,11 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="reach">space で表した、融点0の素材まで届く範囲</param>
         /// <param name="falloff">1m（space の長さ）あたりに減る強さ</param>
         /// <param name="space">reach と falloff を表している空間</param>
-        /// <returns>壊した（内側から外側になった）サンプルの数</returns>
-        /// <remarks>モデルに属していれば、当てた攻撃を VoxelStrikeRecord にしてモデルへ通知する。</remarks>
+        /// <returns>壊した（内側から外側になった）サンプルの数。BeginStrikeBatch の範囲の中では数えずに0</returns>
+        /// <remarks>
+        /// モデルに属していれば、当てた攻撃を VoxelStrikeRecord にしてモデルへ通知する。
+        /// BeginStrikeBatch の範囲の中では、ジョブの完了を待たずに集め、範囲を閉じるときにまとめて待つ。
+        /// </remarks>
         public int ApplyStrike<TShape>(in TShape reach, float falloff, Space space)
             where TShape : struct, ITransformableVoxelShape<TShape>
         {
@@ -545,9 +617,11 @@ namespace Kizami.EngineAdapter.Voxel
 
             using var strikeScope = _strikeMarker.Auto();
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            var result = _volume.ApplyStrike(localReach, UsesMaterials ? materialOffsets : default, uniformOffset);
+            var batch = _strikeBatchDepth > 0 ? _strikeBatch : null;
+            var result = _volume.ApplyStrike(localReach, UsesMaterials ? materialOffsets : default, uniformOffset, batch);
             LastEditMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
-            materialOffsets.Dispose();
+            if (batch != null) batch.AddDisposable(materialOffsets);
+            else materialOffsets.Dispose();
 
             ApplyEditResult(result, VoxelCsgOperation.Subtract);
 
@@ -909,10 +983,11 @@ namespace Kizami.EngineAdapter.Voxel
                 return;
             }
 
-            // 前のフレームの予約がまだ終わっていなければ、待たずに次のフレームへ回す
-            if (_volume != null && !_isRemeshInFlight && _dirtyQueue.Count > 0)
+            // 前のフレームの予約がまだ終わっていなければ、待たずに次のフレームへ回す。全体の予算を使い切ったフレームも次へ回す
+            var remeshCount = math.min(_quality.RemeshChunksPerFrame, GetRemainingRemeshBudget());
+            if (_volume != null && !_isRemeshInFlight && _dirtyQueue.Count > 0 && remeshCount > 0)
             {
-                ScheduleRemesh(_quality.RemeshChunksPerFrame);
+                ScheduleRemesh(remeshCount);
             }
         }
 
@@ -1423,6 +1498,7 @@ namespace Kizami.EngineAdapter.Voxel
             var count = math.min(maxCount, _dirtyQueue.Count);
             if (count == 0) return;
 
+            UseRemeshBudget(count);
             var chunkIndices = new int[count];
             var buffers = new MeshBuffers[count];
             var handles = new NativeArray<JobHandle>(count, Allocator.Temp);
@@ -1779,6 +1855,17 @@ namespace Kizami.EngineAdapter.Voxel
 
             _volume?.Dispose();
             _volume = null;
+        }
+
+        /// <summary>
+        /// BeginStrikeBatch で開いた範囲。Dispose で閉じる。
+        /// </summary>
+        public readonly struct StrikeBatchScope : IDisposable
+        {
+            public void Dispose()
+            {
+                EndStrikeBatch();
+            }
         }
 
         /// <summary>
