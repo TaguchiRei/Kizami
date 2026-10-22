@@ -32,6 +32,10 @@ namespace Kizami.External
         [Tooltip("発動したときの効果")]
         private SkillEffect _effect;
 
+        [SerializeField]
+        [Tooltip("発動したときに腕で再生するアニメーション。Player.controller の Trigger の名前と同じにする。空なら再生しない")]
+        private string _armAnimation;
+
         [SerializeField, Min(0)]
         [Tooltip("発動に使うチャージ量")]
         private int _cost = 30;
@@ -135,6 +139,9 @@ namespace Kizami.External
 
         /// <summary> 発動したときの効果 </summary>
         public SkillEffect Effect => _effect;
+
+        /// <summary> 発動したときに腕で再生するアニメーションの Trigger 名。空なら再生しない </summary>
+        public string ArmAnimation => _armAnimation;
 
         /// <summary> 発動に使うチャージ量 </summary>
         public int Cost => _cost;

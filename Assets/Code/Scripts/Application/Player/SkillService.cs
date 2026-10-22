@@ -28,6 +28,7 @@ namespace Kizami.Application
         private readonly Action<float, float, float, float, float> _onRush;
         private readonly Func<float, bool> _onMoundBegin;
         private readonly Action _onMoundEnd;
+        private readonly Action<SkillData> _onSkillUsed;
         private readonly Func<bool> _canAct;
         private readonly Func<bool> _canRush;
         private readonly Action _onActed;
@@ -59,7 +60,7 @@ namespace Kizami.Application
             ChargeService chargeService, PlayerEnhanceService enhanceService, Action<float, float> onBeam,
             Action<float> onExplosion, Action<int> onHeal, Action<float, float, float> onBomb, Action<float, float, float, float> onSweep,
             Action<float, float, float, float, float> onRush, Func<float, bool> onMoundBegin, Action onMoundEnd, Func<bool> canRush, Func<bool> canAct, Action onActed,
-            SkyBeamService skyBeamService, PlayerActionEvents actionEvents, int sceneId)
+            Action<SkillData> onSkillUsed, SkyBeamService skyBeamService, PlayerActionEvents actionEvents, int sceneId)
         {
             _skyBeamService = skyBeamService;
             _actionEvents = actionEvents;
@@ -76,6 +77,7 @@ namespace Kizami.Application
             _canRush = canRush;
             _canAct = canAct;
             _onActed = onActed;
+            _onSkillUsed = onSkillUsed;
 
             var count = Math.Min(equippedSkills.Count, SLOT_COUNT);
             for (var i = 0; i < count; i++)
@@ -139,6 +141,7 @@ namespace Kizami.Application
 
             _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.SkillUsed, skill.DisplayName));
             _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.ChargeSpent, amount: skill.Cost));
+            _onSkillUsed?.Invoke(skill);
 
             if (skill.IsEnhancement)
             {

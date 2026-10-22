@@ -136,7 +136,7 @@ namespace Kizami.Initialization
             _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService, _enhanceService,
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
                 _bombThrowAdapter.Throw, _voxelDestructionAdapter.CarveSweep, Rush, _voxelMoundAdapter.Begin, _voxelMoundAdapter.End, () => _movementService.CanRush,
-                _meleeCutService.CanAct, _meleeCutService.MarkActed, _skyBeamService, _actionEvents, sceneId);
+                _meleeCutService.CanAct, _meleeCutService.MarkActed, OnSkillUsed, _skyBeamService, _actionEvents, sceneId);
 
             _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake, _voxelDestructionAdapter.CarveExplosionAt);
 
@@ -166,6 +166,14 @@ namespace Kizami.Initialization
         {
             _meleeCutAdapter.Swing(angle, rangeScale, damageType);
             if (_armAdapter != null) _armAdapter.PlaySwing(angle);
+        }
+
+        /// <summary>
+        /// スキルを発動したときに、スキルに設定された腕のアニメーションを再生させる。
+        /// </summary>
+        private void OnSkillUsed(SkillData skill)
+        {
+            if (_armAdapter != null) _armAdapter.PlaySkill(skill.ArmAnimation);
         }
 
         /// <summary>

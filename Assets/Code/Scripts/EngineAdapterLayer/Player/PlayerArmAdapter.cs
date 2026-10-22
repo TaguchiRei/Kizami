@@ -5,6 +5,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 一人称の腕の Animator を動かす Adapter。
     /// 通常攻撃の振りは、切断面の角度から 2D ブレンドの値を決めて、左右・上下の 3 つのクリップを混ぜて再生する。
+    /// スキルは、スキルごとに決めた名前の Trigger を引いて、対応するクリップを再生する。
     /// </summary>
     public sealed class PlayerArmAdapter : MonoBehaviour
     {
@@ -28,6 +29,17 @@ namespace Kizami.EngineAdapter
             _animator.SetFloat(_blendXHash, -Mathf.Cos(radian));
             _animator.SetFloat(_blendYHash, Mathf.Sin(radian));
             _animator.SetTrigger(_swingHash);
+        }
+
+        /// <summary>
+        /// スキルのアニメーションを再生する。
+        /// </summary>
+        /// <param name="trigger">Player.controller の Trigger の名前。空なら何もしない</param>
+        public void PlaySkill(string trigger)
+        {
+            if (_animator == null || string.IsNullOrEmpty(trigger)) return;
+
+            _animator.SetTrigger(trigger);
         }
     }
 }
