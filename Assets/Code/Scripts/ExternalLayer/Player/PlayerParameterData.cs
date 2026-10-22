@@ -87,6 +87,15 @@ namespace Kizami.External
         [Tooltip("近接切断の攻撃間隔（秒）。スローモード中も等速で数える")]
         private float _meleeAttackInterval = 0.3f;
 
+        [Header("ヒットストップ")]
+        [SerializeField, Min(0f)]
+        [Tooltip("近接切断が当たったときに時間を止める実時間（秒）。0 で止めない")]
+        private float _hitStopDuration = 0.06f;
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("ヒットストップ中に基本倍率へ掛ける倍率。0 で完全に止まる")]
+        private float _hitStopTimeScale;
+
         [Header("チャージ")]
         [SerializeField, Min(0)]
         [Tooltip("かけら 1 個を吸収したときに増えるチャージ量")]
@@ -196,6 +205,12 @@ namespace Kizami.External
 
         /// <summary> チャージ量の上限 </summary>
         public int MaxCharge => _maxCharge;
+
+        /// <summary> 近接切断が当たったときに時間を止める実時間（秒） </summary>
+        public float HitStopDuration => _hitStopDuration;
+
+        /// <summary> ヒットストップ中に基本倍率へ掛ける倍率 </summary>
+        public float HitStopTimeScale => _hitStopTimeScale;
 
         /// <summary> スローモード中の時間の倍率 </summary>
         public float SlowModeTimeScale => _slowModeTimeScale;

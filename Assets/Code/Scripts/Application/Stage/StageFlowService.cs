@@ -154,6 +154,8 @@ namespace Kizami.Application
             if (_state.Phase != StagePhase.Playing || _state.IsPaused || _timeScaleController == null ||
                 _timeScaleState == null) return;
 
+            // ヒットストップ込みの倍率（0）を保存すると、解除後も止まったままになる
+            _timeScaleController.CancelHitStop();
             _resumeScale = _timeScaleState.Scale;
             _timeScaleController.SetScale(0f);
             _inputController?.DisableActionMap(ActionMaps.Player);
