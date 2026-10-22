@@ -24,6 +24,9 @@ namespace Kizami.EngineAdapter
         private const float CHARGE_GAUGE_MIN_Y = 0.055f;
 
         private const float CHARGE_GAUGE_MAX_Y = 0.065f;
+
+        /// <summary> チャージの数値の後ろに置くひし形の一辺（基準の解像度での px） </summary>
+        private const float DIAMOND_SIZE = 40f;
         private const int START_FONT_SIZE = 72;
         private const string START_TEXT = "START";
         private const string FLIGHT_PROMPT_TEXT = "[F] JUMP";
@@ -74,6 +77,18 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("チャージのゲージの色")]
         private Color _chargeColor = new(0.3f, 0.8f, 1f);
+
+        [SerializeField]
+        [Tooltip("チャージの数値の後ろのひし形の色")]
+        private Color _diamondColor = new(0.3f, 0.8f, 1f, 0.9f);
+
+        [SerializeField, Min(1f)]
+        [Tooltip("チャージが増えた瞬間に、ひし形が一瞬で広がる大きさの倍率")]
+        private float _diamondPulseScale = 1.7f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("ひし形が元の大きさへ戻るまでの時間（秒）")]
+        private float _diamondPulseDuration = 0.25f;
 
         [SerializeField]
         [Tooltip("チャージが消費量に届いているスキルの線と枠の色")]
@@ -169,6 +184,10 @@ namespace Kizami.EngineAdapter
         private Text[] _slotCostTexts;
         private Text[] _slotStatusTexts;
         private Text _chargeValueText;
+        private RectTransform _chargeDiamond;
+
+        /// <summary> ひし形が広がり始めた時刻（Time.unscaledTime）。時間を止めても戻るように、実時間で数える </summary>
+        private float _diamondPulseStart = float.NegativeInfinity;
         private Text _targetText;
         private Text _timeText;
         private Text _defeatText;
@@ -250,6 +269,7 @@ namespace Kizami.EngineAdapter
             if (!Initialized) return;
 
             UpdateGauges();
+            UpdateDiamond();
             UpdateSkills();
             UpdateTargetText();
             UpdateDefeatText();
@@ -274,10 +294,22 @@ namespace Kizami.EngineAdapter
 
             if (_chargeState.Current != _shownCharge || _chargeState.Max != _shownChargeMax)
             {
+                if (_shownCharge != REDRAW_REQUIRED && _chargeState.Current > _shownCharge) _diamondPulseStart = Time.unscaledTime;
+
                 _shownCharge = _chargeState.Current;
                 SetCenteredRatio(_chargeFill, (float)_shownCharge / _chargeState.Max);
                 _chargeValueText.text = _shownCharge.ToString();
             }
+        }
+
+        /// <summary>
+        /// チャージが増えた瞬間に大きくなったひし形を、元の大きさへ戻す。
+        /// </summary>
+        private void UpdateDiamond()
+        {
+            var progress = (Time.unscaledTime - _diamondPulseStart) / _diamondPulseDuration;
+            var scale = progress >= 1f ? 1f : Mathf.Lerp(_diamondPulseScale, 1f, progress);
+            _chargeDiamond.localScale = Vector3.one * scale;
         }
 
         /// <summary>
@@ -527,6 +559,12 @@ namespace Kizami.EngineAdapter
                 new Vector2(0.5f + halfWidth, 0.045f), _healthColor);
             _chargeFill = CreateGauge(canvas, "Charge", new Vector2(0.5f - halfWidth, CHARGE_GAUGE_MIN_Y),
                 new Vector2(0.5f + halfWidth, CHARGE_GAUGE_MAX_Y), _chargeColor);
+
+            // 数値の後ろで、ゲージの手前に置く。ゲージより大きいので、上下にはみ出して見える
+            _chargeDiamond = UiBuilder.CreateImage(_chargeFill.parent, "Diamond", _diamondColor).rectTransform;
+            UiBuilder.SetAnchors(_chargeDiamond, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
+            _chargeDiamond.sizeDelta = new Vector2(DIAMOND_SIZE, DIAMOND_SIZE);
+            _chargeDiamond.localRotation = Quaternion.Euler(0f, 0f, 45f);
 
             _chargeValueText = UiBuilder.CreateText(_chargeFill.parent, "Value", CHARGE_FONT_SIZE);
             UiBuilder.SetAnchors(_chargeValueText.rectTransform, Vector2.zero, Vector2.one);

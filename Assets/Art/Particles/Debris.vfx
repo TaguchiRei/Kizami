@@ -70,7 +70,7 @@ MonoBehaviour:
   uiBounds:
     serializedVersion: 2
     x: -450
-    y: 0
+    y: -0
     width: 1324
     height: 1842
 --- !u!114 &114350483966674978
@@ -1159,7 +1159,7 @@ MonoBehaviour:
       m_Type:
         m_SerializableType: System.Single, mscorlib, Version=4.0.0.0, Culture=neutral,
           PublicKeyToken=b77a5c561934e089
-      m_SerializableObject: 2.5
+      m_SerializableObject: 2
     m_Space: -1
   m_Property:
     name: A
@@ -1193,7 +1193,7 @@ MonoBehaviour:
       m_Type:
         m_SerializableType: System.Single, mscorlib, Version=4.0.0.0, Culture=neutral,
           PublicKeyToken=b77a5c561934e089
-      m_SerializableObject: 4
+      m_SerializableObject: 3
     m_Space: -1
   m_Property:
     name: B
@@ -2286,6 +2286,7 @@ MonoBehaviour:
   - {fileID: 114350483966675050}
   - {fileID: 114350483966675051}
   - {fileID: 114350483966675052}
+  - {fileID: 114350483966675085}
   m_OutputSlots: []
   m_Disabled: 0
   m_ActivationSlot: {fileID: 114350483966675053}
@@ -2297,7 +2298,7 @@ MonoBehaviour:
   writeRoughNormal: 1
   overrideBounceThreshold: 0
   camera: 0
-  surfaceThickness: 0
+  surfaceThickness: 1
 --- !u!114 &114350483966675050
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2323,7 +2324,7 @@ MonoBehaviour:
       m_Type:
         m_SerializableType: System.Single, mscorlib, Version=4.0.0.0, Culture=neutral,
           PublicKeyToken=b77a5c561934e089
-      m_SerializableObject: 0.2
+      m_SerializableObject: 0.1
     m_Space: -1
   m_Property:
     name: Bounce
@@ -2357,7 +2358,7 @@ MonoBehaviour:
       m_Type:
         m_SerializableType: System.Single, mscorlib, Version=4.0.0.0, Culture=neutral,
           PublicKeyToken=b77a5c561934e089
-      m_SerializableObject: 0.6
+      m_SerializableObject: 1
     m_Space: -1
   m_Property:
     name: Friction
@@ -3404,4 +3405,38 @@ MonoBehaviour:
       m_SerializableType: System.Single, mscorlib, Version=4.0.0.0, Culture=neutral,
         PublicKeyToken=b77a5c561934e089
   m_Direction: 1
+  m_LinkedSlots: []
+--- !u!114 &114350483966675085
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f780aa281814f9842a7c076d436932e7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.VisualEffectGraph.Editor::UnityEditor.VFX.VFXSlotFloat
+  m_UIIgnoredErrors: []
+  m_Parent: {fileID: 0}
+  m_Children: []
+  m_UIPosition: {x: 0, y: 0}
+  m_UICollapsed: 1
+  m_UISuperCollapsed: 0
+  m_MasterSlot: {fileID: 114350483966675085}
+  m_MasterData:
+    m_Owner: {fileID: 114350483966675049}
+    m_Value:
+      m_Type:
+        m_SerializableType: System.Single, mscorlib, Version=4.0.0.0, Culture=neutral,
+          PublicKeyToken=b77a5c561934e089
+      m_SerializableObject: 0.3
+    m_Space: -1
+  m_Property:
+    name: surfaceThickness
+    m_serializedType:
+      m_SerializableType: System.Single, mscorlib, Version=4.0.0.0, Culture=neutral,
+        PublicKeyToken=b77a5c561934e089
+  m_Direction: 0
   m_LinkedSlots: []
