@@ -74,6 +74,15 @@
       },
       "hash": "9c3702ac1d98b958cad5f1e006e5bc85e6a7fe9a"
     },
+    "com.rei.usefultoolkit.visualarttools": {
+      "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.visualarttools",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.rei.usefultoolkit.framework": "1.0.0"
+      },
+      "hash": "65d8457d535417622f31c84dffe70c4e109f1bba"
+    },
     "com.rei.usefultoolkit.worktrack": {
       "version": "https://github.com/TaguchiRei/UsefulToolkit.git?path=Packages/com.rei.usefultoolkit.worktrack",
       "depth": 0,
@@ -89,6 +98,17 @@
       "source": "registry",
       "dependencies": {
         "com.unity.modules.ai": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.animation.rigging": {
+      "version": "1.4.1",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.burst": "1.4.1",
+        "com.unity.test-framework": "1.1.24",
+        "com.unity.modules.animation": "1.0.0"
       },
       "url": "https://packages.unity.com"
     },

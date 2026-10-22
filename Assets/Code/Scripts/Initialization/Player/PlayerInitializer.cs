@@ -42,6 +42,10 @@ namespace Kizami.Initialization
         [SerializeField] private VoxelMoundAdapter _voxelMoundAdapter;
 
         [SerializeField]
+        [Tooltip("一人称の腕を動かす Adapter。未設定なら腕は動かさない（VR など腕を置かない操作系）")]
+        private PlayerArmAdapter _armAdapter;
+
+        [SerializeField]
         [Tooltip("火術・崩爆の爆弾を投げる Adapter。未設定なら、既定の値でこの GameObject に付ける")]
         private BombThrowAdapter _bombThrowAdapter;
 
@@ -121,7 +125,7 @@ namespace Kizami.Initialization
             _skyBeamAdapter.Initialize(_movementAdapter, _skyBeamService.OnFinished, _skyBeamService.TryContinue,
                 _voxelDestructionAdapter.CarveSkyBeamAt, _enemySpawnAdapter.DefeatInRadius);
 
-            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
+            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, Swing,
                 _slowModeService.TryUseCut, () => _voxelMoundAdapter.IsMounding || _skyBeamService.IsActive, _actionEvents,
                 sceneId);
             _voxelMoundAdapter.Initialize(_chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
@@ -153,6 +157,15 @@ namespace Kizami.Initialization
             _meleeCutPreviewAdapter.Initialize(blackBoard);
 
             base.Initialize(blackBoard);
+        }
+
+        /// <summary>
+        /// 近接切断を振り、腕を同じ角度で振らせる。
+        /// </summary>
+        private void Swing(float angle, float rangeScale, DamageType damageType)
+        {
+            _meleeCutAdapter.Swing(angle, rangeScale, damageType);
+            if (_armAdapter != null) _armAdapter.PlaySwing(angle);
         }
 
         /// <summary>

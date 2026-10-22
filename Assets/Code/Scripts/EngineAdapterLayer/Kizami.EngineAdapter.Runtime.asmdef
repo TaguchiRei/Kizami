@@ -10,6 +10,7 @@
         "UsefulToolkit.Input.BlackBoard.Runtime",
         "UsefulToolkit.MeshCut.Runtime",
         "UniTask",
+        "Unity.Animation.Rigging",
         "Unity.Burst",
         "Unity.Cinemachine",
         "Unity.Collections",

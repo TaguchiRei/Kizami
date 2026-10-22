@@ -172,7 +172,7 @@
 | 35 | 火術奥義・羽天轟号 | 上空から撃つ、視点を動かせる無敵のビーム | 34、アウトゲームの区間5 | 未定 | 未定 | 実装済み（2026-10-21。手触りの確認はレビュー時） | [Section35](Sections/Section35_Utenkougou.md) |
 | 36 | SE と BGM | 音の土台（AudioMixer と音量の反映）、BGM、SE 4 つ（ガラス・装甲・ボクセル攻撃・崩壊）。ほかの SE とスロー中の音は持ち越し | 35 | 未定 | 未定 | 完了（2026-10-21） | [Section36](Sections/Section36_Sound.md) |
 | 37 | 爆発とがれき | 爆発のエフェクト、壊した物から落ちるがれき（エフェクト） | 36 | 未定 | 未定 | 実装済み（2026-10-22。SE は持ち越し） | [Section37](Sections/Section37_ExplosionDebris.md) |
-| 38 | プレイヤーの行動の演出 | 腕のアニメーション、行動のエフェクト、ヒットストップ | 37 | 未定 | 未定 | 未着手 | [Section38](Sections/Section38_PlayerFeel.md) |
+| 38 | プレイヤーの行動の演出 | 腕のアニメーション、行動のエフェクト | 37 | 未定 | 未定 | 未着手 | [Section38](Sections/Section38_PlayerFeel.md) |
 | 39 | 敵の弾道とシールドの表示 | アタッカーの弾道の軌跡、ディフェンダーのシールドの耐久値の表示 | 38 | 未定 | 未定 | 未着手 | [Section39](Sections/Section39_EnemyVisual.md) |
 | 40 | Brilliant Skill の文字の見せ方 | 文字が出そろうまで、画面の手前でプレイヤーに追従させる | 24, 39 | 未定 | 未定 | 未着手 | [Section40](Sections/Section40_BrilliantDisplay.md) |
 | 41 | アルファ版の UI | アウトゲームの画面のデザインとプレハブ化 | 40、アウトゲームの区間1・2・4 | 未定 | 未定 | 未着手 | [Section41](Sections/Section41_AlphaUi.md) |
