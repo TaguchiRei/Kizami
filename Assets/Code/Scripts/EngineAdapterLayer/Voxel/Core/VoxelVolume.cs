@@ -30,6 +30,7 @@ namespace Kizami.EngineAdapter.Voxel
         private NativeArray<byte> _roundness;
         private float _roundnessChangeThreshold;
         private float _roundnessFalloffCells;
+        private JobHandle _readers;
 
         public VoxelGridLayout Layout { get; }
         public float TruncationDistance => Layout.VoxelSize * TRUNCATION_VOXELS;
@@ -118,6 +119,23 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// このボリュームを読んでいる実行中のジョブを登録する。サンプルを書き換える処理は、登録されたジョブの完了を先に待つ。
+        /// </summary>
+        internal void TrackReader(JobHandle handle)
+        {
+            _readers = JobHandle.CombineDependencies(_readers, handle);
+        }
+
+        /// <summary>
+        /// 登録された読み取りジョブの完了を待つ。ジョブが無い、または終わっていれば待たない。
+        /// </summary>
+        internal void CompleteReaders()
+        {
+            _readers.Complete();
+            _readers = default;
+        }
+
+        /// <summary>
         /// 内側（距離が負）のサンプルの数を数える。
         /// </summary>
         public int CountInside()
@@ -193,6 +211,8 @@ namespace Kizami.EngineAdapter.Voxel
         {
             meltedSamples.Clear();
             if (!TryGetSampleRange(shape.Bounds, out var sampleMin, out var sampleMax)) return default;
+
+            CompleteReaders();
 
             if (!_temperatures.IsCreated)
             {
@@ -319,6 +339,8 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="source">写す元の SDF。Layout と同じローカル空間でベイクしたもの</param>
         public void Resample(VoxelSdfData source)
         {
+            CompleteReaders();
+
             var sourceSamples = new NativeArray<short>(source.Samples, Allocator.TempJob);
 
             new VoxelResampleJob
@@ -492,6 +514,8 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="component">消す塊</param>
         public void EraseComponent(NativeArray<int> labels, in VoxelComponent component)
         {
+            CompleteReaders();
+
             var rangeSize = component.SampleMax - component.SampleMin + 1;
 
             new VoxelEraseComponentJob
@@ -616,6 +640,8 @@ namespace Kizami.EngineAdapter.Voxel
                 return default;
             }
 
+            CompleteReaders();
+
             var useMaterials = materialOffsets.IsCreated;
 
             // ジョブの入力には作った配列を渡す必要がある為、使わないときは1要素の配列を渡す
@@ -659,6 +685,8 @@ namespace Kizami.EngineAdapter.Voxel
 
         public void Dispose()
         {
+            CompleteReaders();
+
             if (_samples.IsCreated) _samples.Dispose();
             if (_temperatures.IsCreated) _temperatures.Dispose();
             if (_materialIds.IsCreated) _materialIds.Dispose();
