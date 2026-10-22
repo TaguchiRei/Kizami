@@ -15236,7 +15236,7 @@ MonoBehaviour:
   _maxHealth: 100
   _meleeDamage: 0.5
   _skillDamage: 1
-  _collapseDamagePerCubicMeter: 2
+  _collapseDamagePerCubicMeter: 1
   _minFallSpeed: 3
   _minCollapseVolume: 0.5
   _collapseLayers:

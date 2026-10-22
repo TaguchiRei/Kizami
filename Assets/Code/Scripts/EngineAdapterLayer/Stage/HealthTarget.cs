@@ -65,6 +65,8 @@ namespace Kizami.EngineAdapter
         private Action _onHitWhileDepleted;
         private bool _isProtected;
         private bool _isDepleted;
+        private bool _countsCollapse = true;
+        private bool _isInvulnerable;
 
         /// <summary> ゲージに出す名前 </summary>
         public string DisplayName => _displayName;
@@ -117,6 +119,25 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 落ちてくる塊のダメージを数えるかを切り替える。数えない間に触れた塊は、あとからも数えない。
+        /// ボスの飛来のように、体力に関わらない崩落が起きる間に切る。
+        /// </summary>
+        /// <param name="countsCollapse">落ちてくる塊のダメージを数えるか</param>
+        public void SetCollapseCounting(bool countsCollapse)
+        {
+            _countsCollapse = countsCollapse;
+        }
+
+        /// <summary>
+        /// 無敵を切り替える。無敵の間は、通常攻撃・スキル・落ちてくる塊・量を決めたダメージのどれでも体力が減らない。
+        /// </summary>
+        /// <param name="isInvulnerable">無敵か</param>
+        public void SetInvulnerable(bool isInvulnerable)
+        {
+            _isInvulnerable = isInvulnerable;
+        }
+
+        /// <summary>
         /// 体力が尽きた状態を戻し、また体力を減らせるようにする。保護を外していれば、保護し直す。体力そのものは呼び出し側が戻す。
         /// </summary>
         public void ResetDepleted()
@@ -165,8 +186,8 @@ namespace Kizami.EngineAdapter
                 var piece = _hitBuffer[i].GetComponentInParent<VoxelPiece>();
                 if (piece == null || piece.Volume < _minCollapseVolume || IsOwnPiece(piece)) continue;
 
-                // 同じ塊は何度触れても1回だけ数える
-                if (_countedPieces.Add(piece)) damage += piece.Volume * _collapseDamagePerCubicMeter;
+                // 同じ塊は何度触れても1回だけ数える。数えない間に触れた塊も、ダメージにはせず数えたことにする
+                if (_countedPieces.Add(piece) && _countsCollapse) damage += piece.Volume * _collapseDamagePerCubicMeter;
             }
 
             ApplyDamage(damage);
@@ -177,7 +198,7 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void ApplyDamage(float amount)
         {
-            if (!_isProtected || amount <= 0f) return;
+            if (!_isProtected || amount <= 0f || _isInvulnerable) return;
 
             if (_isDepleted)
             {

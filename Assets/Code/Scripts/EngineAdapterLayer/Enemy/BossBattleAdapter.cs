@@ -92,6 +92,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("塔を投げてから、次の行動に移るまでの待機（秒）。この間は何もしない")]
         private float _towerRest = 10f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("足踏みを始めてから、落ちてくる塊のダメージを数え始めるまでの猶予（秒）。飛来で崩れた塊が落ちきるのを待つ")]
+        private float _collapseGrace = 2f;
+
         [SerializeField, Min(1)]
         [Tooltip("最終の段階で、コアを出す攻撃の前に足踏みする回数")]
         private int _finalStomps = 3;
@@ -132,6 +136,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 最終の段階で、今の周に足踏みした回数 </summary>
         private int _finalStompCount;
+
+        /// <summary> 足踏みとコア露出の段階が続いている時間（秒）。それ以外の段階では0 </summary>
+        private float _fightTime;
 
         /// <summary> すべてのパーツを保護したか </summary>
         private bool _isProtected;
@@ -209,6 +216,7 @@ namespace Kizami.EngineAdapter
             if (_state == null) return;
 
             UpdateProtection();
+            UpdateCollapseCounting(Time.deltaTime);
             _tick?.Invoke(Time.deltaTime);
 
             var phase = _state.Phase;
@@ -460,6 +468,29 @@ namespace Kizami.EngineAdapter
             var playerPosition = _target != null ? _target.position : viewTransform.position;
             _isWeaponBrokenInDown = _weapons.BreakBest(viewTransform.position, viewTransform.forward, playerPosition) >= 0;
             if (_isWeaponBrokenInDown) _weapons.SetHighlight(false);
+        }
+
+        /// <summary>
+        /// 足踏みとコア露出の間だけ、落ちてくる塊のダメージを数える。飛来や水晶の段階の崩落、外れた武装の落下で、戦っていないのに体力が減らないようにする。
+        /// 飛来の間と、着地して足踏みを始めてから猶予の時間が過ぎるまでは無敵にし、飛来の崩落の落下を待つ。
+        /// </summary>
+        private void UpdateCollapseCounting(float deltaTime)
+        {
+            if (_healthTarget == null) return;
+
+            var phase = _state.Phase;
+            if (phase != BossBattlePhase.Stomping && phase != BossBattlePhase.CoreExposed)
+            {
+                _fightTime = 0f;
+                _healthTarget.SetCollapseCounting(false);
+                _healthTarget.SetInvulnerable(phase == BossBattlePhase.Arriving);
+                return;
+            }
+
+            _fightTime += deltaTime;
+            var isGraceOver = _fightTime >= _collapseGrace;
+            _healthTarget.SetCollapseCounting(isGraceOver);
+            _healthTarget.SetInvulnerable(!isGraceOver);
         }
 
         /// <summary>

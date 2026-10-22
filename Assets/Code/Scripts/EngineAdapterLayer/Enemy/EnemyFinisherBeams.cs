@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Cinemachine;
 using Kizami.EngineAdapter.Voxel;
 using Unity.Mathematics;
+using Unity.Profiling;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 
@@ -33,6 +34,11 @@ namespace Kizami.EngineAdapter
         /// <summary> 射線の調べと、溶かす範囲に重なるコライダーを集めるときの上限 </summary>
         private const int MAX_HIT_COUNT = 64;
 
+        private static readonly ProfilerMarker _meltMarker = new("Voxel.BeamMelt");
+        private static readonly ProfilerMarker _advanceMarker = new("Voxel.BeamMelt.Advance");
+        private static readonly ProfilerMarker _overlapMarker = new("Voxel.BeamMelt.Overlap");
+        private static readonly ProfilerMarker _collectMarker = new("Voxel.BeamMelt.Collect");
+        private static readonly ProfilerMarker _glassMarker = new("Voxel.BeamMelt.Glass");
         private static readonly int _tintId = Shader.PropertyToID("_Tint");
         private static readonly int _intensityId = Shader.PropertyToID("_Intensity");
         private static readonly int _ringIntensityId = Shader.PropertyToID("_RingIntensity");
@@ -713,8 +719,9 @@ namespace Kizami.EngineAdapter
                 if (_meltTimer > 0f) return;
 
                 _meltTimer += _owner._meltInterval;
-                AdvanceMeltFront(pivot, blockDistance);
-                ShatterGlass(pivot, Mathf.Min(_meltFrontDistance, blockDistance));
+                using var meltScope = _meltMarker.Auto();
+                using (_advanceMarker.Auto()) AdvanceMeltFront(pivot, blockDistance);
+                using (_glassMarker.Auto()) ShatterGlass(pivot, Mathf.Min(_meltFrontDistance, blockDistance));
             }
 
             /// <summary>
@@ -728,9 +735,12 @@ namespace Kizami.EngineAdapter
                 var step = _owner._meltSpeed * _owner._meltInterval;
                 var start = pivot + _aimDirection * _meltFrontDistance;
                 var end = start + _aimDirection * step;
-                var count = Physics.OverlapCapsuleNonAlloc(start, end, meltRadius, _owner._overlapBuffer,
-                    _owner._blockLayers, QueryTriggerInteraction.Ignore);
-                var pieces = _owner.CollectPieces(count);
+                int count;
+                using (_overlapMarker.Auto())
+                    count = Physics.OverlapCapsuleNonAlloc(start, end, meltRadius, _owner._overlapBuffer,
+                        _owner._blockLayers, QueryTriggerInteraction.Ignore);
+                HashSet<VoxelPiece> pieces;
+                using (_collectMarker.Auto()) pieces = _owner.CollectPieces(count);
 
                 if (pieces.Count == 0)
                 {

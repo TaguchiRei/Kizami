@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UsefulToolkit.BlackBoard.BlackBoard;
@@ -30,6 +31,12 @@ namespace Kizami.EngineAdapter.Voxel
             MeshColliderCookingOptions.EnableMeshCleaning |
             MeshColliderCookingOptions.WeldColocatedVertices |
             MeshColliderCookingOptions.UseFastMidphase;
+
+        private static readonly ProfilerMarker _strikeMarker = new("Voxel.Strike");
+        private static readonly ProfilerMarker _measureMarker = new("Voxel.Measure");
+        private static readonly ProfilerMarker _scheduleRemeshMarker = new("Voxel.ScheduleRemesh");
+        private static readonly ProfilerMarker _completeRemeshMarker = new("Voxel.CompleteRemesh");
+        private static readonly ProfilerMarker _colliderMarker = new("Voxel.Collider");
 
         private readonly Queue<int> _dirtyQueue = new();
         private readonly List<VoxelShapeChange> _pendingShapeChanges = new();
@@ -487,6 +494,7 @@ namespace Kizami.EngineAdapter.Voxel
 
             var uniformOffset = VoxelThermalSettings.NORMAL_MELTING_POINT / falloff * lengthScale;
 
+            using var strikeScope = _strikeMarker.Auto();
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var result = _volume.ApplyStrike(localReach, UsesMaterials ? materialOffsets : default, uniformOffset);
             LastEditMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
@@ -820,7 +828,7 @@ namespace Kizami.EngineAdapter.Voxel
             if (_needsMeasure)
             {
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-                splitPieces = Measure(_needsSplitCheck && _splittable);
+                using (_measureMarker.Auto()) splitPieces = Measure(_needsSplitCheck && _splittable);
                 LastMeasureMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
                 _needsMeasure = false;
                 _needsSplitCheck = false;
@@ -1271,6 +1279,7 @@ namespace Kizami.EngineAdapter.Voxel
         {
             if (_isRemeshInFlight) CompleteRemesh();
 
+            using var scheduleScope = _scheduleRemeshMarker.Auto();
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var layout = _volume.Layout;
             var useHull = _colliderMode == VoxelColliderMode.ConvexHull;
@@ -1361,6 +1370,7 @@ namespace Kizami.EngineAdapter.Voxel
         {
             if (!_isRemeshInFlight) return;
 
+            using var completeScope = _completeRemeshMarker.Auto();
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             _remeshHandle.Complete();
             ReleaseFlightTemporaries();
@@ -1386,15 +1396,18 @@ namespace Kizami.EngineAdapter.Voxel
             var applyEnd = stopwatch.Elapsed.TotalMilliseconds;
             LastRemeshApplyMilliseconds = applyEnd - waitEnd;
 
-            switch (_colliderMode)
+            using (_colliderMarker.Auto())
             {
-                case VoxelColliderMode.ChunkMesh:
-                    BakeColliders(colliderTargets);
-                    break;
+                switch (_colliderMode)
+                {
+                    case VoxelColliderMode.ChunkMesh:
+                        BakeColliders(colliderTargets);
+                        break;
 
-                case VoxelColliderMode.ConvexHull:
-                    RebuildHullCollider();
-                    break;
+                    case VoxelColliderMode.ConvexHull:
+                        RebuildHullCollider();
+                        break;
+                }
             }
 
             var end = stopwatch.Elapsed.TotalMilliseconds;
