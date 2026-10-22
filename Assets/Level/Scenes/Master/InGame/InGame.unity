@@ -526,6 +526,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 72798b7258bcdd8458b6de391eb3fe2d, type: 3}
+--- !u!114 &417558247 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 67864704484771769, guid: 72798b7258bcdd8458b6de391eb3fe2d, type: 3}
+  m_PrefabInstance: {fileID: 417558246}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 219fb6de56f6dde47b275ff17d0bac9b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.PlayerArmAdapter
 --- !u!4 &417558248 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 314992998320459568, guid: 72798b7258bcdd8458b6de391eb3fe2d, type: 3}
@@ -1072,7 +1083,7 @@ MonoBehaviour:
   _voxelDestructionAdapter: {fileID: 1734900002}
   _fragmentThrowAdapter: {fileID: 1258148392}
   _voxelMoundAdapter: {fileID: 1734900004}
-  _armAdapter: {fileID: 0}
+  _armAdapter: {fileID: 417558247}
   _bombThrowAdapter: {fileID: 1258148394}
   _flightAdapter: {fileID: 0}
   _skyBeamAdapter: {fileID: 810375396}

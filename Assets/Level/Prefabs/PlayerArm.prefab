@@ -88,6 +88,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 74411301771840712, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
       insertIndex: -1
       addedObject: {fileID: 3177372419206937181}
+    - targetCorrespondingSourceObject: {fileID: 74411301771840712, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 67864704484771769}
   m_SourcePrefab: {fileID: 100100000, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
 --- !u!1 &8759924003755759229 stripped
 GameObject:
@@ -106,7 +109,7 @@ Animator:
   m_Avatar: {fileID: 0}
   m_Controller: {fileID: 9100000, guid: f0b6101639e22a348800ac597fa1c783, type: 2}
   m_CullingMode: 0
-  m_UpdateMode: 0
+  m_UpdateMode: 2
   m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
@@ -116,3 +119,16 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &67864704484771769
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8759924003755759229}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 219fb6de56f6dde47b275ff17d0bac9b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.PlayerArmAdapter
+  _animator: {fileID: 3177372419206937181}
