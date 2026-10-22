@@ -68,6 +68,12 @@ namespace Kizami.EngineAdapter
         /// <summary> 円の空間を作っているか </summary>
         public bool IsOpen { get; private set; }
 
+        /// <summary> 円の中心（ワールド座標）。Open で作った最後の中心 </summary>
+        public Vector3 Center => _center;
+
+        /// <summary> 円の半径（m） </summary>
+        public float Radius => _radius;
+
         /// <summary>
         /// 閉じ込める相手を target にする。ボスとプレイヤーが別のシーンにあるときに、初期化で渡す。Initialize より前に呼ぶ。
         /// </summary>

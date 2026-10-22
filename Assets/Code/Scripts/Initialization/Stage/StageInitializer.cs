@@ -20,6 +20,7 @@ namespace Kizami.Initialization
     /// <summary>
     /// インゲームの流れ（StageFlowService / StageFlowState）と、ステージの案内（StageGuideService / StageGuideState）、破壊対象・制限時間・HUD・案内・ポーズ・リザルトの Adapter、ステージシーンにある台本（StageGuideScript）と開始位置の目印（PlayerStartPoint）を繋いで、プレイを始める配線役。インゲームのシーンへ置く。
     /// 倒れる塔があるステージでは、塔を渡りきったらクリアにする（TowerCrossingAdapter）。
+    /// ボス戦のステージでは、ボスに付いた BossGuideScript に案内の文を出す関数を渡す。
     /// ステージシーンに目標を選ぶ物（TargetSelectorBase）があれば、最も近い目標の位置を画面に出す（TargetIndicatorAdapter）。
     /// Brilliant Skill の判定（BrilliantSkillService）に、敵を倒した通知、ボクセルを壊した体積、建物の倒壊を繋ぎ、成立したら追加スコアを足す。
     /// 失敗条件の判定と、案内のログにプレイヤーの State と出来事の通知を使う為、PlayerInitializer より後に初期化する。
@@ -106,6 +107,14 @@ namespace Kizami.Initialization
             {
                 guideScript.Initialize(blackBoard, _guideService.SetObjective, _guideService.SetSubObjective,
                     _guideService.SetDialogue, _guideService.SetHint, _flowService.Clear);
+            }
+
+            var bossGuideScript = FindFirstObjectByType<BossGuideScript>();
+            if (bossGuideScript != null &&
+                blackBoard.TryGetSceneState<EnemyBoard, IBossBattleState>(out var bossState, this))
+            {
+                bossGuideScript.Initialize(bossState, _guideService.SetObjective, _guideService.SetSubObjective,
+                    _guideService.SetDialogue, _guideService.SetHint);
             }
 
             ConnectTowerCrossing();

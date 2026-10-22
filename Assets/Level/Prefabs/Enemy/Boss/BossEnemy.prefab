@@ -14877,7 +14877,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.BossShockwaves
   _target: {fileID: 0}
-  _ringMaterial: {fileID: 2100000, guid: f1ee0f09a79d09a49809cb68c0313769, type: 2}
+  _ringMaterial: {fileID: 2100000, guid: cd7a27d0094f4e09bc2f35cc34a850ed, type: 2}
   _capacity: 4
   _cooldown: 3
   _speed: 12
@@ -14903,7 +14903,7 @@ MonoBehaviour:
   _core: {fileID: 4173880799502704776}
   _coreExposeOffset: {x: 0, y: -3, z: 0}
   _coreMoveTime: 1
-  _beamMaterial: {fileID: 2100000, guid: f1ee0f09a79d09a49809cb68c0313769, type: 2}
+  _beamMaterial: {fileID: 2100000, guid: cd7a27d0094f4e09bc2f35cc34a850ed, type: 2}
   _groundLayers:
     serializedVersion: 2
     m_Bits: 33281

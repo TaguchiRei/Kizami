@@ -71,6 +71,10 @@ namespace Kizami.EngineAdapter
         private Color _telegraphGlowColor = new(2f, 0.35f, 0.1f, 1f);
 
         [SerializeField, Min(0f)]
+        [Tooltip("発射口と先端の光、火花の強さにかける倍率。眩しいときに下げる")]
+        private float _glowScale = 1f;
+
+        [SerializeField, Min(0f)]
         [Tooltip("発射口の光の大きさ（m）。予兆の間は、この大きさまで育つ")]
         private float _muzzleSize = 24f;
 
@@ -296,8 +300,8 @@ namespace Kizami.EngineAdapter
             if (_camera != null) glowTransform.rotation = Quaternion.LookRotation(position - _camera.position);
 
             _glowProperties.SetColor(_tintId, color);
-            _glowProperties.SetFloat(_intensityId, intensity);
-            _glowProperties.SetFloat(_ringIntensityId, ringIntensity);
+            _glowProperties.SetFloat(_intensityId, intensity * _glowScale);
+            _glowProperties.SetFloat(_ringIntensityId, ringIntensity * _glowScale);
             glow.SetPropertyBlock(_glowProperties);
             glow.gameObject.SetActive(true);
         }
