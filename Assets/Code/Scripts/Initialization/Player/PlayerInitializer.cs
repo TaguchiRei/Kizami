@@ -105,7 +105,6 @@ namespace Kizami.Initialization
             _fragmentOrbAdapter.Initialize(_chargeService.AddFragments);
             _enemyEnergyAdapter.Initialize(_chargeService.AddCollapsedEnemies);
             _meleeCutAdapter.Initialize(DistributeCutResults);
-            _meleeCutAdapter.AddOnHit(OnMeleeHit);
 
             // F は、飛び移れるときは飛び移り、そうでなければスローモードになる為、FlightService を先に生成して渡す
             _flightService = new FlightService(blackBoard, () => _movementService.CanRush, Fly, sceneId);
@@ -231,14 +230,6 @@ namespace Kizami.Initialization
         {
             _enemySpawnAdapter.ReceiveCutResults(results, plane);
             _fragmentOrbAdapter.ReceiveCutResults(results);
-        }
-
-        /// <summary>
-        /// 近接切断が当たったときに、ヒットストップをかける。
-        /// </summary>
-        private void OnMeleeHit()
-        {
-            _timeScaleController?.RequestHitStop(_parameters.HitStopDuration, _parameters.HitStopTimeScale);
         }
 
         private void Awake()

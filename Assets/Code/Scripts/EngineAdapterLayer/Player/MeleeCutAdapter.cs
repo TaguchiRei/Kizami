@@ -54,9 +54,6 @@ namespace Kizami.EngineAdapter
         /// <summary> 切断の結果と、振ったときの切断面（ワールド座標）を渡す先 </summary>
         private Action<MultiCutResult[], Plane> _onCut;
 
-        /// <summary> 振りが何かに当たったときに呼ぶ処理 </summary>
-        private Action _onHit;
-
         /// <summary> 切断を実行中か。実行中の振りは無視する </summary>
         private bool _isCutting;
 
@@ -107,15 +104,6 @@ namespace Kizami.EngineAdapter
             _onCut += onCut;
         }
 
-        /// <summary>
-        /// 振りが切断の対象、装甲のパネル、切り分けるピース、体力制の破壊対象のいずれかに当たったときに、1 振りにつき 1 回呼ぶ処理を足す。
-        /// </summary>
-        /// <param name="onHit">当たったときに呼ぶ処理</param>
-        public void AddOnHit(Action onHit)
-        {
-            _onHit += onHit;
-        }
-
         /// <param name="onCut">切断が終わったときに、切断の結果と切断面を渡す関数。切断面の法線は表のかけらの側を向く</param>
         public void Initialize(Action<MultiCutResult[], Plane> onCut)
         {
@@ -162,8 +150,6 @@ namespace Kizami.EngineAdapter
             var slicesVoxels = (damageType & DamageType.Destroy) != 0;
             CollectTargets(origin, forward, normal, bladeRotation, rangeScale, slicesVoxels);
 
-            var hasHit = _targets.Count > 0 || _armorPanels.Count > 0 || _pieces.Count > 0 || _hitHealthTarget != null;
-
             foreach (var armorPanel in _armorPanels)
             {
                 armorPanel.ApplyDamage(damageType);
@@ -181,8 +167,6 @@ namespace Kizami.EngineAdapter
 
             // 体力が尽きる一撃では切り分けないよう、切り分けのあとに報告する
             if (_hitHealthTarget != null) _hitHealthTarget.ReportMeleeHit();
-
-            if (hasHit) _onHit?.Invoke();
 
             if (_targets.Count == 0) return;
 
