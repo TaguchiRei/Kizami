@@ -157,3 +157,6 @@ MonoBehaviour:
   _fullColor: {r: 0.4, g: 0.75, b: 1, a: 0.25}
   _damagedColor: {r: 1, g: 0.35, b: 0.15, a: 0.35}
   _renderer: {fileID: 2658471192808913348}
+  _markerPrefab: {fileID: 5231549238397570732, guid: 8aa30e30b7023a546b7b2b737f436af6, type: 3}
+  _markerLatitude: 45
+  _markerRadius: 0.5

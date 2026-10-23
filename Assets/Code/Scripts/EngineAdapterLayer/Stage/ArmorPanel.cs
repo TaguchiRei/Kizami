@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Kizami.BlackBoard;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
@@ -6,7 +7,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 装甲の1枚のパネル。攻撃タイプと破壊タイプの攻撃が1回当たるごとに耐久値が1減り、0になるか粉砕タイプが当たると壊れる。
-    /// 壊れたパネルは非アクティブにする。残りの耐久値の割合で色を変える。
+    /// 壊れたパネルは非アクティブにする。残りの耐久値の割合で色を変え、目印のプレハブがあれば、残りの耐久値の数だけ目印を出す。
     /// </summary>
     /// <remarks>
     /// 奥への遮断は、パネルのコライダーが攻撃のレイを止めることで判定する。
@@ -14,6 +15,8 @@ namespace Kizami.EngineAdapter
     public sealed class ArmorPanel : MonoBehaviour
     {
         private static readonly int _baseColorId = Shader.PropertyToID("_BaseColor");
+
+        private readonly List<GameObject> _markers = new();
 
         [SerializeField, Min(1)]
         [Tooltip("耐久値の最大。壊れるまでに耐える、攻撃タイプと破壊タイプの攻撃が当たった回数")]
@@ -30,6 +33,18 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("色を変える Renderer")]
         private Renderer _renderer;
+
+        [SerializeField]
+        [Tooltip("耐久値 1 つにつき 1 枚並べる目印のプレハブ。球のパネルのローカル空間（直径 1）で、外を向いた面を表にして置く。未設定なら目印は出さない")]
+        private GameObject _markerPrefab;
+
+        [SerializeField, Range(-90f, 90f)]
+        [Tooltip("目印を並べる緯度（度）。赤道が 0、真上が 90")]
+        private float _markerLatitude = 45f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("目印を置く球の半径（パネルのローカル空間）")]
+        private float _markerRadius = 0.5f;
 
         private MaterialPropertyBlock _propertyBlock;
 
@@ -55,6 +70,7 @@ namespace Kizami.EngineAdapter
             if ((damageType & (DamageType.Shatter | DamageType.Attack | DamageType.Destroy)) != 0)
             {
                 SoundPlayer.Play(SoundEffectKind.ArmorCut, transform.position);
+                HitChromaticAberration.Play();
             }
 
             if ((damageType & DamageType.Shatter) != 0)
@@ -75,6 +91,7 @@ namespace Kizami.EngineAdapter
             else
             {
                 UpdateColor();
+                UpdateMarkers();
             }
         }
 
@@ -86,6 +103,7 @@ namespace Kizami.EngineAdapter
         {
             Durability = Mathf.Clamp(durability, 1, _maxDurability);
             UpdateColor();
+            UpdateMarkers();
         }
 
         private void Awake()
@@ -98,12 +116,45 @@ namespace Kizami.EngineAdapter
                 UsefulLogger.LogWarning("Renderer が設定されていない為、耐久値で色が変わりません。", this);
             }
 
+            CreateMarkers();
             UpdateColor();
+            UpdateMarkers();
         }
 
         private void Break()
         {
             gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// 耐久値の最大と同じ数の目印を、緯度 _markerLatitude の輪に等間隔で並べる。外向きの面を表にし、角度の小さい順に並ぶ。
+        /// </summary>
+        private void CreateMarkers()
+        {
+            if (_markerPrefab == null) return;
+
+            var latitude = _markerLatitude * Mathf.Deg2Rad;
+            for (var i = 0; i < _maxDurability; i++)
+            {
+                var angle = Mathf.PI * 2f * i / _maxDurability;
+                var outward = new Vector3(Mathf.Cos(latitude) * Mathf.Cos(angle), Mathf.Sin(latitude),
+                    Mathf.Cos(latitude) * Mathf.Sin(angle));
+                var marker = Instantiate(_markerPrefab, transform);
+                // Unity の Quad は -Z 側が表なので、外向きの逆へ向ける
+                marker.transform.SetLocalPositionAndRotation(outward * _markerRadius, Quaternion.LookRotation(-outward));
+                _markers.Add(marker);
+            }
+        }
+
+        /// <summary>
+        /// 残りの耐久値の数だけ目印を出し、残りは隠す。減るときは番号の大きい目印から消える。
+        /// </summary>
+        private void UpdateMarkers()
+        {
+            for (var i = 0; i < _markers.Count; i++)
+            {
+                _markers[i].SetActive(i < Durability);
+            }
         }
 
         private void UpdateColor()

@@ -307,6 +307,71 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1539543159}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &113389634
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 113389637}
+  - component: {fileID: 113389636}
+  - component: {fileID: 113389635}
+  m_Layer: 0
+  m_Name: HitChromaticAberration
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &113389635
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 113389634}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 28778762e87036447bd54b2fc757427d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.HitChromaticAberration
+  _volume: {fileID: 113389636}
+  _peakWeight: 1
+  _duration: 0.15
+--- !u!114 &113389636
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 113389634}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.Volume
+  m_IsGlobal: 1
+  priority: 10
+  blendDistance: 0
+  weight: 0
+  sharedProfile: {fileID: 11400000, guid: 14935725d10adb6448f5fdd298657575, type: 2}
+--- !u!4 &113389637
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 113389634}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &219009641
 GameObject:
   m_ObjectHideFlags: 0
@@ -1631,18 +1696,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d95ebe7a710b3a7489f96efb18a35a4d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.FragmentThrowAdapter
-  _fragmentPool: {fileID: 608286024}
-  _fragmentLayers:
-    serializedVersion: 2
-    m_Bits: 64
   _aimLayers:
     serializedVersion: 2
     m_Bits: 4294966963
   _aimDistance: 100
-  _holdOffset: {x: 0.4, y: -0.3, z: 1.2}
-  _loadedOffset: {x: 0.7, y: -0.6, z: 1.2}
   _flyingLifetime: 3
-  _explosionRadius: 2
   _wordGrabDistance: 80
   _wordGrabAimRadius: 1
   _wordHoldOffset: {x: 0.5, y: -0.3, z: 1.6}
@@ -1714,6 +1772,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StandardPlayerCameraAdapter
   _panTilt: {fileID: 1307013808}
   _degreesPerInput: 0.1
+  _cinemachineCamera: {fileID: 0}
+  _wallRunRollAngle: 5
+  _wallRunRollDuration: 0.15
 --- !u!114 &1307013808
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1970,6 +2031,7 @@ MonoBehaviour:
   _timerAdapter: {fileID: 219009642}
   _guideLogMaxCount: 8
   _guideLogLifetime: 5
+  _isBrilliantSkillEnabled: 0
   _brilliantSkillSettings:
     _rampageDefeatCount: 10
     _rampageInterval: 3
@@ -2997,3 +3059,4 @@ SceneRoots:
   - {fileID: 219009643}
   - {fileID: 1964918683}
   - {fileID: 890729162}
+  - {fileID: 113389637}
