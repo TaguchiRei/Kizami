@@ -13,7 +13,7 @@ namespace Kizami.Application
     /// 近接切断の入力を解釈して MeleeCutState へ書き込み、振ったことを切断の実行役へ伝えるユースケース。
     /// 速さアップの強化は攻撃間隔に、範囲アップの強化は振ったときの範囲に倍率を掛ける。
     /// 通常攻撃とスキルは攻撃間隔を共有し、どちらかを出してから攻撃間隔が経つまで、どちらも出せない。
-    /// 切断は攻撃タイプで、ボクセル破壊の強化中は破壊タイプを、シルブレの強化中は粉砕タイプを足す。ボスが止まったあとは、強化がなくても常に破壊タイプを足す。
+    /// 切断は攻撃タイプで、ボクセル破壊の強化中は破壊タイプを、装甲破壊の強化中は粉砕タイプを足す。ボスが止まったあとは、強化がなくても常に破壊タイプを足す。
     /// </summary>
     public sealed class MeleeCutService : IDisposable
     {
@@ -87,7 +87,7 @@ namespace Kizami.Application
             if (_isActionBlocked != null && _isActionBlocked()) return false;
 
 
-            _enhanceService.IsActive<SpeedEnhanceEffect>( out var intervalScale);
+            _enhanceService.IsActive(EnhanceKind.Speed,  out var intervalScale);
             return Time.unscaledTimeAsDouble - _lastActionTime >= _parameters.MeleeAttackInterval * intervalScale;
         }
 
@@ -121,13 +121,13 @@ namespace Kizami.Application
             if (!CanAct()) return;
             if (_tryUseCut != null && !_tryUseCut()) return;
 
-            _enhanceService.TryUse<SpeedEnhanceEffect>( out _);
-            _enhanceService.TryUse<RangeEnhanceEffect>( out var rangeScale);
+            _enhanceService.TryUse(EnhanceKind.Speed,  out _);
+            _enhanceService.TryUse(EnhanceKind.Range,  out var rangeScale);
 
             var damageType = DamageType.Attack;
-            var isDestroyEnhanced = _enhanceService.TryUse<DestroyEnhanceEffect>( out _);
+            var isDestroyEnhanced = _enhanceService.TryUse(EnhanceKind.Destroy,  out _);
             if (isDestroyEnhanced || (_bossBattleState != null && _bossBattleState.IsStopped)) damageType |= DamageType.Destroy;
-            if (_enhanceService.TryUse<ArmorBreakEnhanceEffect>( out _)) damageType |= DamageType.Shatter;
+            if (_enhanceService.TryUse(EnhanceKind.ArmorBreak,  out _)) damageType |= DamageType.Shatter;
 
             MarkActed();
             _onSwing?.Invoke(_state.Angle, rangeScale, damageType);

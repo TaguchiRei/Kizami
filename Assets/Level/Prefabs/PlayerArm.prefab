@@ -92,6 +92,16 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 67864704484771769}
   m_SourcePrefab: {fileID: 100100000, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+--- !u!1 &4604787467315541728 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5151732159109033045, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+  m_PrefabInstance: {fileID: 8690219773812087477}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &6141866444778373349 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3289200214238108240, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+  m_PrefabInstance: {fileID: 8690219773812087477}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &8759924003755759229 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 74411301771840712, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
@@ -131,4 +141,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 219fb6de56f6dde47b275ff17d0bac9b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.PlayerArmAdapter
-  _animator: {fileID: 3177372419206937181}
+  _armAnimator: {fileID: 0}
+  _swordAnimator: {fileID: 0}
+  _destroyEffect: {fileID: 4604787467315541728}
+  _armorBreakEffect: {fileID: 6141866444778373349}

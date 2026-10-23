@@ -156,6 +156,7 @@ namespace Kizami.Initialization
             }
 
             _meleeCutPreviewAdapter.Initialize(blackBoard);
+            if (_armAdapter != null) _armAdapter.Initialize(blackBoard);
 
             base.Initialize(blackBoard);
         }

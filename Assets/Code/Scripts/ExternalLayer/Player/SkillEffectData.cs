@@ -255,7 +255,7 @@ namespace Kizami.External
     }
 
     /// <summary>
-    /// 剣の切断にシルブレ（装甲を一撃で壊す属性）を足す強化。
+    /// 剣の切断に装甲を一撃で壊す属性を足す強化。
     /// </summary>
     [Serializable]
     public sealed class ArmorBreakEnhanceEffect : EnhanceEffect
