@@ -120,22 +120,22 @@ namespace Kizami.Application
 
             if (_skyBeamService.IsActive)
             {
-                if (skill.Effect == SkillEffect.SkyBeam) _skyBeamService.Stop();
+                if (skill.Effect is SkyBeamEffect) _skyBeamService.Stop();
                 return;
             }
 
-            if (skill.Effect == SkillEffect.SkyBeam && !_skyBeamService.CanBegin) return;
+            if (skill.Effect is SkyBeamEffect && !_skyBeamService.CanBegin) return;
             if (_canAct != null && !_canAct()) return;
-            if (skill.Effect == SkillEffect.Heal && !CanHeal()) return;
-            if (skill.Effect == SkillEffect.Rush && _canRush != null && !_canRush()) return;
-            if (skill.Effect == SkillEffect.Mound && (_onMoundBegin == null || !_onMoundBegin(skill.Radius))) return;
+            if (skill.Effect is HealEffect && !CanHeal()) return;
+            if (skill.Effect is RushEffect && _canRush != null && !_canRush()) return;
+            if (skill.Effect is MoundEffect mound && (_onMoundBegin == null || !_onMoundBegin(mound.Radius))) return;
             if (!_chargeService.TryConsume(skill.Cost))
             {
-                if (skill.Effect == SkillEffect.Mound) _onMoundEnd?.Invoke();
+                if (skill.Effect is MoundEffect) _onMoundEnd?.Invoke();
                 return;
             }
 
-            if (skill.Effect == SkillEffect.Mound) _moundSlot = slot;
+            if (skill.Effect is MoundEffect) _moundSlot = slot;
 
             _onActed?.Invoke();
 
@@ -143,34 +143,31 @@ namespace Kizami.Application
             _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.ChargeSpent, amount: skill.Cost));
             _onSkillUsed?.Invoke(skill);
 
-            if (skill.IsEnhancement)
-            {
-                _enhanceService.Begin(skill);
-                return;
-            }
-
             switch (skill.Effect)
             {
-                case SkillEffect.Beam:
-                    _onBeam?.Invoke(skill.Length, skill.Radius);
+                case EnhanceEffect enhance:
+                    _enhanceService.Begin(enhance);
                     break;
-                case SkillEffect.Explosion:
-                    _onExplosion?.Invoke(skill.Radius);
+                case BeamEffect beam:
+                    _onBeam?.Invoke(beam.Length, beam.Radius);
                     break;
-                case SkillEffect.Heal:
-                    _onHeal?.Invoke(skill.HealAmount);
+                case ExplosionEffect explosion:
+                    _onExplosion?.Invoke(explosion.Radius);
                     break;
-                case SkillEffect.Bomb:
-                    _onBomb?.Invoke(skill.Distance, skill.Radius, skill.ForwardOffset);
+                case HealEffect heal:
+                    _onHeal?.Invoke(heal.HealAmount);
                     break;
-                case SkillEffect.Sweep:
-                    _onSweep?.Invoke(skill.Width, skill.Depth, skill.Falloff, skill.ForwardOffset);
+                case BombEffect bomb:
+                    _onBomb?.Invoke(bomb.Distance, bomb.Radius, bomb.ForwardOffset);
                     break;
-                case SkillEffect.Rush:
-                    _onRush?.Invoke(skill.Distance, skill.Duration, skill.Radius, skill.Falloff, skill.ForwardOffset);
+                case SweepEffect sweep:
+                    _onSweep?.Invoke(sweep.Width, sweep.Depth, sweep.Falloff, sweep.ForwardOffset);
                     break;
-                case SkillEffect.SkyBeam:
-                    _skyBeamService.Begin(skill);
+                case RushEffect rush:
+                    _onRush?.Invoke(rush.Distance, rush.Duration, rush.Radius, rush.Falloff, rush.ForwardOffset);
+                    break;
+                case SkyBeamEffect skyBeam:
+                    _skyBeamService.Begin(skyBeam);
                     break;
             }
         }

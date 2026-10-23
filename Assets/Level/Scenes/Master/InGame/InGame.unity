@@ -823,6 +823,7 @@ MonoBehaviour:
   _glowMaterial: {fileID: 2100000, guid: f665de0a18fffa2409bc87f9767ad42e, type: 2}
   _glowColor: {r: 0.12, g: 0.3, b: 0.27, a: 1}
   _telegraphGlowColor: {r: 2, g: 0.35, b: 0.1, a: 1}
+  _glowScale: 1
   _muzzleSize: 6
   _tipSize: 60
   _shakeForce: 0.5
@@ -1661,8 +1662,8 @@ GameObject:
   - component: {fileID: 1307013810}
   - component: {fileID: 1307013809}
   - component: {fileID: 1307013808}
-  - component: {fileID: 1307013807}
   - component: {fileID: 1307013811}
+  - component: {fileID: 1307013807}
   m_Layer: 0
   m_Name: CameraPivot
   m_TagString: Untagged
@@ -2230,6 +2231,7 @@ MonoBehaviour:
   _glowMaterial: {fileID: 2100000, guid: f665de0a18fffa2409bc87f9767ad42e, type: 2}
   _glowColor: {r: 0.4, g: 1, b: 0.9, a: 1}
   _telegraphGlowColor: {r: 2, g: 0.35, b: 0.1, a: 1}
+  _glowScale: 1
   _muzzleSize: 24
   _tipSize: 60
   _shakeForce: 0.5
@@ -2678,7 +2680,7 @@ MonoBehaviour:
   _glassMargin: 1.2
   _targetLayers:
     serializedVersion: 2
-    m_Bits: 4294966835
+    m_Bits: 65075
   _armorLayers:
     serializedVersion: 2
     m_Bits: 3072

@@ -23,7 +23,6 @@ namespace Kizami.Initialization
 
         private readonly PlayerHealthService _healthService = new();
         private readonly PlayerMovementService _movementService = new();
-        private readonly PlayerEnhanceService _enhanceService = new();
         private readonly PlayerActionEvents _actionEvents = new();
 
         [SerializeField]
@@ -61,6 +60,7 @@ namespace Kizami.Initialization
         [Tooltip("アウトゲームを通さずに始めたとき（インゲームのシーンから直接再生したときなど）に、スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
         private SkillData[] _equippedSkills = new SkillData[SkillService.SLOT_COUNT];
 
+        private PlayerEnhanceService _enhanceService;
         private PlayerLookService _lookService;
         private MeleeCutService _meleeCutService;
         private ChargeService _chargeService;
@@ -99,6 +99,7 @@ namespace Kizami.Initialization
             // SkillService が PlayerHealthState を取得する為、SkillService の生成より前に初期化する
             _healthService.Initialize(blackBoard, _parameters, sceneId);
 
+            _enhanceService = new PlayerEnhanceService(blackBoard, sceneId);
             _lookService = new PlayerLookService(blackBoard, sceneId);
             _chargeService = new ChargeService(blackBoard, _parameters, sceneId);
             if (_progressService != null && _progressService.TryGetSelectedStage(out var selectedStage))

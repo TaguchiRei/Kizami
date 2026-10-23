@@ -14,11 +14,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _school: 5
   _displayName: "羽天轟号"
-  _effect: 12
+  _effect:
+    rid: 7000000000000000007
   _cost: 10
-  _altitude: 100
-  _riseDuration: 0.7
-  _radius: 16
-  _sustainCost: 15
-  _sustainInterval: 0.5
-  _healthDamagePerSecond: 12
+  references:
+    version: 2
+    RefIds:
+    - rid: 7000000000000000007
+      type: {class: SkyBeamEffect, ns: Kizami.External, asm: Kizami.External.Runtime}
+      data:
+        _altitude: 100
+        _riseDuration: 0.7
+        _radius: 16
+        _sustainCost: 15
+        _sustainInterval: 0.5
+        _healthDamagePerSecond: 12

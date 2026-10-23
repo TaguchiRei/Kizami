@@ -146,10 +146,10 @@ namespace Kizami.Application
         {
             if (tryLaunch == null) return;
 
-            var isExplosive = _enhanceService.IsActive(SkillEffect.ExplosiveFragment, out _);
+            var isExplosive = _enhanceService.IsActive<ExplosiveFragmentEnhanceEffect>( out _);
             if (tryLaunch(speed, isExplosive) && isExplosive)
             {
-                _enhanceService.TryUse(SkillEffect.ExplosiveFragment, out _);
+                _enhanceService.TryUse<ExplosiveFragmentEnhanceEffect>( out _);
             }
         }
 

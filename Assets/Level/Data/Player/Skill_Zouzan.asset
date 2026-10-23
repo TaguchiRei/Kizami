@@ -14,13 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "造山"
   _school: 3
-  _effect: 8
+  _effect:
+    rid: 7000000000000000008
   _description: "\u9577\u62BC\u3057\u306E\u9593\u3001\u8996\u7DDA\u306E\u5148\u306B\u30DC\u30AF\u30BB\u30EB\u3092\u76DB\u308B\u3002\u76DB\u3063\u305F\u7269\u306F\u901A\u5E38\u653B\u6483\u3067\u5207\u308C\u308B\u3002\u76DB\u3063\u3066\u3044\u308B\u9593\u306F\u653B\u6483\u3068\u307B\u304B\u306E\u30B9\u30AD\u30EB\u304C\u51FA\u305B\u306A\u3044\u3002"
   _cost: 10
-  _radius: 1.2
-  _length: 0
-  _healAmount: 0
-  _enhanceLimit: 1
-  _enhanceDuration: 10
-  _enhanceCount: 10
-  _enhanceScale: 1.5
+  references:
+    version: 2
+    RefIds:
+    - rid: 7000000000000000008
+      type: {class: MoundEffect, ns: Kizami.External, asm: Kizami.External.Runtime}
+      data:
+        _radius: 1.2

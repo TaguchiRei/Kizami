@@ -46,16 +46,16 @@ namespace Kizami.Application
         /// <summary>
         /// 使い始める。使い始められないときは何もしない。
         /// </summary>
-        public void Begin(SkillData skill)
+        public void Begin(SkyBeamEffect effect)
         {
             if (!CanBegin) return;
 
             IsActive = true;
             _isStopping = false;
-            _sustainCost = skill.SustainCost;
+            _sustainCost = effect.SustainCost;
             _movementService.SetSkyBeamActive(true);
-            _onBegin?.Invoke(skill.Altitude, skill.RiseDuration, skill.SustainInterval, skill.Radius,
-                skill.HealthDamagePerSecond);
+            _onBegin?.Invoke(effect.Altitude, effect.RiseDuration, effect.SustainInterval, effect.Radius,
+                effect.HealthDamagePerSecond);
         }
 
         /// <summary>

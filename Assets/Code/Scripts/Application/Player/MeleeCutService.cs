@@ -87,7 +87,7 @@ namespace Kizami.Application
             if (_isActionBlocked != null && _isActionBlocked()) return false;
 
 
-            _enhanceService.IsActive(SkillEffect.EnhanceSpeed, out var intervalScale);
+            _enhanceService.IsActive<SpeedEnhanceEffect>( out var intervalScale);
             return Time.unscaledTimeAsDouble - _lastActionTime >= _parameters.MeleeAttackInterval * intervalScale;
         }
 
@@ -121,13 +121,13 @@ namespace Kizami.Application
             if (!CanAct()) return;
             if (_tryUseCut != null && !_tryUseCut()) return;
 
-            _enhanceService.TryUse(SkillEffect.EnhanceSpeed, out _);
-            _enhanceService.TryUse(SkillEffect.EnhanceRange, out var rangeScale);
+            _enhanceService.TryUse<SpeedEnhanceEffect>( out _);
+            _enhanceService.TryUse<RangeEnhanceEffect>( out var rangeScale);
 
             var damageType = DamageType.Attack;
-            var isDestroyEnhanced = _enhanceService.TryUse(SkillEffect.EnhanceDestroy, out _);
+            var isDestroyEnhanced = _enhanceService.TryUse<DestroyEnhanceEffect>( out _);
             if (isDestroyEnhanced || (_bossBattleState != null && _bossBattleState.IsStopped)) damageType |= DamageType.Destroy;
-            if (_enhanceService.TryUse(SkillEffect.EnhanceArmorBreak, out _)) damageType |= DamageType.Shatter;
+            if (_enhanceService.TryUse<ArmorBreakEnhanceEffect>( out _)) damageType |= DamageType.Shatter;
 
             MarkActed();
             _onSwing?.Invoke(_state.Angle, rangeScale, damageType);

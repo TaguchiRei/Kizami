@@ -51,6 +51,9 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> BeginStrikeBatch の範囲で、削る編集のジョブを集める先 </summary>
         private static readonly VoxelWriteBatch _strikeBatch = new();
 
+        /// <summary> QueueStrike で積んだ攻撃があるピース。BeginStrikeBatch で範囲を開くときに、まとめて当てる </summary>
+        private static readonly List<VoxelPiece> _piecesWithQueuedStrikes = new();
+
         /// <summary> 開いている BeginStrikeBatch の範囲の数。入れ子にした範囲は、一番外を閉じるときにまとめて待つ </summary>
         private static int _strikeBatchDepth;
 
@@ -337,7 +340,28 @@ namespace Kizami.EngineAdapter.Voxel
         public static StrikeBatchScope BeginStrikeBatch()
         {
             _strikeBatchDepth++;
+
+            // 積んである削りも、当てられるものはこの範囲でまとめて当てる
+            if (_strikeBatchDepth == 1) ApplyReadyQueuedStrikes();
             return new StrikeBatchScope();
+        }
+
+        /// <summary>
+        /// QueueStrike で積んだ攻撃のうち、ボリュームを読むジョブが終わったピースの分をすべて当てる。
+        /// </summary>
+        private static void ApplyReadyQueuedStrikes()
+        {
+            for (var i = _piecesWithQueuedStrikes.Count - 1; i >= 0; i--)
+            {
+                var piece = _piecesWithQueuedStrikes[i];
+                if (piece == null || piece._volume == null)
+                {
+                    _piecesWithQueuedStrikes.RemoveAt(i);
+                    continue;
+                }
+
+                if (!piece._volume.HasRunningReaders) piece.ApplyQueuedStrikes();
+            }
         }
 
         /// <summary>
@@ -548,7 +572,7 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary>
         /// ApplyStrike と同じ攻撃を、待たずに当てられるときだけ今当てる。メッシュ化や分離判定のジョブがボリュームを読んでいる間は積んでおき、
-        /// ジョブが終わったフレームの LateUpdate でまとめて当てる。積んだまま MAX_QUEUED_STRIKE_FRAMES フレーム過ぎたら、待ってでも当てる。
+        /// ジョブが終わった後に BeginStrikeBatch で範囲を開くとき、まとめて当てる。積んだまま MAX_QUEUED_STRIKE_FRAMES フレーム過ぎたら、LateUpdate で待ってでも当てる。
         /// 壊した量を使わない、続けて当てる攻撃（敵のビーム）に使う。
         /// </summary>
         /// <param name="reach">space で表した、融点0の素材まで届く範囲</param>
@@ -566,7 +590,12 @@ namespace Kizami.EngineAdapter.Voxel
             // 当てる時に動いていても同じ所を削るよう、今の姿勢でローカル空間へ移して積む
             var localReach = space == Space.World ? reach.Transformed(transform.worldToLocalMatrix) : reach;
             var localFalloff = space == Space.World ? falloff / WorldToLocalLength(1f) : falloff;
-            if (_queuedStrikes.Count == 0) _firstQueuedStrikeFrame = Time.frameCount;
+            if (_queuedStrikes.Count == 0)
+            {
+                _firstQueuedStrikeFrame = Time.frameCount;
+                _piecesWithQueuedStrikes.Add(this);
+            }
+
             _queuedStrikes.Add(() => ApplyStrike(localReach, localFalloff, Space.Self));
         }
 
@@ -943,8 +972,8 @@ namespace Kizami.EngineAdapter.Voxel
 
             if (_isRemeshInFlight && _remeshHandle.IsCompleted) CompleteRemesh();
 
-            if (_queuedStrikes.Count > 0 &&
-                (!_volume.HasRunningReaders || Time.frameCount - _firstQueuedStrikeFrame >= MAX_QUEUED_STRIKE_FRAMES))
+            // 積んだ削りはビームの更新の BeginStrikeBatch でまとめて当てる。ここでは長く積んだままの分だけを、待ってでも当てる
+            if (_queuedStrikes.Count > 0 && Time.frameCount - _firstQueuedStrikeFrame >= MAX_QUEUED_STRIKE_FRAMES)
             {
                 ApplyQueuedStrikes();
             }
@@ -1026,6 +1055,7 @@ namespace Kizami.EngineAdapter.Voxel
         {
             var strikes = _queuedStrikes.ToArray();
             _queuedStrikes.Clear();
+            _piecesWithQueuedStrikes.Remove(this);
             foreach (var strike in strikes)
             {
                 strike();
@@ -1829,6 +1859,7 @@ namespace Kizami.EngineAdapter.Voxel
             DiscardRemesh();
             DiscardMeasure();
             _queuedStrikes.Clear();
+            _piecesWithQueuedStrikes.Remove(this);
 
             if (_chunks != null)
             {
