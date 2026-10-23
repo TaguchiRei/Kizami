@@ -1,5 +1,7 @@
+using Kizami.BlackBoard;
 using Unity.Cinemachine;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 #if UNITY_EDITOR
 using UnityEngine.InputSystem;
@@ -11,6 +13,7 @@ namespace Kizami.EngineAdapter
     /// PC / スマホ用の視点（上下・左右方向）反映。
     /// Cinemachine カメラの Pan 軸と Tilt 軸を直接書き換え、可動域は CinemachinePanTilt の各軸の Range（Inspector）で管理する。
     /// 体（補間を有効にした Rigidbody）は回さず、左右の向きもカメラ側で持つ。
+    /// 壁走り中は、カメラの上方向が壁から離れる側へ傾くよう、カメラのロール（Lens.Dutch）を傾ける。入るときと出るときは、実時間で滑らかに補間する。
     /// 視点入力はそのフレーム分の移動量なので、経過時間で割らずに届いたその場で回転へ加算する。
     /// Look 入力は Pointer/delta を使い、カーソルが画面外へ出るとデルタが得られないので、有効化中はカーソルを中央にロックして隠す。
     /// </summary>
@@ -23,6 +26,27 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0f)]
         [Tooltip("感度倍率 1.0 のときの、入力 1 単位あたりの回転角（度）")]
         private float _degreesPerInput = 0.1f;
+
+        [SerializeField]
+        [Tooltip("ロールをかける Cinemachine カメラ。未設定なら、Pan 軸と Tilt 軸を持つコンポーネントと同じ GameObject のものを使う")]
+        private CinemachineCamera _cinemachineCamera;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("壁走り中にカメラを傾ける角度（度）。壁から離れる側へ傾ける。0 で傾けない")]
+        private float _wallRunRollAngle = 5f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("壁走りに入るときと出るときに、傾きが目標へ届くまでの時間（秒）")]
+        private float _wallRunRollDuration = 0.15f;
+
+        private IPlayerMovementState _movementState;
+        private IPlayerContactState _contactState;
+
+        /// <summary> 今のロールの角度（度）。Lens.Dutch へ書く値 </summary>
+        private float _roll;
+
+        /// <summary> 傾ける向きの符号。壁の法線が視点の右を向くとき -1、左を向くとき 1。壁走りを終えて戻る間も、直前の向きを使う </summary>
+        private float _rollDirection = 1f;
 
 #if UNITY_EDITOR
         /// <summary> Alt キーでカーソルのロックを外している最中か </summary>
@@ -38,7 +62,15 @@ namespace Kizami.EngineAdapter
                 UsefulLogger.LogError("CinemachinePanTilt が設定されていません。", this);
             }
 
+            if (_cinemachineCamera == null && _panTilt != null) _cinemachineCamera = _panTilt.GetComponent<CinemachineCamera>();
+
             SetCursorLocked(true);
+        }
+
+        protected override void OnBlackBoardReady(IBlackBoard blackBoard)
+        {
+            blackBoard.TryGetSceneState<PlayerBoard, IPlayerMovementState>(out _movementState, this);
+            blackBoard.TryGetSceneState<PlayerBoard, IPlayerContactState>(out _contactState, this);
         }
 
         protected override void OnDestroy()
@@ -70,6 +102,36 @@ namespace Kizami.EngineAdapter
             {
                 _panTilt.TiltAxis.Value = _panTilt.TiltAxis.ClampValue(_panTilt.TiltAxis.Value - lookInput.y * _degreesPerInput);
             }
+        }
+
+        private void LateUpdate()
+        {
+            if (!Initialized || _cinemachineCamera == null || _movementState == null || _contactState == null) return;
+
+            var isWallRunning = _movementState.Mode == PlayerMoveMode.WallRunning;
+            if (isWallRunning) _rollDirection = GetRollDirection();
+
+            var target = isWallRunning ? _rollDirection * _wallRunRollAngle : 0f;
+            var maxDelta = _wallRunRollAngle / _wallRunRollDuration * Time.unscaledDeltaTime;
+            var roll = Mathf.MoveTowards(_roll, target, maxDelta);
+            if (Mathf.Approximately(roll, _roll)) return;
+
+            _roll = roll;
+            var lens = _cinemachineCamera.Lens;
+            lens.Dutch = _roll;
+            _cinemachineCamera.Lens = lens;
+        }
+
+        /// <summary>
+        /// 壁の法線（壁から離れる向き）が視点の右を向くなら -1、左を向くなら 1 を返す。カメラの上方向を法線の側へ傾けるロールの符号。
+        /// </summary>
+        private float GetRollDirection()
+        {
+            var cameraMain = Camera.main;
+            if (cameraMain == null) return _rollDirection;
+
+            var side = Vector3.Dot(_contactState.WallNormal, cameraMain.transform.right);
+            return Mathf.Approximately(side, 0f) ? _rollDirection : -Mathf.Sign(side);
         }
 
         /// <summary>

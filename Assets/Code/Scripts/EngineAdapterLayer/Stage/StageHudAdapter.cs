@@ -8,7 +8,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// インゲームの HUD（HP とチャージのゲージ、スキルの枠、破壊の進み具合、倒した敵の数、制限時間の残り、体力制の破壊対象の名前と体力のゲージ、ランチャーの装填状態、開始の文字）を出す Adapter。インゲームのシーンへ置く。
-    /// 画面は uGUI の Canvas を初期化のときに組み立てる。値は State から読み、ランチャーの装填状態だけは State がない為、FragmentThrowAdapter から読む。
+    /// 画面は uGUI の Canvas を初期化のときに組み立てる。値は State から読む。
     /// </summary>
     /// <remarks>
     /// 表示した値を覚えておき、値が変わった部分だけを書き直す。毎フレームの文字列の生成と、uGUI の作り直しを避ける為。
@@ -164,7 +164,6 @@ namespace Kizami.EngineAdapter
         private IStageFlowState _flowState;
         private ITargetHealthState _targetHealthState;
         private IFlightPromptState _flightPromptState;
-        private FragmentThrowAdapter _fragmentThrowAdapter;
 
         private RectTransform _healthFill;
         private RectTransform _chargeFill;
@@ -191,7 +190,6 @@ namespace Kizami.EngineAdapter
         private Text _targetText;
         private Text _timeText;
         private Text _defeatText;
-        private Text _launcherText;
         private Text _startText;
         private Text _flightText;
         private float _startHideTime = -1f;
@@ -210,8 +208,6 @@ namespace Kizami.EngineAdapter
         /// <summary> 表示した残りの秒数。制限時間がないときは -1 </summary>
         private int _shownSeconds = REDRAW_REQUIRED;
         private bool _shownTimeWarning;
-        /// <summary> 表示した装填状態。0が空、1が装填済み </summary>
-        private int _shownLoaded = REDRAW_REQUIRED;
         /// <summary> 枠ごとの、表示した消費量。装備していない枠は UNEQUIPPED_COST </summary>
         private int[] _shownSlotCosts;
         private bool[] _shownSlotReached;
@@ -249,8 +245,7 @@ namespace Kizami.EngineAdapter
         /// 必要な State を取得し、HUD を組み立てる。HP・チャージ・装備枠・流れの State の登録より後に呼ぶ。
         /// </summary>
         /// <param name="blackBoard">HP・チャージ・装備枠・流れの State の取得元</param>
-        /// <param name="fragmentThrowAdapter">ランチャーの装填状態の取得元</param>
-        public void Initialize(IBlackBoard blackBoard, FragmentThrowAdapter fragmentThrowAdapter)
+        public void Initialize(IBlackBoard blackBoard)
         {
             if (!blackBoard.TryGetSceneState<PlayerBoard, IPlayerHealthState>(out _healthState, this) ||
                 !blackBoard.TryGetSceneState<PlayerBoard, IChargeState>(out _chargeState, this) ||
@@ -259,7 +254,6 @@ namespace Kizami.EngineAdapter
                 !blackBoard.TryGetSceneState<StageBoard, ITargetHealthState>(out _targetHealthState, this) ||
                 !blackBoard.TryGetSceneState<PlayerBoard, IFlightPromptState>(out _flightPromptState, this)) return;
 
-            _fragmentThrowAdapter = fragmentThrowAdapter;
             BuildView();
             base.Initialize();
         }
@@ -275,7 +269,6 @@ namespace Kizami.EngineAdapter
             UpdateDefeatText();
             UpdateTargetHealth();
             UpdateTimeText();
-            UpdateLauncherText();
             UpdateStartText();
             _flightText.enabled = _flightPromptState.IsVisible;
         }
@@ -522,18 +515,6 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// ランチャーに破片が装填されているかを出す。
-        /// </summary>
-        private void UpdateLauncherText()
-        {
-            var loaded = _fragmentThrowAdapter != null && _fragmentThrowAdapter.IsLoaded ? 1 : 0;
-            if (loaded == _shownLoaded) return;
-
-            _shownLoaded = loaded;
-            _launcherText.text = loaded == 1 ? "Launcher: LOADED" : "Launcher: EMPTY";
-        }
-
-        /// <summary>
         /// プレイ中になったら開始の文字を出し、決めた時間が経ったら隠す。時間を止めても進むように実時間で数える。
         /// </summary>
         private void UpdateStartText()
@@ -601,9 +582,6 @@ namespace Kizami.EngineAdapter
             _defeatText.enabled = false;
 
             BuildTargetHealth(canvas);
-
-            _launcherText = UiBuilder.CreateText(canvas, "Launcher", LABEL_FONT_SIZE, TextAnchor.MiddleRight);
-            UiBuilder.SetAnchors(_launcherText.rectTransform, new Vector2(0.7f, 0.03f), new Vector2(0.98f, 0.09f));
 
             _startText = UiBuilder.CreateText(canvas, "Start", START_FONT_SIZE);
             UiBuilder.SetAnchors(_startText.rectTransform, new Vector2(0f, 0.55f), new Vector2(1f, 0.7f));

@@ -51,6 +51,10 @@ namespace Kizami.Initialization
         private float _guideLogLifetime = 5f;
 
         [SerializeField]
+        [Tooltip("Brilliant Skill を有効にするか。仕様が固まるまでは無効にしておく。無効のときは、判定・文字の表示・文字のつかみと投擲・文字を切る処理のどれも繋がない")]
+        private bool _isBrilliantSkillEnabled;
+
+        [SerializeField]
         [Tooltip("Brilliant Skill の判定の条件と追加スコア")]
         private BrilliantSkillSettings _brilliantSkillSettings = new();
 
@@ -90,14 +94,9 @@ namespace Kizami.Initialization
             _timerAdapter.Initialize(_flowService.Tick);
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
                 gameObject.scene.buildIndex);
-            var textAdapter = FindOrCreateBrilliantSkillTextAdapter();
-            _fragmentThrowAdapter.SetWordSource(textAdapter);
-            textAdapter.SetOnWordLanded(OnWordLanded);
-            ConnectWordCutting(textAdapter);
-            _brilliantSkillService = new BrilliantSkillService(_brilliantSkillSettings, _flowService.AddBonusScore,
-                kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)));
             _enemySpawnAdapter.SetOnDefeated(OnDefeated);
-            ConnectBrilliantSkillSources();
+            _voxelDestructionAdapter = FindFirstObjectByType<VoxelDestructionAdapter>();
+            if (_isBrilliantSkillEnabled) EnableBrilliantSkill();
             if (_voxelDestructionAdapter != null) _voxelDestructionAdapter.SetMaxPower(stage.IsMaxDestructionPower);
             PlacePlayerAtStartPoint();
 
@@ -121,7 +120,7 @@ namespace Kizami.Initialization
             ConnectTargetIndicator();
 
             _resultAdapter.Initialize(blackBoard, Retry, BackToOutGame);
-            _hudAdapter.Initialize(blackBoard, _fragmentThrowAdapter);
+            _hudAdapter.Initialize(blackBoard);
             _guideAdapter.Initialize(blackBoard);
             _pauseAdapter.Initialize(blackBoard, _flowService.Resume, BackToOutGame);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -254,7 +253,7 @@ namespace Kizami.Initialization
         {
             _flowService.AddDefeats(notice.Count);
             _guideService.AddDefeats(notice.Count);
-            if (!_isResolvingWordImpact && notice.Cause != EnemyDefeatCause.Boss) _brilliantSkillService.OnDefeated(notice);
+            if (!_isResolvingWordImpact && notice.Cause != EnemyDefeatCause.Boss) _brilliantSkillService?.OnDefeated(notice);
         }
 
         /// <summary>
@@ -281,7 +280,21 @@ namespace Kizami.Initialization
         /// </summary>
         private void OnVoxelsCarved(float volume)
         {
-            if (!_isResolvingWordImpact) _brilliantSkillService.OnVoxelsDestroyed(volume);
+            if (!_isResolvingWordImpact) _brilliantSkillService?.OnVoxelsDestroyed(volume);
+        }
+
+        /// <summary>
+        /// Brilliant Skill の判定と文字の表示を作り、文字のつかみと投擲、文字を切る処理、判定の入力元を繋ぐ。
+        /// </summary>
+        private void EnableBrilliantSkill()
+        {
+            var textAdapter = FindOrCreateBrilliantSkillTextAdapter();
+            _fragmentThrowAdapter.SetWordSource(textAdapter);
+            textAdapter.SetOnWordLanded(OnWordLanded);
+            ConnectWordCutting(textAdapter);
+            _brilliantSkillService = new BrilliantSkillService(_brilliantSkillSettings, _flowService.AddBonusScore,
+                kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)));
+            ConnectBrilliantSkillSources();
         }
 
         /// <summary>
@@ -318,7 +331,6 @@ namespace Kizami.Initialization
         /// </summary>
         private void ConnectBrilliantSkillSources()
         {
-            _voxelDestructionAdapter = FindFirstObjectByType<VoxelDestructionAdapter>();
             if (_voxelDestructionAdapter == null)
             {
                 UsefulLogger.LogWarning("VoxelDestructionAdapter が見つからない為、一撃の破壊の判定と、投げた言葉の着弾によるボクセルの破壊はできません。", this);
@@ -348,7 +360,7 @@ namespace Kizami.Initialization
                 bounds.Encapsulate(pieces[i].WorldBounds);
             }
 
-            _brilliantSkillService.OnBuildingCollapsed(bounds.center, bounds.extents.magnitude);
+            _brilliantSkillService?.OnBuildingCollapsed(bounds.center, bounds.extents.magnitude);
         }
 
         /// <summary>

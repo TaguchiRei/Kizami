@@ -41,8 +41,7 @@ namespace Kizami.EngineAdapter
 
         private static readonly string[] _rebindableActionNames =
         {
-            "Move", "Attack", "Interact", "Jump", "Sprint", "Warp", "SlowMode", "Throw", "LoadLauncher",
-            "FireLauncher", "Skill1", "Skill2", "Skill3",
+            "Move", "Attack", "Interact", "Jump", "Sprint", "Warp", "SlowMode", "Throw", "Skill1", "Skill2", "Skill3",
         };
 
         private readonly InputActionAsset _asset;

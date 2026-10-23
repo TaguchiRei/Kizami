@@ -13,7 +13,6 @@ GameObject:
   - component: {fileID: 2302215782340007146}
   - component: {fileID: 5663939999814456419}
   - component: {fileID: 4723566559091277277}
-  - component: {fileID: 7005608383344105744}
   m_Layer: 6
   m_Name: CutFragment
   m_TagString: Untagged
@@ -137,21 +136,10 @@ MonoBehaviour:
   CapMaterial: {fileID: 2100000, guid: 91a46460c458c1a4db3e5d927f2d66b8, type: 2}
   Mesh: {fileID: 1312328701839123726}
   _canMultiCut: 0
+  _maxCutCount: 0
   _physicsMaterial: {fileID: 0}
   _colliderNum: 10
   _baseShrink: 0.95
   _densityShrinkMin: 0.85
   _densityThreshold: 10
   _maxRadius: 0.5
---- !u!114 &7005608383344105744
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5624698305411883361}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a2af67d7931bf7748b92d43c105ed171, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.FragmentContactReporter

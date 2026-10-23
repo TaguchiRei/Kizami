@@ -139,12 +139,10 @@ namespace Kizami.Initialization
                 _bombThrowAdapter.Throw, _voxelDestructionAdapter.CarveSweep, Rush, _voxelMoundAdapter.Begin, _voxelMoundAdapter.End, () => _movementService.CanRush,
                 _meleeCutService.CanAct, _meleeCutService.MarkActed, OnSkillUsed, _skyBeamService, _actionEvents, sceneId);
 
-            _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake, _voxelDestructionAdapter.CarveExplosionAt);
+            _fragmentThrowAdapter.Initialize();
 
-            // FragmentThrowService は SlowModeState を取得する為、SlowModeService の生成より後に生成する
-            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _enhanceService, _movementService,
-                _fragmentThrowAdapter.TryGrab, _fragmentThrowAdapter.TryGrabWord, () => _fragmentThrowAdapter.IsHolding,
-                _fragmentThrowAdapter.TryThrow, _fragmentThrowAdapter.TryLoad, _fragmentThrowAdapter.TryFire);
+            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _movementService,
+                _fragmentThrowAdapter.TryGrabWord, () => _fragmentThrowAdapter.IsHolding, _fragmentThrowAdapter.TryThrow);
 
             // 以降の Adapter は Service が登録した State を取得する為、Service の生成より後に初期化する
             _movementAdapter.Initialize(blackBoard, _movementService.Step);
