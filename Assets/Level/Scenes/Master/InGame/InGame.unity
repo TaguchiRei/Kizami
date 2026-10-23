@@ -488,7 +488,7 @@ PrefabInstance:
     - target: {fileID: 67864704484771769, guid: 72798b7258bcdd8458b6de391eb3fe2d, type: 3}
       propertyPath: _swordAnimator
       value: 
-      objectReference: {fileID: 417558250}
+      objectReference: {fileID: 0}
     - target: {fileID: 314992998320459568, guid: 72798b7258bcdd8458b6de391eb3fe2d, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.003
@@ -548,13 +548,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 6991021149876194263, guid: 72798b7258bcdd8458b6de391eb3fe2d, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 417558251}
-    - targetCorrespondingSourceObject: {fileID: 6991021149876194263, guid: 72798b7258bcdd8458b6de391eb3fe2d, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 417558250}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 72798b7258bcdd8458b6de391eb3fe2d, type: 3}
 --- !u!114 &417558247 stripped
 MonoBehaviour:
@@ -572,45 +566,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 314992998320459568, guid: 72798b7258bcdd8458b6de391eb3fe2d, type: 3}
   m_PrefabInstance: {fileID: 417558246}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &417558249 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 6991021149876194263, guid: 72798b7258bcdd8458b6de391eb3fe2d, type: 3}
-  m_PrefabInstance: {fileID: 417558246}
-  m_PrefabAsset: {fileID: 0}
---- !u!95 &417558250
-Animator:
-  serializedVersion: 7
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 417558249}
-  m_Enabled: 1
-  m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: bb7fb2f70c2901d4a98c5142370f109a, type: 2}
-  m_CullingMode: 0
-  m_UpdateMode: 0
-  m_ApplyRootMotion: 0
-  m_LinearVelocityBlending: 0
-  m_StabilizeFeet: 0
-  m_AnimatePhysics: 0
-  m_WarningMessage: 
-  m_HasTransformHierarchy: 1
-  m_AllowConstantClipSamplingOptimization: 1
-  m_KeepAnimatorStateOnDisable: 0
-  m_WriteDefaultValuesOnDisable: 0
---- !u!114 &417558251
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 417558249}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f4259dbffd715c3438d969764e15a8b0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.SwordFormManagement
 --- !u!1 &477178111
 GameObject:
   m_ObjectHideFlags: 0

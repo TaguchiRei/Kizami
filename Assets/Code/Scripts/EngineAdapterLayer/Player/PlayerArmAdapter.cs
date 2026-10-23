@@ -23,10 +23,6 @@ namespace Kizami.EngineAdapter
         [SerializeField] [Tooltip("腕の Animator。Update Mode は Unscaled Time にして、スローモード中も等速で動かす")]
         private Animator _armAnimator;
 
-        [SerializeField] [FormerlySerializedAs("_sorwdAnimator")]
-        [Tooltip("剣の Animator。Bool の Enhance で Default と Enhanced を切り替える")]
-        private Animator _swordAnimator;
-
         [SerializeField] [Tooltip("破壊の強化がかかっている間に出す剣のエフェクト。未設定なら出さない")]
         private GameObject _destroyEffect;
 
@@ -82,8 +78,7 @@ namespace Kizami.EngineAdapter
             var isDestroy = _enhanceState.TryGet(EnhanceKind.Destroy, out _, out _);
             var isArmorBreak = _enhanceState.TryGet(EnhanceKind.ArmorBreak, out _, out _);
             if (!isDestroy && !isArmorBreak) return;
-
-            if (_swordAnimator != null) _swordAnimator.SetBool(_enhanceHash, true);
+            
             if (_destroyEffect != null && isDestroy) _destroyEffect.SetActive(true);
             if (_armorBreakEffect != null && isArmorBreak) _armorBreakEffect.SetActive(true);
         }
@@ -100,7 +95,6 @@ namespace Kizami.EngineAdapter
 
             var isEnhanced = _enhanceState.TryGet(EnhanceKind.Destroy, out _, out _)
                              || _enhanceState.TryGet(EnhanceKind.ArmorBreak, out _, out _);
-            if (!isEnhanced && _swordAnimator != null) _swordAnimator.SetBool(_enhanceHash, false);
         }
 
         private void OnDestroy()
