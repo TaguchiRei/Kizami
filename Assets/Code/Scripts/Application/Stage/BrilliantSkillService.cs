@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Kizami.BlackBoard;
 using Kizami.External;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 
 namespace Kizami.Application
 {
@@ -12,7 +13,7 @@ namespace Kizami.Application
     /// 投げた言葉の着弾では、ボクセルを削って範囲の中の敵を倒す。着弾の結果で別の言葉が出て、それをまた投げて追加スコアを重ねられないよう、着弾で倒した敵と壊したボクセルは判定に数えない。ボスでの撃破も数えない。
     /// 時間はゲーム内の時間（Time.time）で数える。倒れる建物の物理と敵の動きが同じ時間で進む為で、スローモード中は実時間では長く、ポーズ中は進まない。
     /// </summary>
-    public sealed class BrilliantSkillService
+    public sealed class BrilliantSkillService : IDisposable
     {
         private readonly BrilliantSkillSettings _settings;
         private readonly Action<int> _addBonusScore;
@@ -20,6 +21,7 @@ namespace Kizami.Application
         private readonly Action<Vector3, float> _carveExplosion;
         private readonly Action<Vector3, float> _defeatInRadius;
         private readonly List<CollapseWindow> _collapseWindows = new();
+        private readonly IDisposable _defeatSubscription;
 
         private float _lastDefeatTime = float.NegativeInfinity;
         private int _streakCount;
@@ -28,12 +30,16 @@ namespace Kizami.Application
         /// <summary> 投げた言葉の着弾を処理している間は true </summary>
         private bool _isResolvingWordImpact;
 
+        /// <summary>
+        /// 敵を倒した通知を購読する。敵を倒した通知の登録より後に生成する。
+        /// </summary>
+        /// <param name="blackBoard">敵を倒した通知の取得元</param>
         /// <param name="settings">判定の条件と追加スコア</param>
         /// <param name="addBonusScore">追加スコアを足す関数</param>
         /// <param name="onTriggered">成立した種類を通知する関数。同時に成立した種類の数だけ続けて呼ぶ</param>
         /// <param name="carveExplosion">中心と半径を受け取り、その球のボクセルを削る関数。なければ着弾で削らない</param>
         /// <param name="defeatInRadius">中心と半径を受け取り、その球の中の敵を倒す関数</param>
-        public BrilliantSkillService(BrilliantSkillSettings settings, Action<int> addBonusScore,
+        public BrilliantSkillService(IBlackBoard blackBoard, BrilliantSkillSettings settings, Action<int> addBonusScore,
             Action<BrilliantSkillKind> onTriggered, Action<Vector3, float> carveExplosion,
             Action<Vector3, float> defeatInRadius)
         {
@@ -43,22 +49,10 @@ namespace Kizami.Application
             _carveExplosion = carveExplosion;
             _defeatInRadius = defeatInRadius;
             _nextStreakThreshold = settings.RampageDefeatCount;
-        }
-
-        /// <summary>
-        /// 敵を倒したことを伝える。着弾とボスでの撃破は数えない。連続キルの数に足し、崩落で倒した敵は、倒れた建物の範囲にいれば倒壊の巻き込みの数にも足す。
-        /// </summary>
-        /// <param name="notice">倒した敵の通知</param>
-        public void OnDefeated(EnemyDefeatNotice notice)
-        {
-            if (_isResolvingWordImpact || notice.Cause == EnemyDefeatCause.Boss) return;
-
-            var now = Time.time;
-            CountStreak(notice.Count, now);
-
-            if (notice.Cause != EnemyDefeatCause.Collapse) return;
-
-            CountCollapse(notice, now);
+            if (blackBoard.TryGetSceneEvent<EnemyEventBoard, IEnemyDefeatEvents>(out var defeatEvents, this))
+            {
+                _defeatSubscription = defeatEvents.OnDefeated.Register(OnDefeated);
+            }
         }
 
         /// <summary>
@@ -97,6 +91,21 @@ namespace Kizami.Application
             {
                 _isResolvingWordImpact = false;
             }
+        }
+
+        /// <summary>
+        /// 敵を倒したことを伝える。着弾とボスでの撃破は数えない。連続キルの数に足し、崩落で倒した敵は、倒れた建物の範囲にいれば倒壊の巻き込みの数にも足す。
+        /// </summary>
+        private void OnDefeated(EnemyDefeatNotice notice)
+        {
+            if (_isResolvingWordImpact || notice.Cause == EnemyDefeatCause.Boss) return;
+
+            var now = Time.time;
+            CountStreak(notice.Count, now);
+
+            if (notice.Cause != EnemyDefeatCause.Collapse) return;
+
+            CountCollapse(notice, now);
         }
 
         /// <summary>
@@ -149,6 +158,11 @@ namespace Kizami.Application
         {
             _addBonusScore?.Invoke(_settings.GetScore(kind));
             _onTriggered?.Invoke(kind);
+        }
+
+        public void Dispose()
+        {
+            _defeatSubscription?.Dispose();
         }
 
         /// <summary>

@@ -41,9 +41,10 @@ namespace Kizami.Application
         private bool _hasTimeLimit;
 
         /// <summary>
-        /// StageFlowState を StageBoard へ登録し、失敗条件の判定に使う State の変化と、ポーズの入力を購読する。
+        /// StageFlowState を StageBoard へ登録し、失敗条件の判定に使う State の変化と、ポーズの入力、敵を倒した通知を購読する。
+        /// 敵を倒した通知の登録より後に生成する。
         /// </summary>
-        /// <param name="blackBoard">StageFlowState の登録先と、失敗条件の判定に使う State・入力・時間の倍率の取得元</param>
+        /// <param name="blackBoard">StageFlowState の登録先と、失敗条件の判定に使う State・入力・時間の倍率・敵を倒した通知の取得元</param>
         /// <param name="stage">遊ぶステージの定義</param>
         /// <param name="timeScaleController">ポーズで時間の倍率を変える操作面</param>
         /// <param name="inputController">ポーズ中とクリア・失敗のあとに Player マップを止める操作面</param>
@@ -62,7 +63,8 @@ namespace Kizami.Application
 
             if (!blackBoard.TryGetBoard<StageBoard>(out var stageBoard, this) ||
                 !blackBoard.TryGetGameState<AppBoard, ITimeScaleState>(out _timeScaleState, this) ||
-                !blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this)) return;
+                !blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this) ||
+                !blackBoard.TryGetSceneEvent<EnemyEventBoard, IEnemyDefeatEvents>(out var defeatEvents, this)) return;
 
             _state.SetRequiredDefeatCount(_requiredDefeatCount);
             stageBoard.RegisterSceneState<IStageFlowState>(_state, sceneId);
@@ -73,6 +75,7 @@ namespace Kizami.Application
             }
 
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.UI, UIActions.Cancel, OnCancel));
+            _subscriptions.Add(defeatEvents.OnDefeated.Register(OnDefeated));
         }
 
         /// <summary>
@@ -107,19 +110,6 @@ namespace Kizami.Application
             if (_state.Phase != StagePhase.Playing) return;
 
             CompleteClear();
-        }
-
-        /// <summary>
-        /// 倒した敵の数を足し、スコアに反映する。プレイ中のときだけ数える。必要な数に達したらクリアを判定する。
-        /// </summary>
-        /// <param name="count">倒した敵の数</param>
-        public void AddDefeats(int count)
-        {
-            if (_state.Phase != StagePhase.Playing || count <= 0) return;
-
-            _state.SetDefeatCount(_state.DefeatCount + count);
-            _state.SetScore(_state.Score + count);
-            TryClear();
         }
 
         /// <summary>
@@ -211,6 +201,18 @@ namespace Kizami.Application
                     UsefulLogger.LogError($"失敗条件 {condition.GetType().Name} の判定がない為、無視します。", this);
                     break;
             }
+        }
+
+        /// <summary>
+        /// 倒した敵の数を足し、スコアに反映する。プレイ中のときだけ数える。必要な数に達したらクリアを判定する。
+        /// </summary>
+        private void OnDefeated(EnemyDefeatNotice notice)
+        {
+            if (_state.Phase != StagePhase.Playing || notice.Count <= 0) return;
+
+            _state.SetDefeatCount(_state.DefeatCount + notice.Count);
+            _state.SetScore(_state.Score + notice.Count);
+            TryClear();
         }
 
         /// <summary>

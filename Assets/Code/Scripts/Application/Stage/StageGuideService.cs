@@ -8,7 +8,7 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.Application
 {
     /// <summary>
-    /// ステージの案内（StageGuideState）の唯一の書き手。プレイヤーの出来事と敵を倒した数を、プレイ中のときだけログにする。
+    /// ステージの案内（StageGuideState）の唯一の書き手。プレイヤーの出来事と敵を倒した通知を、プレイ中のときだけログにする。
     /// 通常攻撃と敵を倒した通知は、間に別のログが入らずに続いたら1行にまとめて回数を増やす。まとめるのは、ログを出しておく時間の間だけ。
     /// 大目標・小目標・会話・操作説明は、呼ばれた値をそのまま State へ書く。
     /// </summary>
@@ -23,10 +23,10 @@ namespace Kizami.Application
         private readonly ISkillSlotState _slotState;
 
         /// <summary>
-        /// StageGuideState を StageBoard へ登録し、プレイヤーの出来事とチャージの変化を購読する。
-        /// StageFlowState と、プレイヤーの State・出来事の通知の登録より後に生成する。
+        /// StageGuideState を StageBoard へ登録し、プレイヤーの出来事、敵を倒した通知、チャージの変化を購読する。
+        /// StageFlowState と、プレイヤーの State・出来事の通知、敵を倒した通知の登録より後に生成する。
         /// </summary>
-        /// <param name="blackBoard">StageGuideState の登録先と、流れ・スキルの枠・チャージ・出来事の通知の取得元</param>
+        /// <param name="blackBoard">StageGuideState の登録先と、流れ・スキルの枠・チャージ・出来事の通知・敵を倒した通知の取得元</param>
         /// <param name="logMaxCount">ログを持つ件数の上限</param>
         /// <param name="logLifetime">ログを出しておく時間（秒）</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
@@ -38,7 +38,8 @@ namespace Kizami.Application
                 !blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this) ||
                 !blackBoard.TryGetSceneState<PlayerBoard, ISkillSlotState>(out _slotState, this) ||
                 !blackBoard.TryGetSceneState<PlayerBoard, IChargeState>(out var chargeState, this) ||
-                !blackBoard.TryGetEventBoard<PlayerEventBoard>(out var eventBoard, this)) return;
+                !blackBoard.TryGetEventBoard<PlayerEventBoard>(out var eventBoard, this) ||
+                !blackBoard.TryGetSceneEvent<EnemyEventBoard, IEnemyDefeatEvents>(out var defeatEvents, this)) return;
 
             if (!eventBoard.TryGetSceneEvent<IPlayerActionEvents>(out var actionEvents, out _))
             {
@@ -48,6 +49,7 @@ namespace Kizami.Application
 
             stageBoard.RegisterSceneState<IStageGuideState>(_state, sceneId);
             _subscriptions.Add(actionEvents.OnAction.Register(OnAction));
+            _subscriptions.Add(defeatEvents.OnDefeated.Register(OnDefeated));
             _subscriptions.Add(chargeState.RegisterOnChargeChanged(OnChargeChanged));
         }
 
@@ -87,17 +89,6 @@ namespace Kizami.Application
             _state.SetHint(hint);
         }
 
-        /// <summary>
-        /// 敵を倒した数をログにする。プレイ中のときだけ数える。
-        /// </summary>
-        /// <param name="count">倒した敵の数</param>
-        public void AddDefeats(int count)
-        {
-            if (count <= 0 || !IsPlaying()) return;
-
-            AppendLog(DEFEAT_TEXT, count, true);
-        }
-
         private bool IsPlaying()
         {
             return _flowState != null && _flowState.Phase == StagePhase.Playing;
@@ -121,6 +112,16 @@ namespace Kizami.Application
             }
 
             _state.AppendLog(text, count, now);
+        }
+
+        /// <summary>
+        /// 倒した敵の数をログにする。プレイ中のときだけ数える。
+        /// </summary>
+        private void OnDefeated(EnemyDefeatNotice notice)
+        {
+            if (notice.Count <= 0 || !IsPlaying()) return;
+
+            AppendLog(DEFEAT_TEXT, notice.Count, true);
         }
 
         private void OnAction(PlayerActionNotice notice)
