@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Kizami.BlackBoard;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
@@ -7,7 +6,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 装甲の1枚のパネル。攻撃タイプと破壊タイプの攻撃が1回当たるごとに耐久値が1減り、0になるか粉砕タイプが当たると壊れる。
-    /// 壊れたパネルは非アクティブにする。残りの耐久値の割合で色を変え、目印のプレハブがあれば、残りの耐久値の数だけ目印を出す。
+    /// 壊れたパネルは非アクティブにする。残りの耐久値の割合で色を変え、表示用の球があれば、残りの耐久値をそのシェーダーへ渡す。
     /// </summary>
     /// <remarks>
     /// 奥への遮断は、パネルのコライダーが攻撃のレイを止めることで判定する。
@@ -15,8 +14,8 @@ namespace Kizami.EngineAdapter
     public sealed class ArmorPanel : MonoBehaviour
     {
         private static readonly int _baseColorId = Shader.PropertyToID("_BaseColor");
-
-        private readonly List<GameObject> _markers = new();
+        private static readonly int _durabilityId = Shader.PropertyToID("_Durability");
+        private static readonly int _groupSizeId = Shader.PropertyToID("_GroupSize");
 
         [SerializeField, Min(1)]
         [Tooltip("耐久値の最大。壊れるまでに耐える、攻撃タイプと破壊タイプの攻撃が当たった回数")]
@@ -35,18 +34,11 @@ namespace Kizami.EngineAdapter
         private Renderer _renderer;
 
         [SerializeField]
-        [Tooltip("耐久値 1 つにつき 1 枚並べる目印のプレハブ。球のパネルのローカル空間（直径 1）で、外を向いた面を表にして置く。未設定なら目印は出さない")]
-        private GameObject _markerPrefab;
-
-        [SerializeField, Range(-90f, 90f)]
-        [Tooltip("目印を並べる緯度（度）。赤道が 0、真上が 90")]
-        private float _markerLatitude = 45f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("目印を置く球の半径（パネルのローカル空間）")]
-        private float _markerRadius = 0.5f;
+        [Tooltip("残りの耐久値を四角の数で見せる球の Renderer。BarrierDurability シェーダーのマテリアルを使う。未設定なら表示しない")]
+        private Renderer _durabilityRenderer;
 
         private MaterialPropertyBlock _propertyBlock;
+        private MaterialPropertyBlock _durabilityBlock;
 
         /// <summary> 残りの耐久値 </summary>
         public int Durability { get; private set; }
@@ -91,7 +83,7 @@ namespace Kizami.EngineAdapter
             else
             {
                 UpdateColor();
-                UpdateMarkers();
+                UpdateDurabilityDisplay();
             }
         }
 
@@ -103,7 +95,7 @@ namespace Kizami.EngineAdapter
         {
             Durability = Mathf.Clamp(durability, 1, _maxDurability);
             UpdateColor();
-            UpdateMarkers();
+            UpdateDurabilityDisplay();
         }
 
         private void Awake()
@@ -116,9 +108,9 @@ namespace Kizami.EngineAdapter
                 UsefulLogger.LogWarning("Renderer が設定されていない為、耐久値で色が変わりません。", this);
             }
 
-            CreateMarkers();
+            _durabilityBlock = new MaterialPropertyBlock();
             UpdateColor();
-            UpdateMarkers();
+            UpdateDurabilityDisplay();
         }
 
         private void Break()
@@ -127,34 +119,16 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 耐久値の最大と同じ数の目印を、緯度 _markerLatitude の輪に等間隔で並べる。外向きの面を表にし、角度の小さい順に並ぶ。
+        /// 残りの耐久値と、1 区分けの数（耐久値の最大）を表示用の球のシェーダーへ渡す。
         /// </summary>
-        private void CreateMarkers()
+        private void UpdateDurabilityDisplay()
         {
-            if (_markerPrefab == null) return;
+            if (_durabilityRenderer == null) return;
 
-            var latitude = _markerLatitude * Mathf.Deg2Rad;
-            for (var i = 0; i < _maxDurability; i++)
-            {
-                var angle = Mathf.PI * 2f * i / _maxDurability;
-                var outward = new Vector3(Mathf.Cos(latitude) * Mathf.Cos(angle), Mathf.Sin(latitude),
-                    Mathf.Cos(latitude) * Mathf.Sin(angle));
-                var marker = Instantiate(_markerPrefab, transform);
-                // Unity の Quad は -Z 側が表なので、外向きの逆へ向ける
-                marker.transform.SetLocalPositionAndRotation(outward * _markerRadius, Quaternion.LookRotation(-outward));
-                _markers.Add(marker);
-            }
-        }
-
-        /// <summary>
-        /// 残りの耐久値の数だけ目印を出し、残りは隠す。減るときは番号の大きい目印から消える。
-        /// </summary>
-        private void UpdateMarkers()
-        {
-            for (var i = 0; i < _markers.Count; i++)
-            {
-                _markers[i].SetActive(i < Durability);
-            }
+            _durabilityRenderer.GetPropertyBlock(_durabilityBlock);
+            _durabilityBlock.SetFloat(_durabilityId, Durability);
+            _durabilityBlock.SetFloat(_groupSizeId, _maxDurability);
+            _durabilityRenderer.SetPropertyBlock(_durabilityBlock);
         }
 
         private void UpdateColor()
