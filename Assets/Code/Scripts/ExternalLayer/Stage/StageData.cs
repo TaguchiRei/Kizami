@@ -68,6 +68,10 @@ namespace Kizami.External
         [Tooltip("すべてのスキルの破壊力を最大にする。どのスキルでも、強度が硬い素材を普通の素材と同じ範囲まで削れる")]
         private bool _isMaxDestructionPower;
 
+        [SerializeField]
+        [Tooltip("体力制の破壊対象（HealthTarget）で、当たりの種類ごとに減る体力の量。体力制の対象がないステージでは使わない")]
+        private TargetDamageSettings _targetDamage = new();
+
         [SerializeReference, SubclassSelector]
         [Tooltip("失敗条件。どれか 1 つを満たしたら失敗にする。空ならこのステージでは失敗しない")]
         private StageFailCondition[] _failConditions = { new PlayerDeathFailCondition() };
@@ -113,6 +117,9 @@ namespace Kizami.External
 
         /// <summary> すべてのスキルの破壊力を最大にするか </summary>
         public bool IsMaxDestructionPower => _isMaxDestructionPower;
+
+        /// <summary> 体力制の破壊対象で、当たりの種類ごとに減る体力の量 </summary>
+        public TargetDamageSettings TargetDamage => _targetDamage;
 
         /// <summary> 失敗条件。どれか1つを満たしたら失敗にする </summary>
         public IReadOnlyList<StageFailCondition> FailConditions => _failConditions;

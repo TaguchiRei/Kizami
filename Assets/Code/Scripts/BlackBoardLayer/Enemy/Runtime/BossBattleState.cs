@@ -3,7 +3,7 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// ボス戦の段階と、今が何周目か、今の足踏みの段階で足踏みした回数、今の行動、ボスの体力の無敵と落ちる塊を数えるかを保持するステート。
+    /// ボス戦の段階と、今が何周目か、今の足踏みの段階で足踏みした回数、今の行動を保持するステート。
     /// ApplicationLayer（BossBattleService）が書き込み、EngineAdapterLayer（BossBattleAdapter）が読んで攻撃を切り替え、近接切断が停止後の破壊属性の自動付与に読む。
     /// </summary>
     [RegisterBoard(typeof(EnemyBoard))]
@@ -14,13 +14,11 @@ namespace Kizami.BlackBoard
         public int StompCount { get; private set; }
         public BossAction Action { get; private set; } = BossAction.None;
         public int ActionCount { get; private set; }
-        public bool IsInvulnerable { get; private set; }
-        public bool CountsCollapse { get; private set; }
         public bool IsStopped => Phase == BossBattlePhase.Stopped;
 
         public override string GetLog()
         {
-            return $"Phase: {Phase}  \nRound: {Round}  \nStompCount: {StompCount}  \nAction: {Action}  \nIsInvulnerable: {IsInvulnerable}  \nCountsCollapse: {CountsCollapse}";
+            return $"Phase: {Phase}  \nRound: {Round}  \nStompCount: {StompCount}  \nAction: {Action}";
         }
 
         /// <summary>
@@ -59,17 +57,6 @@ namespace Kizami.BlackBoard
             Action = action;
             ActionCount++;
         }
-
-        /// <summary>
-        /// ボスの体力の無敵と、落ちてくる塊のダメージを数えるかを設定する。
-        /// </summary>
-        /// <param name="isInvulnerable">無敵か</param>
-        /// <param name="countsCollapse">落ちてくる塊のダメージを数えるか</param>
-        public void SetDamageRules(bool isInvulnerable, bool countsCollapse)
-        {
-            IsInvulnerable = isInvulnerable;
-            CountsCollapse = countsCollapse;
-        }
     }
 
     /// <summary>
@@ -94,12 +81,6 @@ namespace Kizami.BlackBoard
 
         /// <summary> 行動を設定した回数。同じ行動が続いても、新しい指示かをこの値の変化で見分ける </summary>
         int ActionCount { get; }
-
-        /// <summary> ボスの体力が無敵か。飛来の間と、足踏みを始めてから猶予の時間が過ぎるまで </summary>
-        bool IsInvulnerable { get; }
-
-        /// <summary> 落ちてくる塊のダメージを数えるか。足踏みとコア露出の間の、猶予の時間が過ぎてから </summary>
-        bool CountsCollapse { get; }
     }
 
     /// <summary>

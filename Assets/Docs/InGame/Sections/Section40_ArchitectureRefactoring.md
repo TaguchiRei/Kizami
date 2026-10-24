@@ -196,6 +196,53 @@
 |---|---|---|
 | 12 | 無敵をこのコミットで State に置くか | 置く。コミット7 で `TargetHealthMode.Invincible` にまとめるときに、`BossBattleService` が `TargetHealthService` へ無敵を指示する形へ書き換える。先にコミット7 を行えば書き換えは 1 回で済むが、コミット7 は対象すべての体力に関わり大きいので、ボスの判断を移すことを先に済ませる |
 
+## コミット7（体力を減らす量）の詳細計画（2026-10-24 案。ユーザーの確認待ち）
+
+### 今の分担
+
+| 判断 | 今の置き場所 |
+|---|---|
+| 通常攻撃 1 回・スキル 1 回・落ちる塊 1m³ で減る量 | `HealthTarget` の SerializeField（ボス：0.5 / 1 / 1、`Town_CollapseSite`：0.5 / 1 / 2） |
+| 落ちる塊を探し、同じ塊を 1 回だけ数える | `HealthTarget.FixedUpdate` |
+| 落ちる塊を数えるか（ボスは足踏み・コア露出の猶予のあとだけ） | `BossBattleService` → `BossBattleState.CountsCollapse` → Adapter が `HealthTarget` へ写す |
+| 無敵 | 2 か所。`HealthTarget._isInvulnerable`（飛来・着地直後、`BossBattleState.IsInvulnerable` を写す）と、`TargetHealthMode.Invincible`（水晶の段階） |
+| 量を決めたダメージ（羽天轟号の毎秒の量、倒れた塔の 30） | 攻撃側の Adapter（`SkyBeamAdapter`・`BossTowerThrow`） |
+| 体力を引く、尽きたか | `TargetHealthService.Damage` |
+| 尽きたら保護を外す、尽きたあとの当たりを知らせる | `HealthTarget` |
+
+### 移したあとの形
+
+- `HealthTarget` は当たりの種類と大きさを報告するだけにする
+  - `Initialize(Func<TargetHitKind, float, bool> reportHit)`。戻り値は今と同じく「この当たりで尽きたか」
+  - 種類（`TargetHitKind`、BlackBoardLayer の enum）：`Melee`・`Skill`・`Collapse`（大きさは塊の体積 m³）・`Direct`（大きさは減らす量）
+  - `_meleeDamage`・`_skillDamage`・`_collapseDamagePerCubicMeter`・`_isInvulnerable`・`_countsCollapse` と、`SetInvulnerable`・`SetCollapseCounting` を消す
+  - 落ちる塊を探すこと、同じ塊を 1 回だけ数えること、尽きたら保護を外すこと、尽きたあとの当たりを知らせることは残す（エンジン側の検出と反応の為）
+- `TargetHealthService` が量を決める
+  - `Setup(name, max, damage)` で、対象ごとの量（決めること #13）を受け取る
+  - `ReportHit(kind, size)` で、種類ごとの量に直して引く。`Collapse` は、落ちる塊を数えないときは引かない
+  - `SetCollapseCounting(bool)` を足す。既定は数える
+- 無敵は `TargetHealthMode.Invincible` だけにする（決めること #7）
+  - `BossBattleService` の `UpdateDamageRules` は、飛来・猶予の間は `Invincible`、猶予のあとは `Normal` を `TargetHealthService` に指示し、落ちる塊を数えるかも `TargetHealthService` に指示する
+  - `BossBattleState.IsInvulnerable`・`CountsCollapse`・`SetDamageRules` と、Adapter の `ApplyDamageRules` を消す（コミット6 で足したものを戻す形）
+- 量を決めたダメージ（羽天轟号・倒れた塔）は、量を攻撃側が持ったまま `Direct` で報告する。量が攻撃ごとの設定で、対象ごとの設定ではない為
+
+### 挙動が変わる箇所
+
+- 飛来の間と着地直後の約 2 秒、HUD の体力のゲージが「無敵」の表示（色と名前の後ろの「無敵」）になる（#7 で了承済み）
+
+### 新しく作る型と利用者
+
+| 型 | 層 | 利用者 |
+|---|---|---|
+| 当たりの種類（`TargetHitKind`、enum） | BlackBoardLayer | 報告する：`HealthTarget`。量に直す：`TargetHealthService` |
+| 対象ごとの量（#13 による） | ExternalLayer | #13 による |
+
+### 決めること
+
+| # | 項目 | 案 |
+|---|---|---|
+| 13 | 対象ごとの量の置き場所 | `TargetDamageSettings`（Serializable、通常攻撃・スキル・落ちる塊 1m³ の 3 つ）を作り、`StageData` に持たせる。体力の対象は 1 ステージに 1 つなので、ステージの設定として置ける。`StageInitializer.ConnectHealthTarget` が `Setup` に渡す。値はボスのステージに 0.5 / 1 / 1、崩壊のステージに 0.5 / 1 / 2 を写す。別案は、値を `HealthTarget` に残して Initializer が読んで渡す形で、アセットは触らずに済むが、ルールの値が EngineAdapterLayer に残る |
+
 asmdef の参照、Board のキーの型、Application・BlackBoardLayer・ExternalLayer にライフサイクルがないことは確認済みで、問題はない。
 
 ## 追加：崩壊ステージの改修と吸い寄せ（2026-10-24、ユーザー）

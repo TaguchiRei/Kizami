@@ -24,6 +24,10 @@ MonoBehaviour:
   _maxAttackingAttackers: 0
   _maxAttackingFinishers: 0
   _isMaxDestructionPower: 0
+  _targetDamage:
+    _meleeDamage: 0.5
+    _skillDamage: 1
+    _collapseDamagePerCubicMeter: 1
   _failConditions:
   - rid: 8226038445078478950
   references:

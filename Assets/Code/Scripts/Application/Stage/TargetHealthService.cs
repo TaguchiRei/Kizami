@@ -1,14 +1,20 @@
 using Kizami.BlackBoard;
+using Kizami.External;
 using UsefulToolkit.BlackBoard.BlackBoard;
 
 namespace Kizami.Application
 {
     /// <summary>
-    /// 体力制の破壊対象の体力（TargetHealthState）の唯一の書き手。受け取ったダメージを体力から引く。無敵の間は引かない。
+    /// 体力制の破壊対象の体力（TargetHealthState）の唯一の書き手。当たりの種類と大きさを、対象ごとの量に直して体力から引く。無敵の間は引かない。
     /// </summary>
     public sealed class TargetHealthService
     {
         private readonly TargetHealthState _state = new();
+
+        private TargetDamageSettings _damage;
+
+        /// <summary> 落ちてくる塊の当たりで体力を引くか </summary>
+        private bool _countsCollapse = true;
 
         /// <summary> 最大体力。対象がないステージでは0 </summary>
         public float Max => _state.Max;
@@ -29,24 +35,34 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 対象の名前と最大体力を受け取り、体力を満タンにする。
+        /// 対象の名前と最大体力と、当たりの種類ごとの量を受け取り、体力を満タンにする。
         /// </summary>
         /// <param name="name">ゲージに出す名前</param>
         /// <param name="max">最大体力</param>
-        public void Setup(string name, float max)
+        /// <param name="damage">当たりの種類ごとに減る体力の量</param>
+        public void Setup(string name, float max, TargetDamageSettings damage)
         {
+            _damage = damage;
             _state.Setup(name, max);
         }
 
         /// <summary>
-        /// 攻撃で体力を減らす。通常の表示のときだけ減らし、無敵と時間で減っていく間は減らさない。
+        /// 当たりを受け取り、種類ごとの量に直して体力を減らす。通常の表示のときだけ減らし、無敵と時間で減っていく間は減らさない。落ちてくる塊は、数えない間は減らさない。
         /// </summary>
-        /// <param name="amount">減らす量</param>
+        /// <param name="kind">当たりの種類</param>
+        /// <param name="size">当たりの大きさ。落ちてくる塊は体積（m³）、量を決めたダメージは減らす量。ほかの種類では使わない</param>
         /// <returns>この呼び出しで体力が0になったら true</returns>
-        public bool Damage(float amount)
+        public bool ReportHit(TargetHitKind kind, float size)
         {
-            if (_state.Mode != TargetHealthMode.Normal) return false;
+            if (_state.Mode != TargetHealthMode.Normal || _damage == null) return false;
 
+            var amount = kind switch
+            {
+                TargetHitKind.Melee => _damage.MeleeDamage,
+                TargetHitKind.Skill => _damage.SkillDamage,
+                TargetHitKind.Collapse => _countsCollapse ? size * _damage.CollapseDamagePerCubicMeter : 0f,
+                _ => size
+            };
             return Reduce(amount);
         }
 
@@ -77,6 +93,15 @@ namespace Kizami.Application
         public void SetMode(TargetHealthMode mode)
         {
             _state.SetMode(mode);
+        }
+
+        /// <summary>
+        /// 落ちてくる塊の当たりで体力を引くかを切り替える。ボスの飛来のように、体力に関わらない崩落が起きる間に切る。
+        /// </summary>
+        /// <param name="countsCollapse">落ちてくる塊の当たりで体力を引くか</param>
+        public void SetCollapseCounting(bool countsCollapse)
+        {
+            _countsCollapse = countsCollapse;
         }
 
         private bool Reduce(float amount)

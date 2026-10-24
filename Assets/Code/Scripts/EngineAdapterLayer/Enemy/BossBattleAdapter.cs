@@ -16,7 +16,7 @@ namespace Kizami.EngineAdapter
     /// </summary>
     /// <remarks>
     /// ボス戦の間、ボスは自分では歩かない（飛来でだけ動く）。武装を含むすべてのパーツを止まるまで保護し、削れないようにする。
-    /// 体力の配線は StageInitializer が行う。ボスの HealthTarget は、体力が尽きても保護を外さない設定にする。BossBattleState の無敵と落ちる塊を数えるかを、毎フレーム HealthTarget へ写す。
+    /// 体力の配線は StageInitializer が行う。ボスの HealthTarget は、体力が尽きても保護を外さない設定にする。
     /// 上部タレットは水晶の段階でだけ使う。円形の空間は足踏みの段階に入るときに作り、水晶の段階に入るときと止まったときに閉じる。
     /// 水晶・飛来・上部タレット・頭部のレーザーは無くてもよく、無ければその攻撃をせず、水晶と飛来は済んだものとして進める。
     /// 始まってから止まるまで、胴体が吸い寄せの優先の引き寄せ対象になる。
@@ -106,7 +106,7 @@ namespace Kizami.EngineAdapter
         /// <param name="state">ボス戦の State</param>
         /// <param name="reportCrystalsCleared">水晶をすべて壊したことを報告する関数（BossBattleService.ReportCrystalsCleared）</param>
         /// <param name="reportActionFinished">今の行動を終えたことを報告する関数（BossBattleService.ReportActionFinished）。引数は行動を実際に行えたか</param>
-        /// <param name="tick">毎フレーム経過時間を渡す関数（BossBattleService.Tick）。無敵と落ちる塊を数えるかを決め、待機の時間を数え、体力が尽きたかを調べ、最終の体力を減らす</param>
+        /// <param name="tick">毎フレーム経過時間を渡す関数（BossBattleService.Tick）。体力の無敵と落ちる塊を数えるかを決め、待機の時間を数え、体力が尽きたかを調べ、最終の体力を減らす</param>
         /// <param name="target">プレイヤー。ダウンで壊す武装を選ぶのに使う</param>
         public void Initialize(IBossBattleState state, Action reportCrystalsCleared, Action<bool> reportActionFinished,
             Action<float> tick, Transform target)
@@ -171,7 +171,6 @@ namespace Kizami.EngineAdapter
 
             UpdateProtection();
             _tick?.Invoke(Time.deltaTime);
-            ApplyDamageRules();
 
             var phase = _state.Phase;
             if (phase != _handledPhase)
@@ -397,17 +396,6 @@ namespace Kizami.EngineAdapter
 
             _weapons.SetHighlight(false);
             return true;
-        }
-
-        /// <summary>
-        /// BossBattleState の無敵と、落ちてくる塊のダメージを数えるかを、HealthTarget へ写す。
-        /// </summary>
-        private void ApplyDamageRules()
-        {
-            if (_healthTarget == null) return;
-
-            _healthTarget.SetInvulnerable(_state.IsInvulnerable);
-            _healthTarget.SetCollapseCounting(_state.CountsCollapse);
         }
 
         /// <summary>

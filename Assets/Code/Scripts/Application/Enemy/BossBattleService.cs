@@ -179,22 +179,26 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 足踏みとコア露出が続いている時間を数え、ボスの体力の無敵と落ちる塊を数えるかを決める。
+        /// 足踏みとコア露出が続いている時間を数え、ボスの体力の無敵と落ちる塊を数えるかを TargetHealthService に指示する。
         /// 飛来の間と、足踏みを始めてから猶予の時間が過ぎるまでは無敵にし、飛来の崩落の落下を待つ。落ちる塊は、足踏みとコア露出の間の猶予のあとだけ数え、戦っていないときの崩落や外れた武装の落下で体力が減らないようにする。
         /// </summary>
         private void UpdateDamageRules(float deltaTime)
         {
+            if (_health == null) return;
+
             var phase = _state.Phase;
             if (phase != BossBattlePhase.Stomping && phase != BossBattlePhase.CoreExposed)
             {
                 _fightTime = 0f;
-                _state.SetDamageRules(phase == BossBattlePhase.Arriving, false);
+                _health.SetCollapseCounting(false);
+                if (phase == BossBattlePhase.Arriving) _health.SetMode(TargetHealthMode.Invincible);
                 return;
             }
 
             _fightTime += deltaTime;
             var isGraceOver = _fightTime >= _settings.CollapseGrace;
-            _state.SetDamageRules(!isGraceOver, isGraceOver);
+            _health.SetCollapseCounting(isGraceOver);
+            _health.SetMode(isGraceOver ? TargetHealthMode.Normal : TargetHealthMode.Invincible);
         }
 
         /// <summary>

@@ -160,8 +160,8 @@ namespace Kizami.Initialization
             {
                 if (!IsStageTarget(healthTarget, stage)) continue;
 
-                _targetHealthService.Setup(healthTarget.DisplayName, healthTarget.MaxHealth);
-                healthTarget.Initialize(_targetHealthService.Damage);
+                _targetHealthService.Setup(healthTarget.DisplayName, healthTarget.MaxHealth, stage.TargetDamage);
+                healthTarget.Initialize(_targetHealthService.ReportHit);
                 return;
             }
         }
