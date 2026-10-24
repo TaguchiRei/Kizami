@@ -67,8 +67,6 @@ namespace Kizami.Initialization
         private BrilliantSkillService _brilliantSkillService;
         private VoxelDestructionAdapter _voxelDestructionAdapter;
 
-        /// <summary> 投げた言葉の着弾を処理している間は true。着弾で倒した敵と壊したボクセルは、Brilliant Skill の判定に伝えない </summary>
-        private bool _isResolvingWordImpact;
         private IStageFlowState _flowState;
 
         public override void Initialize(IBlackBoard blackBoard)
@@ -253,34 +251,7 @@ namespace Kizami.Initialization
         {
             _flowService.AddDefeats(notice.Count);
             _guideService.AddDefeats(notice.Count);
-            if (!_isResolvingWordImpact && notice.Cause != EnemyDefeatCause.Boss) _brilliantSkillService?.OnDefeated(notice);
-        }
-
-        /// <summary>
-        /// 投げた言葉がぶつかった点で、ボクセルを削り、範囲の中の敵を倒す。
-        /// 着弾の結果で別の言葉が出て、それをまた投げて追加スコアを重ねられないよう、この間の撃破と破壊は Brilliant Skill の判定に伝えない。
-        /// </summary>
-        private void OnWordLanded(Vector3 point)
-        {
-            var radius = _brilliantSkillSettings.WordImpactRadius;
-            _isResolvingWordImpact = true;
-            try
-            {
-                if (_voxelDestructionAdapter != null) _voxelDestructionAdapter.CarveExplosionAt(point, radius);
-                _enemySpawnAdapter.DefeatInRadius(point, radius);
-            }
-            finally
-            {
-                _isResolvingWordImpact = false;
-            }
-        }
-
-        /// <summary>
-        /// ボクセルを壊した体積を Brilliant Skill の判定に伝える。投げた言葉の着弾による破壊は伝えない。
-        /// </summary>
-        private void OnVoxelsCarved(float volume)
-        {
-            if (!_isResolvingWordImpact) _brilliantSkillService?.OnVoxelsDestroyed(volume);
+            _brilliantSkillService?.OnDefeated(notice);
         }
 
         /// <summary>
@@ -289,11 +260,13 @@ namespace Kizami.Initialization
         private void EnableBrilliantSkill()
         {
             var textAdapter = FindOrCreateBrilliantSkillTextAdapter();
-            _fragmentThrowAdapter.SetWordSource(textAdapter);
-            textAdapter.SetOnWordLanded(OnWordLanded);
-            ConnectWordCutting(textAdapter);
             _brilliantSkillService = new BrilliantSkillService(_brilliantSkillSettings, _flowService.AddBonusScore,
-                kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)));
+                kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)),
+                _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveExplosionAt : null,
+                _enemySpawnAdapter.DefeatInRadius);
+            _fragmentThrowAdapter.SetWordSource(textAdapter);
+            textAdapter.SetOnWordLanded(_brilliantSkillService.OnWordLanded);
+            ConnectWordCutting(textAdapter);
             ConnectBrilliantSkillSources();
         }
 
@@ -337,7 +310,7 @@ namespace Kizami.Initialization
             }
             else
             {
-                _voxelDestructionAdapter.SetOnCarved(OnVoxelsCarved);
+                _voxelDestructionAdapter.SetOnCarved(_brilliantSkillService.OnVoxelsDestroyed);
             }
 
             foreach (var building in FindObjectsByType<VoxelBuilding>(FindObjectsSortMode.None))
@@ -351,16 +324,7 @@ namespace Kizami.Initialization
         /// </summary>
         private void OnBuildingCollapsed(Rigidbody body)
         {
-            var pieces = body.GetComponentsInChildren<VoxelPiece>();
-            if (pieces.Length == 0) return;
-
-            var bounds = pieces[0].WorldBounds;
-            for (var i = 1; i < pieces.Length; i++)
-            {
-                bounds.Encapsulate(pieces[i].WorldBounds);
-            }
-
-            _brilliantSkillService?.OnBuildingCollapsed(bounds.center, bounds.extents.magnitude);
+            if (VoxelBuilding.TryGetPiecesBounds(body, out var bounds)) _brilliantSkillService.OnBuildingCollapsed(bounds);
         }
 
         /// <summary>

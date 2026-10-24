@@ -222,6 +222,27 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 倒れ始めた階のピースをすべて含む範囲を求める。RegisterOnCollapsed の通知で受け取った Rigidbody に使う。
+        /// </summary>
+        /// <param name="body">倒れた階のまとまりの Rigidbody</param>
+        /// <param name="bounds">ピースをすべて含む範囲（ワールド空間）</param>
+        /// <returns>ピースが 1 つもなければ false</returns>
+        public static bool TryGetPiecesBounds(Rigidbody body, out Bounds bounds)
+        {
+            var pieces = body.GetComponentsInChildren<VoxelPiece>();
+            bounds = default;
+            if (pieces.Length == 0) return false;
+
+            bounds = pieces[0].WorldBounds;
+            for (var i = 1; i < pieces.Length; i++)
+            {
+                bounds.Encapsulate(pieces[i].WorldBounds);
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// 境目が切れて上の階が倒れ始めたときに呼ぶ処理を登録する。引数は、倒れた階をまとめた Rigidbody。
         /// 倒れた階のピースは、その Rigidbody の子孫にある。
         /// </summary>

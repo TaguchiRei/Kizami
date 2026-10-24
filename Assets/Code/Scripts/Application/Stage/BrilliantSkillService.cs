@@ -9,6 +9,7 @@ namespace Kizami.Application
     /// <summary>
     /// プレイヤーのよい行動（連続キル・倒壊の巻き込み・一撃の破壊）を判定し、成立したら追加スコアを渡して通知するユースケース。
     /// 複数の種類が同時に成立したときは、種類ごとに成立させる。
+    /// 投げた言葉の着弾では、ボクセルを削って範囲の中の敵を倒す。着弾の結果で別の言葉が出て、それをまた投げて追加スコアを重ねられないよう、着弾で倒した敵と壊したボクセルは判定に数えない。ボスでの撃破も数えない。
     /// 時間はゲーム内の時間（Time.time）で数える。倒れる建物の物理と敵の動きが同じ時間で進む為で、スローモード中は実時間では長く、ポーズ中は進まない。
     /// </summary>
     public sealed class BrilliantSkillService
@@ -16,30 +17,42 @@ namespace Kizami.Application
         private readonly BrilliantSkillSettings _settings;
         private readonly Action<int> _addBonusScore;
         private readonly Action<BrilliantSkillKind> _onTriggered;
+        private readonly Action<Vector3, float> _carveExplosion;
+        private readonly Action<Vector3, float> _defeatInRadius;
         private readonly List<CollapseWindow> _collapseWindows = new();
 
         private float _lastDefeatTime = float.NegativeInfinity;
         private int _streakCount;
         private int _nextStreakThreshold;
 
+        /// <summary> 投げた言葉の着弾を処理している間は true </summary>
+        private bool _isResolvingWordImpact;
+
         /// <param name="settings">判定の条件と追加スコア</param>
         /// <param name="addBonusScore">追加スコアを足す関数</param>
         /// <param name="onTriggered">成立した種類を通知する関数。同時に成立した種類の数だけ続けて呼ぶ</param>
+        /// <param name="carveExplosion">中心と半径を受け取り、その球のボクセルを削る関数。なければ着弾で削らない</param>
+        /// <param name="defeatInRadius">中心と半径を受け取り、その球の中の敵を倒す関数</param>
         public BrilliantSkillService(BrilliantSkillSettings settings, Action<int> addBonusScore,
-            Action<BrilliantSkillKind> onTriggered)
+            Action<BrilliantSkillKind> onTriggered, Action<Vector3, float> carveExplosion,
+            Action<Vector3, float> defeatInRadius)
         {
             _settings = settings;
             _addBonusScore = addBonusScore;
             _onTriggered = onTriggered;
+            _carveExplosion = carveExplosion;
+            _defeatInRadius = defeatInRadius;
             _nextStreakThreshold = settings.RampageDefeatCount;
         }
 
         /// <summary>
-        /// 敵を倒したことを伝える。連続キルの数に足し、崩落で倒した敵は、倒れた建物の範囲にいれば倒壊の巻き込みの数にも足す。
+        /// 敵を倒したことを伝える。着弾とボスでの撃破は数えない。連続キルの数に足し、崩落で倒した敵は、倒れた建物の範囲にいれば倒壊の巻き込みの数にも足す。
         /// </summary>
         /// <param name="notice">倒した敵の通知</param>
         public void OnDefeated(EnemyDefeatNotice notice)
         {
+            if (_isResolvingWordImpact || notice.Cause == EnemyDefeatCause.Boss) return;
+
             var now = Time.time;
             CountStreak(notice.Count, now);
 
@@ -51,21 +64,39 @@ namespace Kizami.Application
         /// <summary>
         /// 建物が倒れ始めたことを伝える。この瞬間から決めた時間の間、範囲の中で崩落で倒した敵を数える。
         /// </summary>
-        /// <param name="center">倒れた階の中心（ワールド空間）</param>
-        /// <param name="radius">倒れた階の範囲の半径（m）。余白は含まない</param>
-        public void OnBuildingCollapsed(Vector3 center, float radius)
+        /// <param name="bounds">倒れた階のピースをすべて含む範囲（ワールド空間）。余白は含まない</param>
+        public void OnBuildingCollapsed(Bounds bounds)
         {
-            _collapseWindows.Add(new CollapseWindow(center, radius + _settings.CollapseMargin,
+            _collapseWindows.Add(new CollapseWindow(bounds.center, bounds.extents.magnitude + _settings.CollapseMargin,
                 Time.time + _settings.CollapseWindow));
         }
 
         /// <summary>
-        /// 1回の攻撃でボクセルを壊したことを伝える。
+        /// 1回の攻撃でボクセルを壊したことを伝える。着弾による破壊は数えない。
         /// </summary>
         /// <param name="volume">壊したボクセルの体積（m3）</param>
         public void OnVoxelsDestroyed(float volume)
         {
-            if (volume >= _settings.ShatterVolume) Trigger(BrilliantSkillKind.Shatter);
+            if (!_isResolvingWordImpact && volume >= _settings.ShatterVolume) Trigger(BrilliantSkillKind.Shatter);
+        }
+
+        /// <summary>
+        /// 投げた言葉がぶつかった点で、ボクセルを削り、範囲の中の敵を倒す。
+        /// </summary>
+        /// <param name="point">ぶつかった点（ワールド空間）</param>
+        public void OnWordLanded(Vector3 point)
+        {
+            var radius = _settings.WordImpactRadius;
+            _isResolvingWordImpact = true;
+            try
+            {
+                _carveExplosion?.Invoke(point, radius);
+                _defeatInRadius?.Invoke(point, radius);
+            }
+            finally
+            {
+                _isResolvingWordImpact = false;
+            }
         }
 
         /// <summary>

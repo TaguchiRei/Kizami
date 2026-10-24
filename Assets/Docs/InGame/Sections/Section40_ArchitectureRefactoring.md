@@ -37,6 +37,59 @@
 | `EnemyGroup.State` / `CommandedState` | public フィールド。命令は Application の命令を EnemySpawnAdapter が写し、今の状態は EnemyGroupJob が書く | 方針2 の範囲。書き手が 2 つに見えないか、区間39 の変更のあとに確かめる |
 | `SwordFormManagement`（EngineAdapter） | 中身が空で、MonoBehaviour でもない | 置き場所を決めるか消す |
 
+### 着手時の見直し（2026-10-24）
+
+| 場所 | 今の状態 | 扱い |
+|---|---|---|
+| `StageInitializer.OnDefeated` | 撃破を `StageFlowService`・`StageGuideService`・`BrilliantSkillService` の 3 つへ配る。`StageGuideService.AddDefeats` は「プレイ中だけ」の判定を `StageFlowService` と別に持つ | 40-1 |
+| `StageInitializer.OnWordLanded` / `OnVoxelsCarved` / `OnBuildingCollapsed` | Brilliant Skill はスイッチ（`_isBrilliantSkillEnabled`）で無効だが、コードは残っている | 40-1。確認はスイッチを一時的に入れて行う |
+| `PlayerInitializer.Swing` / `OnSkillUsed` | 1 つの呼び出しを、切断の Adapter と腕の Adapter の 2 つへ配る | 40-2 |
+| `PlayerInitializer.DistributeCutResults` | 切断の結果を、敵の Adapter → かけらの Adapter の順に渡す。Application を通らない EngineAdapter 同士のデータの受け渡し | 残す。ゲームのルールではなく、エンジン側のデータの扱いの順番の為 |
+| `OutGameStartInitializer.Quit` | `Application.Quit` / `EditorApplication.isPlaying` を直接呼ぶ | 40-3 |
+| `BossBattleAdapter` | コア露出の行動の順番（`MeleeAction`）、最終の足踏み → レーザーの繰り返し、水晶の段階の攻撃、ダウン中に武装を 1 つ壊す判定、飛来と着地直後の無敵・落ちる塊を数える期間を決めている。行動の回数・間隔・待機の値は Adapter の SerializeField | 40-4 |
+| `HealthTarget` | 減らす量（通常攻撃・スキル・落ちる塊の 1m³ あたり）を持つ。無敵を `_isInvulnerable` で持ち、`TargetHealthService` の表示の状態（`TargetHealthMode.Invincible`）と二重になっている | 40-5 |
+| `EnemyGroup.State` / `CommandedState` | `CommandedState` を書くのは `EnemySpawnAdapter`（Application の命令の写し）、`State` を書くのは `EnemyGroupJob` だけ。フィールドごとの書き手は 1 つ | 残す。方針2 の範囲で、Single Writer も守られている |
+| `SwordFormManagement` | ファイルがなくなっている | 作業なし |
+| `UsefulToolkitPersistentCompositor` | ChildBoard の登録を行う生成物（code-refactoring の対象外） | Board を足すときは、生成で作り直す |
+
+## 作業計画（2026-10-24 案。ユーザーの確認待ち）
+
+各コミットのあとにコンパイルし、プレイモードで変えた経路を確かめる。挙動を変えた方がきれいになる箇所は、その都度聞く。
+
+| コミット | 作業 | 内容 | 確かめること |
+|---|---|---|---|
+| 1 | 40-1 撃破の通知 | 敵を倒したことを EventBoard の出来事にする（`EnemyEventBoard` と `IEnemyDefeatEvents`。`PlayerEventBoard` と同じ形）。`EnemySpawnAdapter` が流し、流れ・案内・Brilliant Skill の 3 つの Service が購読する。ボスでの撃破を除く判定は `BrilliantSkillService` へ移す。`StageInitializer.OnDefeated` を消す | 殲滅のステージで撃破数・スコア・案内のログが前と同じに増える。クリアの判定が働く |
+| 2 | 40-1 Brilliant Skill の配線 | 言葉の着弾（削る・倒す）と「着弾の間は判定に伝えない」を `BrilliantSkillService` へ移す（削る処理と倒す処理は関数で受け取る）。倒れた階の範囲の計算を `VoxelBuilding` へ移し、通知で中心と半径を渡す | スイッチを一時的に入れ、連続キル・倒壊の巻き込み・一撃の破壊が成立し、着弾の撃破が数えられない |
+| 3 | 40-2 プレイヤーの配線 | `Rush` を `SkillService`、`Fly` を `FlightService` へ移す（体の範囲は関数で受け取る）。`Swing` / `OnSkillUsed` は決めること #5 による | 攻走で経路を削って通り抜ける。飛び移りで上昇 → 下降する。腕が振られる |
+| 4 | 40-3 アウトゲームの配線 | 解放の演出の判断（順番待ちに加え、出したものとして記録する）を `GameProgressService` へ移す。`Quit` を `OutGameMenuAdapter` へ移す | ステージを初めてクリアして戻ると、解放の演出が 1 回だけ出る。終了ボタンでプレイモードが止まる |
+| 5 | 40-4 ボスの行動の順番 | 今の行動（足踏み、下部レーザー、降下フィニッシャー、塔投げ、待機、水晶を投げる 等）を `BossBattleState` に持たせ、`BossBattleService` が次の行動を決める。Adapter は行動を 1 つ実行し、終わったら報告するだけにする。行動の回数・間隔・待機の値は `BossInitializer` へ移す（値はそのまま写す） | ボス戦を最初から最後まで通し、段階と行動の順番が前と同じ |
+| 6 | 40-4 ボスの無敵とダウン | 飛来・着地直後の無敵、落ちる塊を数える期間、ダウン中に武装を 1 つだけ壊す判定を `BossBattleService` へ移す | 飛来中に体力が減らない。ダウン中の攻撃で武装が 1 つだけ壊れる |
+| 7 | 40-5 体力を減らす量 | `HealthTarget` は当たりの種類（通常攻撃・スキル・落ちる塊の体積・量を決めたダメージ）を報告するだけにし、量は `TargetHealthService` が決める。量の値は対象ごとに違うので、`Setup` で対象の設定として受け取る。無敵は決めること #7 による | 殲滅・崩壊・ボスの各対象で、同じ攻撃で前と同じだけ体力が減る |
+| 8 | ドキュメント | 全体計画書の「手本にする既存コード」と「現状」を直す | ― |
+
+### 新しく作る型と、今の区間で使う利用者
+
+| 型 | 層 | 利用者 |
+|---|---|---|
+| `EnemyEventBoard` / `IEnemyDefeatEvents` / `EnemyDefeatEvents` | BlackBoardLayer | 発行：`EnemySpawnAdapter`。購読：`StageFlowService`・`StageGuideService`・`BrilliantSkillService`（3 つ） |
+| ボスの行動の種類（enum） | BlackBoardLayer | 書く：`BossBattleService`。読む：`BossBattleAdapter`。層を分ける為に要る（planning-criteria 基準1 の例外） |
+| 体力の対象ごとの減らす量（struct） | BlackBoardLayer か ExternalLayer | 受け取る：`TargetHealthService`。渡す：`StageInitializer`（`HealthTarget` の値を読んで渡す） |
+
+## 詳細仕様で決めること（作業計画の分）
+
+| # | 項目 | 案 |
+|---|---|---|
+| 4 | 撃破を EventBoard に載せるか（#1 の答え） | 載せる。受け取る Service が 3 つあり、Usecase 1 つにまとめると流れ・案内・Brilliant Skill を 1 クラスが知ることになる。代わりの案は、案内が `IStageFlowState` の撃破数の変化を購読し、配線を流れと Brilliant Skill の 2 本にする形 |
+| 5 | 腕のアニメーションの配線 | 腕の Adapter が `IPlayerActionEvents` を購読する。振りの角度とスキルの腕のアニメーション名を通知に足す必要がある。足さない場合は、今の配り分けを残す |
+| 6 | ボスの行動の値の置き場所 | `BossInitializer` の SerializeField（`_stompsPerRound` と同じ並び）。ボスのプレハブの値を写す |
+| 7 | 無敵を 1 つにまとめるか | `HealthTarget._isInvulnerable` を消し、`TargetHealthMode.Invincible` にまとめる。ただし飛来中と着地直後の HUD のゲージの見た目が「無敵」の表示に変わる（挙動の変更） |
+| 8 | 生成物の Compositor | `EnemyEventBoard` の登録は、生成で作り直すのを基本とする。生成する前に手で足すなら、生成される形と同じにする |
+
+### 決めたこと（2026-10-24、ユーザー）
+
+- #4・#6・#7・#8 は案のとおり
+- #5：腕のアニメーションは出来事の購読に分けない。分けてもクラスが増えるだけで、分ける理由がない為。通常攻撃の腕の振りは `MeleeCutAdapter` が腕の Adapter を持って自分で振らせ、スキルの腕のアニメーションは `SkillService` の発動の通知を腕の Adapter へ直接つなぐ。どちらも配線の相手は 1 つになる
+
 asmdef の参照、Board のキーの型、Application・BlackBoardLayer・ExternalLayer にライフサイクルがないことは確認済みで、問題はない。
 
 ## 作業一覧
