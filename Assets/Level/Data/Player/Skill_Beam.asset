@@ -14,7 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u30D3\u30FC\u30E0"
   _id: Beam
-  _effect: 0
+  _effect:
+    rid: 7000000000000000001
   _cost: 30
-  _radius: 1
-  _length: 30
+  references:
+    version: 2
+    RefIds:
+    - rid: 7000000000000000001
+      type: {class: BeamEffect, ns: Kizami.External, asm: Kizami.External.Runtime}
+      data:
+        _radius: 1
+        _length: 30

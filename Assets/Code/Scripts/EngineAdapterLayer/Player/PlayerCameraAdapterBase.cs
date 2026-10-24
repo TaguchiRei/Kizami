@@ -22,6 +22,7 @@ namespace Kizami.EngineAdapter
             if (!blackBoard.TryGetSceneState<PlayerBoard, IPlayerLookState>(out var lookState, this)) return;
 
             _lookSubscription = lookState.RegisterOnLookInputChanged(OnLookInputChanged);
+            OnBlackBoardReady(blackBoard);
 
             // 派生の検証を通す為、base ではなく仮想メソッド側を呼ぶ
             Initialize();
@@ -32,6 +33,14 @@ namespace Kizami.EngineAdapter
         /// </summary>
         /// <param name="yaw">向ける角度（度）。0 が +Z</param>
         public virtual void FaceYaw(float yaw)
+        {
+        }
+
+        /// <summary>
+        /// 視点ステートを取得したあとに呼ばれる。派生が、視点以外の State を取得する。
+        /// </summary>
+        /// <param name="blackBoard">State の取得元</param>
+        protected virtual void OnBlackBoardReady(IBlackBoard blackBoard)
         {
         }
 

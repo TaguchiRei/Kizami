@@ -13,10 +13,16 @@ MonoBehaviour:
   m_Name: Skill_Bomb
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u5D29\u7206"
-  _effect: 9
+  _school: 4
+  _effect:
+    rid: 7000000000000000004
   _cost: 50
-  _radius: 15
-  _length: 0
-  _healAmount: 0
-  _distance: 15
-  _forwardOffset: 7.5
+  references:
+    version: 2
+    RefIds:
+    - rid: 7000000000000000004
+      type: {class: BombEffect, ns: Kizami.External, asm: Kizami.External.Runtime}
+      data:
+        _radius: 15
+        _distance: 15
+        _forwardOffset: 7.5

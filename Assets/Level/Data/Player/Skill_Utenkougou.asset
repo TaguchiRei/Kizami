@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e5dcf61a75943a7b2f0bea062ef7295, type: 3}
+  m_Name: Skill_Utenkougou
+  m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
+  _school: 5
+  _displayName: "羽天轟号"
+  _effect:
+    rid: 7000000000000000007
+  _cost: 10
+  references:
+    version: 2
+    RefIds:
+    - rid: 7000000000000000007
+      type: {class: SkyBeamEffect, ns: Kizami.External, asm: Kizami.External.Runtime}
+      data:
+        _altitude: 100
+        _riseDuration: 0.7
+        _radius: 16
+        _sustainCost: 15
+        _sustainInterval: 0.5
+        _healthDamagePerSecond: 12

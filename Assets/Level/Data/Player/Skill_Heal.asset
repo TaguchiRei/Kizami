@@ -14,8 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u56DE\u5FA9"
   _id: Heal
-  _effect: 2
+  _effect:
+    rid: 7000000000000000003
   _cost: 40
-  _radius: 1
-  _length: 0
-  _healAmount: 30
+  references:
+    version: 2
+    RefIds:
+    - rid: 7000000000000000003
+      type: {class: HealEffect, ns: Kizami.External, asm: Kizami.External.Runtime}
+      data:
+        _healAmount: 30

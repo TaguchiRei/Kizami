@@ -28,9 +28,11 @@ namespace Kizami.Application
         private readonly Action<float, float, float, float, float> _onRush;
         private readonly Func<float, bool> _onMoundBegin;
         private readonly Action _onMoundEnd;
+        private readonly Action<SkillData> _onSkillUsed;
         private readonly Func<bool> _canAct;
         private readonly Func<bool> _canRush;
         private readonly Action _onActed;
+        private readonly SkyBeamService _skyBeamService;
         private readonly List<IDisposable> _subscriptions = new();
         private readonly PlayerActionEvents _actionEvents;
         private readonly IPlayerHealthState _healthState;
@@ -51,14 +53,16 @@ namespace Kizami.Application
         /// <param name="canRush">突進を始められるかを返す関数。攻走でだけ使う</param>
         /// <param name="canAct">スキルを出せる攻撃間隔が経っているかを返す関数。通常攻撃と共有する</param>
         /// <param name="onActed">スキルを出したときに呼ぶ関数。通常攻撃と共有する攻撃間隔を数え直す</param>
+        /// <param name="skyBeamService">羽天轟号の使用中の流れ。使用中は、ほかのスキルを出せず、同じスキルの発動は止める操作になる</param>
         /// <param name="actionEvents">スキルの発動とチャージの消費を流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
             ChargeService chargeService, PlayerEnhanceService enhanceService, Action<float, float> onBeam,
             Action<float> onExplosion, Action<int> onHeal, Action<float, float, float> onBomb, Action<float, float, float, float> onSweep,
-            Action<float, float, float, float, float> onRush, Func<float, bool> onMoundBegin, Action onMoundEnd, Func<bool> canRush, Func<bool> canAct, Action onActed, PlayerActionEvents actionEvents,
-            int sceneId)
+            Action<float, float, float, float, float> onRush, Func<float, bool> onMoundBegin, Action onMoundEnd, Func<bool> canRush, Func<bool> canAct, Action onActed,
+            Action<SkillData> onSkillUsed, SkyBeamService skyBeamService, PlayerActionEvents actionEvents, int sceneId)
         {
+            _skyBeamService = skyBeamService;
             _actionEvents = actionEvents;
             _chargeService = chargeService;
             _enhanceService = enhanceService;
@@ -73,6 +77,7 @@ namespace Kizami.Application
             _canRush = canRush;
             _canAct = canAct;
             _onActed = onActed;
+            _onSkillUsed = onSkillUsed;
 
             var count = Math.Min(equippedSkills.Count, SLOT_COUNT);
             for (var i = 0; i < count; i++)
@@ -96,6 +101,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// 羽天轟号の使用中は、その枠を押すと止め（チャージは消費しない）、ほかの枠は何もしない。
         /// 枠にスキルがあり、通常攻撃と共有する攻撃間隔が経っていて、その消費量だけチャージを消費できたら、スキルの発動とチャージの消費を通知して、効果を出す。
         /// 回復は、HP が0のときと最大のときは発動せず、チャージも消費しない。造山は、押した枠を離すまで盛り続け、視線が何にも当たらないときは発動せず、チャージも消費しない。攻走は、突進を始められないときは発動せず、チャージも消費しない。
         /// </summary>
@@ -111,48 +117,57 @@ namespace Kizami.Application
             }
 
             if (context.Phase != InputPhase.Performed) return;
-            if (_canAct != null && !_canAct()) return;
-            if (skill.Effect == SkillEffect.Heal && !CanHeal()) return;
-            if (skill.Effect == SkillEffect.Rush && _canRush != null && !_canRush()) return;
-            if (skill.Effect == SkillEffect.Mound && (_onMoundBegin == null || !_onMoundBegin(skill.Radius))) return;
-            if (!_chargeService.TryConsume(skill.Cost))
+
+            if (_skyBeamService.IsActive)
             {
-                if (skill.Effect == SkillEffect.Mound) _onMoundEnd?.Invoke();
+                if (skill.Effect is SkyBeamEffect) _skyBeamService.Stop();
                 return;
             }
 
-            if (skill.Effect == SkillEffect.Mound) _moundSlot = slot;
+            if (skill.Effect is SkyBeamEffect && !_skyBeamService.CanBegin) return;
+            if (_canAct != null && !_canAct()) return;
+            if (skill.Effect is HealEffect && !CanHeal()) return;
+            if (skill.Effect is RushEffect && _canRush != null && !_canRush()) return;
+            if (skill.Effect is MoundEffect mound && (_onMoundBegin == null || !_onMoundBegin(mound.Radius))) return;
+            if (!_chargeService.TryConsume(skill.Cost))
+            {
+                if (skill.Effect is MoundEffect) _onMoundEnd?.Invoke();
+                return;
+            }
+
+            if (skill.Effect is MoundEffect) _moundSlot = slot;
 
             _onActed?.Invoke();
 
             _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.SkillUsed, skill.DisplayName));
             _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.ChargeSpent, amount: skill.Cost));
-
-            if (skill.IsEnhancement)
-            {
-                _enhanceService.Begin(skill);
-                return;
-            }
+            _onSkillUsed?.Invoke(skill);
 
             switch (skill.Effect)
             {
-                case SkillEffect.Beam:
-                    _onBeam?.Invoke(skill.Length, skill.Radius);
+                case EnhanceEffect enhance:
+                    _enhanceService.Begin(enhance);
                     break;
-                case SkillEffect.Explosion:
-                    _onExplosion?.Invoke(skill.Radius);
+                case BeamEffect beam:
+                    _onBeam?.Invoke(beam.Length, beam.Radius);
                     break;
-                case SkillEffect.Heal:
-                    _onHeal?.Invoke(skill.HealAmount);
+                case ExplosionEffect explosion:
+                    _onExplosion?.Invoke(explosion.Radius);
                     break;
-                case SkillEffect.Bomb:
-                    _onBomb?.Invoke(skill.Distance, skill.Radius, skill.ForwardOffset);
+                case HealEffect heal:
+                    _onHeal?.Invoke(heal.HealAmount);
                     break;
-                case SkillEffect.Sweep:
-                    _onSweep?.Invoke(skill.Width, skill.Depth, skill.Falloff, skill.ForwardOffset);
+                case BombEffect bomb:
+                    _onBomb?.Invoke(bomb.Distance, bomb.Radius, bomb.ForwardOffset);
                     break;
-                case SkillEffect.Rush:
-                    _onRush?.Invoke(skill.Distance, skill.Duration, skill.Radius, skill.Falloff, skill.ForwardOffset);
+                case SweepEffect sweep:
+                    _onSweep?.Invoke(sweep.Width, sweep.Depth, sweep.Falloff, sweep.ForwardOffset);
+                    break;
+                case RushEffect rush:
+                    _onRush?.Invoke(rush.Distance, rush.Duration, rush.Radius, rush.Falloff, rush.ForwardOffset);
+                    break;
+                case SkyBeamEffect skyBeam:
+                    _skyBeamService.Begin(skyBeam);
                     break;
             }
         }

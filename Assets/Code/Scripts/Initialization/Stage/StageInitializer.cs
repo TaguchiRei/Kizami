@@ -20,6 +20,7 @@ namespace Kizami.Initialization
     /// <summary>
     /// インゲームの流れ（StageFlowService / StageFlowState）と、ステージの案内（StageGuideService / StageGuideState）、破壊対象・制限時間・HUD・案内・ポーズ・リザルトの Adapter、ステージシーンにある台本（StageGuideScript）と開始位置の目印（PlayerStartPoint）を繋いで、プレイを始める配線役。インゲームのシーンへ置く。
     /// 倒れる塔があるステージでは、塔を渡りきったらクリアにする（TowerCrossingAdapter）。
+    /// ボス戦のステージでは、ボスに付いた BossGuideScript に案内の文を出す関数を渡す。
     /// ステージシーンに目標を選ぶ物（TargetSelectorBase）があれば、最も近い目標の位置を画面に出す（TargetIndicatorAdapter）。
     /// Brilliant Skill の判定（BrilliantSkillService）に、敵を倒した通知、ボクセルを壊した体積、建物の倒壊を繋ぎ、成立したら追加スコアを足す。
     /// 失敗条件の判定と、案内のログにプレイヤーの State と出来事の通知を使う為、PlayerInitializer より後に初期化する。
@@ -48,6 +49,10 @@ namespace Kizami.Initialization
         [SerializeField, Min(1f)]
         [Tooltip("案内のログを出しておく時間（秒）")]
         private float _guideLogLifetime = 5f;
+
+        [SerializeField]
+        [Tooltip("Brilliant Skill を有効にするか。仕様が固まるまでは無効にしておく。無効のときは、判定・文字の表示・文字のつかみと投擲・文字を切る処理のどれも繋がない")]
+        private bool _isBrilliantSkillEnabled;
 
         [SerializeField]
         [Tooltip("Brilliant Skill の判定の条件と追加スコア")]
@@ -89,14 +94,9 @@ namespace Kizami.Initialization
             _timerAdapter.Initialize(_flowService.Tick);
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
                 gameObject.scene.buildIndex);
-            var textAdapter = FindOrCreateBrilliantSkillTextAdapter();
-            _fragmentThrowAdapter.SetWordSource(textAdapter);
-            textAdapter.SetOnWordLanded(OnWordLanded);
-            ConnectWordCutting(textAdapter);
-            _brilliantSkillService = new BrilliantSkillService(_brilliantSkillSettings, _flowService.AddBonusScore,
-                kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)));
             _enemySpawnAdapter.SetOnDefeated(OnDefeated);
-            ConnectBrilliantSkillSources();
+            _voxelDestructionAdapter = FindFirstObjectByType<VoxelDestructionAdapter>();
+            if (_isBrilliantSkillEnabled) EnableBrilliantSkill();
             if (_voxelDestructionAdapter != null) _voxelDestructionAdapter.SetMaxPower(stage.IsMaxDestructionPower);
             PlacePlayerAtStartPoint();
 
@@ -108,11 +108,19 @@ namespace Kizami.Initialization
                     _guideService.SetDialogue, _guideService.SetHint, _flowService.Clear);
             }
 
+            var bossGuideScript = FindFirstObjectByType<BossGuideScript>();
+            if (bossGuideScript != null &&
+                blackBoard.TryGetSceneState<EnemyBoard, IBossBattleState>(out var bossState, this))
+            {
+                bossGuideScript.Initialize(bossState, _guideService.SetObjective, _guideService.SetSubObjective,
+                    _guideService.SetDialogue, _guideService.SetHint);
+            }
+
             ConnectTowerCrossing();
             ConnectTargetIndicator();
 
             _resultAdapter.Initialize(blackBoard, Retry, BackToOutGame);
-            _hudAdapter.Initialize(blackBoard, _fragmentThrowAdapter);
+            _hudAdapter.Initialize(blackBoard);
             _guideAdapter.Initialize(blackBoard);
             _pauseAdapter.Initialize(blackBoard, _flowService.Resume, BackToOutGame);
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -245,7 +253,7 @@ namespace Kizami.Initialization
         {
             _flowService.AddDefeats(notice.Count);
             _guideService.AddDefeats(notice.Count);
-            if (!_isResolvingWordImpact && notice.Cause != EnemyDefeatCause.Boss) _brilliantSkillService.OnDefeated(notice);
+            if (!_isResolvingWordImpact && notice.Cause != EnemyDefeatCause.Boss) _brilliantSkillService?.OnDefeated(notice);
         }
 
         /// <summary>
@@ -272,7 +280,21 @@ namespace Kizami.Initialization
         /// </summary>
         private void OnVoxelsCarved(float volume)
         {
-            if (!_isResolvingWordImpact) _brilliantSkillService.OnVoxelsDestroyed(volume);
+            if (!_isResolvingWordImpact) _brilliantSkillService?.OnVoxelsDestroyed(volume);
+        }
+
+        /// <summary>
+        /// Brilliant Skill の判定と文字の表示を作り、文字のつかみと投擲、文字を切る処理、判定の入力元を繋ぐ。
+        /// </summary>
+        private void EnableBrilliantSkill()
+        {
+            var textAdapter = FindOrCreateBrilliantSkillTextAdapter();
+            _fragmentThrowAdapter.SetWordSource(textAdapter);
+            textAdapter.SetOnWordLanded(OnWordLanded);
+            ConnectWordCutting(textAdapter);
+            _brilliantSkillService = new BrilliantSkillService(_brilliantSkillSettings, _flowService.AddBonusScore,
+                kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)));
+            ConnectBrilliantSkillSources();
         }
 
         /// <summary>
@@ -309,7 +331,6 @@ namespace Kizami.Initialization
         /// </summary>
         private void ConnectBrilliantSkillSources()
         {
-            _voxelDestructionAdapter = FindFirstObjectByType<VoxelDestructionAdapter>();
             if (_voxelDestructionAdapter == null)
             {
                 UsefulLogger.LogWarning("VoxelDestructionAdapter が見つからない為、一撃の破壊の判定と、投げた言葉の着弾によるボクセルの破壊はできません。", this);
@@ -339,7 +360,7 @@ namespace Kizami.Initialization
                 bounds.Encapsulate(pieces[i].WorldBounds);
             }
 
-            _brilliantSkillService.OnBuildingCollapsed(bounds.center, bounds.extents.magnitude);
+            _brilliantSkillService?.OnBuildingCollapsed(bounds.center, bounds.extents.magnitude);
         }
 
         /// <summary>

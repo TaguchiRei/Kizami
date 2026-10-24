@@ -16,6 +16,7 @@ Shader "Kizami/FinisherBeam"
         _EdgeSoftness("EdgeSoftness", Range(0.01, 1)) = 0.35
         _SoftDistance("SoftDistance", Float) = 3
         [Toggle] _ZWrite("ZWrite", Float) = 0
+        _DitherOpacity("DitherOpacity", Range(0, 1)) = 1
     }
 
     SubShader
@@ -52,6 +53,7 @@ Shader "Kizami/FinisherBeam"
                 float _CoreSharpness;
                 float _EdgeSoftness;
                 float _SoftDistance;
+                float _DitherOpacity;
             CBUFFER_END
 
             struct Attributes
@@ -103,8 +105,24 @@ Shader "Kizami/FinisherBeam"
                 return output;
             }
 
+            // 画面の画素ごとに 4x4 の Bayer 行列のしきい値と比べ、_DitherOpacity の割合だけ残す。1 なら何も捨てない
+            void ClipDither(float2 positionCS)
+            {
+                static const float bayer[16] =
+                {
+                    0, 8, 2, 10,
+                    12, 4, 14, 6,
+                    3, 11, 1, 9,
+                    15, 7, 13, 5
+                };
+                uint2 pixel = (uint2)positionCS % 4;
+                clip(_DitherOpacity - (bayer[pixel.y * 4 + pixel.x] + 0.5) / 16);
+            }
+
             half4 frag(Varyings input) : SV_Target
             {
+                ClipDither(input.positionCS.xy);
+
                 float2 tilling = float2(_Tilling.x, _Tilling.y * _BeamLength / 1489.6);
                 float2 scroll = float2(0, _Time.y * _ScrollSpeed);
 

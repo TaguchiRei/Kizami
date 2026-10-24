@@ -10,7 +10,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 切断で生まれたかけらを管理し、オーブに変えてプレイヤーに吸収させる Adapter。
-    /// かけらは寿命が来るとオーブになり、オーブは MainCamera の位置へ向かって吸収される。
+    /// かけらは寿命が来るとオーブになり、オーブはチャージのゲージの中心へ向かって吸収される。
     /// 何かにぶつかってもオーブにしない。切った直後のかけらは敵の残りの部位や地面に触れていることがあり、すぐオーブになるとスロー中につかめない為。
     /// </summary>
     /// <remarks>
@@ -45,15 +45,49 @@ namespace Kizami.EngineAdapter
 
         [SerializeField, Min(0f)]
         [Tooltip("オーブがプレイヤーへ向かう速さ（m/s）")]
-        private float _orbSpeed = 15f;
+        private float _orbSpeed = 30f;
+
+        [SerializeField]
+        [Tooltip("チャージのゲージの位置を知る HUD。未設定、または HUD の組み立て前は、カメラの位置へ向かう")]
+        private StageHudAdapter _hud;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("オーブが吸い込まれる、ゲージの中心を指す位置のカメラからの距離（m）")]
+        private float _gaugeDepth = 1.5f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("オーブがプレイヤーにこの距離（m）まで近づいたら吸収する")]
+        [Tooltip("オーブの光の強さを弱め始める、カメラからの距離（m）。これより遠いオーブは最大の強さで光る")]
+        private float _dimStartDistance = 10f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("オーブの光が最も弱くなる、カメラからの距離（m）。これより近いオーブは最小の強さになる")]
+        private float _dimEndDistance = 3f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("遠いオーブの光の強さ。色に掛ける倍率で、ブルームのしきい値（1）を超えると光る")]
+        private float _farGlow = 3.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("近いオーブの光の強さ。しきい値（1）以下ならブルームが掛からない")]
+        private float _nearGlow = 0.8f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("オーブが行き先にこの距離（m）まで近づいたら吸収する")]
         private float _absorbDistance = 0.5f;
 
         [SerializeField, Min(1)]
         [Tooltip("同時に存在するオーブの数の上限")]
         private int _maxOrbCount = 64;
+
+        private static readonly int _baseColorId = Shader.PropertyToID("_BaseColor");
+
+        private readonly Dictionary<Transform, Renderer> _orbRenderers = new();
+
+        /// <summary> オーブごとの光の強さを書く作業用。MonoBehaviour の初期化中は作れない為、Initialize で作る </summary>
+        private MaterialPropertyBlock _glowBlock;
+
+        /// <summary> オーブの色相。プレハブのマテリアルの色を、最も明るい成分が 1 になるよう割ったもの </summary>
+        private Color _orbHue = Color.white;
 
         private ObjectPool<Transform> _orbPool;
         private Action<int> _onAbsorbed;
@@ -77,6 +111,14 @@ namespace Kizami.EngineAdapter
             if (_orbPrefab == null)
             {
                 UsefulLogger.LogError("オーブのプレハブが設定されていません。", this);
+            }
+
+            _glowBlock = new MaterialPropertyBlock();
+            if (_orbPrefab != null && _orbPrefab.GetComponentInChildren<Renderer>() is { sharedMaterial: not null } prefabRenderer)
+            {
+                var baseColor = prefabRenderer.sharedMaterial.GetColor(_baseColorId);
+                var brightest = Mathf.Max(baseColor.r, baseColor.g, baseColor.b, 0.0001f);
+                _orbHue = new Color(baseColor.r / brightest, baseColor.g / brightest, baseColor.b / brightest, 1f);
             }
 
             _orbPool = new ObjectPool<Transform>(
@@ -205,7 +247,26 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// オーブを MainCamera の位置へ動かし、吸収する距離に入ったものを吸収する。
+        /// オーブの光の強さを、カメラまでの距離に応じて決める。近づくほど弱め、まぶしさを抑える。
+        /// ブルームは画面全体の後処理なので、オーブごとに弱めるには、色の明るさを下げる。
+        /// </summary>
+        private void SetGlow(Transform orb, float distance)
+        {
+            if (!_orbRenderers.TryGetValue(orb, out var orbRenderer))
+            {
+                orbRenderer = orb.GetComponentInChildren<Renderer>();
+                _orbRenderers[orb] = orbRenderer;
+            }
+
+            if (orbRenderer == null) return;
+
+            var ratio = Mathf.InverseLerp(_dimEndDistance, _dimStartDistance, distance);
+            _glowBlock.SetColor(_baseColorId, _orbHue * Mathf.Lerp(_nearGlow, _farGlow, ratio));
+            orbRenderer.SetPropertyBlock(_glowBlock);
+        }
+
+        /// <summary>
+        /// オーブをチャージのゲージの中心へ（HUD がなければ MainCamera の位置へ）動かし、吸収する距離に入ったものを吸収する。
         /// </summary>
         private void MoveOrbs()
         {
@@ -215,6 +276,8 @@ namespace Kizami.EngineAdapter
             if (cameraMain == null) return;
 
             var target = cameraMain.transform.position;
+            if (_hud != null && _hud.TryGetChargeGaugePoint(cameraMain, _gaugeDepth, out var gaugePoint)) target = gaugePoint;
+
             var step = _orbSpeed * Time.deltaTime;
             var absorbed = 0;
 
@@ -222,6 +285,7 @@ namespace Kizami.EngineAdapter
             {
                 var orb = _orbs[i];
                 orb.position = Vector3.MoveTowards(orb.position, target, step);
+                SetGlow(orb, Vector3.Distance(orb.position, cameraMain.transform.position));
 
                 if ((orb.position - target).sqrMagnitude > _absorbDistance * _absorbDistance) continue;
 

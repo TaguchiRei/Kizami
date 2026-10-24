@@ -14,7 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u7206\u767A"
   _id: Explosion
-  _effect: 1
+  _effect:
+    rid: 7000000000000000002
   _cost: 50
-  _radius: 4
-  _length: 0
+  references:
+    version: 2
+    RefIds:
+    - rid: 7000000000000000002
+      type: {class: ExplosionEffect, ns: Kizami.External, asm: Kizami.External.Runtime}
+      data:
+        _radius: 4

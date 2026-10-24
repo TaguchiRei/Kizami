@@ -8,7 +8,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 崩落で倒した敵のエネルギーを、VFX Graph の粒で MainCamera の位置へ吸い込ませ、倒した数をチャージとして渡す Adapter。インゲームのシーンへ置く。
+    /// 崩落で倒した敵のエネルギーを、VFX Graph の粒でチャージのゲージの中心へ吸い込ませ、倒した数をチャージとして渡す Adapter。インゲームのシーンへ置く。
     /// 倒した位置はフレームごとに溜め、LateUpdate で GraphicsBuffer にまとめて VFX Graph へ渡し、イベントを1回だけ送る。
     /// チャージは粒が届くのを待たずに、倒したフレームに1回だけまとめて渡す。VFX Graph の粒は、届いたことを CPU に返しにくい為。
     /// </summary>
@@ -30,6 +30,14 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("エネルギーの粒を出す VisualEffect")]
         private VisualEffect _effect;
+
+        [SerializeField]
+        [Tooltip("チャージのゲージの位置を知る HUD。未設定、または HUD の組み立て前は、粒はカメラの位置へ向かう")]
+        private StageHudAdapter _hud;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("粒が吸い込まれる、ゲージの中心を指す位置のカメラからの距離（m）")]
+        private float _gaugeDepth = 1.5f;
 
         [SerializeField, Min(1)]
         [Tooltip("1 フレームに VFX Graph へ渡せる、倒した位置の数。超えた分は粒を出さない（チャージには数える）")]
@@ -77,10 +85,20 @@ namespace Kizami.EngineAdapter
             if (_pendingPositions.Count < _maxPositionsPerFrame) _pendingPositions.Add(position);
         }
 
+        /// <summary>
+        /// 粒の行き先。ゲージの中心を指す位置で、HUD がなければカメラの位置。
+        /// </summary>
+        private Vector3 GetTarget(Camera cameraMain)
+        {
+            if (_hud != null && _hud.TryGetChargeGaugePoint(cameraMain, _gaugeDepth, out var gaugePoint)) return gaugePoint;
+
+            return cameraMain.transform.position;
+        }
+
         private void LateUpdate()
         {
             var cameraMain = Camera.main;
-            if (_effect != null && cameraMain != null) _effect.SetVector3(_targetId, cameraMain.transform.position);
+            if (_effect != null && cameraMain != null) _effect.SetVector3(_targetId, GetTarget(cameraMain));
 
             if (_pendingCount == 0) return;
 

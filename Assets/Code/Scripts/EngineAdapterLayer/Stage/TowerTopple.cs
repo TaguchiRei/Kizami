@@ -336,7 +336,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 塔の上の部分の面のうち、法線が最も上を向いた面を選び、その面の子のスポーン位置の保留を解く。
+        /// 塔の上の部分の面のうち、法線が最も上を向いた面を選び、その面の子のスポーン位置の保留と、飛び移りの目印の保留を解く。
         /// </summary>
         private void ReleaseTopFaceSpawns()
         {
@@ -364,7 +364,14 @@ namespace Kizami.EngineAdapter
                 count++;
             }
 
-            UsefulLogger.Log($"橋の上の面 {top.name} のスポーン位置 {count} 個を解放しました。", this);
+            var anchorCount = 0;
+            foreach (var anchor in top.GetComponentsInChildren<FlightAnchor>(true))
+            {
+                anchor.Release();
+                anchorCount++;
+            }
+
+            UsefulLogger.Log($"橋の上の面 {top.name} のスポーン位置 {count} 個と、飛び移りの目印 {anchorCount} 個を解放しました。", this);
         }
 
         /// <summary>

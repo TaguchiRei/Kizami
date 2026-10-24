@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.StageData
   _displayName: Arrival
   _id: Arrival
-  _unlockSkill: {fileID: 0}
+  _unlockSkill: {fileID: 11400000, guid: cbb11c464bf54714bf84671883249d8d, type: 2}
   _sceneGroup: {fileID: 11400000, guid: 0c9f73d390727a84fb7f849c324b2630, type: 2}
   _clearScore: 1000
   _initialCharge: 100

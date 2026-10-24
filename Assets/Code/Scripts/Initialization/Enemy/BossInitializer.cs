@@ -11,6 +11,8 @@ namespace Kizami.Initialization
     /// <summary>
     /// ステージシーンに置いたボスを探し、攻撃に、プレイヤーへダメージを与える関数と弾く関数、敵を吸収・撃破する関数と狙う相手を渡し、ボス戦の段階を進める BossBattleService と BossBattleAdapter を繋ぐ配線役。インゲームのシーンへ置く。
     /// ボスはボス戦のステージシーンにだけ置き、ボスのいないステージでは何もしない。
+    /// 直接戦闘で投げる塔（BossTowerThrow）もボスに付ける。
+    /// 次に向かう場所を選ぶ BossTargetSelector と、段階ごとの案内の BossGuideScript をボスに付ける。どちらも StageInitializer が拾って繋ぐ。
     /// ボスの体力は StageInitializer が作って配線した TargetHealthService を受け取り、BossBattleService が段階に合わせて切り替える。
     /// </summary>
     public sealed class BossInitializer : InitializerBase, IInjectable<PlayerHealthService>,
@@ -114,6 +116,8 @@ namespace Kizami.Initialization
                 arena.Initialize(applyDamage);
             }
 
+            boss.AddComponent<BossTowerThrow>().Initialize(target, applyDamage, arena);
+
             var battleService = new BossBattleService(blackBoard, _targetHealthService, _stompsPerRound,
                 _finalDuration, gameObject.scene.buildIndex);
             if (blackBoard.TryGetSceneState<EnemyBoard, IBossBattleState>(out var battleState, this))
@@ -122,6 +126,8 @@ namespace Kizami.Initialization
                     battleService.ReportArrived, battleService.ReportStomp,
                     battleService.ReportCoreAttackFinished, battleService.ReportWeaponBroken,
                     battleService.Tick, target);
+                boss.AddComponent<BossTargetSelector>().Connect(battleState, boss.GetComponentInChildren<BossCrystals>(true));
+                boss.AddComponent<BossGuideScript>();
                 if (_beginOnInitialize) battleService.Begin();
             }
 

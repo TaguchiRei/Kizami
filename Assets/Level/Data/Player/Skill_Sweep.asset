@@ -13,13 +13,17 @@ MonoBehaviour:
   m_Name: Skill_Sweep
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u885D\u6CE2"
-  _effect: 10
+  _school: 1
+  _effect:
+    rid: 7000000000000000005
   _cost: 10
-  _radius: 1
-  _length: 0
-  _falloff: 0.3
-  _healAmount: 0
-  _distance: 5
-  _width: 20
-  _depth: 10
-  _forwardOffset: 5
+  references:
+    version: 2
+    RefIds:
+    - rid: 7000000000000000005
+      type: {class: SweepEffect, ns: Kizami.External, asm: Kizami.External.Runtime}
+      data:
+        _width: 20
+        _depth: 10
+        _falloff: 0.3
+        _forwardOffset: 5

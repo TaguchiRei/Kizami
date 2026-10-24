@@ -13,14 +13,18 @@ MonoBehaviour:
   m_Name: Skill_Rush
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
   _displayName: "\u653B\u8D70"
-  _effect: 11
+  _school: 1
+  _effect:
+    rid: 7000000000000000006
   _cost: 15
-  _radius: 5
-  _length: 0
-  _falloff: 0.3
-  _healAmount: 0
-  _distance: 15
-  _width: 4
-  _depth: 2
-  _forwardOffset: 5
-  _duration: 0.3
+  references:
+    version: 2
+    RefIds:
+    - rid: 7000000000000000006
+      type: {class: RushEffect, ns: Kizami.External, asm: Kizami.External.Runtime}
+      data:
+        _radius: 5
+        _distance: 15
+        _duration: 0.3
+        _falloff: 0.3
+        _forwardOffset: 5

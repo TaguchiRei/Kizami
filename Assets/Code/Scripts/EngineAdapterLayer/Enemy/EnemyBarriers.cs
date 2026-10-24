@@ -9,7 +9,8 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// ディフェンダーが張る球のバリアを扱う。EnemySpawnAdapter と同じ GameObject に置き、EnemySpawnAdapter が初期化と毎フレームの更新を呼ぶ。
-    /// グループが目的地に着いて螺旋に並び（EnemyGroup.HasArrived）、隊列の0番（螺旋の中心）に生きているディフェンダーがいる間、そのディフェンダーを中心にバリアを張る。
+    /// 隊列の0番（螺旋の中心）に生きているディフェンダーがいて、プレイヤーとの水平距離が _timerRange 以内の間だけ、バリアを張るタイマー（EnemyGroup.BarrierTimer）が進む。
+    /// 近いほど速く進み、_timerDuration に達したら、そのディフェンダーを中心にバリアを張る。範囲を出るとタイマーを戻し、張っていたバリアも解く。
     /// バリアの物（当たり判定と ArmorPanel を持つ球）は初期化のときにプールに作り、張っているグループにだけ貸すので、体を貸していない遠くのグループにも当たり判定がある。
     /// 当たった攻撃の数はグループの状態（EnemyGroup.BarrierHitCount）に持ち、物を返しても続く。壊れたバリアは張り直さない。崩落は防がない。
     /// 張っている間、体を貸しているディフェンダーは前脚の足を体の前で合わせる。
@@ -46,6 +47,22 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("前で合わせる足を伸ばす先（ディフェンダーの体の根の空間）。並びは _guardLegs と同じ")]
         private Vector3[] _guardFootPositions = { new(-0.35f, 1.6f, 3f), new(0.35f, 1.6f, 3f) };
+
+        [SerializeField, Min(1f)]
+        [Tooltip("プレイヤーとディフェンダーの水平距離がこの値（m）以内の間、バリアを張るタイマーが進む。範囲を出るとタイマーを戻し、張っていたバリアも解く")]
+        private float _timerRange = 80f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("タイマーが最も速く進む水平距離（m）。この距離以内では _timerMaxRate 倍で進み、範囲の端の 1 倍との間は距離に比例して速くなる")]
+        private float _timerFastDistance = 10f;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("バリアを張るまでのタイマーの長さ（秒、1 倍の速さのとき）")]
+        private float _timerDuration = 20f;
+
+        [SerializeField, Min(1f)]
+        [Tooltip("タイマーが進む速さの最大の倍率")]
+        private float _timerMaxRate = 4f;
 
         [SerializeField, Min(0f)]
         [Tooltip("打ち上げで、プレイヤーの足元が球の面の最も高い所からさらに上がる高さ（m）")]
@@ -120,8 +137,9 @@ namespace Kizami.EngineAdapter
         /// <param name="groups">グループ。当たった攻撃の数を書く</param>
         /// <param name="defenderLender">ディフェンダーの体の貸し借り。前脚を合わせる体を引く。ディフェンダーの設定がなければ null</param>
         /// <param name="grid">放した足を置く高さを読む経路の格子</param>
+        /// <param name="deltaTime">経過時間（秒）</param>
         public void Tick(NativeArray<EnemyAgent> agents, EnemyGroups groups, EnemyBodyLender defenderLender,
-            in EnemyNavigationGrid grid)
+            in EnemyNavigationGrid grid, float deltaTime)
         {
             if (!_isReady) return;
 
@@ -154,7 +172,26 @@ namespace Kizami.EngineAdapter
                     groupStates[g] = group;
                 }
 
-                var wantsBarrier = hasDefender && group.HasArrived && group.BarrierHitCount < _maxDurability;
+                var isInRange = false;
+                var playerDistance = 0f;
+                if (hasDefender && group.BarrierHitCount < _maxDurability)
+                {
+                    playerDistance = math.distance(agents[defender].Position.xz, ((float3)targetBounds.center).xz);
+                    isInRange = playerDistance <= _timerRange;
+                }
+
+                if (!isInRange)
+                {
+                    group.BarrierTimer = 0f;
+                }
+                else if (barrier < 0)
+                {
+                    group.BarrierTimer += deltaTime * GetTimerRate(playerDistance);
+                }
+
+                groupStates[g] = group;
+
+                var wantsBarrier = isInRange && (barrier >= 0 || group.BarrierTimer >= _timerDuration);
                 if (wantsBarrier && barrier < 0)
                 {
                     var center = (Vector3)agents[defender].Position;
@@ -191,6 +228,16 @@ namespace Kizami.EngineAdapter
                     UpdateGuardPose(defenderLender.GetLegs(agents[defender].BodyIndex), barrier >= 0, grid);
                 }
             }
+        }
+
+        /// <summary>
+        /// プレイヤーとの水平距離に応じた、タイマーが進む速さの倍率。範囲の端で 1、_timerFastDistance 以内で _timerMaxRate、間は線形。
+        /// </summary>
+        private float GetTimerRate(float distance)
+        {
+            var span = Mathf.Max(_timerRange - _timerFastDistance, 1e-3f);
+            var closeness = Mathf.Clamp01((_timerRange - distance) / span);
+            return Mathf.Lerp(1f, _timerMaxRate, closeness);
         }
 
         /// <summary>

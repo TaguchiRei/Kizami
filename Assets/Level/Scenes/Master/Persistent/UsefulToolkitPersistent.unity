@@ -119,6 +119,70 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &479034458
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 479034460}
+  - component: {fileID: 479034459}
+  m_Layer: 0
+  m_Name: SoundPlayer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &479034459
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 479034458}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1eb5afa86e868d439e06d7c5dc17dfd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.SoundPlayer
+  _seGroup: {fileID: 6967424047128237549, guid: 0b59da02c04555141ab4cc1f5a6f6e12, type: 2}
+  _bgmGroup: {fileID: 7912274171213022086, guid: 0b59da02c04555141ab4cc1f5a6f6e12, type: 2}
+  _bgmClip: {fileID: 8300000, guid: e14c1964815e71f4da71265807238193, type: 3}
+  _bgmVolume: 1
+  _glassBreakClips:
+  - {fileID: 8300000, guid: 25912702605db854b9f2538f6e8a0881, type: 3}
+  - {fileID: 8300000, guid: 2e21d2b692ac04c4e8dad52674f47af1, type: 3}
+  - {fileID: 8300000, guid: 56fe567c18ed14240b8815f388f425d2, type: 3}
+  - {fileID: 8300000, guid: c4def0e0874ee1d4497db9117cdef556, type: 3}
+  _armorCutClips:
+  - {fileID: 8300000, guid: b2125f8bb66ae704b85d4d729e5f2474, type: 3}
+  _voxelHitClips:
+  - {fileID: 8300000, guid: 910191b4dd3ba6147bf69dc0d9a31a72, type: 3}
+  _voxelCollapseClips:
+  - {fileID: 8300000, guid: b7db80258ba4ee7488ca7112c8284667, type: 3}
+  - {fileID: 8300000, guid: 5dab3a5989340974db5b29a40d7c97c6, type: 3}
+  _voiceCount: 16
+  _minInterval: 0.05
+  _spatialBlend: 0.6
+  _maxDistance: 80
+--- !u!4 &479034460
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 479034458}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &669221185
 GameObject:
   m_ObjectHideFlags: 0
@@ -326,7 +390,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d73b8fa6e6c45e943a010cfa75768a5d, type: 2}
   - {fileID: 11400000, guid: 3a29a268965fb6d418cf53672965256f, type: 2}
   - {fileID: 11400000, guid: 3a36dc377610019478c0792dc9c173f9, type: 2}
-  - {fileID: 11400000, guid: 5cbb7e7bf3520e5429d3cfd12807f7f3, type: 2}
+  - {fileID: 11400000, guid: 852b81a24799386469e0c6ba3b658737, type: 2}
   _skills:
   - {fileID: 11400000, guid: ed106c18d54e42b7804f9237315ad9e8, type: 2}
   - {fileID: 11400000, guid: 5c7332ccc0f74149a007736fded64901, type: 2}
@@ -334,10 +398,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a328a03a53f045a1a4b39445708cc196, type: 2}
   - {fileID: 11400000, guid: 0c793d0174964ef6838fd5590e1c1f56, type: 2}
   - {fileID: 11400000, guid: 7ae116c07fce44eb9d3d2f376c7e56ab, type: 2}
+  - {fileID: 11400000, guid: cbb11c464bf54714bf84671883249d8d, type: 2}
   _initialUnlockedSkills:
   - {fileID: 11400000, guid: ed106c18d54e42b7804f9237315ad9e8, type: 2}
   - {fileID: 11400000, guid: 5c7332ccc0f74149a007736fded64901, type: 2}
-  _ultimateSkill: {fileID: 0}
+  _ultimateSkill: {fileID: 11400000, guid: cbb11c464bf54714bf84671883249d8d, type: 2}
   _transitionOnStart: 1
 --- !u!1 &752471123
 GameObject:
@@ -469,3 +534,4 @@ SceneRoots:
   - {fileID: 669221188}
   - {fileID: 752471125}
   - {fileID: 1862679506}
+  - {fileID: 479034460}

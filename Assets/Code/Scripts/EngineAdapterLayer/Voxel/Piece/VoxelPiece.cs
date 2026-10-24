@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UsefulToolkit.BlackBoard.BlackBoard;
@@ -25,14 +26,51 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 加熱で融点の逆数を取るときの、融点の下限 </summary>
         private const float MIN_MELTING_POINT = 0.01f;
 
+        /// <summary> QueueStrike で積んだ攻撃を、ジョブを待たずに当てられるまで待つフレーム数の上限 </summary>
+        private const int MAX_QUEUED_STRIKE_FRAMES = 10;
+
+        /// <summary>
+        /// 全部のピースを合わせて、LateUpdate で1フレームに作り直しを予約するチャンク数の上限。
+        /// 崩落で多くのピースが同時に削られても、メッシュ化のジョブでワーカーが埋まって他のジョブを待たせないようにする
+        /// </summary>
+        // TODO: モバイルと VR で値を見直す
+        private const int GLOBAL_REMESH_CHUNKS_PER_FRAME = 48;
+
         private const MeshColliderCookingOptions COLLIDER_COOKING_OPTIONS =
             MeshColliderCookingOptions.CookForFasterSimulation |
             MeshColliderCookingOptions.EnableMeshCleaning |
             MeshColliderCookingOptions.WeldColocatedVertices |
             MeshColliderCookingOptions.UseFastMidphase;
 
+        private static readonly ProfilerMarker _strikeMarker = new("Voxel.Strike");
+        private static readonly ProfilerMarker _measureMarker = new("Voxel.Measure");
+        private static readonly ProfilerMarker _scheduleRemeshMarker = new("Voxel.ScheduleRemesh");
+        private static readonly ProfilerMarker _completeRemeshMarker = new("Voxel.CompleteRemesh");
+        private static readonly ProfilerMarker _colliderMarker = new("Voxel.Collider");
+
+        /// <summary> BeginStrikeBatch の範囲で、削る編集のジョブを集める先 </summary>
+        private static readonly VoxelWriteBatch _strikeBatch = new();
+
+        /// <summary> QueueStrike で積んだ攻撃があるピース。BeginStrikeBatch で範囲を開くときに、まとめて当てる </summary>
+        private static readonly List<VoxelPiece> _piecesWithQueuedStrikes = new();
+
+        /// <summary> 開いている BeginStrikeBatch の範囲の数。入れ子にした範囲は、一番外を閉じるときにまとめて待つ </summary>
+        private static int _strikeBatchDepth;
+
+        /// <summary> 作り直しの予算を数えているフレーム </summary>
+        private static int _remeshBudgetFrame = -1;
+
+        /// <summary> このフレームに全部のピースで予約したチャンク数 </summary>
+        private static int _remeshBudgetUsed;
+
         private readonly Queue<int> _dirtyQueue = new();
         private readonly List<VoxelShapeChange> _pendingShapeChanges = new();
+
+        /// <summary> 予約した分離判定が終わってから出す形状変化の通知。予約までに受けた編集の分 </summary>
+        private readonly List<VoxelShapeChange> _measuringShapeChanges = new();
+
+        /// <summary> QueueStrike で積んだ、まだ当てていない攻撃。積んだ順に並ぶ </summary>
+        private readonly List<Action> _queuedStrikes = new();
         private readonly List<VoxelPiece> _pendingSlicePieces = new();
         private readonly ActionChannel<VoxelShapeChange> _shapeChanged = new();
         private readonly ActionChannel<VoxelPiece[]> _split = new();
@@ -81,6 +119,14 @@ namespace Kizami.EngineAdapter.Voxel
         private VoxelVolume _volume;
         private ChunkSlot[] _chunks;
         private bool[] _isDirty;
+        private JobHandle _remeshHandle;
+        private bool _isRemeshInFlight;
+        private int[] _flightChunkIndices;
+        private MeshBuffers[] _flightBuffers;
+        private bool _flightUsesHull;
+        private NativeArray<byte> _flightEmptyMaterialIds;
+        private NativeArray<float> _flightRoundnessScales;
+        private double _flightScheduleMilliseconds;
         private MeshCollider _hullCollider;
         private Mesh _hullMesh;
         private bool _needsMeasure;
@@ -90,6 +136,22 @@ namespace Kizami.EngineAdapter.Voxel
         private bool _hasInitialSampleCount;
         private bool _meltedSinceMeasure;
         private bool _hasWarnedThermalSettings;
+        private JobHandle _measureHandle;
+        private bool _isMeasureInFlight;
+
+        /// <summary> 予約した分離判定の、サンプルごとの塊の番号 </summary>
+        private NativeArray<int> _measureLabels;
+
+        private NativeList<VoxelComponent> _measureComponents;
+
+        /// <summary> 予約した分離判定で、塊を切り離すか </summary>
+        private bool _measureAllowsSplit;
+
+        /// <summary> 予約した時点で、前回の計測から融解していたか </summary>
+        private bool _measureHasMelted;
+
+        /// <summary> 積んでいる攻撃のうち、最初の攻撃を積んだフレーム </summary>
+        private int _firstQueuedStrikeFrame;
 
         public VoxelQualitySettings Quality => _quality;
         public Material Material => _material;
@@ -181,8 +243,8 @@ namespace Kizami.EngineAdapter.Voxel
             }
         }
 
-        /// <summary> 再メッシュ化を待っているチャンク数 </summary>
-        public int PendingChunkCount => _dirtyQueue.Count;
+        /// <summary> 再メッシュ化を待っているチャンク数。ジョブを予約済みで、まだ反映していないチャンクも含む </summary>
+        public int PendingChunkCount => _dirtyQueue.Count + (_isRemeshInFlight ? _flightChunkIndices.Length : 0);
 
         /// <summary> 全チャンクの三角形数の合計 </summary>
         public int TriangleCount { get; private set; }
@@ -193,11 +255,53 @@ namespace Kizami.EngineAdapter.Voxel
         /// <summary> 直近の再メッシュ化とコライダー更新にかかった時間 </summary>
         public double LastRemeshMilliseconds { get; private set; }
 
+        /// <summary> 直近の再メッシュ化のうち、ジョブの予約と完了待ちにかかった時間 </summary>
+        public double LastRemeshJobMilliseconds { get; private set; }
+
+        /// <summary> 直近の再メッシュ化のうち、メッシュと BoxCollider の反映にかかった時間 </summary>
+        public double LastRemeshApplyMilliseconds { get; private set; }
+
+        /// <summary> 直近の再メッシュ化のうち、ChunkMesh と凸包のコライダー更新にかかった時間 </summary>
+        public double LastRemeshColliderMilliseconds { get; private set; }
+
         /// <summary> 直近の CSG 合成にかかった時間 </summary>
         public double LastEditMilliseconds { get; private set; }
 
         /// <summary> 直近の塊の計測（分離の判定と切り離し）にかかった時間 </summary>
         public double LastMeasureMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測のうち、塊分けにかかった時間 </summary>
+        public double LastMeasureLabelMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測のうち、塊の切り出しにかかった時間の合計 </summary>
+        public double LastMeasureExtractMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測のうち、新しいピースの生成（メッシュ化と Rigidbody を含む）にかかった時間の合計 </summary>
+        public double LastMeasureSpawnMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測のうち、塊の消去と再メッシュ対象の登録にかかった時間の合計 </summary>
+        public double LastMeasureEraseMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測のうち、自分の即時再メッシュ化にかかった時間 </summary>
+        public double LastMeasureRemeshMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測のうち、上のどれにも入らない時間 </summary>
+        public double LastMeasureOtherMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測で生成したピースのうち、GameObject の生成と設定の引き継ぎにかかった時間の合計 </summary>
+        public double LastSpawnObjectMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測で生成したピースの、再メッシュ化のジョブの予約と完了待ちにかかった時間の合計 </summary>
+        public double LastSpawnRemeshJobMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測で生成したピースの、メッシュの反映にかかった時間の合計 </summary>
+        public double LastSpawnRemeshApplyMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測で生成したピースの、凸包コライダーの更新にかかった時間の合計 </summary>
+        public double LastSpawnRemeshColliderMilliseconds { get; private set; }
+
+        /// <summary> 直近の塊の計測で生成したピースの、Rigidbody の追加と速度の引き継ぎにかかった時間の合計 </summary>
+        public double LastSpawnBodyMilliseconds { get; private set; }
 
         /// <summary> 直近の平面での切り分けにかかった時間。再メッシュ化は含まない </summary>
         public double LastSliceMilliseconds { get; private set; }
@@ -224,6 +328,77 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> ボリュームが素材を持ち、素材ごとのマテリアルが設定されているか </summary>
         private bool UsesMaterials => _volume != null && _volume.HasMaterials && _materials.Length > 0;
+
+        /// <summary>
+        /// 削る攻撃（ApplyStrike）をまとめる範囲を開く。範囲の中の攻撃はジョブの完了を待たずに集め、Dispose で範囲を閉じるときにまとめて待つ。
+        /// 多くのピースを一度に削るビームの更新を囲み、ピースごとに順番に待つのをやめて並列に走らせる。
+        /// </summary>
+        /// <remarks>
+        /// 範囲は Update の中で閉じる。範囲の中では、削ったピースの形を読まない（SampleDistance など）。
+        /// </remarks>
+        /// <returns>using で受け、範囲を閉じる</returns>
+        public static StrikeBatchScope BeginStrikeBatch()
+        {
+            _strikeBatchDepth++;
+
+            // 積んである削りも、当てられるものはこの範囲でまとめて当てる
+            if (_strikeBatchDepth == 1) ApplyReadyQueuedStrikes();
+            return new StrikeBatchScope();
+        }
+
+        /// <summary>
+        /// QueueStrike で積んだ攻撃のうち、ボリュームを読むジョブが終わったピースの分をすべて当てる。
+        /// </summary>
+        private static void ApplyReadyQueuedStrikes()
+        {
+            for (var i = _piecesWithQueuedStrikes.Count - 1; i >= 0; i--)
+            {
+                var piece = _piecesWithQueuedStrikes[i];
+                if (piece == null || piece._volume == null)
+                {
+                    _piecesWithQueuedStrikes.RemoveAt(i);
+                    continue;
+                }
+
+                if (!piece._volume.HasRunningReaders) piece.ApplyQueuedStrikes();
+            }
+        }
+
+        /// <summary>
+        /// BeginStrikeBatch の範囲を閉じる。一番外の範囲なら、集めたジョブをまとめて待つ。
+        /// </summary>
+        private static void EndStrikeBatch()
+        {
+            _strikeBatchDepth--;
+            if (_strikeBatchDepth > 0) return;
+
+            _strikeBatchDepth = 0;
+            _strikeBatch.Complete();
+        }
+
+        /// <summary>
+        /// このフレームに、全部のピースを合わせて LateUpdate で予約できる残りのチャンク数。
+        /// </summary>
+        private static int GetRemainingRemeshBudget()
+        {
+            if (_remeshBudgetFrame != Time.frameCount) return GLOBAL_REMESH_CHUNKS_PER_FRAME;
+
+            return math.max(0, GLOBAL_REMESH_CHUNKS_PER_FRAME - _remeshBudgetUsed);
+        }
+
+        /// <summary>
+        /// このフレームの予算から count チャンク分を引く。すぐに作り直す必要がある予約（分離の直後など）は予算を超えても行い、その分も引く。
+        /// </summary>
+        private static void UseRemeshBudget(int count)
+        {
+            if (_remeshBudgetFrame != Time.frameCount)
+            {
+                _remeshBudgetFrame = Time.frameCount;
+                _remeshBudgetUsed = 0;
+            }
+
+            _remeshBudgetUsed += count;
+        }
 
         private static void BakeColliders(List<ChunkSlot> slots)
         {
@@ -396,6 +571,35 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// ApplyStrike と同じ攻撃を、待たずに当てられるときだけ今当てる。メッシュ化や分離判定のジョブがボリュームを読んでいる間は積んでおき、
+        /// ジョブが終わった後に BeginStrikeBatch で範囲を開くとき、まとめて当てる。積んだまま MAX_QUEUED_STRIKE_FRAMES フレーム過ぎたら、LateUpdate で待ってでも当てる。
+        /// 壊した量を使わない、続けて当てる攻撃（敵のビーム）に使う。
+        /// </summary>
+        /// <param name="reach">space で表した、融点0の素材まで届く範囲</param>
+        /// <param name="falloff">1m（space の長さ）あたりに減る強さ</param>
+        /// <param name="space">reach と falloff を表している空間</param>
+        public void QueueStrike<TShape>(in TShape reach, float falloff, Space space)
+            where TShape : struct, ITransformableVoxelShape<TShape>
+        {
+            if (_volume == null || !_volume.HasRunningReaders)
+            {
+                ApplyStrike(reach, falloff, space);
+                return;
+            }
+
+            // 当てる時に動いていても同じ所を削るよう、今の姿勢でローカル空間へ移して積む
+            var localReach = space == Space.World ? reach.Transformed(transform.worldToLocalMatrix) : reach;
+            var localFalloff = space == Space.World ? falloff / WorldToLocalLength(1f) : falloff;
+            if (_queuedStrikes.Count == 0)
+            {
+                _firstQueuedStrikeFrame = Time.frameCount;
+                _piecesWithQueuedStrikes.Add(this);
+            }
+
+            _queuedStrikes.Add(() => ApplyStrike(localReach, localFalloff, Space.Self));
+        }
+
+        /// <summary>
         /// 強さと減衰率で削る攻撃を当てる。中心から距離 d の点に届く強さは「強さ − 減衰率 × d」で、その点の素材の融点以上なら壊れる。
         /// 形状は、融点0の素材まで届く範囲（半径が 強さ ÷ 減衰率 の球やカプセル）を space で表す。
         /// 素材を持たない物や、VoxelThermalSettings が無い物は、普通の強度として扱う。
@@ -403,8 +607,11 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="reach">space で表した、融点0の素材まで届く範囲</param>
         /// <param name="falloff">1m（space の長さ）あたりに減る強さ</param>
         /// <param name="space">reach と falloff を表している空間</param>
-        /// <returns>壊した（内側から外側になった）サンプルの数</returns>
-        /// <remarks>モデルに属していれば、当てた攻撃を VoxelStrikeRecord にしてモデルへ通知する。</remarks>
+        /// <returns>壊した（内側から外側になった）サンプルの数。BeginStrikeBatch の範囲の中では数えずに0</returns>
+        /// <remarks>
+        /// モデルに属していれば、当てた攻撃を VoxelStrikeRecord にしてモデルへ通知する。
+        /// BeginStrikeBatch の範囲の中では、ジョブの完了を待たずに集め、範囲を閉じるときにまとめて待つ。
+        /// </remarks>
         public int ApplyStrike<TShape>(in TShape reach, float falloff, Space space)
             where TShape : struct, ITransformableVoxelShape<TShape>
         {
@@ -437,10 +644,13 @@ namespace Kizami.EngineAdapter.Voxel
 
             var uniformOffset = VoxelThermalSettings.NORMAL_MELTING_POINT / falloff * lengthScale;
 
+            using var strikeScope = _strikeMarker.Auto();
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            var result = _volume.ApplyStrike(localReach, UsesMaterials ? materialOffsets : default, uniformOffset);
+            var batch = _strikeBatchDepth > 0 ? _strikeBatch : null;
+            var result = _volume.ApplyStrike(localReach, UsesMaterials ? materialOffsets : default, uniformOffset, batch);
             LastEditMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
-            materialOffsets.Dispose();
+            if (batch != null) batch.AddDisposable(materialOffsets);
+            else materialOffsets.Dispose();
 
             ApplyEditResult(result, VoxelCsgOperation.Subtract);
 
@@ -477,6 +687,10 @@ namespace Kizami.EngineAdapter.Voxel
 
             var localNormal = math.normalizesafe((float3)transform.InverseTransformDirection(worldNormal));
             if (math.all(localNormal == 0f)) return Array.Empty<VoxelPiece>();
+
+            // 複製との入れ替えで、予約済みのジョブが読むボリュームが無くなる為、先に反映する
+            CompleteRemesh();
+            DiscardMeasure();
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             float3 localPoint = transform.InverseTransformPoint(worldPoint);
@@ -616,7 +830,10 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         public void FlushRemesh()
         {
-            if (_volume == null || _dirtyQueue.Count == 0) return;
+            if (_volume == null) return;
+
+            CompleteRemesh();
+            if (_dirtyQueue.Count == 0) return;
 
             RemeshPending(_dirtyQueue.Count);
         }
@@ -753,25 +970,34 @@ namespace Kizami.EngineAdapter.Voxel
                 return;
             }
 
+            if (_isRemeshInFlight && _remeshHandle.IsCompleted) CompleteRemesh();
+
+            // 積んだ削りはビームの更新の BeginStrikeBatch でまとめて当てる。ここでは長く積んだままの分だけを、待ってでも当てる
+            if (_queuedStrikes.Count > 0 && Time.frameCount - _firstQueuedStrikeFrame >= MAX_QUEUED_STRIKE_FRAMES)
+            {
+                ApplyQueuedStrikes();
+            }
+
             if (_volume.HasHotChunks && HasThermalSettings())
             {
                 _volume.Cool(_meltSystem.Settings.SolidCoolingPerSecond * Time.deltaTime);
             }
 
+            // 分離判定は予約した次のフレーム以降に受け取り、塊分けのジョブを待つ間メインスレッドを止めない
             VoxelPiece[] splitPieces = null;
-            if (_needsMeasure)
+            if (_isMeasureInFlight && _measureHandle.IsCompleted)
             {
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-                splitPieces = Measure(_needsSplitCheck && _splittable);
+                using (_measureMarker.Auto()) splitPieces = FinishMeasure();
                 LastMeasureMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
-                _needsMeasure = false;
-                _needsSplitCheck = false;
-                _meltedSinceMeasure = false;
             }
 
             if (_pendingSlicePieces.Count > 0) splitPieces = MergeSlicePieces(splitPieces);
 
-            InvokePendingShapeChanges();
+            if (_needsMeasure && !_isMeasureInFlight) ScheduleMeasure(_needsSplitCheck && _splittable);
+
+            // 分離判定を待たない形状変化（融解しなかった加熱など）は、このフレームで出す
+            if (!_isMeasureInFlight) InvokeShapeChanges(_pendingShapeChanges);
 
             if (splitPieces != null)
             {
@@ -786,9 +1012,11 @@ namespace Kizami.EngineAdapter.Voxel
                 return;
             }
 
-            if (_volume != null && _dirtyQueue.Count > 0)
+            // 前のフレームの予約がまだ終わっていなければ、待たずに次のフレームへ回す。全体の予算を使い切ったフレームも次へ回す
+            var remeshCount = math.min(_quality.RemeshChunksPerFrame, GetRemainingRemeshBudget());
+            if (_volume != null && !_isRemeshInFlight && _dirtyQueue.Count > 0 && remeshCount > 0)
             {
-                RemeshPending(_quality.RemeshChunksPerFrame);
+                ScheduleRemesh(remeshCount);
             }
         }
 
@@ -813,25 +1041,122 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         private void DisposeVolumeBeforeAssemblyReload()
         {
+            DiscardRemesh();
+            DiscardMeasure();
             _volume?.Dispose();
             _volume = null;
         }
 #endif
 
         /// <summary>
-        /// 内側のサンプルを塊に分けて体積を測る。allowSplit なら、最も大きい塊以外を切り離す。
-        /// 小さすぎる塊は、切り離さずに消す。前回の計測から融解していれば、消す塊は粒として VoxelMeltSystem へ渡す。
+        /// QueueStrike で積んだ攻撃を、積んだ順にすべて当てる。読んでいるジョブがあれば、最初の攻撃がその完了を待つ。
+        /// </summary>
+        private void ApplyQueuedStrikes()
+        {
+            var strikes = _queuedStrikes.ToArray();
+            _queuedStrikes.Clear();
+            _piecesWithQueuedStrikes.Remove(this);
+            foreach (var strike in strikes)
+            {
+                strike();
+            }
+        }
+
+        /// <summary>
+        /// 分離判定をその場で行う。予約して完了を待ち、受け取る。
         /// </summary>
         /// <returns>分離したピース（0番目が自分）。新しいピースが無ければ null</returns>
         private VoxelPiece[] Measure(bool allowSplit)
         {
-            var labels = new NativeArray<int>(_volume.Layout.SampleTotal, Allocator.TempJob,
+            ScheduleMeasure(allowSplit);
+            return FinishMeasure();
+        }
+
+        /// <summary>
+        /// 内側のサンプルを塊に分けるジョブを予約する。結果は FinishMeasure で受け取る。
+        /// 計測の待ちと、それまでに受けた形状変化の通知は、この予約が引き受ける。予約したあとの編集は、次の予約で測る。
+        /// </summary>
+        private void ScheduleMeasure(bool allowSplit)
+        {
+            _measureLabels = new NativeArray<int>(_volume.Layout.SampleTotal, Allocator.Persistent,
                 NativeArrayOptions.UninitializedMemory);
-            var components = new NativeList<VoxelComponent>(Allocator.TempJob);
+            _measureComponents = new NativeList<VoxelComponent>(Allocator.Persistent);
+            _measureHandle = _volume.ScheduleLabelComponents(_measureLabels, _measureComponents);
+            JobHandle.ScheduleBatchedJobs();
+
+            _isMeasureInFlight = true;
+            _measureAllowsSplit = allowSplit;
+            _measureHasMelted = _meltedSinceMeasure;
+            _measuringShapeChanges.AddRange(_pendingShapeChanges);
+            _pendingShapeChanges.Clear();
+            _needsMeasure = false;
+            _needsSplitCheck = false;
+            _meltedSinceMeasure = false;
+        }
+
+        /// <summary>
+        /// 予約した分離判定を捨てる。引き受けていた計測の待ちと形状変化の通知は、次の予約へ戻す。
+        /// 塊の番号が今の形と合わなくなる編集（盛る、切り分け）と、ボリュームを手放す前に呼ぶ。
+        /// </summary>
+        private void DiscardMeasure()
+        {
+            if (!_isMeasureInFlight) return;
+
+            _measureHandle.Complete();
+            _measureLabels.Dispose();
+            _measureComponents.Dispose();
+            _isMeasureInFlight = false;
+
+            _needsMeasure = true;
+            _needsSplitCheck |= _measureAllowsSplit;
+            _meltedSinceMeasure |= _measureHasMelted;
+            _pendingShapeChanges.InsertRange(0, _measuringShapeChanges);
+            _measuringShapeChanges.Clear();
+        }
+
+        /// <summary>
+        /// 予約した分離判定の完了を待ち、塊の数から体積を測る。予約で塊の切り離しを許していれば、最も大きい塊以外を切り離す。
+        /// 小さすぎる塊は、切り離さずに消す。予約の時点で前回の計測から融解していれば、消す塊は粒として VoxelMeltSystem へ渡す。
+        /// 予約が引き受けた形状変化を通知する。
+        /// </summary>
+        /// <remarks>
+        /// 塊の番号は予約の時点の形のもの。その後に削られた分は、取り出しと消去が今のサンプルの値を使うので、そのまま形に表れる。
+        /// 予約の後に削られて新しく分かれた塊は、次の予約で切り離す。
+        /// </remarks>
+        /// <returns>分離したピース（0番目が自分）。新しいピースが無ければ null</returns>
+        private VoxelPiece[] FinishMeasure()
+        {
+            _measureHandle.Complete();
+            _isMeasureInFlight = false;
+            var labels = _measureLabels;
+            var components = _measureComponents;
+            var allowSplit = _measureAllowsSplit;
+
+            LastMeasureLabelMilliseconds = 0d;
+            LastMeasureExtractMilliseconds = 0d;
+            LastMeasureSpawnMilliseconds = 0d;
+            LastMeasureEraseMilliseconds = 0d;
+            LastMeasureRemeshMilliseconds = 0d;
+            LastMeasureOtherMilliseconds = 0d;
+            LastSpawnObjectMilliseconds = 0d;
+            LastSpawnRemeshJobMilliseconds = 0d;
+            LastSpawnRemeshApplyMilliseconds = 0d;
+            LastSpawnRemeshColliderMilliseconds = 0d;
+            LastSpawnBodyMilliseconds = 0d;
+            var lapWatch = System.Diagnostics.Stopwatch.StartNew();
+            var lapStart = 0d;
+
+            double Lap()
+            {
+                var now = lapWatch.Elapsed.TotalMilliseconds;
+                var elapsed = now - lapStart;
+                lapStart = now;
+                return elapsed;
+            }
 
             try
             {
-                _volume.LabelComponents(labels, components);
+                LastMeasureLabelMilliseconds = Lap();
 
                 if (!allowSplit || components.Length <= 1)
                 {
@@ -842,6 +1167,7 @@ namespace Kizami.EngineAdapter.Voxel
                     }
 
                     SetMeasuredSampleCount(total);
+                    LastMeasureOtherMilliseconds = Lap();
                     return null;
                 }
 
@@ -857,21 +1183,32 @@ namespace Kizami.EngineAdapter.Voxel
                     if (i == keepIndex) continue;
 
                     var component = components[i];
+                    LastMeasureOtherMilliseconds += Lap();
+
                     if (component.SampleCount >= _minPieceSamples)
                     {
-                        pieces.Add(SpawnPiece(_volume.ExtractComponent(labels, component), component.SampleCount));
+                        var extracted = _volume.ExtractComponent(labels, component);
+                        LastMeasureExtractMilliseconds += Lap();
+
+                        pieces.Add(SpawnPiece(extracted, component.SampleCount));
+                        LastMeasureSpawnMilliseconds += Lap();
                     }
-                    else if (_meltedSinceMeasure)
+                    else if (_measureHasMelted)
                     {
                         EmitComponentAsMelted(labels, component);
+                        LastMeasureOtherMilliseconds += Lap();
                     }
 
                     _volume.EraseComponent(labels, component);
                     MarkSamplesDirty(component.SampleMin, component.SampleMax);
+                    LastMeasureEraseMilliseconds += Lap();
                 }
 
                 SetMeasuredSampleCount(components[keepIndex].SampleCount);
-                FlushRemesh();
+                LastMeasureOtherMilliseconds += Lap();
+
+                ScheduleRemesh(_dirtyQueue.Count);
+                LastMeasureRemeshMilliseconds = Lap();
 
                 return pieces.Count > 1 ? pieces.ToArray() : null;
             }
@@ -879,6 +1216,7 @@ namespace Kizami.EngineAdapter.Voxel
             {
                 labels.Dispose();
                 components.Dispose();
+                InvokeShapeChanges(_measuringShapeChanges);
             }
         }
 
@@ -945,6 +1283,7 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         private VoxelPiece SpawnPiece(VoxelVolume volume, int sampleCount)
         {
+            var spawnWatch = System.Diagnostics.Stopwatch.StartNew();
             var baseName = Root != null ? Root.name : name;
             var pieceObject = new GameObject($"{baseName}_Piece")
             {
@@ -974,10 +1313,15 @@ namespace Kizami.EngineAdapter.Voxel
             piece.AssignVolume(volume);
             piece.MarkAllDirty();
             piece.SetMeasuredSampleCount(sampleCount);
+            LastSpawnObjectMilliseconds += spawnWatch.Elapsed.TotalMilliseconds;
 
             // Rigidbody より先に凸包コライダーを作っておき、質量の中心と慣性を形状から求めさせる
             piece.FlushRemesh();
+            LastSpawnRemeshJobMilliseconds += piece.LastRemeshJobMilliseconds;
+            LastSpawnRemeshApplyMilliseconds += piece.LastRemeshApplyMilliseconds;
+            LastSpawnRemeshColliderMilliseconds += piece.LastRemeshColliderMilliseconds;
 
+            spawnWatch.Restart();
             var body = pieceObject.AddComponent<Rigidbody>();
             body.mass = math.max(piece.Volume * _density, 0.01f);
             body.interpolation = RigidbodyInterpolation.Interpolate;
@@ -989,6 +1333,7 @@ namespace Kizami.EngineAdapter.Voxel
                 body.angularVelocity = sourceBody.angularVelocity;
             }
 
+            LastSpawnBodyMilliseconds += spawnWatch.Elapsed.TotalMilliseconds;
             return piece;
         }
 
@@ -1007,6 +1352,9 @@ namespace Kizami.EngineAdapter.Voxel
         private void ApplyEditResult(VoxelEditResult result, VoxelCsgOperation operation)
         {
             if (!result.HasChange) return;
+
+            // 盛ると塊がつながりうる為、予約した時点の塊の番号では切り離せない
+            if (operation == VoxelCsgOperation.Union) DiscardMeasure();
 
             MarkSamplesDirty(result.SampleMin, result.SampleMax);
             _needsMeasure = true;
@@ -1060,12 +1408,15 @@ namespace Kizami.EngineAdapter.Voxel
             _pendingShapeChanges.Add(new VoxelShapeChange(this, operation, cause, localBounds));
         }
 
-        private void InvokePendingShapeChanges()
+        /// <summary>
+        /// queue の形状変化を古い順に通知し、queue を空にする。
+        /// </summary>
+        private void InvokeShapeChanges(List<VoxelShapeChange> queue)
         {
-            if (_pendingShapeChanges.Count == 0) return;
+            if (queue.Count == 0) return;
 
-            var changes = _pendingShapeChanges.ToArray();
-            _pendingShapeChanges.Clear();
+            var changes = queue.ToArray();
+            queue.Clear();
 
             foreach (var change in changes)
             {
@@ -1153,15 +1504,31 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// 待ち行列の先頭から maxCount 個までのチャンクを並列にメッシュ化し、メッシュとコライダーへ反映する。
+        /// 待ち行列の先頭から maxCount 個までのチャンクを並列にメッシュ化し、完了を待ってメッシュとコライダーへ反映する。
         /// </summary>
         private void RemeshPending(int maxCount)
         {
+            ScheduleRemesh(maxCount);
+            CompleteRemesh();
+        }
+
+        /// <summary>
+        /// 待ち行列の先頭から maxCount 個までのチャンクのメッシュ化ジョブを予約する。反映は CompleteRemesh で行う。
+        /// 前に予約したジョブが残っていれば、先に完了を待って反映する。
+        /// </summary>
+        private void ScheduleRemesh(int maxCount)
+        {
+            if (_isRemeshInFlight) CompleteRemesh();
+
+            using var scheduleScope = _scheduleRemeshMarker.Auto();
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var layout = _volume.Layout;
             var useHull = _colliderMode == VoxelColliderMode.ConvexHull;
             var useBoxes = _colliderMode == VoxelColliderMode.Boxes;
             var count = math.min(maxCount, _dirtyQueue.Count);
+            if (count == 0) return;
+
+            UseRemeshBudget(count);
             var chunkIndices = new int[count];
             var buffers = new MeshBuffers[count];
             var handles = new NativeArray<JobHandle>(count, Allocator.Temp);
@@ -1224,13 +1591,43 @@ namespace Kizami.EngineAdapter.Voxel
                 }
             }
 
-            JobHandle.CombineDependencies(handles).Complete();
+            _remeshHandle = JobHandle.CombineDependencies(handles);
             handles.Dispose();
-            if (emptyMaterialIds.IsCreated) emptyMaterialIds.Dispose();
-            if (roundnessScales.IsCreated) roundnessScales.Dispose();
+            _volume.TrackReader(_remeshHandle);
+            JobHandle.ScheduleBatchedJobs();
 
-            var colliderTargets = new List<ChunkSlot>(count);
-            for (var i = 0; i < count; i++)
+            _isRemeshInFlight = true;
+            _flightChunkIndices = chunkIndices;
+            _flightBuffers = buffers;
+            _flightUsesHull = useHull;
+            _flightEmptyMaterialIds = emptyMaterialIds;
+            _flightRoundnessScales = roundnessScales;
+            _flightScheduleMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
+        }
+
+        /// <summary>
+        /// ScheduleRemesh のジョブの完了を待ち、メッシュとコライダーへ反映する。予約したジョブが無ければ何もしない。
+        /// </summary>
+        private void CompleteRemesh()
+        {
+            if (!_isRemeshInFlight) return;
+
+            using var completeScope = _completeRemeshMarker.Auto();
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            _remeshHandle.Complete();
+            ReleaseFlightTemporaries();
+            LastRemeshJobMilliseconds = _flightScheduleMilliseconds + stopwatch.Elapsed.TotalMilliseconds;
+            var waitEnd = stopwatch.Elapsed.TotalMilliseconds;
+
+            var buffers = _flightBuffers;
+            var chunkIndices = _flightChunkIndices;
+            var useHull = _flightUsesHull;
+            _isRemeshInFlight = false;
+            _flightBuffers = null;
+            _flightChunkIndices = null;
+
+            var colliderTargets = new List<ChunkSlot>(buffers.Length);
+            for (var i = 0; i < buffers.Length; i++)
             {
                 var slot = ApplyMesh(chunkIndices[i], buffers[i], useHull);
                 if (slot?.Collider != null) colliderTargets.Add(slot);
@@ -1238,18 +1635,52 @@ namespace Kizami.EngineAdapter.Voxel
                 buffers[i].Dispose();
             }
 
-            switch (_colliderMode)
-            {
-                case VoxelColliderMode.ChunkMesh:
-                    BakeColliders(colliderTargets);
-                    break;
+            var applyEnd = stopwatch.Elapsed.TotalMilliseconds;
+            LastRemeshApplyMilliseconds = applyEnd - waitEnd;
 
-                case VoxelColliderMode.ConvexHull:
-                    RebuildHullCollider();
-                    break;
+            using (_colliderMarker.Auto())
+            {
+                switch (_colliderMode)
+                {
+                    case VoxelColliderMode.ChunkMesh:
+                        BakeColliders(colliderTargets);
+                        break;
+
+                    case VoxelColliderMode.ConvexHull:
+                        RebuildHullCollider();
+                        break;
+                }
             }
 
-            LastRemeshMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
+            var end = stopwatch.Elapsed.TotalMilliseconds;
+            LastRemeshColliderMilliseconds = end - applyEnd;
+            LastRemeshMilliseconds = _flightScheduleMilliseconds + end;
+        }
+
+        /// <summary>
+        /// ScheduleRemesh のジョブの完了を待ち、結果を反映せずに捨てる。ボリュームを手放す前に呼ぶ。
+        /// </summary>
+        private void DiscardRemesh()
+        {
+            if (!_isRemeshInFlight) return;
+
+            _remeshHandle.Complete();
+            ReleaseFlightTemporaries();
+
+            foreach (var buffer in _flightBuffers)
+            {
+                buffer.Dispose();
+            }
+
+            _isRemeshInFlight = false;
+            _flightBuffers = null;
+            _flightChunkIndices = null;
+        }
+
+        private void ReleaseFlightTemporaries()
+        {
+            if (_flightEmptyMaterialIds.IsCreated) _flightEmptyMaterialIds.Dispose();
+            if (_flightRoundnessScales.IsCreated) _flightRoundnessScales.Dispose();
         }
 
         /// <summary>
@@ -1425,6 +1856,11 @@ namespace Kizami.EngineAdapter.Voxel
 
         private void ReleaseVolume()
         {
+            DiscardRemesh();
+            DiscardMeasure();
+            _queuedStrikes.Clear();
+            _piecesWithQueuedStrikes.Remove(this);
+
             if (_chunks != null)
             {
                 foreach (var slot in _chunks)
@@ -1450,6 +1886,17 @@ namespace Kizami.EngineAdapter.Voxel
 
             _volume?.Dispose();
             _volume = null;
+        }
+
+        /// <summary>
+        /// BeginStrikeBatch で開いた範囲。Dispose で閉じる。
+        /// </summary>
+        public readonly struct StrikeBatchScope : IDisposable
+        {
+            public void Dispose()
+            {
+                EndStrikeBatch();
+            }
         }
 
         /// <summary>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
@@ -18,6 +19,8 @@ namespace Kizami.EngineAdapter.Voxel
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/VoxelOverview.md">説明ドキュメント: Voxel</seealso>
     public sealed class VoxelModelLoader : MonoBehaviour
     {
+        private static readonly ProfilerMarker _loadMarker = new("Voxel.ModelLoad");
+
         private readonly List<VoxelPiece> _parts = new();
         private readonly List<VoxelPiece> _pieces = new();
         private readonly ActionChannel<VoxelModelLoader> _loaded = new();
@@ -266,6 +269,7 @@ namespace Kizami.EngineAdapter.Voxel
                 return;
             }
 
+            using var loadScope = _loadMarker.Auto();
             var wasStatic = IsStatic;
             ClearStatic();
             _parts.Clear();

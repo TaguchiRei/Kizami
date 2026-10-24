@@ -102,6 +102,9 @@ namespace Kizami.EngineAdapter
         /// <summary> プレイヤーの当たり判定のカプセルの、ワールド空間の外接箱 </summary>
         public Bounds BodyBounds => _collider.bounds;
 
+        /// <summary> プレイヤーの Rigidbody のワールド位置 </summary>
+        public Vector3 Position => _rigidbody != null ? _rigidbody.position : transform.position;
+
         /// <summary>
         /// PlayerMovementState と PlayerLookState の登録より後に呼ぶこと。
         /// </summary>

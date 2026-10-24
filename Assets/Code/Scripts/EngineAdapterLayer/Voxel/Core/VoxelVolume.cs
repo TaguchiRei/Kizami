@@ -30,6 +30,10 @@ namespace Kizami.EngineAdapter.Voxel
         private NativeArray<byte> _roundness;
         private float _roundnessChangeThreshold;
         private float _roundnessFalloffCells;
+        private JobHandle _readers;
+
+        /// <summary> VoxelWriteBatch に集めた、まだ完了を待っていない書き込みのジョブ </summary>
+        private JobHandle _pendingWrite;
 
         public VoxelGridLayout Layout { get; }
         public float TruncationDistance => Layout.VoxelSize * TRUNCATION_VOXELS;
@@ -43,6 +47,9 @@ namespace Kizami.EngineAdapter.Voxel
 
         /// <summary> 温度が0より高いサンプルを含みうるチャンクがあるか </summary>
         public bool HasHotChunks => _hotChunks.Count > 0;
+
+        /// <summary> このボリュームを読む実行中のジョブがあるか。あれば、サンプルを書き換える処理はその完了を待つ </summary>
+        public bool HasRunningReaders => !_readers.IsCompleted || !_pendingWrite.IsCompleted;
 
         /// <summary> 点ごとの丸みを持つか </summary>
         public bool HasRoundness => _roundness.IsCreated;
@@ -118,6 +125,25 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
+        /// このボリュームを読んでいる実行中のジョブを登録する。サンプルを書き換える処理は、登録されたジョブの完了を先に待つ。
+        /// </summary>
+        internal void TrackReader(JobHandle handle)
+        {
+            _readers = JobHandle.CombineDependencies(_readers, handle);
+        }
+
+        /// <summary>
+        /// 登録された読み取りジョブと、VoxelWriteBatch に集めた書き込みのジョブの完了を待つ。ジョブが無い、または終わっていれば待たない。
+        /// </summary>
+        internal void CompleteReaders()
+        {
+            _readers.Complete();
+            _readers = default;
+            _pendingWrite.Complete();
+            _pendingWrite = default;
+        }
+
+        /// <summary>
         /// 内側（距離が負）のサンプルの数を数える。
         /// </summary>
         public int CountInside()
@@ -165,13 +191,14 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="reach">融点0の素材まで届く範囲</param>
         /// <param name="materialOffsets">素材の番号ごとの 融点 ÷ 減衰率。HasMaterials でなければ使わない</param>
         /// <param name="uniformOffset">素材を持たないときの 融点 ÷ 減衰率</param>
+        /// <param name="batch">渡せば、ジョブの完了を待たずに batch へ集める。壊したサンプルの数は数えず0を返す</param>
         /// <returns>値が書き換わりうるサンプル範囲と、壊したサンプルの数。形状がボリュームの外にあれば HasChange が false</returns>
         public VoxelEditResult ApplyStrike<TShape>(in TShape reach, NativeArray<float> materialOffsets,
-            float uniformOffset)
+            float uniformOffset, VoxelWriteBatch batch = null)
             where TShape : struct, IVoxelShape
         {
             return ApplyCsg(reach, VoxelCsgOperation.Subtract, uniformOffset,
-                HasMaterials ? materialOffsets : default);
+                HasMaterials ? materialOffsets : default, batch);
         }
 
         /// <summary>
@@ -193,6 +220,8 @@ namespace Kizami.EngineAdapter.Voxel
         {
             meltedSamples.Clear();
             if (!TryGetSampleRange(shape.Bounds, out var sampleMin, out var sampleMax)) return default;
+
+            CompleteReaders();
 
             if (!_temperatures.IsCreated)
             {
@@ -319,6 +348,8 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="source">写す元の SDF。Layout と同じローカル空間でベイクしたもの</param>
         public void Resample(VoxelSdfData source)
         {
+            CompleteReaders();
+
             var sourceSamples = new NativeArray<short>(source.Samples, Allocator.TempJob);
 
             new VoxelResampleJob
@@ -399,13 +430,25 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="components">塊の一覧の出力先。添字が塊の番号と一致する</param>
         public void LabelComponents(NativeArray<int> labels, NativeList<VoxelComponent> components)
         {
-            new VoxelComponentLabelJob
+            ScheduleLabelComponents(labels, components).Complete();
+        }
+
+        /// <summary>
+        /// LabelComponents のジョブを予約し、完了を待たずに返す。ジョブは読み手として記録し、書き換える編集はその完了を待ってから書く。
+        /// </summary>
+        /// <param name="labels">サンプルごとの塊の番号の出力先。長さは Layout.SampleTotal</param>
+        /// <param name="components">塊の一覧の出力先。添字が塊の番号と一致する</param>
+        public JobHandle ScheduleLabelComponents(NativeArray<int> labels, NativeList<VoxelComponent> components)
+        {
+            var handle = new VoxelComponentLabelJob
             {
                 Samples = _samples,
                 Layout = Layout,
                 Labels = labels,
                 Components = components
-            }.Schedule().Complete();
+            }.Schedule();
+            TrackReader(handle);
+            return handle;
         }
 
         /// <summary>
@@ -492,6 +535,8 @@ namespace Kizami.EngineAdapter.Voxel
         /// <param name="component">消す塊</param>
         public void EraseComponent(NativeArray<int> labels, in VoxelComponent component)
         {
+            CompleteReaders();
+
             var rangeSize = component.SampleMax - component.SampleMin + 1;
 
             new VoxelEraseComponentJob
@@ -583,17 +628,25 @@ namespace Kizami.EngineAdapter.Voxel
         /// </summary>
         private void SpreadRoundness(int3 sampleMin, int3 sampleMax)
         {
-            if (!HasRoundness) return;
+            ScheduleSpreadRoundness(sampleMin, sampleMax, default).Complete();
+        }
+
+        /// <summary>
+        /// SpreadRoundness のジョブを dependsOn の後に予約し、完了を待たずに返す。丸みを持たなければ dependsOn をそのまま返す。
+        /// </summary>
+        private JobHandle ScheduleSpreadRoundness(int3 sampleMin, int3 sampleMax, JobHandle dependsOn)
+        {
+            if (!HasRoundness) return dependsOn;
 
             var spread = RoundnessSpreadCells;
-            new VoxelRoundnessSpreadJob
+            return new VoxelRoundnessSpreadJob
             {
                 Layout = Layout,
                 RangeMin = math.max(sampleMin - spread, 0),
                 RangeMax = math.min(sampleMax + spread, Layout.SampleCount - 1),
                 Step = byte.MaxValue / _roundnessFalloffCells,
                 Roundness = _roundness
-            }.Schedule().Complete();
+            }.Schedule(dependsOn);
         }
 
         private void CopyRoundnessSettings(VoxelVolume source)
@@ -606,8 +659,9 @@ namespace Kizami.EngineAdapter.Voxel
         /// 形状の距離にずらし量を足して CSG 合成する。ずらし量は正なので、範囲は形状の範囲に収まる。
         /// </summary>
         /// <param name="materialOffsets">素材の番号ごとのずらし量。作られていなければ uniformOffset を使う</param>
+        /// <param name="batch">渡せば、ジョブの完了を待たずに batch へ集め、作業用の配列も batch に手放させる。壊したサンプルの数は0を返す</param>
         private VoxelEditResult ApplyCsg<TShape>(in TShape shape, VoxelCsgOperation operation, float uniformOffset,
-            NativeArray<float> materialOffsets)
+            NativeArray<float> materialOffsets, VoxelWriteBatch batch = null)
             where TShape : struct, IVoxelShape
         {
             // 形状から切り詰め距離より離れたサンプルは、合成しても値が変わらない
@@ -615,6 +669,8 @@ namespace Kizami.EngineAdapter.Voxel
             {
                 return default;
             }
+
+            CompleteReaders();
 
             var useMaterials = materialOffsets.IsCreated;
 
@@ -643,6 +699,18 @@ namespace Kizami.EngineAdapter.Voxel
                 Roundness = HasRoundness ? _roundness : emptyRoundness,
                 RemovedSamples = removedSamples.AsParallelWriter()
             };
+            if (batch != null)
+            {
+                var csgHandle = job.Schedule(rangeSize.x * rangeSize.y * rangeSize.z, 256);
+                _pendingWrite = ScheduleSpreadRoundness(sampleMin, sampleMax, csgHandle);
+                batch.Add(_pendingWrite);
+                batch.AddDisposable(removedSamples);
+                if (emptyOffsets.IsCreated) batch.AddDisposable(emptyOffsets);
+                if (emptyIds.IsCreated) batch.AddDisposable(emptyIds);
+                if (emptyRoundness.IsCreated) batch.AddDisposable(emptyRoundness);
+                return new VoxelEditResult(sampleMin, sampleMax);
+            }
+
             job.Schedule(rangeSize.x * rangeSize.y * rangeSize.z, 256).Complete();
 
             var removedCount = removedSamples.Count;
@@ -659,6 +727,8 @@ namespace Kizami.EngineAdapter.Voxel
 
         public void Dispose()
         {
+            CompleteReaders();
+
             if (_samples.IsCreated) _samples.Dispose();
             if (_temperatures.IsCreated) _temperatures.Dispose();
             if (_materialIds.IsCreated) _materialIds.Dispose();
@@ -685,6 +755,61 @@ namespace Kizami.EngineAdapter.Voxel
             SampleMin = sampleMin;
             SampleMax = sampleMax;
             RemovedSampleCount = removedSampleCount;
+        }
+    }
+
+    /// <summary>
+    /// 削る編集のジョブを完了を待たずに集め、Complete でまとめて待つ。別々のボリュームへの編集が、ワーカーで並列に走る。
+    /// 同じボリュームへの次の書き込みと、読み取りジョブの予約の前には、そのボリュームの集めたジョブの完了を待つ（VoxelVolume.CompleteReaders）。
+    /// </summary>
+    /// <remarks>
+    /// 集めている間は、集めたボリュームのサンプルをメインスレッドで読まない。メッシュ化などの読み取りジョブは LateUpdate で予約する為、Update の中で Complete まで済ませる。
+    /// </remarks>
+    public sealed class VoxelWriteBatch
+    {
+        private readonly List<JobHandle> _handles = new();
+
+        /// <summary> ジョブが終わったら手放す作業用の配列 </summary>
+        private readonly List<IDisposable> _disposables = new();
+
+        /// <summary> 集めたジョブがあるか </summary>
+        public bool HasJobs => _handles.Count > 0;
+
+        /// <summary>
+        /// 集めたジョブをすべて待ち、作業用の配列を手放す。
+        /// </summary>
+        public void Complete()
+        {
+            foreach (var handle in _handles)
+            {
+                handle.Complete();
+            }
+
+            _handles.Clear();
+
+            foreach (var disposable in _disposables)
+            {
+                disposable.Dispose();
+            }
+
+            _disposables.Clear();
+        }
+
+        /// <summary>
+        /// 予約したジョブを集める。予約を始めさせる為、ワーカーへの受け渡しを促す。
+        /// </summary>
+        internal void Add(JobHandle handle)
+        {
+            _handles.Add(handle);
+            JobHandle.ScheduleBatchedJobs();
+        }
+
+        /// <summary>
+        /// ジョブが読み書きする作業用の配列を、Complete で手放すよう預ける。
+        /// </summary>
+        public void AddDisposable(IDisposable disposable)
+        {
+            _disposables.Add(disposable);
         }
     }
 }

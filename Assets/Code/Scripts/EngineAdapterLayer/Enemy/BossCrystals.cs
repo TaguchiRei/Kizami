@@ -104,6 +104,18 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// まだ壊れていない水晶の中心（ワールド座標）を書き足す。
+        /// </summary>
+        /// <param name="centers">書き足す先</param>
+        public void AppendRemainingCenters(List<Vector3> centers)
+        {
+            foreach (var crystal in _crystals)
+            {
+                if (crystal != null && !crystal.IsDestroyed) centers.Add(crystal.Center);
+            }
+        }
+
+        /// <summary>
         /// 水晶をすべて消す。
         /// </summary>
         public void Clear()

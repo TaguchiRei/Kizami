@@ -13,7 +13,7 @@ Material:
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
   m_InvalidKeywords: []
-  m_LightmapFlags: 4
+  m_LightmapFlags: 0
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
@@ -52,8 +52,8 @@ Material:
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1
     m_Colors:
-    - _BaseColor: {r: 0.3, g: 0.9, b: 1, a: 1}
-    - _Color: {r: 0.29999998, g: 0.9, b: 1, a: 1}
+    - _BaseColor: {r: 1.05, g: 3.15, b: 3.5, a: 1}
+    - _Color: {r: 1.05, g: 3.1500003, b: 3.5000002, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &4089546801312332154

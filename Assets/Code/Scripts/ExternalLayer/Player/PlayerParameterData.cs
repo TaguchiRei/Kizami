@@ -51,6 +51,11 @@ namespace Kizami.External
         [Tooltip("壁ジャンプの水平方向の速さ（m/s）。上向きの速度はジャンプと同じ")]
         private float _wallJumpHorizontalSpeed = 6f;
 
+        [Header("飛び移り")]
+        [SerializeField, Min(1f)]
+        [Tooltip("目印へ飛ぶ速さ（m/s）。所要時間は距離 ÷ この値")]
+        private float _flightSpeed = 120f;
+
         [Header("短距離ワープ")]
         [SerializeField, Min(0f)]
         [Tooltip("ワープで進む距離（m）")]
@@ -112,22 +117,10 @@ namespace Kizami.External
         [Tooltip("1 回のスローモードの間に近接切断を振れる回数")]
         private int _slowModeCutLimit = 5;
 
-        [Header("つかむ・投げる・ランチャー")]
+        [Header("投げる")]
         [SerializeField, Min(0f)]
-        [Tooltip("かけらをつかめる、カメラからの距離（m）")]
-        private float _grabRange = 6f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("かけらを探す球の半径（m）")]
-        private float _grabRadius = 0.5f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("投げたかけらの初速（m/s）")]
+        [Tooltip("投げる物の初速（m/s）。Brilliant Skill の言葉は、この何倍かで飛ぶ")]
         private float _throwSpeed = 25f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("ランチャーで撃ったかけらの速さ（m/s）")]
-        private float _launcherSpeed = 60f;
 
         /// <summary> 歩行の速度（m/s） </summary>
         public float WalkSpeed => _walkSpeed;
@@ -158,6 +151,9 @@ namespace Kizami.External
 
         /// <summary> 壁ジャンプの水平方向の速さ（m/s） </summary>
         public float WallJumpHorizontalSpeed => _wallJumpHorizontalSpeed;
+
+        /// <summary> 目印へ飛ぶ速さ（m/s） </summary>
+        public float FlightSpeed => _flightSpeed;
 
         /// <summary> ワープで進む距離（m） </summary>
         public float WarpDistance => _warpDistance;
@@ -201,16 +197,7 @@ namespace Kizami.External
         /// <summary> 1回のスローモードの間に近接切断を振れる回数 </summary>
         public int SlowModeCutLimit => _slowModeCutLimit;
 
-        /// <summary> かけらをつかめる、カメラからの距離（m） </summary>
-        public float GrabRange => _grabRange;
-
-        /// <summary> かけらを探す球の半径（m） </summary>
-        public float GrabRadius => _grabRadius;
-
-        /// <summary> 投げたかけらの初速（m/s） </summary>
+        /// <summary> 投げる物の初速（m/s） </summary>
         public float ThrowSpeed => _throwSpeed;
-
-        /// <summary> ランチャーで撃ったかけらの速さ（m/s） </summary>
-        public float LauncherSpeed => _launcherSpeed;
     }
 }

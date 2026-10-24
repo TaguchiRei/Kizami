@@ -110,6 +110,22 @@ namespace Kizami.EngineAdapter
             }
         }
 
+        /// <summary> 出しているユニットがあるか。警告からビームを撃ち終えるまで true </summary>
+        public bool IsBusy
+        {
+            get
+            {
+                if (_isActive == null) return false;
+
+                foreach (var isActive in _isActive)
+                {
+                    if (isActive) return true;
+                }
+
+                return false;
+            }
+        }
+
         /// <summary>
         /// クールタイムが過ぎていれば、次の番の Hatch でプレイヤーの真上にユニットを置く。
         /// 番の Hatch が壊れていれば、置かずにクールタイムだけを発生させる。
@@ -117,12 +133,22 @@ namespace Kizami.EngineAdapter
         /// <returns>撃つ番を進めたか。クールタイム中なら false</returns>
         public bool TryFire()
         {
+            return TryFire(_cooldown);
+        }
+
+        /// <summary>
+        /// 撃った後のクールタイムを指定して、TryFire と同じく次の番の Hatch で撃つ。
+        /// </summary>
+        /// <param name="cooldown">撃ってから次に撃てるまでの時間（秒）</param>
+        /// <returns>撃つ番を進めたか。クールタイム中なら false</returns>
+        public bool TryFire(float cooldown)
+        {
             if (_cooldownRemaining > 0f) return false;
 
             var index = _weapons.TakeNext(BossWeaponKind.Missile);
             if (index < 0) return false;
 
-            _cooldownRemaining = _cooldown;
+            _cooldownRemaining = cooldown;
             if (!_weapons.IsBroken(index)) Place();
             return true;
         }

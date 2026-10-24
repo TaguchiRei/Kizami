@@ -19,6 +19,9 @@ namespace Kizami.Editor
         private const float LAST_HEIGHT = 720f;
         private const float SPACING = 80f;
 
+        // 飛び移りの目印を置く高さ（m）。上の部分の根元に近く、橋の端から登れる所
+        private const float LANDING_HEIGHT = 100f;
+
         // 面の上から点を浮かせる高さ（m）
         private const float SURFACE_OFFSET = 0.3f;
 
@@ -61,6 +64,37 @@ namespace Kizami.Editor
             PrefabUtility.SaveAsPrefabAsset(root, UPPER_PREFAB);
             PrefabUtility.UnloadPrefabContents(root);
             Debug.Log($"塔の上の部分に、4 つの面と {pointCount} 個のスポーン位置を置きました。");
+        }
+
+        /// <summary>
+        /// 塔の上の部分の各面に、倒れて真上を向いた面に飛び移るための目印（FlightAnchor）を 1 つずつ置く。置き直すと、前に置いた目印は消えて作り直す。
+        /// </summary>
+        [MenuItem("Kizami/Stage/Build Tower Flight Landings")]
+        public static void BuildFlightLandings()
+        {
+            var root = PrefabUtility.LoadPrefabContents(UPPER_PREFAB);
+            var count = 0;
+            foreach (var face in root.GetComponentsInChildren<TowerFace>(true))
+            {
+                foreach (var old in face.GetComponentsInChildren<FlightAnchor>(true))
+                    Object.DestroyImmediate(old.gameObject);
+
+                var normal = face.transform.InverseTransformDirection(face.WorldNormal);
+                var landing = new GameObject("FlightLanding");
+                landing.transform.SetParent(face.transform, false);
+                landing.transform.localPosition =
+                    normal * (GetHalfWidth(LANDING_HEIGHT) + SURFACE_OFFSET) + Vector3.up * LANDING_HEIGHT;
+
+                var anchor = landing.AddComponent<FlightAnchor>();
+                var serialized = new SerializedObject(anchor);
+                serialized.FindProperty("_isFallenTowerFace").boolValue = true;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                count++;
+            }
+
+            PrefabUtility.SaveAsPrefabAsset(root, UPPER_PREFAB);
+            PrefabUtility.UnloadPrefabContents(root);
+            Debug.Log($"塔の上の部分に、飛び移りの目印を {count} 個置きました。");
         }
 
         private static string FaceName(Vector3 normal)

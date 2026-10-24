@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.StageData
   _displayName: Boss
   _id: Boss
-  _unlockSkill: {fileID: 0}
+  _unlockSkill: {fileID: 11400000, guid: 7ae116c07fce44eb9d3d2f376c7e56ab, type: 2}
   _sceneGroup: {fileID: 11400000, guid: f1fba560df13b33499a3985be4cc90d3, type: 2}
   _clearScore: 1000
   _initialCharge: 100

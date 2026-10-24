@@ -12,13 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1e5dcf61a75943a7b2f0bea062ef7295, type: 3}
   m_Name: Skill_Saiken
   m_EditorClassIdentifier: Kizami.External.Runtime::Kizami.External.SkillData
+  _school: 2
   _displayName: "\u7815\u5263"
-  _effect: 3
+  _description: 
+  _id: 
+  _icon: {fileID: 0}
+  _effect:
+    rid: 7000000000000000009
+  _armAnimation: Skill_SwordTechniques
   _cost: 30
-  _radius: 1
-  _length: 0
-  _healAmount: 0
-  _enhanceLimit: 1
-  _enhanceDuration: 10
-  _enhanceCount: 10
-  _enhanceScale: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 7000000000000000009
+      type: {class: DestroyEnhanceEffect, ns: Kizami.External, asm: Kizami.External.Runtime}
+      data:
+        _count: 10

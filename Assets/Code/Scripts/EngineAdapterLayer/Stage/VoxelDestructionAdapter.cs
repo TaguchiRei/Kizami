@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Kizami.BlackBoard;
 using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
+using UnityEngine.VFX;
 using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter
@@ -25,6 +26,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 破壊力を最大にしたときに強さへ足す値。硬い素材の融点 2 と普通の素材の融点 1 の差 </summary>
         private const float MAX_POWER_BONUS = 1f;
+
+        private static readonly int _explosionEventId = Shader.PropertyToID("OnExplosion");
+        private static readonly int _debrisEventId = Shader.PropertyToID("OnDebris");
+        private static readonly int _positionId = Shader.PropertyToID("position");
+        private static readonly int _sizeId = Shader.PropertyToID("size");
+        private static readonly int _spawnCountId = Shader.PropertyToID("spawnCount");
 
         private Collider[] _hitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly Collider[] _armorHitBuffer = new Collider[MAX_HIT_COUNT];
@@ -62,6 +69,54 @@ namespace Kizami.EngineAdapter
         [SerializeField]
         [Tooltip("装甲のパネルのレイヤー。遮断の判定と、当たったパネルの収集に使う")]
         private LayerMask _armorLayers;
+
+        [SerializeField]
+        [Tooltip("爆発の球と火花。未設定なら出さない")]
+        private BlastEffect _blastEffectPrefab;
+
+        [SerializeField, Min(1)]
+        [Tooltip("爆発の球と火花を同時に出せる数。全部再生中なら、最も古いものを頭から再生し直す")]
+        private int _blastEffectCount = 8;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("爆発の半径 1m あたりの、球と火花の大きさの倍率。プレハブの大きさ 1 のとき、一番外の球が半径 50m まで広がる。0.02 で球が爆発の半径と一致する")]
+        private float _blastScalePerMeter = 0.03f;
+
+        [SerializeField]
+        [Tooltip("火花だけを描く VisualEffect。VFX Graph は Explosion.vfx。未設定なら出さない")]
+        private VisualEffect _explosionEffect;
+
+        [SerializeField, Min(1)]
+        [Tooltip("爆発の半径 1m あたりに出す粒の数")]
+        private int _explosionParticlesPerMeter = 150;
+
+        [SerializeField]
+        [Tooltip("がれきを出す VisualEffect。VFX Graph は Debris.vfx。未設定なら出さない")]
+        private VisualEffect _debrisEffect;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("壊したボクセルの体積 1m3 あたりに出すがれきの数")]
+        private float _debrisPerCubicMeter = 8f;
+
+        [SerializeField, Min(1)]
+        [Tooltip("1回の攻撃で出すがれきの数の上限")]
+        private int _maxDebrisPerCarve = 200;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("がれきが飛び散る速さ（m/s）。上向きは水平の0.4〜1.4倍")]
+        private float _debrisSpeed = 6f;
+
+        /// <summary> 爆発の位置・半径・粒の数を VFX Graph へ渡すイベント属性 </summary>
+        private VFXEventAttribute _explosionEventAttribute;
+
+        /// <summary> がれきの位置・飛ぶ速さ・数を VFX Graph へ渡すイベント属性 </summary>
+        private VFXEventAttribute _debrisEventAttribute;
+
+        /// <summary> 初期化のときに作った、爆発の球と火花 </summary>
+        private BlastEffect[] _blastEffects;
+
+        /// <summary> 次に使う _blastEffects の番号。全部再生中のときも、この番号から順に古い物を使い回す </summary>
+        private int _nextBlastIndex;
 
         /// <summary> 1回の攻撃で壊したボクセルの体積（m3）を受け取る処理 </summary>
         private Action<float> _onCarved;
@@ -193,7 +248,7 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 指定した2点を結ぶカプセルで削る。ガラスの板は割る。
         /// カプセルに入った装甲のパネルすべてに1回ずつ当て、origin から見て装甲の奥にあるピースは削らない。
-        /// 強さは普通の融点と減衰率から決め、破壊力を最大にしたときの上乗せは使わない。
+        /// 強さは普通の融点と減衰率から決め、破壊力を最大にしているときは上乗せを足す。
         /// </summary>
         /// <param name="start">カプセルの一方の端（ワールド空間）</param>
         /// <param name="end">カプセルのもう一方の端（ワールド空間）</param>
@@ -206,7 +261,7 @@ namespace Kizami.EngineAdapter
                 QueryTriggerInteraction.Ignore));
             GlassPane.ShatterInCapsule(start, end, radius + _glassMargin, origin);
 
-            var reach = radius + VoxelThermalSettings.NORMAL_MELTING_POINT / falloff;
+            var reach = ReachRadius(radius, falloff);
             var hitCount = QueryCapsule(start, end, reach);
 
             // 遮断の判定は、当てて壊れる前のパネルで行う
@@ -232,6 +287,7 @@ namespace Kizami.EngineAdapter
             CollectArmorPanels(Physics.OverlapSphereNonAlloc(center, radius, _armorHitBuffer, _armorLayers,
                 QueryTriggerInteraction.Ignore));
             GlassPane.ShatterInSphere(center, radius + _glassMargin, center);
+            PlayExplosionEffect(center, radius);
 
             var reach = ReachRadius(radius, _explosionFalloff);
             var hitCount = QuerySphere(center, reach);
@@ -245,6 +301,77 @@ namespace Kizami.EngineAdapter
             }
 
             _armorPanels.Clear();
+        }
+
+        /// <summary>
+        /// 羽天轟号の 1 回の判定で、center を中心に球で削る。CarveExplosionAt と違い、球に入った装甲（バリアを含む）は粉砕で一撃で壊し、装甲の奥も削る。
+        /// 体力制の対象には当たりを報告しない（体力は羽天轟号が秒間のダメージで減らす）。
+        /// </summary>
+        /// <param name="center">球の中心（ワールド空間）</param>
+        /// <param name="radius">球の半径（m）</param>
+        public void CarveSkyBeamAt(Vector3 center, float radius)
+        {
+            CollectArmorPanels(Physics.OverlapSphereNonAlloc(center, radius, _armorHitBuffer, _armorLayers,
+                QueryTriggerInteraction.Ignore));
+            foreach (var armorPanel in _armorPanels)
+            {
+                armorPanel.ApplyDamage(DamageType.Shatter);
+            }
+
+            _armorPanels.Clear();
+            GlassPane.ShatterInSphere(center, radius + _glassMargin, center);
+
+            var reach = ReachRadius(radius, _explosionFalloff);
+            var hitCount = QuerySphere(center, reach);
+            Carve(new SphereShape(center, reach), _explosionFalloff, hitCount, reportsHealthHit: false);
+        }
+
+        private void Awake()
+        {
+            if (_blastEffectPrefab == null) return;
+
+            _blastEffects = new BlastEffect[_blastEffectCount];
+            for (var i = 0; i < _blastEffects.Length; i++)
+            {
+                _blastEffects[i] = Instantiate(_blastEffectPrefab, transform);
+                _blastEffects[i].gameObject.SetActive(false);
+            }
+        }
+
+        /// <summary>
+        /// 爆発の球と火花を center に出す。VFX Graph の粒は、イベント属性の size を半径として、その大きさに広がる。
+        /// </summary>
+        private void PlayExplosionEffect(Vector3 center, float radius)
+        {
+            if (_blastEffects != null)
+            {
+                _blastEffects[_nextBlastIndex].Play(center, radius * _blastScalePerMeter);
+                _nextBlastIndex = (_nextBlastIndex + 1) % _blastEffects.Length;
+            }
+
+            if (_explosionEffect == null) return;
+
+            _explosionEventAttribute ??= _explosionEffect.CreateVFXEventAttribute();
+            _explosionEventAttribute.SetVector3(_positionId, _explosionEffect.transform.InverseTransformPoint(center));
+            _explosionEventAttribute.SetFloat(_sizeId, radius);
+            _explosionEventAttribute.SetFloat(_spawnCountId, radius * _explosionParticlesPerMeter);
+            _explosionEffect.SendEvent(_explosionEventId, _explosionEventAttribute);
+        }
+
+        /// <summary>
+        /// 削った範囲の中心から、がれきを削った体積に比例した数だけ飛び散らせる。
+        /// </summary>
+        /// <param name="center">削った範囲の中心（ワールド空間）</param>
+        /// <param name="carvedVolume">壊したボクセルの体積（m3）</param>
+        private void PlayDebrisEffect(Vector3 center, float carvedVolume)
+        {
+            if (_debrisEffect == null) return;
+
+            _debrisEventAttribute ??= _debrisEffect.CreateVFXEventAttribute();
+            _debrisEventAttribute.SetVector3(_positionId, _debrisEffect.transform.InverseTransformPoint(center));
+            _debrisEventAttribute.SetFloat(_sizeId, _debrisSpeed);
+            _debrisEventAttribute.SetFloat(_spawnCountId, Mathf.Clamp(carvedVolume * _debrisPerCubicMeter, 1f, _maxDebrisPerCarve));
+            _debrisEffect.SendEvent(_debrisEventId, _debrisEventAttribute);
         }
 
         private bool TryGetCameraTransform(out Transform cameraTransform)
@@ -335,8 +462,9 @@ namespace Kizami.EngineAdapter
         /// <param name="hitCount">_hitBuffer に集めたコライダーの数</param>
         /// <param name="checkArmor">true なら、origin から見て装甲の奥にあるピースを削らない</param>
         /// <param name="origin">装甲の遮断を判定するレイの始点</param>
+        /// <param name="reportsHealthHit">体力制の対象を削ったときに、スキルの当たりとして体力を減らすか。体力を別の口で減らす攻撃では false</param>
         private void Carve<TShape>(in TShape reach, float falloff, int hitCount, bool checkArmor = false,
-            Vector3 origin = default, bool notifiesCarved = true)
+            Vector3 origin = default, bool notifiesCarved = true, bool reportsHealthHit = true)
             where TShape : struct, ITransformableVoxelShape<TShape>
         {
             if (hitCount == _hitBuffer.Length)
@@ -366,20 +494,28 @@ namespace Kizami.EngineAdapter
             }
 
             var carvedVolume = 0f;
+            var carvedPosition = Vector3.zero;
             HealthTarget hitHealthTarget = null;
             foreach (var piece in _pieces)
             {
                 if (checkArmor && IsBehindArmor(origin, piece.WorldBounds.center)) continue;
 
                 if (hitHealthTarget == null) hitHealthTarget = piece.GetComponentInParent<HealthTarget>();
-                carvedVolume += piece.ApplyStrike(reach, falloff, Space.World) * piece.VoxelCubicVolume;
+                var pieceVolume = piece.ApplyStrike(reach, falloff, Space.World) * piece.VoxelCubicVolume;
+                if (pieceVolume > 0f && carvedVolume <= 0f) carvedPosition = piece.WorldBounds.center;
+                carvedVolume += pieceVolume;
             }
 
             _pieces.Clear();
-            if (notifiesCarved && carvedVolume > 0f) _onCarved?.Invoke(carvedVolume);
+            if (notifiesCarved && carvedVolume > 0f)
+            {
+                SoundPlayer.Play(SoundEffectKind.VoxelHit, carvedPosition);
+                PlayDebrisEffect(reach.Bounds.Center, carvedVolume);
+                _onCarved?.Invoke(carvedVolume);
+            }
 
             // 倒壊の跡を削る塔のように、プレイヤーの攻撃でない破壊は体力を減らさない
-            if (notifiesCarved && hitHealthTarget != null) hitHealthTarget.ReportSkillHit();
+            if (notifiesCarved && reportsHealthHit && hitHealthTarget != null) hitHealthTarget.ReportSkillHit();
         }
 
         /// <summary>

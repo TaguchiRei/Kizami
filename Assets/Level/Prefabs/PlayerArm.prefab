@@ -1,0 +1,147 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &8690219773812087477
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 74411301771840712, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_Name
+      value: PlayerArm
+      objectReference: {fileID: 0}
+    - target: {fileID: 584406097985435438, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_Avatar
+      value: 
+      objectReference: {fileID: 9000000, guid: edffaa3c1641d074090864cb2115372d, type: 3}
+    - target: {fileID: 584406097985435438, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_UpdateMode
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2750433555190537343, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5475048947416332844, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1.473945
+      objectReference: {fileID: 0}
+    - target: {fileID: 5475048947416332844, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.01589132
+      objectReference: {fileID: 0}
+    - target: {fileID: 8991094303757784453, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.003
+      objectReference: {fileID: 0}
+    - target: {fileID: 8991094303757784453, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -1.634
+      objectReference: {fileID: 0}
+    - target: {fileID: 8991094303757784453, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.327
+      objectReference: {fileID: 0}
+    - target: {fileID: 8991094303757784453, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8991094303757784453, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8991094303757784453, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8991094303757784453, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8991094303757784453, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8991094303757784453, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8991094303757784453, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9078151953214343845, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.0001050902
+      objectReference: {fileID: 0}
+    - target: {fileID: 9078151953214343845, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.000005372763
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 584406097985435438, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 74411301771840712, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3177372419206937181}
+    - targetCorrespondingSourceObject: {fileID: 74411301771840712, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 67864704484771769}
+  m_SourcePrefab: {fileID: 100100000, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+--- !u!1 &4604787467315541728 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5151732159109033045, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+  m_PrefabInstance: {fileID: 8690219773812087477}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &6141866444778373349 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3289200214238108240, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+  m_PrefabInstance: {fileID: 8690219773812087477}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &8759924003755759229 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 74411301771840712, guid: 3b71455c0cf9e304cba3531657b43fbf, type: 3}
+  m_PrefabInstance: {fileID: 8690219773812087477}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &3177372419206937181
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8759924003755759229}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: f0b6101639e22a348800ac597fa1c783, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 2
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &67864704484771769
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8759924003755759229}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 219fb6de56f6dde47b275ff17d0bac9b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.PlayerArmAdapter
+  _armAnimator: {fileID: 0}
+  _swordAnimator: {fileID: 0}
+  _destroyEffect: {fileID: 4604787467315541728}
+  _armorBreakEffect: {fileID: 6141866444778373349}

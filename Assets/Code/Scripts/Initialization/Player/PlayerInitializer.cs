@@ -23,7 +23,6 @@ namespace Kizami.Initialization
 
         private readonly PlayerHealthService _healthService = new();
         private readonly PlayerMovementService _movementService = new();
-        private readonly PlayerEnhanceService _enhanceService = new();
         private readonly PlayerActionEvents _actionEvents = new();
 
         [SerializeField]
@@ -42,18 +41,33 @@ namespace Kizami.Initialization
         [SerializeField] private VoxelMoundAdapter _voxelMoundAdapter;
 
         [SerializeField]
+        [Tooltip("一人称の腕を動かす Adapter。未設定なら腕は動かさない（VR など腕を置かない操作系）")]
+        private PlayerArmAdapter _armAdapter;
+
+        [SerializeField]
         [Tooltip("火術・崩爆の爆弾を投げる Adapter。未設定なら、既定の値でこの GameObject に付ける")]
         private BombThrowAdapter _bombThrowAdapter;
+
+        [SerializeField]
+        [Tooltip("視線の先の飛び移りの目印を探す Adapter。未設定なら、既定の値でこの GameObject に付ける")]
+        private FlightAdapter _flightAdapter;
+
+        [SerializeField]
+        [Tooltip("火術奥義・羽天轟号の上昇と戻りでプレイヤーの位置を動かす Adapter。未設定なら、既定の値でこの GameObject に付ける")]
+        private SkyBeamAdapter _skyBeamAdapter;
 
         [SerializeField]
         [Tooltip("アウトゲームを通さずに始めたとき（インゲームのシーンから直接再生したときなど）に、スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
         private SkillData[] _equippedSkills = new SkillData[SkillService.SLOT_COUNT];
 
+        private PlayerEnhanceService _enhanceService;
         private PlayerLookService _lookService;
         private MeleeCutService _meleeCutService;
         private ChargeService _chargeService;
         private SkillService _skillService;
         private SlowModeService _slowModeService;
+        private FlightService _flightService;
+        private SkyBeamService _skyBeamService;
         private FragmentThrowService _fragmentThrowService;
         private ITimeScaleController _timeScaleController;
         private GameProgressService _progressService;
@@ -85,6 +99,7 @@ namespace Kizami.Initialization
             // SkillService が PlayerHealthState を取得する為、SkillService の生成より前に初期化する
             _healthService.Initialize(blackBoard, _parameters, sceneId);
 
+            _enhanceService = new PlayerEnhanceService(blackBoard, sceneId);
             _lookService = new PlayerLookService(blackBoard, sceneId);
             _chargeService = new ChargeService(blackBoard, _parameters, sceneId);
             if (_progressService != null && _progressService.TryGetSelectedStage(out var selectedStage))
@@ -96,10 +111,24 @@ namespace Kizami.Initialization
             _enemyEnergyAdapter.Initialize(_chargeService.AddCollapsedEnemies);
             _meleeCutAdapter.Initialize(DistributeCutResults);
 
+            // F は、飛び移れるときは飛び移り、そうでなければスローモードになる為、FlightService を先に生成して渡す
+            _flightService = new FlightService(blackBoard, () => _movementService.CanRush, Fly, sceneId);
+            if (_flightAdapter == null) _flightAdapter = gameObject.AddComponent<FlightAdapter>();
+            _flightAdapter.Initialize(_flightService.SetCandidate);
+
             // SlowModeService は ChargeState を取得する為、ChargeService の生成より後に生成する
-            _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController, sceneId);
-            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
-                _slowModeService.TryUseCut, () => _voxelMoundAdapter.IsMounding, _actionEvents, sceneId);
+            _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController,
+                _flightService.TryFly, sceneId);
+            // MeleeCutService が羽天轟号の使用中かを見る為、MeleeCutService の生成より前に生成する
+            if (_skyBeamAdapter == null) _skyBeamAdapter = gameObject.AddComponent<SkyBeamAdapter>();
+            _skyBeamService = new SkyBeamService(_movementService, _chargeService, _actionEvents, _skyBeamAdapter.Begin,
+                _skyBeamAdapter.Stop);
+            _skyBeamAdapter.Initialize(_movementAdapter, _skyBeamService.OnFinished, _skyBeamService.TryContinue,
+                _voxelDestructionAdapter.CarveSkyBeamAt, _enemySpawnAdapter.DefeatInRadius);
+
+            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, Swing,
+                _slowModeService.TryUseCut, () => _voxelMoundAdapter.IsMounding || _skyBeamService.IsActive, _actionEvents,
+                sceneId);
             _voxelMoundAdapter.Initialize(_chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
                 _enemySpawnAdapter.RefreshRegion);
             if (_bombThrowAdapter == null) _bombThrowAdapter = gameObject.AddComponent<BombThrowAdapter>();
@@ -108,14 +137,12 @@ namespace Kizami.Initialization
             _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService, _enhanceService,
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
                 _bombThrowAdapter.Throw, _voxelDestructionAdapter.CarveSweep, Rush, _voxelMoundAdapter.Begin, _voxelMoundAdapter.End, () => _movementService.CanRush,
-                _meleeCutService.CanAct, _meleeCutService.MarkActed, _actionEvents, sceneId);
+                _meleeCutService.CanAct, _meleeCutService.MarkActed, OnSkillUsed, _skyBeamService, _actionEvents, sceneId);
 
-            _fragmentThrowAdapter.Initialize(_fragmentOrbAdapter.TryTake, _voxelDestructionAdapter.CarveExplosionAt);
+            _fragmentThrowAdapter.Initialize();
 
-            // FragmentThrowService は SlowModeState を取得する為、SlowModeService の生成より後に生成する
-            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _enhanceService, _movementService,
-                _fragmentThrowAdapter.TryGrab, _fragmentThrowAdapter.TryGrabWord, () => _fragmentThrowAdapter.IsHolding,
-                _fragmentThrowAdapter.TryThrow, _fragmentThrowAdapter.TryLoad, _fragmentThrowAdapter.TryFire);
+            _fragmentThrowService = new FragmentThrowService(blackBoard, _parameters, _movementService,
+                _fragmentThrowAdapter.TryGrabWord, () => _fragmentThrowAdapter.IsHolding, _fragmentThrowAdapter.TryThrow);
 
             // 以降の Adapter は Service が登録した State を取得する為、Service の生成より後に初期化する
             _movementAdapter.Initialize(blackBoard, _movementService.Step);
@@ -127,8 +154,26 @@ namespace Kizami.Initialization
             }
 
             _meleeCutPreviewAdapter.Initialize(blackBoard);
+            if (_armAdapter != null) _armAdapter.Initialize(blackBoard);
 
             base.Initialize(blackBoard);
+        }
+
+        /// <summary>
+        /// 近接切断を振り、腕を同じ角度で振らせる。
+        /// </summary>
+        private void Swing(float angle, float rangeScale, DamageType damageType)
+        {
+            _meleeCutAdapter.Swing(angle, rangeScale, damageType);
+            if (_armAdapter != null) _armAdapter.PlaySwing(angle);
+        }
+
+        /// <summary>
+        /// スキルを発動したときに、スキルに設定された腕のアニメーションを再生させる。
+        /// </summary>
+        private void OnSkillUsed(SkillData skill)
+        {
+            if (_armAdapter != null) _armAdapter.PlaySkill(skill.ArmAnimation);
         }
 
         /// <summary>
@@ -144,6 +189,30 @@ namespace Kizami.Initialization
             _voxelDestructionAdapter.CarveCapsuleWithArmor(shifted, shifted + direction * distance, radius, body.center,
                 falloff);
             _movementService.RequestRush(direction, distance, duration);
+        }
+
+        /// <summary>
+        /// 目印へ飛ぶ。着地の周囲のボクセルを壊す目印なら、飛び始めに先に壊す。
+        /// 余裕の高さがある目印へは、真上へ上がってから目印へ下りる。目印が壁に取りつく目印なら、着いたその場で壁に取りつく。
+        /// </summary>
+        private void Fly(FlightTarget target)
+        {
+            var start = _movementAdapter.BodyBounds.center;
+            if (target.CarvesVoxels) _voxelDestructionAdapter.CarveExplosionAt(target.Position, target.CarveRadius);
+
+            var riseHeight = Mathf.Max(0f, target.Position.y + target.ApproachClearance - start.y);
+            if (target.ApproachClearance > 0f && riseHeight > 0f)
+            {
+                var rise = Vector3.up * riseHeight;
+                var descent = target.Position - (start + rise);
+                _movementService.RequestFlight(rise, rise.magnitude / _parameters.FlightSpeed, descent,
+                    descent.magnitude / _parameters.FlightSpeed);
+                return;
+            }
+
+            var displacement = target.Position - start;
+            _movementService.RequestFlight(displacement, displacement.magnitude / _parameters.FlightSpeed, Vector3.zero,
+                0f);
         }
 
         /// <summary>

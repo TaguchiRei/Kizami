@@ -73,6 +73,12 @@ namespace Kizami.Application
         /// <summary> 要求された突進の所要時間（秒） </summary>
         private float _rushDuration;
 
+        /// <summary> 飛びの終わりに続けて飛ぶ向きと距離。続けないときはゼロ </summary>
+        private Vector3 _followFlightDisplacement;
+
+        /// <summary> 続けて飛ぶ所要時間（秒） </summary>
+        private float _followFlightDuration;
+
         /// <summary> 実行中の突進の速度（m/s） </summary>
         private Vector3 _warpVelocity;
 
@@ -81,6 +87,9 @@ namespace Kizami.Application
 
         /// <summary> 言葉をつかんでいる間は true になり、その間は移動モードを Aiming にして静止する </summary>
         private bool _isHoldingWord;
+
+        /// <summary> 羽天轟号の使用中は true になり、その間は移動モードを Aiming にして静止する </summary>
+        private bool _isSkyBeamActive;
 
         /// <summary> 言葉をつかんでいるか </summary>
         public bool IsHoldingWord => _isHoldingWord;
@@ -142,8 +151,17 @@ namespace Kizami.Application
             _isHoldingWord = isHolding;
         }
 
-        /// <summary> 突進を始められるか。突進中と、突進の要求を受け付け済みのときと、言葉をつかんでいる間は false </summary>
-        public bool CanRush => !_isHoldingWord && !_isRushRequested && _state.Mode != PlayerMoveMode.Warping;
+        /// <summary>
+        /// 羽天轟号の使用中かを設定する。使用中は、言葉をつかんでいる間と同じく、移動モードを Aiming にして静止する。
+        /// </summary>
+        /// <param name="isActive">羽天轟号の使用中か</param>
+        public void SetSkyBeamActive(bool isActive)
+        {
+            _isSkyBeamActive = isActive;
+        }
+
+        /// <summary> 突進を始められるか。突進中と、突進の要求を受け付け済みのときと、言葉をつかんでいる間と、羽天轟号の使用中は false </summary>
+        public bool CanRush => !_isHoldingWord && !_isSkyBeamActive && !_isRushRequested && _state.Mode != PlayerMoveMode.Warping;
 
         /// <summary>
         /// 突進する向きを返す。水平な移動入力があればその向き、なければ水平な視線の向き。
@@ -169,6 +187,28 @@ namespace Kizami.Application
             _rushDirection = direction.normalized;
             _rushDistance = distance;
             _rushDuration = duration;
+            _followFlightDuration = 0f;
+        }
+
+        /// <summary>
+        /// 次の Step で、決めた時間で displacement だけ一直線に飛ぶよう要求する。向きは上下を含む。
+        /// 続きの飛びを渡すと、最初の飛びが終わった直後に続けて飛ぶ。
+        /// </summary>
+        /// <param name="displacement">飛ぶ向きと距離（ワールド空間）</param>
+        /// <param name="duration">所要時間（秒）</param>
+        /// <param name="followDisplacement">続けて飛ぶ向きと距離。続けないときはゼロ</param>
+        /// <param name="followDuration">続けて飛ぶ所要時間（秒）</param>
+        public void RequestFlight(Vector3 displacement, float duration, Vector3 followDisplacement,
+            float followDuration)
+        {
+            if (displacement.sqrMagnitude <= Mathf.Epsilon || duration <= 0f) return;
+
+            _isRushRequested = true;
+            _rushDirection = displacement.normalized;
+            _rushDistance = displacement.magnitude;
+            _rushDuration = duration;
+            _followFlightDisplacement = followDuration > 0f ? followDisplacement : Vector3.zero;
+            _followFlightDuration = followDuration;
         }
 
         /// <summary>
@@ -208,7 +248,7 @@ namespace Kizami.Application
 
             UpdateViewForward(viewDirection);
 
-            if (_isHoldingWord)
+            if (_isHoldingWord || _isSkyBeamActive)
             {
                 HoldStill();
                 return null;
@@ -232,6 +272,17 @@ namespace Kizami.Application
             {
                 if (_warpTimeRemaining > 0f)
                 {
+                    AdvanceWarp(deltaTime);
+                    return null;
+                }
+
+                if (_followFlightDuration > 0f)
+                {
+                    _rushDirection = _followFlightDisplacement.normalized;
+                    _rushDistance = _followFlightDisplacement.magnitude;
+                    _rushDuration = _followFlightDuration;
+                    _followFlightDuration = 0f;
+                    StartRush();
                     AdvanceWarp(deltaTime);
                     return null;
                 }
@@ -321,6 +372,7 @@ namespace Kizami.Application
             _isRushRequested = false;
             _launchSpeed = 0f;
             _warpTimeRemaining = 0f;
+            _followFlightDuration = 0f;
             StopJumpHold();
             _state.SetMode(PlayerMoveMode.Aiming);
             _state.SetTargetVelocity(Vector3.zero);

@@ -6,7 +6,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 装甲の1枚のパネル。攻撃タイプと破壊タイプの攻撃が1回当たるごとに耐久値が1減り、0になるか粉砕タイプが当たると壊れる。
-    /// 壊れたパネルは非アクティブにする。残りの耐久値の割合で色を変える。
+    /// 壊れたパネルは非アクティブにする。残りの耐久値の割合で色を変え、表示用の球があれば、残りの耐久値をそのシェーダーへ渡す。
     /// </summary>
     /// <remarks>
     /// 奥への遮断は、パネルのコライダーが攻撃のレイを止めることで判定する。
@@ -14,6 +14,8 @@ namespace Kizami.EngineAdapter
     public sealed class ArmorPanel : MonoBehaviour
     {
         private static readonly int _baseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int _durabilityId = Shader.PropertyToID("_Durability");
+        private static readonly int _groupSizeId = Shader.PropertyToID("_GroupSize");
 
         [SerializeField, Min(1)]
         [Tooltip("耐久値の最大。壊れるまでに耐える、攻撃タイプと破壊タイプの攻撃が当たった回数")]
@@ -31,7 +33,36 @@ namespace Kizami.EngineAdapter
         [Tooltip("色を変える Renderer")]
         private Renderer _renderer;
 
+        [SerializeField]
+        [Tooltip("残りの耐久値を四角の数で見せる球の Renderer。BarrierDurability シェーダーのマテリアルを使う。未設定なら表示しない")]
+        private Renderer _durabilityRenderer;
+
+        [SerializeField]
+        [Tooltip("壊れたときに破片を出すプールの種類。None なら破片を出さない")]
+        private ShardPoolKind _shardKind = ShardPoolKind.None;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("破片を、パネルの中心から離れる向きへ飛ばす速さ（m/s）")]
+        private float _shardSpeed = 4f;
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("破片ごとの速さのばらつきの割合")]
+        private float _shardSpeedJitter = 0.4f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("破片を回す角速度の最大（rad/s）")]
+        private float _shardMaxAngularSpeed = 8f;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("壊れてから破片を消すまでの秒数")]
+        private float _shardLifetime = 4f;
+
+        [SerializeField, Min(1f)]
+        [Tooltip("壊れた瞬間の色収差が戻るまでの時間の、命中のときに対する倍率")]
+        private float _breakAberrationScale = 2.5f;
+
         private MaterialPropertyBlock _propertyBlock;
+        private MaterialPropertyBlock _durabilityBlock;
 
         /// <summary> 残りの耐久値 </summary>
         public int Durability { get; private set; }
@@ -52,6 +83,12 @@ namespace Kizami.EngineAdapter
         {
             if (IsBroken) return;
 
+            if ((damageType & (DamageType.Shatter | DamageType.Attack | DamageType.Destroy)) != 0)
+            {
+                SoundPlayer.Play(SoundEffectKind.ArmorCut, transform.position);
+                HitChromaticAberration.Play();
+            }
+
             if ((damageType & DamageType.Shatter) != 0)
             {
                 Durability = 0;
@@ -70,6 +107,7 @@ namespace Kizami.EngineAdapter
             else
             {
                 UpdateColor();
+                UpdateDurabilityDisplay();
             }
         }
 
@@ -81,6 +119,7 @@ namespace Kizami.EngineAdapter
         {
             Durability = Mathf.Clamp(durability, 1, _maxDurability);
             UpdateColor();
+            UpdateDurabilityDisplay();
         }
 
         private void Awake()
@@ -93,12 +132,41 @@ namespace Kizami.EngineAdapter
                 UsefulLogger.LogWarning("Renderer が設定されていない為、耐久値で色が変わりません。", this);
             }
 
+            _durabilityBlock = new MaterialPropertyBlock();
             UpdateColor();
+            UpdateDurabilityDisplay();
         }
 
+        /// <summary>
+        /// 壊す。破片のプールがあれば、パネルの位置・向き・大きさに破片を出して中心から外へ飛ばし、命中より長く色収差を掛けて、パネルを非アクティブにする。
+        /// </summary>
         private void Break()
         {
+            if (_shardKind != ShardPoolKind.None)
+            {
+                var pool = GlassShardPool.Get(_shardKind);
+                if (pool != null)
+                {
+                    pool.Spawn(transform, transform.position, _shardSpeed, _shardSpeedJitter, _shardMaxAngularSpeed,
+                        _shardLifetime);
+                }
+            }
+
+            HitChromaticAberration.Play(_breakAberrationScale);
             gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// 残りの耐久値と、1 区分けの数（耐久値の最大）を表示用の球のシェーダーへ渡す。
+        /// </summary>
+        private void UpdateDurabilityDisplay()
+        {
+            if (_durabilityRenderer == null) return;
+
+            _durabilityRenderer.GetPropertyBlock(_durabilityBlock);
+            _durabilityBlock.SetFloat(_durabilityId, Durability);
+            _durabilityBlock.SetFloat(_groupSizeId, _maxDurability);
+            _durabilityRenderer.SetPropertyBlock(_durabilityBlock);
         }
 
         private void UpdateColor()

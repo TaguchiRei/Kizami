@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Cinemachine;
 using Kizami.EngineAdapter.Voxel;
 using Unity.Mathematics;
+using Unity.Profiling;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 
@@ -33,9 +34,17 @@ namespace Kizami.EngineAdapter
         /// <summary> 射線の調べと、溶かす範囲に重なるコライダーを集めるときの上限 </summary>
         private const int MAX_HIT_COUNT = 64;
 
+        private static readonly ProfilerMarker _meltMarker = new("Voxel.BeamMelt");
+        private static readonly ProfilerMarker _advanceMarker = new("Voxel.BeamMelt.Advance");
+        private static readonly ProfilerMarker _overlapMarker = new("Voxel.BeamMelt.Overlap");
+        private static readonly ProfilerMarker _collectMarker = new("Voxel.BeamMelt.Collect");
+        private static readonly ProfilerMarker _glassMarker = new("Voxel.BeamMelt.Glass");
         private static readonly int _tintId = Shader.PropertyToID("_Tint");
         private static readonly int _intensityId = Shader.PropertyToID("_Intensity");
         private static readonly int _ringIntensityId = Shader.PropertyToID("_RingIntensity");
+
+        /// <summary> 全部のビームで共有する、今の揺れが終わる時刻（Time.time） </summary>
+        private static float _shakeEndTime;
 
         /// <summary> 溶かす範囲とガラスを割る範囲に重なるコライダーを集める作業用の配列。Shot のあいだで使い回す </summary>
         private readonly Collider[] _overlapBuffer = new Collider[MAX_HIT_COUNT];
@@ -69,6 +78,10 @@ namespace Kizami.EngineAdapter
         [SerializeField, ColorUsage(false, true)]
         [Tooltip("照準と予兆の間に、先端に出す光の色")]
         private Color _telegraphGlowColor = new(2f, 0.35f, 0.1f, 1f);
+
+        [SerializeField, Min(0f)]
+        [Tooltip("発射口と先端の光、火花の強さにかける倍率。眩しいときに下げる")]
+        private float _glowScale = 1f;
 
         [SerializeField, Min(0f)]
         [Tooltip("発射口の光の大きさ（m）。予兆の間は、この大きさまで育つ")]
@@ -141,6 +154,10 @@ namespace Kizami.EngineAdapter
         private float _meltInterval = 0.05f;
 
         [SerializeField]
+        [Tooltip("ビームと帯を両端の蓋がない筒で描くか。撃つ所の真後ろから見るビーム（羽天轟号）で有効にする")]
+        private bool _isOpenEnded;
+
+        [SerializeField]
         [Tooltip("ビームを止める物のレイヤー。プレイヤー自身のレイヤーは外す。敵（EnemyBody）に当たったものは、レイヤーに関わらず貫通する")]
         private LayerMask _blockLayers;
 
@@ -151,6 +168,27 @@ namespace Kizami.EngineAdapter
         private MaterialPropertyBlock _glowProperties;
         private Transform _camera;
         private bool _isReady;
+
+        /// <summary> ビームの半径（m） </summary>
+        public float BeamRadius => _beamRadius;
+
+        /// <summary> 予兆から照射に移るまでの時間（秒） </summary>
+        public float TelegraphDuration => _telegraphDuration;
+
+        /// <summary> ビームを止める物のレイヤー </summary>
+        public LayerMask BlockLayers => _blockLayers;
+
+        /// <summary> ビームが何にも当たらないときの長さ（m） </summary>
+        public static float MaxBeamLength => MAX_BEAM_LENGTH;
+
+        /// <summary>
+        /// 揺れの終わる時刻を、プレイの始まりに戻す。ドメインのリロードを省いてプレイを始めても、前のプレイの時刻で揺れを止めないようにする。
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetShake()
+        {
+            _shakeEndTime = 0f;
+        }
 
         /// <summary>
         /// 敵の体か。ビームは敵を貫通する。
@@ -280,8 +318,8 @@ namespace Kizami.EngineAdapter
             if (_camera != null) glowTransform.rotation = Quaternion.LookRotation(position - _camera.position);
 
             _glowProperties.SetColor(_tintId, color);
-            _glowProperties.SetFloat(_intensityId, intensity);
-            _glowProperties.SetFloat(_ringIntensityId, ringIntensity);
+            _glowProperties.SetFloat(_intensityId, intensity * _glowScale);
+            _glowProperties.SetFloat(_ringIntensityId, ringIntensity * _glowScale);
             glow.SetPropertyBlock(_glowProperties);
             glow.gameObject.SetActive(true);
         }
@@ -344,6 +382,18 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 照射の始まりに画面を揺らす。全部のビームを合わせて、揺れている間は新しい揺れを足さない。
+        /// 揺れは重ねると強さが足し合わされ、多くのビームが同時に撃つとカメラが地面を突き抜ける為。
+        /// </summary>
+        private void Shake()
+        {
+            if (_impulseSource == null || Time.time < _shakeEndTime) return;
+
+            _shakeEndTime = Time.time + _impulseSource.ImpulseDefinition.ImpulseDuration;
+            _impulseSource.GenerateImpulseWithForce(_shakeForce);
+        }
+
+        /// <summary>
         /// 画面を揺らす CinemachineImpulseSource を作る。揺れは、カメラの CinemachineImpulseListener が受ける。
         /// </summary>
         private CinemachineImpulseSource CreateImpulseSource()
@@ -384,6 +434,9 @@ namespace Kizami.EngineAdapter
             /// <summary> 止めるまで照射を続けるか </summary>
             private bool _isContinuous;
 
+            /// <summary> 照射中にボクセルを溶かして進み、プレイヤーにダメージを与えるか。false なら見た目だけを最初に当たった物まで出す </summary>
+            private bool _melts = true;
+
             /// <summary> 次にダメージを与えられるまでの時間（秒） </summary>
             private float _damageTimer;
 
@@ -398,9 +451,9 @@ namespace Kizami.EngineAdapter
                 _owner = owner;
                 var parent = owner.transform;
                 _beam = owner._beamInnerMaterial != null
-                    ? new EnemyBeam(parent, owner._beamInnerMaterial, owner._beamMaterial)
-                    : new EnemyBeam(parent, owner._beamMaterial);
-                if (owner._telegraphMaterial != null) _telegraph = new EnemyBeam(parent, owner._telegraphMaterial);
+                    ? new EnemyBeam(parent, owner._isOpenEnded, owner._beamInnerMaterial, owner._beamMaterial)
+                    : new EnemyBeam(parent, owner._isOpenEnded, owner._beamMaterial);
+                if (owner._telegraphMaterial != null) _telegraph = new EnemyBeam(parent, owner._isOpenEnded, owner._telegraphMaterial);
                 if (owner._glowMaterial == null) return;
 
                 _muzzleGlow = owner.CreateGlowQuad("MuzzleGlow");
@@ -416,6 +469,7 @@ namespace Kizami.EngineAdapter
                 _headHistory.Clear();
                 _aimTime = 0f;
                 _isContinuous = false;
+                _melts = true;
                 SetPhase(Phase.Aiming);
             }
 
@@ -425,16 +479,26 @@ namespace Kizami.EngineAdapter
             /// <param name="direction">ビームの向き（ワールド座標）</param>
             public void BeginFixed(Vector3 direction)
             {
-                BeginTelegraph(direction, false);
+                BeginTelegraph(direction, false, true);
             }
 
             /// <summary>
             /// 向きを決めて予兆から始め、Stop を呼ぶまで照射を続ける。照準はしない。
             /// </summary>
             /// <param name="direction">ビームの向き（ワールド座標）</param>
-            public void BeginContinuous(Vector3 direction)
+            /// <param name="melts">照射中にボクセルを溶かして進み、プレイヤーにダメージを与えるか。false なら見た目だけを出し、壊すのは呼び出し側が受け持つ</param>
+            public void BeginContinuous(Vector3 direction, bool melts = true)
             {
-                BeginTelegraph(direction, true);
+                BeginTelegraph(direction, true, melts);
+            }
+
+            /// <summary>
+            /// ビームの向きを変える。予兆と照射の間に、呼び出し側が向きを動かすときに使う。
+            /// </summary>
+            /// <param name="direction">ビームの向き（ワールド座標）</param>
+            public void SetDirection(Vector3 direction)
+            {
+                if (direction.sqrMagnitude > 0f) _aimDirection = direction.normalized;
             }
 
             /// <summary>
@@ -494,10 +558,11 @@ namespace Kizami.EngineAdapter
                 SetPhase(Phase.Idle);
             }
 
-            private void BeginTelegraph(Vector3 direction, bool isContinuous)
+            private void BeginTelegraph(Vector3 direction, bool isContinuous, bool melts)
             {
                 _aimDirection = direction.normalized;
                 _isContinuous = isContinuous;
+                _melts = melts;
                 SetPhase(Phase.Telegraph);
             }
 
@@ -537,31 +602,29 @@ namespace Kizami.EngineAdapter
                 _meltTimer = 0f;
                 _meltFrontDistance = 0f;
                 SetPhase(Phase.Firing);
-                _owner._impulseSource?.GenerateImpulseWithForce(_owner._shakeForce);
+                _owner.Shake();
             }
 
             /// <summary>
+            /// 溶かさないビームは、見た目だけを pivot から最初に当たった物まで出す。
             /// 溶かす先端を進め、ビームを pivot からボクセルでない壁まで出す。プレイヤーが、当たり判定のレイの範囲（IsPlayerHit）に入っていれば、間隔ごとにダメージを与える。
             /// </summary>
             private void UpdateFiring(Vector3 pivot, float3 capsuleStart, float3 capsuleEnd, float capsuleRadius,
                 float deltaTime)
             {
+                if (!_melts)
+                {
+                    ShowFiring(pivot, CastBeam(pivot, out var firstHit, out var firstNormal), firstNormal, firstHit);
+                    return;
+                }
+
                 var blockDistance = CastBlock(pivot, out var blockNormal);
                 Melt(pivot, blockDistance, deltaTime);
 
                 // 見た目は、溶かす先端に関わらず、撃つ所からボクセルでない壁まで最初から伸ばす
-                var stop = pivot + _aimDirection * blockDistance;
-                var hasHit = blockDistance < MAX_BEAM_LENGTH;
-                var normal = blockNormal;
+                ShowFiring(pivot, pivot + _aimDirection * blockDistance, blockNormal, blockDistance < MAX_BEAM_LENGTH);
 
                 // 当たり判定は、溶かして進んだ先端までの範囲。敵は貫通する
-                var flicker = 1f + 0.25f * Mathf.Sin(_phaseTime * 60f);
-                _owner.ShowGlow(_muzzleGlow, pivot, _owner._muzzleSize * flicker, _owner._glowColor, 2f, 1f);
-                ShowTipEffects(stop, normal, hasHit, _owner._glowColor, true);
-                var patternTime = _isContinuous ? Mathf.Min(_phaseTime, _owner._continuousPatternTime) : _phaseTime;
-                _beam.SetPattern(_owner._noiseLevelCurve.Evaluate(patternTime), _owner._tillingYCurve.Evaluate(patternTime));
-                _beam.ShowBeam(pivot, stop, _owner._beamRadius);
-
                 _damageTimer -= deltaTime;
                 if (_damageTimer > 0f) return;
 
@@ -569,6 +632,21 @@ namespace Kizami.EngineAdapter
 
                 _damageTimer = _owner._damageInterval;
                 _owner._applyDamage?.Invoke(_owner._damage);
+            }
+
+            /// <summary>
+            /// 照射中のビーム・発射口の光・先端の光と火花を、pivot から stop まで出す。
+            /// </summary>
+            /// <param name="normal">stop で当たった面の向き</param>
+            /// <param name="hasHit">stop で何かに当たったか</param>
+            private void ShowFiring(Vector3 pivot, Vector3 stop, Vector3 normal, bool hasHit)
+            {
+                var flicker = 1f + 0.25f * Mathf.Sin(_phaseTime * 60f);
+                _owner.ShowGlow(_muzzleGlow, pivot, _owner._muzzleSize * flicker, _owner._glowColor, 2f, 1f);
+                ShowTipEffects(stop, normal, hasHit, _owner._glowColor, true);
+                var patternTime = _isContinuous ? Mathf.Min(_phaseTime, _owner._continuousPatternTime) : _phaseTime;
+                _beam.SetPattern(_owner._noiseLevelCurve.Evaluate(patternTime), _owner._tillingYCurve.Evaluate(patternTime));
+                _beam.ShowBeam(pivot, stop, _owner._beamRadius);
             }
 
             /// <summary>
@@ -665,8 +743,9 @@ namespace Kizami.EngineAdapter
                 if (_meltTimer > 0f) return;
 
                 _meltTimer += _owner._meltInterval;
-                AdvanceMeltFront(pivot, blockDistance);
-                ShatterGlass(pivot, Mathf.Min(_meltFrontDistance, blockDistance));
+                using var meltScope = _meltMarker.Auto();
+                using (_advanceMarker.Auto()) AdvanceMeltFront(pivot, blockDistance);
+                using (_glassMarker.Auto()) ShatterGlass(pivot, Mathf.Min(_meltFrontDistance, blockDistance));
             }
 
             /// <summary>
@@ -680,9 +759,12 @@ namespace Kizami.EngineAdapter
                 var step = _owner._meltSpeed * _owner._meltInterval;
                 var start = pivot + _aimDirection * _meltFrontDistance;
                 var end = start + _aimDirection * step;
-                var count = Physics.OverlapCapsuleNonAlloc(start, end, meltRadius, _owner._overlapBuffer,
-                    _owner._blockLayers, QueryTriggerInteraction.Ignore);
-                var pieces = _owner.CollectPieces(count);
+                int count;
+                using (_overlapMarker.Auto())
+                    count = Physics.OverlapCapsuleNonAlloc(start, end, meltRadius, _owner._overlapBuffer,
+                        _owner._blockLayers, QueryTriggerInteraction.Ignore);
+                HashSet<VoxelPiece> pieces;
+                using (_collectMarker.Auto()) pieces = _owner.CollectPieces(count);
 
                 if (pieces.Count == 0)
                 {
@@ -691,9 +773,13 @@ namespace Kizami.EngineAdapter
                 }
 
                 var shape = new CapsuleShape(start, end, meltRadius + VoxelThermalSettings.NORMAL_MELTING_POINT / MELT_FALLOFF);
-                foreach (var piece in pieces)
+                // 穴は数個のピースにまたがる為、削るジョブを並列に走らせてからまとめて待つ
+                using (VoxelPiece.BeginStrikeBatch())
                 {
-                    piece.ApplyStrike(shape, MELT_FALLOFF, Space.World);
+                    foreach (var piece in pieces)
+                    {
+                        piece.QueueStrike(shape, MELT_FALLOFF, Space.World);
+                    }
                 }
 
                 pieces.Clear();

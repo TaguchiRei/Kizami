@@ -1,4 +1,5 @@
 using System;
+using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 
@@ -67,6 +68,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 円の空間を作っているか </summary>
         public bool IsOpen { get; private set; }
+
+        /// <summary> 円の中心（ワールド座標）。Open で作った最後の中心 </summary>
+        public Vector3 Center => _center;
+
+        /// <summary> 円の半径（m） </summary>
+        public float Radius => _radius;
 
         /// <summary>
         /// 閉じ込める相手を target にする。ボスとプレイヤーが別のシーンにあるときに、初期化で渡す。Initialize より前に呼ぶ。
@@ -159,6 +166,8 @@ namespace Kizami.EngineAdapter
 
             if (_shots != null)
             {
+                // 柵のビームは一斉に多くのピースを削る為、削るジョブをまとめて待つ
+                using var strikeBatch = VoxelPiece.BeginStrikeBatch();
                 for (var i = 0; i < _unitCount; i++)
                 {
                     _shots[i].Tick(_emitters[i], Time.deltaTime, out _);
