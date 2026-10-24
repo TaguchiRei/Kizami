@@ -5,6 +5,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 割れたガラス1枚分の破片をまとめたもの。物理は使わず、Transform だけで重力に従って飛ばし、地面の高さの少し上で止める。
+    /// 破片の動きの状態は GlassShardBuffers にあり、毎フレームの更新は GlassShardPool が Job でまとめて行う。このクラスは、飛ばし始めの配置と、グループの寿命を扱う。
     /// 破片の位置は常にワールド空間で扱う。まとまりの根は原点に等倍で置いてある前提（GlassShardPool が保つ）。
     /// </summary>
     public sealed class GlassShardGroup : IRecyclable
@@ -14,13 +15,10 @@ namespace Kizami.EngineAdapter
         private readonly Vector3[] _restPositions;
         private readonly Quaternion[] _restRotations;
         private readonly Vector3[] _restScales;
-        private readonly Vector3[] _velocities;
-        private readonly Vector3[] _angularVelocities;
-        private readonly bool[] _isLanded;
+        private readonly GlassShardBuffers _buffers;
 
-        private float _groundY;
-        private float _elapsed;
-        private float _lifetime;
+        /// <summary> GlassShardBuffers の中のグループの番号 </summary>
+        private readonly int _index;
 
         /// <summary> RecycleBuffer が割り振る番号 </summary>
         public int RecycleId { get; set; }
@@ -28,18 +26,22 @@ namespace Kizami.EngineAdapter
         /// <summary> 破片を飛ばしている最中か </summary>
         public bool IsActive { get; private set; }
 
+        /// <summary> 根の下の破片。順番は GlassShardBuffers の破片の番号と同じ </summary>
+        public Transform[] Shards => _shards;
+
         /// <param name="root">破片を子に持つ根。子の位置・向き・大きさを、板に合わせて置く前の基準にする</param>
-        public GlassShardGroup(GameObject root)
+        /// <param name="index">GlassShardBuffers の中のグループの番号</param>
+        /// <param name="buffers">全破片の動きの状態</param>
+        public GlassShardGroup(GameObject root, int index, GlassShardBuffers buffers)
         {
             _root = root;
+            _index = index;
+            _buffers = buffers;
             var count = root.transform.childCount;
             _shards = new Transform[count];
             _restPositions = new Vector3[count];
             _restRotations = new Quaternion[count];
             _restScales = new Vector3[count];
-            _velocities = new Vector3[count];
-            _angularVelocities = new Vector3[count];
-            _isLanded = new bool[count];
 
             for (var i = 0; i < count; i++)
             {
@@ -64,22 +66,24 @@ namespace Kizami.EngineAdapter
         public void Spawn(Transform pane, Vector3 origin, float groundY, float speed, float speedJitter,
             float maxAngularSpeed, float lifetime)
         {
-            _groundY = groundY;
-            _elapsed = 0f;
-            _lifetime = lifetime;
+            _buffers.GroundY[_index] = groundY;
+            _buffers.Remaining[_index] = lifetime;
 
+            var offset = _index * _buffers.ShardsPerGroup;
             var paneScale = pane.lossyScale;
             for (var i = 0; i < _shards.Length; i++)
             {
                 var position = pane.TransformPoint(_restPositions[i]);
                 _shards[i].SetPositionAndRotation(position, pane.rotation * _restRotations[i]);
-                _shards[i].localScale = Vector3.Scale(_restScales[i], paneScale);
+                var scale = Vector3.Scale(_restScales[i], paneScale);
+                _shards[i].localScale = scale;
+                _buffers.SpawnScales[offset + i] = scale;
 
                 var away = position - origin;
                 var direction = away.sqrMagnitude > 1e-6f ? away.normalized : pane.forward;
-                _velocities[i] = direction * (speed * (1f + Random.Range(-speedJitter, speedJitter)));
-                _angularVelocities[i] = Random.insideUnitSphere * maxAngularSpeed;
-                _isLanded[i] = false;
+                _buffers.Velocities[offset + i] = direction * (speed * (1f + Random.Range(-speedJitter, speedJitter)));
+                _buffers.AngularVelocities[offset + i] = Random.insideUnitSphere * maxAngularSpeed;
+                _buffers.IsLanded[offset + i] = false;
             }
 
             _root.SetActive(true);
@@ -87,50 +91,22 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 破片を deltaTime 分だけ進める。寿命が来たら false を返す。
+        /// 残り時間を deltaTime 分だけ減らす。寿命が来たら false を返す。
         /// </summary>
         /// <param name="deltaTime">進める秒数</param>
-        /// <param name="gravityY">重力加速度の Y 成分（m/s²）</param>
-        /// <param name="landedHeight">地面の高さからこの分だけ上で止める（m）</param>
-        public bool Step(float deltaTime, float gravityY, float landedHeight)
+        public bool Advance(float deltaTime)
         {
-            _elapsed += deltaTime;
-            if (_elapsed >= _lifetime) return false;
+            var remaining = _buffers.Remaining[_index] - deltaTime;
+            if (remaining <= 0f) return false;
 
-            var floorY = _groundY + landedHeight;
-            for (var i = 0; i < _shards.Length; i++)
-            {
-                if (_isLanded[i]) continue;
-
-                var velocity = _velocities[i];
-                velocity.y += gravityY * deltaTime;
-                _velocities[i] = velocity;
-
-                var shard = _shards[i];
-                var position = shard.position + velocity * deltaTime;
-                var rotation = shard.rotation;
-                var angularVelocity = _angularVelocities[i];
-                var angularSpeed = angularVelocity.magnitude;
-                if (angularSpeed > 1e-4f)
-                {
-                    rotation = Quaternion.AngleAxis(angularSpeed * deltaTime * Mathf.Rad2Deg, angularVelocity / angularSpeed) * rotation;
-                }
-
-                if (position.y <= floorY)
-                {
-                    position.y = floorY;
-                    _isLanded[i] = true;
-                }
-
-                shard.SetPositionAndRotation(position, rotation);
-            }
-
+            _buffers.Remaining[_index] = remaining;
             return true;
         }
 
         public void OnRecycle()
         {
             IsActive = false;
+            _buffers.Remaining[_index] = 0f;
             _root.SetActive(false);
         }
     }

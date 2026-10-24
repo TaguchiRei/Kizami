@@ -25,21 +25,29 @@ namespace Kizami.EngineAdapter
         [Tooltip("最大から 0 に戻るまでの時間（秒、実時間）")]
         private float _duration = 0.15f;
 
-        /// <summary> 最後に Play されてからの経過時間（秒）。_duration 以上なら止まっている </summary>
+        /// <summary> 最後に Play されてからの経過時間（秒）。_activeDuration 以上なら止まっている </summary>
         private float _elapsed;
+
+        /// <summary> 最後に Play されたときの、最大から 0 に戻るまでの時間（秒、実時間） </summary>
+        private float _activeDuration;
 
         /// <summary>
         /// 色収差を最大から掛け直す。シーンにこの Adapter がなければ何もしない。
         /// </summary>
-        public static void Play()
+        /// <param name="durationScale">戻るまでの時間に掛ける倍率。大きいほど長く残り、強く感じる</param>
+        public static void Play(float durationScale = 1f)
         {
-            if (_instance != null) _instance._elapsed = 0f;
+            if (_instance == null) return;
+
+            _instance._elapsed = 0f;
+            _instance._activeDuration = _instance._duration * durationScale;
         }
 
         private void Awake()
         {
             _instance = this;
-            _elapsed = _duration;
+            _activeDuration = _duration;
+            _elapsed = _activeDuration;
 
             if (_volume == null)
             {
@@ -52,10 +60,10 @@ namespace Kizami.EngineAdapter
 
         private void Update()
         {
-            if (_volume == null || _elapsed >= _duration) return;
+            if (_volume == null || _elapsed >= _activeDuration) return;
 
             _elapsed += Time.unscaledDeltaTime;
-            var remaining = 1f - Mathf.Clamp01(_elapsed / _duration);
+            var remaining = 1f - Mathf.Clamp01(_elapsed / _activeDuration);
             _volume.weight = _peakWeight * remaining * remaining;
         }
 

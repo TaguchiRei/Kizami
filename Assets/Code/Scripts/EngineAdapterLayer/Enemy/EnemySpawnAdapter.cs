@@ -605,7 +605,8 @@ namespace Kizami.EngineAdapter
 
                 if (_barriers != null)
                 {
-                    _barriers.Tick(_agents, _groups, _bodyLenders[(int)EnemyKind.Defender], _distanceField.Grid);
+                    _barriers.Tick(_agents, _groups, _bodyLenders[(int)EnemyKind.Defender], _distanceField.Grid,
+                        Time.deltaTime);
                 }
 
                 if (_shooter != null) _shooter.Tick(_agents, Time.deltaTime);
@@ -919,6 +920,7 @@ namespace Kizami.EngineAdapter
             var groups = _groups.Groups;
             var group = groups[g];
             group.BarrierHitCount = 0;
+            group.BarrierTimer = 0f;
             groups[g] = group;
         }
 

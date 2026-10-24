@@ -95,6 +95,9 @@ namespace Kizami.EngineAdapter
         /// <summary> ディフェンダーのバリアに当たった攻撃の数。粉砕タイプで壊れたときは耐久値の最大にする。バリアの物を返しても持ち続ける </summary>
         public int BarrierHitCount;
 
+        /// <summary> プレイヤーがバリアを張る範囲にいる間に進む、バリアを張るまでのタイマーの積算（秒）。範囲を出ると 0 に戻る。EnemyBarriers が書く </summary>
+        public float BarrierTimer;
+
         /// <summary> ディフェンダーがバリアを張っているか。EnemyBarriers が書く </summary>
         public bool IsBarrierRaised;
 

@@ -37,6 +37,30 @@ namespace Kizami.EngineAdapter
         [Tooltip("残りの耐久値を四角の数で見せる球の Renderer。BarrierDurability シェーダーのマテリアルを使う。未設定なら表示しない")]
         private Renderer _durabilityRenderer;
 
+        [SerializeField]
+        [Tooltip("壊れたときに破片を出すプールの種類。None なら破片を出さない")]
+        private ShardPoolKind _shardKind = ShardPoolKind.None;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("破片を、パネルの中心から離れる向きへ飛ばす速さ（m/s）")]
+        private float _shardSpeed = 4f;
+
+        [SerializeField, Range(0f, 1f)]
+        [Tooltip("破片ごとの速さのばらつきの割合")]
+        private float _shardSpeedJitter = 0.4f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("破片を回す角速度の最大（rad/s）")]
+        private float _shardMaxAngularSpeed = 8f;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("壊れてから破片を消すまでの秒数")]
+        private float _shardLifetime = 4f;
+
+        [SerializeField, Min(1f)]
+        [Tooltip("壊れた瞬間の色収差が戻るまでの時間の、命中のときに対する倍率")]
+        private float _breakAberrationScale = 2.5f;
+
         private MaterialPropertyBlock _propertyBlock;
         private MaterialPropertyBlock _durabilityBlock;
 
@@ -113,8 +137,22 @@ namespace Kizami.EngineAdapter
             UpdateDurabilityDisplay();
         }
 
+        /// <summary>
+        /// 壊す。破片のプールがあれば、パネルの位置・向き・大きさに破片を出して中心から外へ飛ばし、命中より長く色収差を掛けて、パネルを非アクティブにする。
+        /// </summary>
         private void Break()
         {
+            if (_shardKind != ShardPoolKind.None)
+            {
+                var pool = GlassShardPool.Get(_shardKind);
+                if (pool != null)
+                {
+                    pool.Spawn(transform, transform.position, _shardSpeed, _shardSpeedJitter, _shardMaxAngularSpeed,
+                        _shardLifetime);
+                }
+            }
+
+            HitChromaticAberration.Play(_breakAberrationScale);
             gameObject.SetActive(false);
         }
 

@@ -159,6 +159,12 @@ MonoBehaviour:
   _damagedColor: {r: 1, g: 0.35, b: 0.15, a: 0.35}
   _renderer: {fileID: 2658471192808913348}
   _durabilityRenderer: {fileID: 2027118609061236538}
+  _shardKind: 2
+  _shardSpeed: 14
+  _shardSpeedJitter: 0.4
+  _shardMaxAngularSpeed: 4
+  _shardLifetime: 5
+  _breakAberrationScale: 2.5
 --- !u!1 &4116456790957885455
 GameObject:
   m_ObjectHideFlags: 0
