@@ -156,6 +156,33 @@
 
 asmdef の参照、Board のキーの型、Application・BlackBoardLayer・ExternalLayer にライフサイクルがないことは確認済みで、問題はない。
 
+## 追加：崩壊ステージの改修と吸い寄せ（2026-10-24、ユーザー）
+
+整理とは別に、このブランチで続けて行う。
+
+### 崩壊ステージ（ステージ3）の改修
+
+- 時間がたつと元に戻る梁（`RegrowingStructure` と、`Town_CollapseSite` の柱と梁）を消す
+- 破壊対象のコア（`Core_Collapse`）を、商店街のアーケードの通りの中に置く。ビル街の中庭の置き場（`TownLayout.PlanCollapseSite`）は消す
+- コアは、アーケードの棟を崩して潰す。崩れた棟は、下の吸い寄せでコアの側へ倒れる。案内の文（`CollapseGuideTexts` の 2 段階目）も、アーケードを崩す内容にした
+
+### 吸い寄せ
+
+ボクセルの物が切り離されて Rigidbody になるとき、重心を高くして倒れやすくし、水平方向は引き寄せ対象の側へずらす。
+
+- 対象の物：切断したかけら（`VoxelPiece`）と、倒れた建物のまとまり（`VoxelBuilding`）
+- 引き寄せ対象：敵の部隊の中心、崩壊ステージの破壊対象、ボス
+- 選び方：届く距離の中で一番近い 1 つ。破壊対象とボスは優先で、届く距離の中にあれば敵の部隊より先に選ぶ。破壊対象とボスの間に優先の差はない
+- 崩壊ステージの破壊対象は、`StageData._attractsToTargets` をオンにしたステージ（今は `CollapseStageData` だけ）の、クリアの対象の `DestructionTarget`。`StageClearAdapter` が登録する
+- 重心は、Unity が形から求めた重心から、物の大きさに対する割合でずらす（`Rigidbody.centerOfMass`）
+
+| 型 | 層 | 利用者 |
+|---|---|---|
+| 吸い寄せ（`VoxelAttraction`、MonoBehaviour） | EngineAdapterLayer | 置く：InGame のシーン。重心をずらす：`VoxelPiece`・`VoxelBuilding`。位置を渡す：`EnemySpawnAdapter`・`StageClearAdapter`・`BossBattleAdapter` |
+| 優先の引き寄せ対象（`IAttractionTarget`、interface） | EngineAdapterLayer | 実装：`DestructionTarget`・`BossBattleAdapter`。読む：`VoxelAttraction` |
+
+引き寄せ対象の位置は、どれもエンジン側の物の位置で、ゲームのルールの判断を含まない。その為、State を挟まず、EngineAdapterLayer の中で `VoxelAttraction` に渡す。かけらは実行中に作られて Initializer から配線できない為、`SoundPlayer` と同じく `Instance` で参照する。
+
 ## 作業一覧
 
 | # | 作業 | 内容 |

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
@@ -8,7 +9,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// ステージシーンの破壊対象（DestructionTarget・CoreSystem・TutorialDummy）を集め、破壊済みの数が変わるたびに、破壊対象の数と破壊済みの数を通知する Adapter。インゲームのシーンへ置く。
-    /// クリアの判定は通知を受ける Application 側が行う。
+    /// クリアの判定は通知を受ける Application 側が行う。指定があれば、対象を吸い寄せ（VoxelAttraction）の優先の引き寄せ対象にする。
     /// </summary>
     public sealed class StageClearAdapter : InitializableMonoBehaviour
     {
@@ -25,9 +26,11 @@ namespace Kizami.EngineAdapter
         /// </summary>
         /// <param name="onTargetsChanged">破壊済みの数が変わったときに呼ぶ処理。引数は破壊対象の数と破壊済みの数</param>
         /// <param name="targetGimmickIds">クリアの対象にするギミックの ID。末尾の * は前方一致。空なら、見つけた破壊対象をすべて対象にする</param>
-        public void Initialize(Action<int, int> onTargetsChanged, IReadOnlyList<string> targetGimmickIds)
+        /// <param name="attractsToTargets">対象を吸い寄せの優先の引き寄せ対象にするか</param>
+        public void Initialize(Action<int, int> onTargetsChanged, IReadOnlyList<string> targetGimmickIds, bool attractsToTargets)
         {
             _onTargetsChanged = onTargetsChanged;
+            SetAttractionTargets(false);
             _targets.Clear();
             _targets.AddRange(FindObjectsByType<DestructionTarget>(FindObjectsSortMode.None));
             _targets.AddRange(FindObjectsByType<VoxelBuildingDestructionTarget>(FindObjectsSortMode.None));
@@ -35,6 +38,7 @@ namespace Kizami.EngineAdapter
             // チュートリアルのダミーは、台本が出すまで非アクティブで待つ
             _targets.AddRange(FindObjectsByType<TutorialDummy>(FindObjectsInactive.Include, FindObjectsSortMode.None));
             if (targetGimmickIds.Count > 0) KeepGimmicks(targetGimmickIds);
+            if (attractsToTargets) SetAttractionTargets(true);
 
             if (_targets.Count == 0)
             {
@@ -77,6 +81,28 @@ namespace Kizami.EngineAdapter
             if (!Initialized) return;
 
             CountDestroyed();
+        }
+
+        private void OnDestroy()
+        {
+            SetAttractionTargets(false);
+        }
+
+        /// <summary>
+        /// 今の破壊対象のうち引き寄せ対象になれるものを、吸い寄せの優先の引き寄せ対象に加えるか、外す。
+        /// </summary>
+        private void SetAttractionTargets(bool isAttracting)
+        {
+            var attraction = VoxelAttraction.Instance;
+            if (attraction == null) return;
+
+            foreach (var target in _targets)
+            {
+                if (target is not IAttractionTarget attractionTarget) continue;
+
+                if (isAttracting) attraction.AddPriorityTarget(attractionTarget);
+                else attraction.RemovePriorityTarget(attractionTarget);
+            }
         }
 
         /// <summary>

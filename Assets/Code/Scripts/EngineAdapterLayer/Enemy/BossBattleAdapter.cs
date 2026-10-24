@@ -19,9 +19,10 @@ namespace Kizami.EngineAdapter
     /// 体力の配線は StageInitializer が行う。ボスの HealthTarget は、体力が尽きても保護を外さない設定にする。
     /// 上部タレットは水晶の段階でだけ使う。円形の空間は足踏みの段階に入るときに作り、水晶の段階に入るときと止まったときに閉じる。
     /// 水晶・飛来・上部タレット・頭部のレーザーは無くてもよく、無ければその攻撃をせず、水晶と飛来は済んだものとして進める。
+    /// 始まってから止まるまで、胴体が吸い寄せの優先の引き寄せ対象になる。
     /// </remarks>
     [RequireComponent(typeof(VoxelModelLoader))]
-    public sealed class BossBattleAdapter : MonoBehaviour
+    public sealed class BossBattleAdapter : MonoBehaviour, IAttractionTarget
     {
         [SerializeField]
         [Tooltip("ボスの胴体")]
@@ -137,6 +138,7 @@ namespace Kizami.EngineAdapter
             // 1 周目の着地点は初めから決まっている為、ステージの読み込み中に先読みを済ませる
             PreloadArrivalArea();
             VoxelBuilding.LoadPreloadAreaNow();
+            if (VoxelAttraction.Instance != null) VoxelAttraction.Instance.AddPriorityTarget(this);
         }
 
         /// <summary>
@@ -177,6 +179,7 @@ namespace Kizami.EngineAdapter
         private void OnDestroy()
         {
             VoxelBuilding.ClearPreloadArea();
+            if (VoxelAttraction.Instance != null) VoxelAttraction.Instance.RemovePriorityTarget(this);
         }
 
         private void Update()
@@ -461,6 +464,12 @@ namespace Kizami.EngineAdapter
             }
 
             _isProtected = shouldProtect;
+        }
+
+        public bool TryGetAttractionPoint(out Vector3 point)
+        {
+            point = _body != null ? _body.transform.position : transform.position;
+            return _state != null && _state.Phase != BossBattlePhase.Idle && _state.Phase != BossBattlePhase.Stopped;
         }
     }
 }

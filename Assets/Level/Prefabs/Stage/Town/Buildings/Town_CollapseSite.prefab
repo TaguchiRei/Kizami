@@ -119,7 +119,7 @@ Transform:
   m_GameObject: {fileID: 2090970364581368889}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 6.5, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -204,7 +204,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 9149986733894219293}
-  - component: {fileID: 8569383243498543227}
   m_Layer: 0
   m_Name: Town_CollapseSite
   m_TagString: Untagged
@@ -228,19 +227,3 @@ Transform:
   - {fileID: 5174188523532270199}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8569383243498543227
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8679669950931753716}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3020356d49c34a940b5398416b973827, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.RegrowingStructure
-  _prefab: {fileID: 5064431163903695336, guid: 000cec6f5e410d04a8987ea27445c801, type: 3}
-  _regrowDelay: 60
-  _brokenRatio: 0.9
-  _clearDistance: 25

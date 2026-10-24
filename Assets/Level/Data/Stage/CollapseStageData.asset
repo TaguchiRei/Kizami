@@ -20,6 +20,13 @@ MonoBehaviour:
   _initialCharge: 100
   _targetGimmickIds:
   - Core_Collapse
+  _requiredTargetCount: 0
+  _requiredDefeatCount: 0
+  _maxAttackingAttackers: -1
+  _maxAttackingFinishers: -1
+  _clearsOnTargets: 1
+  _attractsToTargets: 1
+  _isMaxDestructionPower: 0
   _failConditions:
   - rid: 8226038394822328402
   references:

@@ -619,6 +619,9 @@ namespace Kizami.EngineAdapter
             source.mass = MeasureGroupMass(source.transform);
             source.isKinematic = false;
             source.WakeUp();
+            // 上の階が抜けて形が変わった為、重心を形から求め直してからずらす
+            source.ResetCenterOfMass();
+            Attract(source);
 
             var body = AddGroupBody(groupObject);
             body.linearVelocity = source.GetPointVelocity(body.worldCenterOfMass);
@@ -641,7 +644,16 @@ namespace Kizami.EngineAdapter
             var body = groupObject.AddComponent<Rigidbody>();
             body.mass = MeasureGroupMass(groupObject.transform);
             body.interpolation = RigidbodyInterpolation.Interpolate;
+            Attract(body);
             return body;
+        }
+
+        /// <summary>
+        /// まとまりの重心を、ピースをすべて含む範囲を基準に、高くして引き寄せ対象の側へずらす。
+        /// </summary>
+        private static void Attract(Rigidbody body)
+        {
+            if (TryGetPiecesBounds(body, out var bounds)) VoxelAttraction.Apply(body, bounds);
         }
 
         /// <summary>

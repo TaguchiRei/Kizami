@@ -43,6 +43,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("切断の範囲の、刃の法線方向の厚み（m）")]
         private float _thickness = 0.2f;
 
+        [SerializeField, Min(1f)]
+        [Tooltip("破壊タイプの振りで、ボクセルのピースを探す範囲の倍率。幅・奥行き・厚みに掛ける")]
+        private float _destroyRangeScale = 3f;
+
         [SerializeField]
         [Tooltip("切断の対象を探すレイヤー")]
         private LayerMask _targetLayers = ~0;
@@ -247,6 +251,27 @@ namespace Kizami.EngineAdapter
                 }
 
                 if (_hitBuffer[i].TryGetComponent(out CuttableObject cuttable)) TryAddTarget(cuttable, origin, normal);
+            }
+
+            if (collectsPieces) CollectWidePieces(origin, forward, bladeRotation, reach, halfExtents);
+        }
+
+        /// <summary>
+        /// 破壊タイプの振りで、幅・奥行き・厚みを _destroyRangeScale 倍にした範囲内の、装甲の奥にないボクセルのピースを _pieces に加える。
+        /// </summary>
+        private void CollectWidePieces(Vector3 origin, Vector3 forward, Quaternion bladeRotation, float reach,
+            Vector3 halfExtents)
+        {
+            var wideExtents = halfExtents * _destroyRangeScale;
+            var wideCenter = origin + forward * (reach * _destroyRangeScale * 0.5f);
+            var hitCount = Physics.OverlapBoxNonAlloc(wideCenter, wideExtents, _hitBuffer, bladeRotation,
+                _targetLayers, QueryTriggerInteraction.Ignore);
+
+            for (var i = 0; i < hitCount; i++)
+            {
+                if (_hitBuffer[i].TryGetComponent(out ArmorPanel _)) continue;
+
+                TryCollectPieces(_hitBuffer[i], origin, wideCenter, wideExtents, bladeRotation, true);
             }
         }
 

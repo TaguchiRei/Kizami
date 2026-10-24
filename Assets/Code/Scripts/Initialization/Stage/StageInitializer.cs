@@ -88,7 +88,7 @@ namespace Kizami.Initialization
             blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this);
             _targetHealthService.Register(blackBoard, gameObject.scene.buildIndex);
             ConnectHealthTarget(stage);
-            _stageClearAdapter.Initialize(_flowService.ReportTargets, stage.TargetGimmickIds);
+            _stageClearAdapter.Initialize(_flowService.ReportTargets, stage.TargetGimmickIds, stage.AttractsToTargets);
             _timerAdapter.Initialize(_flowService.Tick);
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
                 gameObject.scene.buildIndex);

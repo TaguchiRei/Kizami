@@ -61,6 +61,10 @@ namespace Kizami.External
         private bool _clearsOnTargets = true;
 
         [SerializeField]
+        [Tooltip("クリアの対象の破壊対象を、吸い寄せの優先の引き寄せ対象にするか。切り離されたボクセルの物が破壊対象の側へ倒れやすくなる")]
+        private bool _attractsToTargets;
+
+        [SerializeField]
         [Tooltip("すべてのスキルの破壊力を最大にする。どのスキルでも、強度が硬い素材を普通の素材と同じ範囲まで削れる")]
         private bool _isMaxDestructionPower;
 
@@ -91,6 +95,9 @@ namespace Kizami.External
 
         /// <summary> 破壊対象の破壊でクリアにするか </summary>
         public bool ClearsOnTargets => _clearsOnTargets;
+
+        /// <summary> クリアの対象の破壊対象を、吸い寄せの優先の引き寄せ対象にするか </summary>
+        public bool AttractsToTargets => _attractsToTargets;
 
         /// <summary> クリアに必要な破壊済みの対象の数。0 なら対象すべて </summary>
         public int RequiredTargetCount => _requiredTargetCount;

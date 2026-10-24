@@ -43,6 +43,9 @@ namespace Kizami.Application
         /// <summary> 視線の向きを水平面へ投影した向き。視線が真上・真下を向いている間は直前の値を保つ </summary>
         private Vector3 _viewForward = Vector3.forward;
 
+        /// <summary> 上下を含む視線の向き（正規化済み） </summary>
+        private Vector3 _viewDirection = Vector3.forward;
+
         /// <summary> 壁走りの残りの持ち時間（秒）。着地で最大値に戻る </summary>
         private float _wallRunTimeRemaining;
 
@@ -164,23 +167,22 @@ namespace Kizami.Application
         public bool CanRush => !_isHoldingWord && !_isSkyBeamActive && !_isRushRequested && _state.Mode != PlayerMoveMode.Warping;
 
         /// <summary>
-        /// 突進する向きを返す。水平な移動入力があればその向き、なければ水平な視線の向き。
+        /// 突進する向きを返す。移動入力があれば上下を含む視線の向き、なければ水平な視線の向き。
         /// </summary>
         public Vector3 GetRushDirection()
         {
             var worldInput = ToWorldDirection(_moveInput);
-            return worldInput.sqrMagnitude > Mathf.Epsilon ? worldInput.normalized : _viewForward;
+            return worldInput.sqrMagnitude > Mathf.Epsilon ? _viewDirection : _viewForward;
         }
 
         /// <summary>
         /// 次の Step で、direction の向きへ決めた距離を決めた時間で突進するよう要求する。CanRush が false のときに呼ぶと、言葉をつかんでいる間は捨て、突進中は Step で捨てる。
         /// </summary>
-        /// <param name="direction">突進の向き（水平）</param>
+        /// <param name="direction">突進の向き（上下を含む）</param>
         /// <param name="distance">進む距離（m）</param>
         /// <param name="duration">所要時間（秒）</param>
         public void RequestRush(Vector3 direction, float distance, float duration)
         {
-            direction.y = 0f;
             if (direction.sqrMagnitude <= Mathf.Epsilon || distance <= 0f || duration <= 0f) return;
 
             _isRushRequested = true;
@@ -540,10 +542,12 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 視線の向きを水平面へ投影して保持する。水平成分があるときだけ更新する。
+        /// 視線の向きを上下を含めて保持し、水平面へ投影した向きも保持する。投影した向きは水平成分があるときだけ更新する。
         /// </summary>
         private void UpdateViewForward(Vector3 viewDirection)
         {
+            if (viewDirection.sqrMagnitude > 1e-6f) _viewDirection = viewDirection.normalized;
+
             viewDirection.y = 0f;
             if (viewDirection.sqrMagnitude < 1e-6f) return;
 

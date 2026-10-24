@@ -75,6 +75,9 @@ namespace Kizami.EngineAdapter
         private readonly List<IDisposable> _buildingSubscriptions = new();
         private readonly List<VoxelBuilding> _buildings = new();
 
+        /// <summary> 吸い寄せに渡す、生きているメンバーがいる部隊の中心 </summary>
+        private readonly List<Vector3> _squadCenters = new();
+
         private readonly EnemySquadObservationState _observationState = new();
 
         [SerializeField]
@@ -685,6 +688,9 @@ namespace Kizami.EngineAdapter
 
         private void OnDestroy()
         {
+            _squadCenters.Clear();
+            if (VoxelAttraction.Instance != null) VoxelAttraction.Instance.SetSquadCenters(_squadCenters);
+
             if (_crowdRenderers != null)
             {
                 foreach (var crowdRenderer in _crowdRenderers)
@@ -808,17 +814,20 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// グループごとの、前のフレームで動かした結果と、このフレームで求めた置き場を EnemySquadObservationState に書く。追跡範囲の判定は、このフレームの距離マップで行う。
+        /// グループごとの、前のフレームで動かした結果と、このフレームで求めた置き場を EnemySquadObservationState に書く。部隊の中心は吸い寄せ（VoxelAttraction）にも渡す。追跡範囲の判定は、このフレームの距離マップで行う。
         /// </summary>
         private void WriteObservations()
         {
             var groups = _groups.Groups;
+            _squadCenters.Clear();
             for (var g = 0; g < groups.Length; g++)
             {
                 var group = groups[g];
                 var point = _activeSpawnPoints[g];
                 var mobileCount = 0;
-                var memberCount = group.IsActive ? _groups.CountAliveMembers(g, _agents, out mobileCount) : 0;
+                var center = float3.zero;
+                var memberCount = group.IsActive ? _groups.CountAliveMembers(g, _agents, out mobileCount, out center) : 0;
+                if (memberCount > 0) _squadCenters.Add(center);
                 _observationState.SetSquad(g, new EnemySquadObservation
                 {
                     IsActive = group.IsActive,
@@ -836,6 +845,8 @@ namespace Kizami.EngineAdapter
                     IsReturnBlocked = group.IsReturnBlocked
                 });
             }
+            if (VoxelAttraction.Instance != null) VoxelAttraction.Instance.SetSquadCenters(_squadCenters);
+
 
             var slotPoints = _groups.SlotPoints;
             for (var slot = 0; slot < slotPoints.Length; slot++)
