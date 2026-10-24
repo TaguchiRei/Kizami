@@ -128,7 +128,12 @@ namespace Kizami.Initialization
             if (blackBoard.TryGetSceneState<EnemyBoard, IBossBattleState>(out var battleState, this))
             {
                 battleAdapter.Initialize(battleState, battleService.ReportCrystalsCleared,
-                    battleService.ReportActionFinished, battleService.ReportWeaponBroken, battleService.Tick, target);
+                    battleService.ReportActionFinished, battleService.Tick, target);
+                if (boss.TryGetComponent<HealthTarget>(out var healthTarget))
+                {
+                    healthTarget.SetOnHitWhileDepleted(battleService.ReportHitWhileDown);
+                }
+
                 boss.AddComponent<BossTargetSelector>().Connect(battleState, boss.GetComponentInChildren<BossCrystals>(true));
                 boss.AddComponent<BossGuideScript>();
                 if (_beginOnInitialize) battleService.Begin();

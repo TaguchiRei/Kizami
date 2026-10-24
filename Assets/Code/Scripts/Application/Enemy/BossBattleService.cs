@@ -43,6 +43,9 @@ namespace Kizami.Application
         /// <summary> 最終の段階で、今の周に足踏みした回数 </summary>
         private int _finalStompCount;
 
+        /// <summary> 足踏みとコア露出の段階が続いている時間（秒）。それ以外の段階では 0 </summary>
+        private float _fightTime;
+
         /// <param name="blackBoard">BossBattleState の登録先</param>
         /// <param name="health">ボスの体力。なければ体力を見ずに進める</param>
         /// <param name="settings">行動の回数・間隔・待機の値</param>
@@ -76,11 +79,12 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 毎フレーム呼ぶ。待機の時間を数える。直接戦闘で体力が尽きていればダウンへ進む。最終では体力を時間で減らし、尽きたら止まる。
+        /// 毎フレーム呼ぶ。無敵と落ちる塊を数えるかを決め、待機の時間を数える。直接戦闘で体力が尽きていればダウンへ進む。最終では体力を時間で減らし、尽きたら止まる。
         /// </summary>
         /// <param name="deltaTime">経過時間（秒）</param>
         public void Tick(float deltaTime)
         {
+            UpdateDamageRules(deltaTime);
             switch (_state.Phase)
             {
                 case BossBattlePhase.Arriving:
@@ -89,7 +93,7 @@ namespace Kizami.Application
                     if (_health != null && _health.IsDepleted)
                     {
                         _state.SetPhase(BossBattlePhase.Down);
-                        _state.SetAction(BossAction.None);
+                        _state.SetAction(BossAction.AwaitHit);
                         return;
                     }
 
@@ -141,6 +145,14 @@ namespace Kizami.Application
                     _finalStompCount = 0;
                     _state.SetAction(BossAction.Stomp);
                     break;
+                case BossAction.AwaitHit:
+                    // 壊せる武装が残っていないので、壊したものとして進める
+                    if (!isPerformed) LeaveDown();
+                    break;
+                case BossAction.BreakWeapon:
+                    if (isPerformed) LeaveDown();
+                    else _state.SetAction(BossAction.AwaitHit);
+                    break;
             }
         }
 
@@ -157,12 +169,39 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 武装が 1 つ壊れたことを受け取る。ダウンのときだけ、1 周目なら遠距離へ、2 周目なら最終へ進む。どちらも体力を全回復する。
+        /// 体力が尽きたあとに、ボスへ攻撃が当たったことを受け取る。ダウンで攻撃を待っているときだけ、武装を 1 つ壊させる。ダウンの間に壊すのは 1 つだけ。
         /// </summary>
-        public void ReportWeaponBroken()
+        public void ReportHitWhileDown()
         {
-            if (_state.Phase != BossBattlePhase.Down) return;
+            if (_state.Phase != BossBattlePhase.Down || _state.Action != BossAction.AwaitHit) return;
 
+            _state.SetAction(BossAction.BreakWeapon);
+        }
+
+        /// <summary>
+        /// 足踏みとコア露出が続いている時間を数え、ボスの体力の無敵と落ちる塊を数えるかを決める。
+        /// 飛来の間と、足踏みを始めてから猶予の時間が過ぎるまでは無敵にし、飛来の崩落の落下を待つ。落ちる塊は、足踏みとコア露出の間の猶予のあとだけ数え、戦っていないときの崩落や外れた武装の落下で体力が減らないようにする。
+        /// </summary>
+        private void UpdateDamageRules(float deltaTime)
+        {
+            var phase = _state.Phase;
+            if (phase != BossBattlePhase.Stomping && phase != BossBattlePhase.CoreExposed)
+            {
+                _fightTime = 0f;
+                _state.SetDamageRules(phase == BossBattlePhase.Arriving, false);
+                return;
+            }
+
+            _fightTime += deltaTime;
+            var isGraceOver = _fightTime >= _settings.CollapseGrace;
+            _state.SetDamageRules(!isGraceOver, isGraceOver);
+        }
+
+        /// <summary>
+        /// ダウンを終える。1 周目なら遠距離へ、2 周目なら最終へ進む。どちらも体力を全回復する。
+        /// </summary>
+        private void LeaveDown()
+        {
             _health?.Restore();
             if (_state.Round >= ROUND_COUNT)
             {

@@ -11,12 +11,12 @@ namespace Kizami.EngineAdapter
     /// ボス戦で、BossBattleState の段階に合わせてボスの見た目と武装を切り替え、BossBattleService が決めた行動を 1 つずつ実行して、終わったら報告する。ボスのボクセルのモデル（VoxelModelLoader）と同じ GameObject に付ける。
     /// 1 周目の飛来は、プレイヤーの正面の着地点へ降りてくる。
     /// 水晶の段階は、退く所へ飛び去ってから水晶を投げて置き、上部タレット・降下フィニッシャー・頭部のレーザーで遠くから攻撃する。水晶がすべて壊れたら、飛来の段階で水晶のあった所へ飛ぶ。
-    /// ダウンの段階はコアを出したまま壊せる武装を赤く塗り、ボスに攻撃が当たったら（HealthTarget が知らせる）、BossWeapons が選んだ武装を 1 つ壊す。
+    /// ダウンの段階はコアを出したまま壊せる武装を赤く塗り、武装を壊す行動で、BossWeapons が選んだ武装を 1 つ壊す。
     /// 止まったあとは攻撃をやめ、出ている降下フィニッシャーと塔も消す。
     /// </summary>
     /// <remarks>
     /// ボス戦の間、ボスは自分では歩かない（飛来でだけ動く）。武装を含むすべてのパーツを止まるまで保護し、削れないようにする。
-    /// 体力の配線は StageInitializer が行う。ボスの HealthTarget は、体力が尽きても保護を外さない設定にする。
+    /// 体力の配線は StageInitializer が行う。ボスの HealthTarget は、体力が尽きても保護を外さない設定にする。BossBattleState の無敵と落ちる塊を数えるかを、毎フレーム HealthTarget へ写す。
     /// 上部タレットは水晶の段階でだけ使う。円形の空間は足踏みの段階に入るときに作り、水晶の段階に入るときと止まったときに閉じる。
     /// 水晶・飛来・上部タレット・頭部のレーザーは無くてもよく、無ければその攻撃をせず、水晶と飛来は済んだものとして進める。
     /// 始まってから止まるまで、胴体が吸い寄せの優先の引き寄せ対象になる。
@@ -77,10 +77,6 @@ namespace Kizami.EngineAdapter
         private float _crystalStrikeCooldown = 6f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("足踏みを始めてから、落ちてくる塊のダメージを数え始めるまでの猶予（秒）。飛来で崩れた塊が落ちきるのを待つ")]
-        private float _collapseGrace = 2f;
-
-        [SerializeField, Min(0f)]
         [Tooltip("飛来の間に建物を前もってボクセルにする円の、円形の空間の半径に足す幅（m）。柵のビームが溶かす穴の半径より大きくする")]
         private float _preloadMargin = 8f;
 
@@ -88,7 +84,6 @@ namespace Kizami.EngineAdapter
         private IBossBattleState _state;
         private Action _reportCrystalsCleared;
         private Action<bool> _reportActionFinished;
-        private Action _reportWeaponBroken;
         private Action<float> _tick;
         private HealthTarget _healthTarget;
         private BossTowerThrow _towerThrow;
@@ -99,17 +94,8 @@ namespace Kizami.EngineAdapter
         /// <summary> 今の行動を終えたことを報告したか </summary>
         private bool _isActionReported;
 
-        /// <summary> ダウンに入ったときに壊れていた武装の数。これを超えたら、武装が 1 つ壊れたとする </summary>
-        private int _brokenBaseline;
-
         /// <summary> 下部レーザーを撃つ行動で、撃つ番を進めたか </summary>
         private bool _isLaserStarted;
-
-        /// <summary> 今のダウンで、武装を壊したか </summary>
-        private bool _isWeaponBrokenInDown;
-
-        /// <summary> 足踏みとコア露出の段階が続いている時間（秒）。それ以外の段階では0 </summary>
-        private float _fightTime;
 
         /// <summary> すべてのパーツを保護したか </summary>
         private bool _isProtected;
@@ -120,20 +106,17 @@ namespace Kizami.EngineAdapter
         /// <param name="state">ボス戦の State</param>
         /// <param name="reportCrystalsCleared">水晶をすべて壊したことを報告する関数（BossBattleService.ReportCrystalsCleared）</param>
         /// <param name="reportActionFinished">今の行動を終えたことを報告する関数（BossBattleService.ReportActionFinished）。引数は行動を実際に行えたか</param>
-        /// <param name="reportWeaponBroken">武装が 1 つ壊れたことを報告する関数（BossBattleService.ReportWeaponBroken）</param>
-        /// <param name="tick">毎フレーム経過時間を渡す関数（BossBattleService.Tick）。待機の時間を数え、体力が尽きたかを調べ、最終の体力を減らす</param>
+        /// <param name="tick">毎フレーム経過時間を渡す関数（BossBattleService.Tick）。無敵と落ちる塊を数えるかを決め、待機の時間を数え、体力が尽きたかを調べ、最終の体力を減らす</param>
         /// <param name="target">プレイヤー。ダウンで壊す武装を選ぶのに使う</param>
         public void Initialize(IBossBattleState state, Action reportCrystalsCleared, Action<bool> reportActionFinished,
-            Action reportWeaponBroken, Action<float> tick, Transform target)
+            Action<float> tick, Transform target)
         {
             _state = state;
             _reportCrystalsCleared = reportCrystalsCleared;
             _reportActionFinished = reportActionFinished;
-            _reportWeaponBroken = reportWeaponBroken;
             _tick = tick;
             _target = target;
             _towerThrow = GetComponent<BossTowerThrow>();
-            if (_healthTarget != null) _healthTarget.SetOnHitWhileDepleted(OnHitWhileDepleted);
 
             // 1 周目の着地点は初めから決まっている為、ステージの読み込み中に先読みを済ませる
             PreloadArrivalArea();
@@ -187,8 +170,8 @@ namespace Kizami.EngineAdapter
             if (_state == null) return;
 
             UpdateProtection();
-            UpdateCollapseCounting(Time.deltaTime);
             _tick?.Invoke(Time.deltaTime);
+            ApplyDamageRules();
 
             var phase = _state.Phase;
             if (phase != _handledPhase)
@@ -201,12 +184,6 @@ namespace Kizami.EngineAdapter
             {
                 _handledActionCount = _state.ActionCount;
                 BeginAction(_state.Action);
-                return;
-            }
-
-            if (phase == BossBattlePhase.Down)
-            {
-                TickDown();
                 return;
             }
 
@@ -240,8 +217,6 @@ namespace Kizami.EngineAdapter
                     if (_towerThrow != null) _towerThrow.Clear();
                     _laser.Cancel();
                     _laser.HoldCoreExposed(true);
-                    _brokenBaseline = _weapons.CountBroken();
-                    _isWeaponBrokenInDown = false;
                     _weapons.SetHighlight(true);
                     break;
                 case BossBattlePhase.Final:
@@ -325,6 +300,12 @@ namespace Kizami.EngineAdapter
                 case BossAction.FinalVolley:
                     TickFinalVolley();
                     break;
+                case BossAction.AwaitHit:
+                    if (_weapons.CountBroken() >= _weapons.Count) ReportActionFinished(false);
+                    break;
+                case BossAction.BreakWeapon:
+                    ReportActionFinished(TryBreakWeapon());
+                    break;
             }
         }
 
@@ -403,51 +384,30 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 壊れた武装の数が、ダウンに入ったときより増えたら報告する。壊せる武装が残っていなければ、壊したものとして報告する。
+        /// 画面の中央に近い武装を 1 つ壊し、残りの赤を消す。カメラがないか、壊せる武装がなければ壊さずに false を返す。
         /// </summary>
-        private void TickDown()
+        private bool TryBreakWeapon()
         {
-            var brokenCount = _weapons.CountBroken();
-            if (brokenCount > _brokenBaseline || brokenCount >= _weapons.Count) _reportWeaponBroken?.Invoke();
-        }
-
-        /// <summary>
-        /// 体力が尽きたあとにボスへ攻撃が当たったら、ダウンの間に 1 回だけ、画面の中央に近い武装を 1 つ壊し、残りの赤を消す。
-        /// </summary>
-        private void OnHitWhileDepleted()
-        {
-            if (_state == null || _state.Phase != BossBattlePhase.Down || _isWeaponBrokenInDown) return;
-
             var view = Camera.main;
-            if (view == null) return;
+            if (view == null) return false;
 
             var viewTransform = view.transform;
             var playerPosition = _target != null ? _target.position : viewTransform.position;
-            _isWeaponBrokenInDown = _weapons.BreakBest(viewTransform.position, viewTransform.forward, playerPosition) >= 0;
-            if (_isWeaponBrokenInDown) _weapons.SetHighlight(false);
+            if (_weapons.BreakBest(viewTransform.position, viewTransform.forward, playerPosition) < 0) return false;
+
+            _weapons.SetHighlight(false);
+            return true;
         }
 
         /// <summary>
-        /// 足踏みとコア露出の間だけ、落ちてくる塊のダメージを数える。飛来や水晶の段階の崩落、外れた武装の落下で、戦っていないのに体力が減らないようにする。
-        /// 飛来の間と、着地して足踏みを始めてから猶予の時間が過ぎるまでは無敵にし、飛来の崩落の落下を待つ。
+        /// BossBattleState の無敵と、落ちてくる塊のダメージを数えるかを、HealthTarget へ写す。
         /// </summary>
-        private void UpdateCollapseCounting(float deltaTime)
+        private void ApplyDamageRules()
         {
             if (_healthTarget == null) return;
 
-            var phase = _state.Phase;
-            if (phase != BossBattlePhase.Stomping && phase != BossBattlePhase.CoreExposed)
-            {
-                _fightTime = 0f;
-                _healthTarget.SetCollapseCounting(false);
-                _healthTarget.SetInvulnerable(phase == BossBattlePhase.Arriving);
-                return;
-            }
-
-            _fightTime += deltaTime;
-            var isGraceOver = _fightTime >= _collapseGrace;
-            _healthTarget.SetCollapseCounting(isGraceOver);
-            _healthTarget.SetInvulnerable(!isGraceOver);
+            _healthTarget.SetInvulnerable(_state.IsInvulnerable);
+            _healthTarget.SetCollapseCounting(_state.CountsCollapse);
         }
 
         /// <summary>

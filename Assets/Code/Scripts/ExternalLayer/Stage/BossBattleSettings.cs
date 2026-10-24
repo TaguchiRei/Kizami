@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Kizami.External
 {
     /// <summary>
-    /// ボス戦の行動の回数・間隔・待機の値。
+    /// ボス戦の行動の回数・間隔・待機の値と、足踏みを始めてからの猶予。
     /// </summary>
     [Serializable]
     public sealed class BossBattleSettings
@@ -29,6 +29,10 @@ namespace Kizami.External
         [Tooltip("最終の段階で、コアを出す攻撃の前に足踏みする回数")]
         private int _finalStomps = 3;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("足踏みを始めてから、無敵を解いて落ちてくる塊のダメージを数え始めるまでの猶予（秒）。飛来で崩れた塊が落ちきるのを待つ")]
+        private float _collapseGrace = 2f;
+
         public float LandingPause => _landingPause;
 
         public int MeleeStrikeCount => _meleeStrikeCount;
@@ -38,5 +42,7 @@ namespace Kizami.External
         public float TowerRest => _towerRest;
 
         public int FinalStomps => _finalStomps;
+
+        public float CollapseGrace => _collapseGrace;
     }
 }
