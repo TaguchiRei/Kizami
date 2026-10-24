@@ -119,6 +119,40 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &250860735
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 250860736}
+  m_Layer: 0
+  m_Name: TutorialDummies
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &250860736
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 250860735}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1684928833}
+  - {fileID: 1429292489}
+  - {fileID: 1531128397}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &484274150
 GameObject:
   m_ObjectHideFlags: 0
@@ -173,6 +207,7 @@ GameObject:
   m_Component:
   - component: {fileID: 651635355}
   - component: {fileID: 651635354}
+  - component: {fileID: 651635356}
   m_Layer: 0
   m_Name: StageGuideScript
   m_TagString: Untagged
@@ -204,6 +239,7 @@ MonoBehaviour:
     _delay: 2
     _releaseSpawnPoints: []
     _releaseSpawnPointIds: []
+    _showObjects: []
   - _condition:
       _kind: 4
       _target: {fileID: 0}
@@ -213,6 +249,7 @@ MonoBehaviour:
     _delay: 5
     _releaseSpawnPoints: []
     _releaseSpawnPointIds: []
+    _showObjects: []
   - _condition:
       _kind: 2
       _target: {fileID: 0}
@@ -222,16 +259,20 @@ MonoBehaviour:
     _delay: 1
     _releaseSpawnPoints: []
     _releaseSpawnPointIds: []
+    _showObjects: []
   - _condition:
-      _kind: 1
+      _kind: 5
       _target: {fileID: 0}
       _targetId: 
-      _count: 1
+      _count: 3
       _action: 2
     _delay: 0
     _releaseSpawnPoints: []
-    _releaseSpawnPointIds:
-    - Spawn_TutorialDummy
+    _releaseSpawnPointIds: []
+    _showObjects:
+    - {fileID: 1684928832}
+    - {fileID: 1429292488}
+    - {fileID: 1531128396}
   - _condition:
       _kind: 4
       _target: {fileID: 0}
@@ -241,6 +282,7 @@ MonoBehaviour:
     _delay: 6
     _releaseSpawnPoints: []
     _releaseSpawnPointIds: []
+    _showObjects: []
 --- !u!4 &651635355
 Transform:
   m_ObjectHideFlags: 0
@@ -256,6 +298,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &651635356
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 651635353}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dbf596007e3a69a4f8ca7649eb92f27e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.DestructionTargetSelector
 --- !u!1 &894881683
 GameObject:
   m_ObjectHideFlags: 0
@@ -287,8 +341,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageSpawnOverride
   _disabledSpawnPointIds: []
   _disablesAll: 1
-  _keptSpawnPointIds:
-  - Spawn_TutorialDummy
+  _keptSpawnPointIds: []
   _composition: {fileID: 11400000, guid: 4a19aec5439e66f40a8c38687e43c075, type: 2}
   _compositionSpawnPointIds:
   - Spawn_Factory_*
@@ -307,6 +360,192 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1429292488
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1429292489}
+  - component: {fileID: 1429292490}
+  - component: {fileID: 1429292491}
+  m_Layer: 0
+  m_Name: TutorialDummy_Defender
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1429292489
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1429292488}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+  m_LocalPosition: {x: 130, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 250860736}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1429292490
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1429292488}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 755c4e3bf70017d4db8e52ffb077a5d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.TutorialDummy
+  _bodyPrefab: {fileID: 8335375518667144, guid: 49aeb642609d4ac4c973326c91ef79ab, type: 3}
+  _dissolveMaterial: {fileID: 2100000, guid: 5cfc7be965929784eb5db215773505a4, type: 2}
+  _dissolveDuration: 1
+  _centerHeight: 1.5
+--- !u!114 &1429292491
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1429292488}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5354509d0f2886148837db88808df1dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageGimmick
+  _id: TutorialDummy_Defender
+--- !u!1 &1531128396
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1531128397}
+  - component: {fileID: 1531128398}
+  - component: {fileID: 1531128399}
+  m_Layer: 0
+  m_Name: TutorialDummy_Attacker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1531128397
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1531128396}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+  m_LocalPosition: {x: 130, y: 0, z: 5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 250860736}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1531128398
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1531128396}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 755c4e3bf70017d4db8e52ffb077a5d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.TutorialDummy
+  _bodyPrefab: {fileID: 1602327258362906900, guid: abba11fae2f3aaa4a8b4ecdfe95fc600, type: 3}
+  _dissolveMaterial: {fileID: 2100000, guid: 5cfc7be965929784eb5db215773505a4, type: 2}
+  _dissolveDuration: 1
+  _centerHeight: 1.5
+--- !u!114 &1531128399
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1531128396}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5354509d0f2886148837db88808df1dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageGimmick
+  _id: TutorialDummy_Attacker
+--- !u!1 &1684928832
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1684928833}
+  - component: {fileID: 1684928834}
+  - component: {fileID: 1684928835}
+  m_Layer: 0
+  m_Name: TutorialDummy_Finisher
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1684928833
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1684928832}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
+  m_LocalPosition: {x: 130, y: 0, z: -5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 250860736}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1684928834
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1684928832}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 755c4e3bf70017d4db8e52ffb077a5d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.TutorialDummy
+  _bodyPrefab: {fileID: 7345064096527193169, guid: 383f2223f0e30584db715536b5f4d2ea, type: 3}
+  _dissolveMaterial: {fileID: 2100000, guid: 5cfc7be965929784eb5db215773505a4, type: 2}
+  _dissolveDuration: 1
+  _centerHeight: 1.5
+--- !u!114 &1684928835
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1684928832}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5354509d0f2886148837db88808df1dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StageGimmick
+  _id: TutorialDummy_Finisher
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -314,3 +553,4 @@ SceneRoots:
   - {fileID: 651635355}
   - {fileID: 484274152}
   - {fileID: 894881685}
+  - {fileID: 250860736}

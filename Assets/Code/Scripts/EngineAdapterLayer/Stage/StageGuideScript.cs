@@ -108,7 +108,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 指定した段階に入る。小目標と会話を出し、スポーン位置の保留を解いて、条件の基準を取り直す。段階がなければ、小目標と会話を消す。
+        /// 指定した段階に入る。小目標と会話を出し、物をアクティブにしてスポーン位置の保留を解いて、条件の基準を取り直す。段階がなければ、小目標と会話を消す。
         /// </summary>
         private void EnterStep(int index)
         {
@@ -134,6 +134,11 @@ namespace Kizami.EngineAdapter
             _setSubObjective?.Invoke(subObjective);
             _setDialogue?.Invoke(dialogue);
             _setHint?.Invoke(hint);
+            foreach (var showObject in step.ShowObjects)
+            {
+                if (showObject != null) showObject.SetActive(true);
+            }
+
             foreach (var spawnPoint in step.ReleaseSpawnPoints)
             {
                 if (spawnPoint != null) spawnPoint.Release();
@@ -227,6 +232,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("この段階に入ったときに、出現の保留を解くスポーン位置の ID。別のシーンにあるスポーン位置はこちらで指定する")]
         private string[] _releaseSpawnPointIds = Array.Empty<string>();
 
+        [SerializeField]
+        [Tooltip("この段階に入ったときに、アクティブにする物（チュートリアルのダミーなど）")]
+        private GameObject[] _showObjects = Array.Empty<GameObject>();
+
         /// <summary> この段階を終える条件 </summary>
         public GuideCondition Condition => _condition;
 
@@ -238,6 +247,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> この段階に入ったときに、出現の保留を解くスポーン位置の ID </summary>
         public string[] ReleaseSpawnPointIds => _releaseSpawnPointIds;
+
+        /// <summary> この段階に入ったときに、アクティブにする物 </summary>
+        public GameObject[] ShowObjects => _showObjects;
     }
 
     /// <summary>

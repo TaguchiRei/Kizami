@@ -7,7 +7,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// ステージシーンの破壊対象（DestructionTarget・CoreSystem）を集め、破壊済みの数が変わるたびに、破壊対象の数と破壊済みの数を通知する Adapter。インゲームのシーンへ置く。
+    /// ステージシーンの破壊対象（DestructionTarget・CoreSystem・TutorialDummy）を集め、破壊済みの数が変わるたびに、破壊対象の数と破壊済みの数を通知する Adapter。インゲームのシーンへ置く。
     /// クリアの判定は通知を受ける Application 側が行う。
     /// </summary>
     public sealed class StageClearAdapter : InitializableMonoBehaviour
@@ -32,6 +32,8 @@ namespace Kizami.EngineAdapter
             _targets.AddRange(FindObjectsByType<DestructionTarget>(FindObjectsSortMode.None));
             _targets.AddRange(FindObjectsByType<VoxelBuildingDestructionTarget>(FindObjectsSortMode.None));
             _targets.AddRange(FindObjectsByType<CoreSystem>(FindObjectsSortMode.None));
+            // チュートリアルのダミーは、台本が出すまで非アクティブで待つ
+            _targets.AddRange(FindObjectsByType<TutorialDummy>(FindObjectsInactive.Include, FindObjectsSortMode.None));
             if (targetGimmickIds.Count > 0) KeepGimmicks(targetGimmickIds);
 
             if (_targets.Count == 0)

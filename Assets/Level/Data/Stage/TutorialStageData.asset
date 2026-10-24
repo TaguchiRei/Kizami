@@ -18,6 +18,14 @@ MonoBehaviour:
   _sceneGroup: {fileID: 11400000, guid: deff499e279adf3479e73947dc86eca4, type: 2}
   _clearScore: 1000
   _initialCharge: 100
+  _targetGimmickIds:
+  - TutorialDummy_*
+  _requiredTargetCount: 0
+  _requiredDefeatCount: 0
+  _maxAttackingAttackers: -1
+  _maxAttackingFinishers: -1
+  _clearsOnTargets: 0
+  _isMaxDestructionPower: 0
   _failConditions: []
   references:
     version: 2

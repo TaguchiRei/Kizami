@@ -90,6 +90,68 @@
 - #4・#6・#7・#8 は案のとおり
 - #5：腕のアニメーションは出来事の購読に分けない。分けてもクラスが増えるだけで、分ける理由がない為。通常攻撃の腕の振りは `MeleeCutAdapter` が腕の Adapter を持って自分で振らせ、スキルの腕のアニメーションは `SkillService` の発動の通知を腕の Adapter へ直接つなぐ。どちらも配線の相手は 1 つになる
 
+## コミット5（ボスの行動の順番）の詳細計画（2026-10-24 案。ユーザーの確認待ち）
+
+### 今の分担
+
+| 判断 | 今の置き場所 |
+|---|---|
+| 段階の進み（飛来 → 足踏み → コア露出 → ダウン → 水晶 / 最終 → 停止）、足踏みの回数、体力の表示の状態 | `BossBattleService` |
+| 段階に入ったときの切り替え（円形の空間を開く・閉じる、先読みの円、武装の赤、レーザーのコアを出したまま にする 等） | `BossBattleAdapter.Enter` |
+| コア露出の行動の順番（下部レーザー → 降下フィニッシャーを 3 回・1.5 秒おき → 出したビームが終わるのを待つ → 塔投げ → 10 秒待機 → 報告） | `BossBattleAdapter.TickCoreExposed` / `TickStrikes`（`MeleeAction`） |
+| 最終の繰り返し（足踏み 3 回 → 下部レーザーを撃っている間だけ降下フィニッシャーも撃つ → 足踏みへ戻る） | `BossBattleAdapter.TickFinal` |
+| 水晶の段階の流れ（退く所へ飛ぶ → 水晶を投げる → 壊れるまでタレット・降下フィニッシャー・頭部のレーザーをそれぞれのクールタイムで撃つ） | `BossBattleAdapter.TickCrystal` |
+| 飛来で着いてから足踏みを始めるまでの 1 秒 | `BossBattleAdapter.TickArriving` |
+| 武装 1 つずつのクールタイム、壊れた番を飛ばす | 武装ごとの Adapter（`BossLaser.TryFire` など） |
+| 無敵・落ちる塊を数える期間・ダウン中に武装を壊す判定 | `BossBattleAdapter`（コミット6 で扱う） |
+
+行動の値（`_landingPause`・`_meleeStrikeCount`・`_meleeStrikeInterval`・`_towerRest`・`_finalStomps`）は、ボスのプレハブとシーンでは `_landingPause: 1` のほかは保存されておらず、すべてコードの既定値で動いている（プレハブに古い `_allOutDuration` が残っている）。
+
+### 移したあとの形
+
+- `BossBattleState` に「今の行動」と、行動を出し直した回数を足す。同じ行動（足踏み → 足踏み）が続いても、Adapter が新しい指示だと分かるようにする為
+- `BossBattleService` が段階ごとに次の行動を決め、`Tick` で待機の時間を数える。Adapter は今の行動を 1 つ実行し、終わったら `ReportActionFinished` で報告する
+- 行動の種類（案）
+
+| 行動 | Adapter がすること | 終わり |
+|---|---|---|
+| 待機 | 何もしない（Service が時間を数える） | Service が決める |
+| 退く | 退く所へ飛ぶ | 着いたら。退く所や飛来がなければすぐ |
+| 水晶を投げる | 水晶を投げる | 投げたらすぐ |
+| 遠距離の攻撃 | タレット・降下フィニッシャー・頭部のレーザーを、それぞれのクールタイムで撃ち続ける | 水晶がすべて壊れたら（今の `ReportCrystalsCleared`） |
+| 飛来 | 着地点へ飛ぶ | 着いたら |
+| 足踏み | アウトリガーで 1 回足踏みする | 足踏みしたら。アウトリガーがなければすぐ |
+| 下部レーザー | 次の番のレーザーを撃つ | 撃ち終えたら。レーザーがなければすぐ |
+| 降下フィニッシャー | 1 つ出す | 出したらすぐ |
+| 降下フィニッシャーを待つ | 何もしない | 出したビームがすべて終わったら |
+| 塔投げ | 塔を投げる | 投げたらすぐ |
+| 最終の一斉攻撃 | 下部レーザーを撃ち、撃っている間は降下フィニッシャーも撃つ | レーザーを撃ち終えたら |
+
+- `ReportArrived`・`ReportStomp`・`ReportCoreAttackFinished` は Service の中の判断になるので、Adapter からの報告は `ReportActionFinished` と `ReportCrystalsCleared` だけにする（`ReportWeaponBroken` はコミット6 で見直す）
+- 行動の値は `BossInitializer` へ移し、Service に渡す。値は今の既定値のまま写す
+- 段階に入ったときの切り替え（`Enter`）は Adapter に残す。State の段階をエンジン側へ写すだけで、ゲームのルールではない為
+- 武装ごとのクールタイムと、遠距離の攻撃でそれぞれを撃つ間隔（`_crystalStrikeCooldown`）は Adapter に残す。攻撃 1 つの実行の中身の為（決めること #2 の案）
+
+### 挙動が変わりうる箇所
+
+- 行動の切り替わりが 1 フレーム遅れる。今は同じフレームで次の行動に入る箇所（レーザーを撃ち終えた → 降下フィニッシャー）が、報告 → Service が次を決める → Adapter が次のフレームで読む、の順になる。見た目では分からない程度の想定
+- 降下フィニッシャーがない（全部壊れた）ときの扱い。今はフィニッシャーを 0 回にしてすぐ塔投げへ進む。新しい形では、Adapter が「出せなかった」ことを報告に載せ、Service が残りの回数と間隔を飛ばす
+
+### 新しく作る型と利用者
+
+| 型 | 層 | 利用者 |
+|---|---|---|
+| ボスの行動の種類（`BossAction`、enum） | BlackBoardLayer | 書く：`BossBattleService`。読む：`BossBattleAdapter` |
+| ボス戦の行動の値（`BossBattleSettings`、Serializable、決めること #9 による） | ExternalLayer | 持つ：`BossInitializer`。読む：`BossBattleService` |
+
+### 決めること
+
+| # | 項目 | 案 |
+|---|---|---|
+| 9 | 行動の値の渡し方 | `BrilliantSkillSettings` と同じ形の `BossBattleSettings` にまとめ、`BossInitializer` が持って Service に渡す。今 `BossInitializer` にある `_stompsPerRound`・`_finalDuration` は、名前を変えずにそのまま残す（シーンの値を保つ為）。まとめない場合は、Service のコンストラクタの引数が 5 つ増える |
+| 10 | 「出せなかった」の報告 | `ReportActionFinished(bool isPerformed)` にする。今は降下フィニッシャーでだけ使う |
+| 11 | 行動が変わったことの通知 | 今回は足さない。Adapter は毎フレーム State を読む（今の段階の読み方と同じ）。行動に合わせた演出を足すときに、State の変化の通知を足す |
+
 asmdef の参照、Board のキーの型、Application・BlackBoardLayer・ExternalLayer にライフサイクルがないことは確認済みで、問題はない。
 
 ## 作業一覧

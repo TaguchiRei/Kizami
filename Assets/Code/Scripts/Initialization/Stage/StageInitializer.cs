@@ -115,6 +115,7 @@ namespace Kizami.Initialization
 
             ConnectTowerCrossing();
             ConnectTargetIndicator();
+            ConnectTutorialDummies();
 
             _resultAdapter.Initialize(blackBoard, Retry, BackToOutGame);
             _hudAdapter.Initialize(blackBoard);
@@ -204,6 +205,27 @@ namespace Kizami.Initialization
             var adapterObject = new GameObject(nameof(TargetIndicatorAdapter));
             SceneManager.MoveGameObjectToScene(adapterObject, gameObject.scene);
             adapterObject.AddComponent<TargetIndicatorAdapter>().Initialize(selector, movementAdapter.transform);
+        }
+
+        /// <summary>
+        /// ステージシーンにチュートリアルのダミーがあれば、通常攻撃で切れるようにする。ダミーは台本が出すまで非アクティブで待つ為、非アクティブのものも探す。
+        /// </summary>
+        private void ConnectTutorialDummies()
+        {
+            var dummies = FindObjectsByType<TutorialDummy>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            if (dummies.Length == 0) return;
+
+            var cutter = FindFirstObjectByType<MeleeCutAdapter>();
+            if (cutter == null)
+            {
+                UsefulLogger.LogWarning("MeleeCutAdapter が見つからない為、チュートリアルのダミーを切れません。", this);
+                return;
+            }
+
+            foreach (var dummy in dummies)
+            {
+                dummy.Initialize(cutter);
+            }
         }
 
         /// <summary>
