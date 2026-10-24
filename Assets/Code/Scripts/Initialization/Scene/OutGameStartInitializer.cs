@@ -8,7 +8,7 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// アウトゲームの画面（OutGameMenuAdapter）を組み立て、ステージの開始、スキルの装備、コンフィグ、ゲームの終了をつなぐ Initializer。アウトゲームの場面シーンへ置く。
+    /// アウトゲームの画面（OutGameMenuAdapter）を組み立て、ステージの開始、スキルの装備、コンフィグ、解放の演出をつなぐ Initializer。アウトゲームの場面シーンへ置く。
     /// インゲームから戻ってきたとき（選んだステージが残っているとき）は、ステージ選択から始める。
     /// </summary>
     public sealed class OutGameStartInitializer : InitializerBase, IInjectable<IGameSceneController>,
@@ -37,18 +37,9 @@ namespace Kizami.Initialization
             _menuAdapter = gameObject.AddComponent<OutGameMenuAdapter>();
             _menuAdapter.SetConfig(_settingState, _settingController, _rebindAdapter);
             _menuAdapter.Initialize(BuildStageEntries(), BuildSkillEntries(), _progressService.UltimateSkillIndex,
-                GetEquippedSkillIndices(), GoToStage, EquipSkill, Quit,
+                GetEquippedSkillIndices(), GoToStage, EquipSkill,
                 _progressState.SelectedStageIndex != GameProgressState.NO_STAGE);
-            QueueUnlockNotices();
-        }
-
-        private static void Quit()
-        {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-#else
-            UnityEngine.Application.Quit();
-#endif
+            _progressService.QueuePendingUnlockNotices(_menuAdapter.QueueUnlockNotice);
         }
 
         private List<OutGameMenuAdapter.StageEntry> BuildStageEntries()
@@ -86,21 +77,6 @@ namespace Kizami.Initialization
             }
 
             return entries;
-        }
-
-        /// <summary>
-        /// 解放の演出をまだ出していないスキルを演出の順番待ちに加え、出したものとして記録する。
-        /// 記録は順番待ちに加えた時点で行う為、演出の途中で閉じても二度は出ない。
-        /// </summary>
-        private void QueueUnlockNotices()
-        {
-            var ultimateIndex = _progressService.UltimateSkillIndex;
-            foreach (var skill in _progressService.GetPendingUnlockSkills())
-            {
-                var isUltimate = ultimateIndex >= 0 && _progressService.Skills[ultimateIndex] == skill;
-                _menuAdapter.QueueUnlockNotice(skill.DisplayName, isUltimate);
-                _progressService.MarkUnlockShown(skill);
-            }
         }
 
         private int[] GetEquippedSkillIndices()

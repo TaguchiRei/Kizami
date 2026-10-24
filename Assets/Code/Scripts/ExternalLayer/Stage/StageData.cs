@@ -37,10 +37,6 @@ namespace Kizami.External
         private int _initialCharge;
 
         [SerializeField]
-        [Tooltip("このステージで使うスキルを固定する。空でなければ、アウトゲームでの装備を無視して、先頭から順に装備枠へ入れる。空なら装備したスキルを使う")]
-        private SkillData[] _fixedSkills = System.Array.Empty<SkillData>();
-
-        [SerializeField]
         [Tooltip("クリアの対象にするギミックの ID。末尾を * にすると、その前までで始まる ID をすべて対象にする（Factory_* など）。空なら、読み込んだシーンの破壊対象をすべて対象にする")]
         private string[] _targetGimmickIds = System.Array.Empty<string>();
 
@@ -89,9 +85,6 @@ namespace Kizami.External
 
         /// <summary> ステージを始めるときのチャージ量 </summary>
         public int InitialCharge => _initialCharge;
-
-        /// <summary> このステージで使うスキルの固定。空なら固定しない </summary>
-        public IReadOnlyList<SkillData> FixedSkills => _fixedSkills;
 
         /// <summary> クリアの対象にするギミックの ID。末尾の * は前方一致。空なら破壊対象をすべて対象にする </summary>
         public IReadOnlyList<string> TargetGimmickIds => _targetGimmickIds;

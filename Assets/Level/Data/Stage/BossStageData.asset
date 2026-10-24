@@ -18,7 +18,6 @@ MonoBehaviour:
   _sceneGroup: {fileID: 11400000, guid: f1fba560df13b33499a3985be4cc90d3, type: 2}
   _clearScore: 1000
   _initialCharge: 100
-  _fixedSkills: []
   _targetGimmickIds:
   - Core_Boss
   _requiredTargetCount: 0

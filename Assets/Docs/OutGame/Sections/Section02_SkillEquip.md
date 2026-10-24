@@ -52,7 +52,7 @@
 | 装備の窓口 | `GameProgressService` にあるのは `CycleEquippedSkill(slot)` だけ。枠とスキルを指定して装備する窓口はない。制約の判定は private の `CanEquip(slot, skillIndex)` にあるので、装備の窓口はこれを使う |
 | 装備の保存 | `progress.json` の `EquippedSkillIds`。装備を変える窓口は、最後に private の `Save()` を呼ぶ |
 | 解放 | 解放済みのスキルは保存していない。起動時に「初期解放（`GameSceneInitializer._initialUnlockedSkills`）＋クリア済みのステージの `UnlockSkill`」から決める。「新しく解放したか」を覚える仕組みはない |
-| インゲームへの受け渡し | `PlayerInitializer` が `GameProgressService.GetEquippedSkills()` を `SkillService` に渡す。ステージが `FixedSkills` を持つときは、そちらが優先される（チュートリアルはビーム・爆発・回復に固定） |
+| インゲームへの受け渡し | `PlayerInitializer` が `GameProgressService.GetEquippedSkills()` を `SkillService` に渡す。ステージによる装備の固定はなく、どのステージでも装備したスキルを使う |
 | `SkillData` | 名前（`DisplayName`）、アイコン（`Icon`、Texture2D）、消費（`Cost`）を持つ。説明文はない |
 | 装備できるスキル | `GameSceneInitializer._skills` の 8 つ（区間5で 7 種に入れ替わる）。羽天轟号を見分ける印は `SkillData` にない |
 
@@ -82,7 +82,7 @@
 
 完了条件の確認結果
 
-- ローカルのプレイモードで確認した（2026-10-19）。枠を選んでスキルを押すと装備でき、ほかの枠のスキルを押すと入れ替わる。未解放のスキルは押しても変わらない。殲滅では装備がプレイヤーに渡る（チュートリアルは `_fixedSkills` で固定の為、装備に関わらず固定のスキルになる）
+- ローカルのプレイモードで確認した（2026-10-19）。枠を選んでスキルを押すと装備でき、ほかの枠のスキルを押すと入れ替わる。未解放のスキルは押しても変わらない。殲滅では装備がプレイヤーに渡る
 - 確かめられなかったこと：解放の通知。解放するスキルを持つステージがまだない（区間5で入れる）。専用の枠と全画面の演出も、羽天轟号ができるまで確かめられない
 
 次の区間へ持ち越すこと

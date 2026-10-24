@@ -80824,7 +80824,7 @@ MonoBehaviour:
   _section: {x: 1, y: 0}
   _hasSection: 1
   _radius: 1
-  _respawnInterval: 30
+  _respawnInterval: 3
   _structure: {fileID: 0}
   _structureBuilding: {fileID: 0}
   _brokenLossRatio: 0.05

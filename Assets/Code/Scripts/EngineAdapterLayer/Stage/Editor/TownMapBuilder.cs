@@ -39,6 +39,9 @@ namespace Kizami.Editor
         private const float FAR_GROUND_THICKNESS = 20f;
         private const int FAR_GROUND_BOXES = 8;
 
+        // チュートリアルのダミーを出し直すまでの秒数。保留中も時間を数える為、解放するとすぐに出る
+        private const float TUTORIAL_DUMMY_RESPAWN_INTERVAL = 3f;
+
         // チュートリアルのダミーのスポーン位置。東の大通りの上
         private static readonly Vector3 _tutorialDummyPosition = new(135f, 0f, 0f);
 
@@ -227,6 +230,7 @@ namespace Kizami.Editor
             serialized.FindProperty("_isStationary").boolValue = true;
             serialized.FindProperty("_isHeld").boolValue = true;
             serialized.FindProperty("_radius").floatValue = 1f;
+            serialized.FindProperty("_respawnInterval").floatValue = TUTORIAL_DUMMY_RESPAWN_INTERVAL;
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 

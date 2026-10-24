@@ -119,7 +119,6 @@ namespace Kizami.EngineAdapter
 
         private CanvasGroup _canvasGroup;
         private Action<int> _startStage;
-        private Action _quit;
         private Action<int, int> _equipSkill;
         private IOperationSettingState _settingState;
         private IOperationSettingController _settingController;
@@ -158,15 +157,13 @@ namespace Kizami.EngineAdapter
         /// <param name="equippedSkillIndices">装備枠ごとのスキルの番号。空きは -1</param>
         /// <param name="startStage">ステージのボタンを押したときに呼ぶ処理。引数はステージの番号</param>
         /// <param name="equipSkill">スキルのボタンを押したときに呼ぶ処理。引数は枠の番号とスキルの番号（空きにするなら -1）</param>
-        /// <param name="quit">ゲームの終了ボタンを押したときに呼ぶ処理</param>
         /// <param name="startOnStageSelect">ステージ選択から始めるか。false ならホームから始める</param>
         public void Initialize(IReadOnlyList<StageEntry> stages, IReadOnlyList<SkillEntry> skills,
             int ultimateSkillIndex, IReadOnlyList<int> equippedSkillIndices, Action<int> startStage,
-            Action<int, int> equipSkill, Action quit, bool startOnStageSelect)
+            Action<int, int> equipSkill, bool startOnStageSelect)
         {
             _startStage = startStage;
             _equipSkill = equipSkill;
-            _quit = quit;
             _skills = skills;
             _equippedSkillIndices = new int[equippedSkillIndices.Count];
 
@@ -233,6 +230,18 @@ namespace Kizami.EngineAdapter
                 _toastTimer = TOAST_SECONDS;
                 _toast.SetActive(true);
             }
+        }
+
+        /// <summary>
+        /// ゲームを終了する。エディタではプレイモードを止める。
+        /// </summary>
+        private static void Quit()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            UnityEngine.Application.Quit();
+#endif
         }
 
         private static string GetSlotText(int slot, string skillName)
@@ -333,7 +342,7 @@ namespace Kizami.EngineAdapter
             configButton.onClick.AddListener(() => ShowScreen(MenuScreen.Config));
 
             var quitButton = CreateButton(panel, "QuitButton", "Quit", 3, 4, HOME_BUTTON_HEIGHT);
-            quitButton.onClick.AddListener(() => _quit?.Invoke());
+            quitButton.onClick.AddListener(Quit);
         }
 
         private void BuildStageSelect(Transform canvas, IReadOnlyList<StageEntry> stages)
