@@ -90,7 +90,7 @@
 - #4・#6・#7・#8 は案のとおり
 - #5：腕のアニメーションは出来事の購読に分けない。分けてもクラスが増えるだけで、分ける理由がない為。通常攻撃の腕の振りは `MeleeCutAdapter` が腕の Adapter を持って自分で振らせ、スキルの腕のアニメーションは `SkillService` の発動の通知を腕の Adapter へ直接つなぐ。どちらも配線の相手は 1 つになる
 
-## コミット5（ボスの行動の順番）の詳細計画（2026-10-24 案。ユーザーの確認待ち）
+## コミット5（ボスの行動の順番）の詳細計画（2026-10-24）
 
 ### 今の分担
 
@@ -151,6 +151,8 @@
 | 9 | 行動の値の渡し方 | `BrilliantSkillSettings` と同じ形の `BossBattleSettings` にまとめ、`BossInitializer` が持って Service に渡す。今 `BossInitializer` にある `_stompsPerRound`・`_finalDuration` は、名前を変えずにそのまま残す（シーンの値を保つ為）。まとめない場合は、Service のコンストラクタの引数が 5 つ増える |
 | 10 | 「出せなかった」の報告 | `ReportActionFinished(bool isPerformed)` にする。今は降下フィニッシャーでだけ使う |
 | 11 | 行動が変わったことの通知 | 今回は足さない。Adapter は毎フレーム State を読む（今の段階の読み方と同じ）。行動に合わせた演出を足すときに、State の変化の通知を足す |
+
+#9〜#11 は案のとおり（2026-10-24、ユーザー）
 
 asmdef の参照、Board のキーの型、Application・BlackBoardLayer・ExternalLayer にライフサイクルがないことは確認済みで、問題はない。
 

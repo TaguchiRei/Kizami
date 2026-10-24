@@ -1,6 +1,7 @@
 using Kizami.Application;
 using Kizami.BlackBoard;
 using Kizami.EngineAdapter;
+using Kizami.External;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
@@ -29,6 +30,10 @@ namespace Kizami.Initialization
         [SerializeField, Min(1f)]
         [Tooltip("最終の段階で、ボスの体力が満タンから尽きるまでの時間（秒）")]
         private float _finalDuration = 20f;
+
+        [SerializeField]
+        [Tooltip("ボス戦の行動の回数・間隔・待機")]
+        private BossBattleSettings _battleSettings = new();
 
         [SerializeField]
         [Tooltip("初期化の終わりにボス戦を始める")]
@@ -118,14 +123,12 @@ namespace Kizami.Initialization
 
             boss.AddComponent<BossTowerThrow>().Initialize(target, applyDamage, arena);
 
-            var battleService = new BossBattleService(blackBoard, _targetHealthService, _stompsPerRound,
+            var battleService = new BossBattleService(blackBoard, _targetHealthService, _battleSettings, _stompsPerRound,
                 _finalDuration, gameObject.scene.buildIndex);
             if (blackBoard.TryGetSceneState<EnemyBoard, IBossBattleState>(out var battleState, this))
             {
                 battleAdapter.Initialize(battleState, battleService.ReportCrystalsCleared,
-                    battleService.ReportArrived, battleService.ReportStomp,
-                    battleService.ReportCoreAttackFinished, battleService.ReportWeaponBroken,
-                    battleService.Tick, target);
+                    battleService.ReportActionFinished, battleService.ReportWeaponBroken, battleService.Tick, target);
                 boss.AddComponent<BossTargetSelector>().Connect(battleState, boss.GetComponentInChildren<BossCrystals>(true));
                 boss.AddComponent<BossGuideScript>();
                 if (_beginOnInitialize) battleService.Begin();

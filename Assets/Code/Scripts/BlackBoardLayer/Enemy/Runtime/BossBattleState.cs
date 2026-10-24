@@ -3,7 +3,7 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// ボス戦の段階と、今が何周目か、今の足踏みの段階で足踏みした回数を保持するステート。
+    /// ボス戦の段階と、今が何周目か、今の足踏みの段階で足踏みした回数、今の行動を保持するステート。
     /// ApplicationLayer（BossBattleService）が書き込み、EngineAdapterLayer（BossBattleAdapter）が読んで攻撃を切り替え、近接切断が停止後の破壊属性の自動付与に読む。
     /// </summary>
     [RegisterBoard(typeof(EnemyBoard))]
@@ -12,11 +12,13 @@ namespace Kizami.BlackBoard
         public BossBattlePhase Phase { get; private set; } = BossBattlePhase.Idle;
         public int Round { get; private set; }
         public int StompCount { get; private set; }
+        public BossAction Action { get; private set; } = BossAction.None;
+        public int ActionCount { get; private set; }
         public bool IsStopped => Phase == BossBattlePhase.Stopped;
 
         public override string GetLog()
         {
-            return $"Phase: {Phase}  \nRound: {Round}  \nStompCount: {StompCount}";
+            return $"Phase: {Phase}  \nRound: {Round}  \nStompCount: {StompCount}  \nAction: {Action}";
         }
 
         /// <summary>
@@ -45,6 +47,16 @@ namespace Kizami.BlackBoard
         {
             StompCount = stompCount;
         }
+
+        /// <summary>
+        /// 今の行動を設定する。同じ行動を続けて設定しても、新しい指示として数える。
+        /// </summary>
+        /// <param name="action">ボスの行動</param>
+        public void SetAction(BossAction action)
+        {
+            Action = action;
+            ActionCount++;
+        }
     }
 
     /// <summary>
@@ -63,6 +75,54 @@ namespace Kizami.BlackBoard
 
         /// <summary> ボスが止まったか。止まったボスは、武装以外の部位も壊せる </summary>
         bool IsStopped { get; }
+
+        /// <summary> 今の行動 </summary>
+        BossAction Action { get; }
+
+        /// <summary> 行動を設定した回数。同じ行動が続いても、新しい指示かをこの値の変化で見分ける </summary>
+        int ActionCount { get; }
+    }
+
+    /// <summary>
+    /// ボスが一度に1つだけ行う行動。BossBattleService が決め、BossBattleAdapter が実行して、終わったら報告する。
+    /// </summary>
+    public enum BossAction
+    {
+        /// <summary> 何もしない。始まる前と、ダウン・停止の間 </summary>
+        None,
+
+        /// <summary> 決めた時間だけ何もしない。時間は BossBattleService が数える </summary>
+        Wait,
+
+        /// <summary> 水晶の段階の初めに、退く所へ飛び去る </summary>
+        Retreat,
+
+        /// <summary> 水晶を投げて置く </summary>
+        ThrowCrystals,
+
+        /// <summary> 水晶がすべて壊れるまで、上部タレット・降下フィニッシャー・頭部のレーザーで遠くから攻撃する </summary>
+        Barrage,
+
+        /// <summary> 着地点へ飛んでくる </summary>
+        Arrive,
+
+        /// <summary> アウトリガーで 1 回足踏みする </summary>
+        Stomp,
+
+        /// <summary> 下部レーザーを 1 回撃つ </summary>
+        Laser,
+
+        /// <summary> 降下フィニッシャーを 1 つ出す </summary>
+        Strike,
+
+        /// <summary> 出した降下フィニッシャーのビームがすべて終わるのを待つ </summary>
+        AwaitStrikes,
+
+        /// <summary> 塔を投げる </summary>
+        TowerThrow,
+
+        /// <summary> 下部レーザーを撃ち、撃っている間は降下フィニッシャーも撃つ </summary>
+        FinalVolley,
     }
 
     /// <summary>
