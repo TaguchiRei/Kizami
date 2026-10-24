@@ -51,12 +51,20 @@ namespace Kizami.EngineAdapter
         public Vector3 Center => transform.position + Vector3.up * _centerHeight;
 
         /// <summary>
-        /// 通常攻撃の切断の結果を受け取れるようにする。非アクティブのうちに呼んでよい。
+        /// 通常攻撃の切断の結果を受け取る。急所の部位の結果があれば、破壊済みにして、残りの部位を消し始める。
         /// </summary>
-        /// <param name="cutter">通常攻撃の切断を行う Adapter</param>
-        public void Initialize(MeleeCutAdapter cutter)
+        public void ReceiveCutResults(MultiCutResult[] results, Plane plane)
         {
-            cutter.AddOnCut(ReceiveCutResults);
+            if (IsDestroyed || results == null) return;
+
+            foreach (var result in results)
+            {
+                if (!_coreParts.Contains(result.Original)) continue;
+
+                IsDestroyed = true;
+                BeginDissolve(false);
+                return;
+            }
         }
 
         public void AppendStatus(StringBuilder builder)
@@ -121,23 +129,6 @@ namespace Kizami.EngineAdapter
             else
             {
                 gameObject.SetActive(false);
-            }
-        }
-
-        /// <summary>
-        /// 急所の部位の切断の結果があれば、破壊済みにして、残りの部位を消し始める。
-        /// </summary>
-        private void ReceiveCutResults(MultiCutResult[] results, Plane plane)
-        {
-            if (IsDestroyed || results == null) return;
-
-            foreach (var result in results)
-            {
-                if (!_coreParts.Contains(result.Original)) continue;
-
-                IsDestroyed = true;
-                BeginDissolve(false);
-                return;
             }
         }
 

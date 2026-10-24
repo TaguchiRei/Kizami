@@ -224,7 +224,7 @@ namespace Kizami.Initialization
 
             foreach (var dummy in dummies)
             {
-                dummy.Initialize(cutter);
+                cutter.AddOnCut(dummy.ReceiveCutResults);
             }
         }
 

@@ -154,6 +154,48 @@
 
 #9〜#11 は案のとおり（2026-10-24、ユーザー）
 
+## コミット6（ボスの無敵とダウン）の詳細計画（2026-10-24 案。ユーザーの確認待ち）
+
+### 今の分担
+
+| 判断 | 今の置き場所 |
+|---|---|
+| 飛来の間と、足踏みを始めてから猶予（`_collapseGrace` = 2 秒）が過ぎるまでは無敵 | `BossBattleAdapter.UpdateCollapseCounting` → `HealthTarget.SetInvulnerable` |
+| 足踏みとコア露出の間（猶予のあと）だけ、落ちる塊のダメージを数える | 同上 → `HealthTarget.SetCollapseCounting` |
+| ダウン中に攻撃が当たったら、1 回だけ武装を壊す | `BossBattleAdapter.OnHitWhileDepleted`（`_isWeaponBrokenInDown`） |
+| 壊れた武装の数がダウンに入ったときより増えたら、または壊せる武装が残っていなければ報告 | `BossBattleAdapter.TickDown`（`_brokenBaseline`）→ `ReportWeaponBroken` |
+| 壊す武装を選ぶ（画面の中央に近く、プレイヤーに近いもの） | `BossWeapons.BreakBest` |
+
+### 移したあとの形
+
+- 無敵と落ちる塊を数えるか
+  - `BossBattleService.Tick` が、足踏みとコア露出が続いている時間を数え、`BossBattleState` の `IsInvulnerable`・`CountsCollapse` に書く
+  - Adapter は毎フレーム、その 2 つを `HealthTarget` に写すだけにする
+  - 猶予の値は `BossBattleSettings.CollapseGrace` へ移す（プレハブ・シーンに保存された値はなく、既定値 2 秒のまま）
+- ダウン中の武装の破壊は、コミット5 の行動の形に乗せる
+  - ダウンに入ったら、Service が行動を `AwaitHit`（攻撃を待つ）にする。Adapter は、壊せる武装が残っていなければ `ReportActionFinished(false)` で報告する
+  - 体力が尽きたあとの当たりは、`BossInitializer` が `HealthTarget.SetOnHitWhileDepleted` を `BossBattleService.ReportHitWhileDown` へ直接つなぐ（今は Adapter が受けている）
+  - Service は、行動が `AwaitHit` のときだけ行動を `BreakWeapon`（武装を壊す）にする。これで「ダウン中に 1 回だけ」が Service の判断になる
+  - Adapter は `BreakWeapon` で `BreakBest` を呼び、壊せたら赤を消して `ReportActionFinished(true)`、壊せなかったら（カメラがない等）`false` で報告する
+  - Service は、`BreakWeapon` が true、または `AwaitHit` が false で終わったら、今の `ReportWeaponBroken` の処理（水晶 / 最終へ進む）を行う。`BreakWeapon` が false なら `AwaitHit` に戻す
+- 消えるもの：`ReportWeaponBroken`（public から private へ）、Adapter の `TickDown`・`OnHitWhileDepleted`・`_brokenBaseline`・`_isWeaponBrokenInDown`・`_fightTime`・`_collapseGrace`、`Initialize` の `reportWeaponBroken` 引数
+- 壊す武装の選び方（`BreakBest`）と、全パーツの保護（`UpdateProtection`）は Adapter 側に残す。前者は画面とプレイヤーの位置から選ぶ実行の中身、後者は State の「止まったか」を写すだけの為
+
+### 挙動が変わりうる箇所
+
+- ダウンの終わりが 1〜2 フレーム遅れる（当たり → Service → Adapter が壊す → 報告 → Service が進める）
+- 今は「壊れた武装の数が増えたら」進むので、`BreakBest` 以外で武装が壊れても進む。新しい形では `BreakWeapon` を通したときだけ進む。ボスのパーツは止まるまで保護されていて、ダウン中に `BreakBest` 以外で壊れることはない為、実際の挙動は変わらない想定
+
+### 新しく作る型と利用者
+
+新しい型は作らない。`BossAction` に `AwaitHit`・`BreakWeapon` を、`BossBattleState` に `IsInvulnerable`・`CountsCollapse` を、`BossBattleSettings` に `CollapseGrace` を足す。
+
+### 決めること
+
+| # | 項目 | 案 |
+|---|---|---|
+| 12 | 無敵をこのコミットで State に置くか | 置く。コミット7 で `TargetHealthMode.Invincible` にまとめるときに、`BossBattleService` が `TargetHealthService` へ無敵を指示する形へ書き換える。先にコミット7 を行えば書き換えは 1 回で済むが、コミット7 は対象すべての体力に関わり大きいので、ボスの判断を移すことを先に済ませる |
+
 asmdef の参照、Board のキーの型、Application・BlackBoardLayer・ExternalLayer にライフサイクルがないことは確認済みで、問題はない。
 
 ## 追加：崩壊ステージの改修と吸い寄せ（2026-10-24、ユーザー）
