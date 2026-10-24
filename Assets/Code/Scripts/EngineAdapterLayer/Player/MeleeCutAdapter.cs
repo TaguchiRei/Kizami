@@ -53,6 +53,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 切断の結果と、振ったときの切断面（ワールド座標）を渡す先 </summary>
         private Action<MultiCutResult[], Plane> _onCut;
+        private PlayerArmAdapter _arm;
 
         /// <summary> 切断を実行中か。実行中の振りは無視する </summary>
         private bool _isCutting;
@@ -105,9 +106,11 @@ namespace Kizami.EngineAdapter
         }
 
         /// <param name="onCut">切断が終わったときに、切断の結果と切断面を渡す関数。切断面の法線は表のかけらの側を向く</param>
-        public void Initialize(Action<MultiCutResult[], Plane> onCut)
+        /// <param name="arm">振るたびに同じ角度で振らせる一人称の腕。null なら腕は動かさない（VR など腕を置かない操作系）</param>
+        public void Initialize(Action<MultiCutResult[], Plane> onCut, PlayerArmAdapter arm)
         {
             _onCut = onCut;
+            _arm = arm;
 
             if (_blade == null)
             {
@@ -118,7 +121,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 振ったときの角度で刃を配置し、範囲内の切れる対象を切断する。範囲内の装甲のパネルには1回ずつ当てる。
+        /// 振ったときの角度で刃を配置し、範囲内の切れる対象を切断する。範囲内の装甲のパネルには1回ずつ当てる。腕は、切断しない振りでも同じ角度で振らせる。
         /// 破壊タイプを含むなら、範囲内のボクセルのピースを刃の平面で切り分ける。
         /// </summary>
         /// <param name="angle">切断面の角度（度）</param>
@@ -126,6 +129,7 @@ namespace Kizami.EngineAdapter
         /// <param name="damageType">振りが持つダメージの種類</param>
         public void Swing(float angle, float rangeScale, DamageType damageType)
         {
+            if (_arm != null) _arm.PlaySwing(angle);
             if (!Initialized || _blade == null) return;
 
             if (_isCutting)

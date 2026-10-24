@@ -17,8 +17,8 @@ namespace Kizami.Application
     /// </summary>
     public sealed class MeleeCutService : IDisposable
     {
-        /// <summary> 切断面の角度の範囲（度）。180度回すと同じ面になる </summary>
-        private const float ANGLE_RANGE = 180f;
+        /// <summary> 切断面の角度の範囲（度） </summary>
+        private const float ANGLE_RANGE = 360f;
 
         private readonly MeleeCutState _state = new();
         private readonly IOperationSettingState _settingState;

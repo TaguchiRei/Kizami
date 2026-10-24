@@ -18,9 +18,6 @@ namespace Kizami.Initialization
     /// </summary>
     public sealed class PlayerInitializer : InitializerBase, IInjectable<ITimeScaleController>, IInjectable<GameProgressService>
     {
-        /// <summary> 攻走で削るカプセルの下端と、足元との隙間（m） </summary>
-        private const float RUSH_FLOOR_MARGIN = 0.1f;
-
         private readonly PlayerHealthService _healthService = new();
         private readonly PlayerMovementService _movementService = new();
         private readonly PlayerActionEvents _actionEvents = new();
@@ -109,10 +106,11 @@ namespace Kizami.Initialization
 
             _fragmentOrbAdapter.Initialize(_chargeService.AddFragments);
             _enemyEnergyAdapter.Initialize(_chargeService.AddCollapsedEnemies);
-            _meleeCutAdapter.Initialize(DistributeCutResults);
+            _meleeCutAdapter.Initialize(DistributeCutResults, _armAdapter);
 
             // F は、飛び移れるときは飛び移り、そうでなければスローモードになる為、FlightService を先に生成して渡す
-            _flightService = new FlightService(blackBoard, () => _movementService.CanRush, Fly, sceneId);
+            _flightService = new FlightService(blackBoard, _movementService, _parameters.FlightSpeed,
+                () => _movementAdapter.BodyBounds.center, _voxelDestructionAdapter.CarveExplosionAt, sceneId);
             if (_flightAdapter == null) _flightAdapter = gameObject.AddComponent<FlightAdapter>();
             _flightAdapter.Initialize(_flightService.SetCandidate);
 
@@ -126,7 +124,7 @@ namespace Kizami.Initialization
             _skyBeamAdapter.Initialize(_movementAdapter, _skyBeamService.OnFinished, _skyBeamService.TryContinue,
                 _voxelDestructionAdapter.CarveSkyBeamAt, _enemySpawnAdapter.DefeatInRadius);
 
-            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, Swing,
+            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, () => _voxelMoundAdapter.IsMounding || _skyBeamService.IsActive, _actionEvents,
                 sceneId);
             _voxelMoundAdapter.Initialize(_chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
@@ -136,8 +134,10 @@ namespace Kizami.Initialization
 
             _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService, _enhanceService,
                 _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
-                _bombThrowAdapter.Throw, _voxelDestructionAdapter.CarveSweep, Rush, _voxelMoundAdapter.Begin, _voxelMoundAdapter.End, () => _movementService.CanRush,
-                _meleeCutService.CanAct, _meleeCutService.MarkActed, OnSkillUsed, _skyBeamService, _actionEvents, sceneId);
+                _bombThrowAdapter.Throw, _voxelDestructionAdapter.CarveSweep, _voxelDestructionAdapter.CarveCapsuleWithArmor,
+                () => _movementAdapter.BodyBounds, _voxelMoundAdapter.Begin, _voxelMoundAdapter.End, _movementService,
+                _meleeCutService.CanAct, _meleeCutService.MarkActed, _armAdapter != null ? _armAdapter.PlaySkill : null,
+                _skyBeamService, _actionEvents, sceneId);
 
             _fragmentThrowAdapter.Initialize();
 
@@ -157,62 +157,6 @@ namespace Kizami.Initialization
             if (_armAdapter != null) _armAdapter.Initialize(blackBoard);
 
             base.Initialize(blackBoard);
-        }
-
-        /// <summary>
-        /// 近接切断を振り、腕を同じ角度で振らせる。
-        /// </summary>
-        private void Swing(float angle, float rangeScale, DamageType damageType)
-        {
-            _meleeCutAdapter.Swing(angle, rangeScale, damageType);
-            if (_armAdapter != null) _armAdapter.PlaySwing(angle);
-        }
-
-        /// <summary>
-        /// スキルを発動したときに、スキルに設定された腕のアニメーションを再生させる。
-        /// </summary>
-        private void OnSkillUsed(SkillData skill)
-        {
-            if (_armAdapter != null) _armAdapter.PlaySkill(skill.ArmAnimation);
-        }
-
-        /// <summary>
-        /// 移動入力の向き（なければ正面）へ突進を要求し、通る経路を先に削る。経路を先に削るので、途中の壁で止まらずに通り抜ける。
-        /// 削るカプセルは進む向きへ forwardOffset だけ前にずらす（突進の移動距離は変えない）。軸は、足元から半径と RUSH_FLOOR_MARGIN だけ上に置き、足場に穴を開けない。
-        /// </summary>
-        private void Rush(float distance, float duration, float radius, float falloff, float forwardOffset)
-        {
-            var direction = _movementService.GetRushDirection();
-            var body = _movementAdapter.BodyBounds;
-            var start = new Vector3(body.center.x, body.min.y + radius + RUSH_FLOOR_MARGIN, body.center.z);
-            var shifted = start + direction * forwardOffset;
-            _voxelDestructionAdapter.CarveCapsuleWithArmor(shifted, shifted + direction * distance, radius, body.center,
-                falloff);
-            _movementService.RequestRush(direction, distance, duration);
-        }
-
-        /// <summary>
-        /// 目印へ飛ぶ。着地の周囲のボクセルを壊す目印なら、飛び始めに先に壊す。
-        /// 余裕の高さがある目印へは、真上へ上がってから目印へ下りる。目印が壁に取りつく目印なら、着いたその場で壁に取りつく。
-        /// </summary>
-        private void Fly(FlightTarget target)
-        {
-            var start = _movementAdapter.BodyBounds.center;
-            if (target.CarvesVoxels) _voxelDestructionAdapter.CarveExplosionAt(target.Position, target.CarveRadius);
-
-            var riseHeight = Mathf.Max(0f, target.Position.y + target.ApproachClearance - start.y);
-            if (target.ApproachClearance > 0f && riseHeight > 0f)
-            {
-                var rise = Vector3.up * riseHeight;
-                var descent = target.Position - (start + rise);
-                _movementService.RequestFlight(rise, rise.magnitude / _parameters.FlightSpeed, descent,
-                    descent.magnitude / _parameters.FlightSpeed);
-                return;
-            }
-
-            var displacement = target.Position - start;
-            _movementService.RequestFlight(displacement, displacement.magnitude / _parameters.FlightSpeed, Vector3.zero,
-                0f);
         }
 
         /// <summary>

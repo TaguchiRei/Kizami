@@ -15,8 +15,7 @@ namespace Kizami.EngineAdapter
     /// </summary>
     public sealed class PlayerArmAdapter : MonoBehaviour
     {
-        private static readonly int _blendXHash = Animator.StringToHash("BlendX");
-        private static readonly int _blendYHash = Animator.StringToHash("BlendY");
+        private static readonly int _blendHash = Animator.StringToHash("Blend");
         private static readonly int _swingHash = Animator.StringToHash("Swing");
         private static readonly int _enhanceHash = Animator.StringToHash("Enhance");
 
@@ -46,14 +45,15 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 切断面の角度に合わせた振りを再生する。振っている途中なら、最初から振り直す。
         /// </summary>
-        /// <param name="angle">切断面の角度（度）。0 で左から右、180 で右から左、90 と 270 で上から下</param>
+        /// <param name="angle">切断面の角度（度、0以上360未満）。画面のガイドと同じ向きに数え直し、180 を超えたら 180 を引いて、Blend を 0 から 1 に写す。0 で左から右、90 で縦、180 で右から左に振る</param>
         public void PlaySwing(float angle)
         {
             if (_armAnimator == null) return;
 
-            var radian = angle * Mathf.Deg2Rad;
-            _armAnimator.SetFloat(_blendXHash, -Mathf.Cos(radian));
-            _armAnimator.SetFloat(_blendYHash, Mathf.Sin(radian));
+            // 切断面の角度は画面上で逆向きに回るので、ガイドの見た目と同じ向きに数え直す
+            angle = Mathf.Repeat(-angle, 360f);
+            if (angle > 180f) angle -= 180f;
+            _armAnimator.SetFloat(_blendHash, angle / 180f);
             _armAnimator.SetTrigger(_swingHash);
         }
 
