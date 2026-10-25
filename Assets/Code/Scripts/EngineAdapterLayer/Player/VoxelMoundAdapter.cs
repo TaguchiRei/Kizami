@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using Kizami.BlackBoard;
 using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter
@@ -44,6 +46,7 @@ namespace Kizami.EngineAdapter
         private readonly List<VoxelPiece> _freePieces = new();
         private readonly List<VoxelPiece> _activePieces = new();
         private readonly HashSet<VoxelPiece> _watchedPieces = new();
+        private readonly VoxelMoundState _state = new();
         private Func<int, bool> _tryConsume;
         private Action<VoxelPiece> _watchPiece;
         private Action<Bounds> _refreshRegion;
@@ -52,14 +55,21 @@ namespace Kizami.EngineAdapter
         private float _radius;
         private double _nextTime;
 
-        /// <summary> 押している間か </summary>
-        public bool IsMounding { get; private set; }
-
+        /// <summary>
+        /// 盛っている間かを VoxelMoundState に書き、PlayerBoard へ登録する。
+        /// </summary>
+        /// <param name="blackBoard">VoxelMoundState の登録先</param>
         /// <param name="tryConsume">チャージを消費する関数。引数は消費量で、足りなければ false を返す</param>
         /// <param name="watchPiece">盛るピースを、敵の格子と崩落の判定に見張らせる関数。ピースごとに最初に使うときに1回だけ呼ぶ</param>
         /// <param name="refreshRegion">ピースを使い回して消した範囲を、敵の格子に調べ直させる関数</param>
-        public void Initialize(Func<int, bool> tryConsume, Action<VoxelPiece> watchPiece, Action<Bounds> refreshRegion)
+        public void Initialize(IBlackBoard blackBoard, Func<int, bool> tryConsume, Action<VoxelPiece> watchPiece,
+            Action<Bounds> refreshRegion)
         {
+            if (blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this))
+            {
+                playerBoard.RegisterSceneState<IVoxelMoundState>(_state, gameObject.scene.buildIndex);
+            }
+
             _tryConsume = tryConsume;
             _watchPiece = watchPiece;
             _refreshRegion = refreshRegion;
@@ -85,9 +95,9 @@ namespace Kizami.EngineAdapter
         /// <returns>盛り始められたら true。視線が何にも当たらなければ false</returns>
         public bool Begin(float radius)
         {
-            if (_piecePrefab == null || IsMounding || !TryRaycast(out _)) return false;
+            if (_piecePrefab == null || _state.IsMounding || !TryRaycast(out _)) return false;
 
-            IsMounding = true;
+            _state.SetMounding(true);
             _current = null;
             _radius = radius;
             _nextTime = 0d;
@@ -99,13 +109,13 @@ namespace Kizami.EngineAdapter
         /// </summary>
         public void End()
         {
-            IsMounding = false;
+            _state.SetMounding(false);
             _current = null;
         }
 
         private void Update()
         {
-            if (!IsMounding || Time.unscaledTimeAsDouble < _nextTime) return;
+            if (!_state.IsMounding || Time.unscaledTimeAsDouble < _nextTime) return;
             if (!TryRaycast(out var hit)) return;
 
             if (_current == null)

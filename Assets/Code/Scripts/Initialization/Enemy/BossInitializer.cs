@@ -41,6 +41,10 @@ namespace Kizami.Initialization
         private BossBattleSettings _battleSettings = new();
 
         [SerializeField]
+        [Tooltip("ボス戦の攻撃が与えるダメージ量")]
+        private BossDamageSettings _damageSettings = new();
+
+        [SerializeField]
         [Tooltip("初期化の終わりにボス戦を始める")]
         private bool _beginOnInitialize = true;
 
@@ -68,7 +72,7 @@ namespace Kizami.Initialization
             if (shockwaves != null)
             {
                 shockwaves.SetTarget(target);
-                shockwaves.Initialize(applyDamage,
+                shockwaves.Initialize(applyDamage, _damageSettings.Shockwave,
                     _movementService != null ? _movementService.RequestKnockback : null);
             }
 
@@ -76,28 +80,28 @@ namespace Kizami.Initialization
             if (finisherStrikes != null)
             {
                 finisherStrikes.SetTarget(target);
-                finisherStrikes.Initialize(applyDamage);
+                finisherStrikes.Initialize(applyDamage, _damageSettings.FinisherStrike);
             }
 
             var laser = boss.GetComponentInChildren<BossLaser>(true);
             if (laser != null)
             {
                 laser.SetTarget(target);
-                laser.Initialize(applyDamage);
+                laser.Initialize(applyDamage, _damageSettings.Laser);
             }
 
             var turret = boss.GetComponentInChildren<BossTurret>(true);
             if (turret != null)
             {
                 turret.SetTarget(target);
-                turret.Initialize(applyDamage);
+                turret.Initialize(applyDamage, _damageSettings.Turret);
             }
 
             var headLaser = boss.GetComponentInChildren<BossHeadLaser>(true);
             if (headLaser != null)
             {
                 headLaser.SetTarget(target);
-                headLaser.Initialize(applyDamage,
+                headLaser.Initialize(applyDamage, _damageSettings.HeadLaser,
                     _enemySpawnAdapter != null ? _enemySpawnAdapter.AbsorbInRadius : null,
                     _enemySpawnAdapter != null
                         ? (center, radius) => _enemySpawnAdapter.DefeatInRadius(center, radius, EnemyDefeatCause.Boss)
@@ -123,10 +127,11 @@ namespace Kizami.Initialization
             if (arena != null)
             {
                 arena.SetTarget(target);
-                arena.Initialize(applyDamage);
+                arena.Initialize(applyDamage, _damageSettings.ArenaOutside, _damageSettings.ArenaBeam);
             }
 
-            boss.AddComponent<BossTowerThrow>().Initialize(target, applyDamage, arena);
+            boss.AddComponent<BossTowerThrow>().Initialize(target, applyDamage, _damageSettings.TowerToPlayer,
+                _damageSettings.TowerToBoss, arena);
 
             var battleService = new BossBattleService(blackBoard, _targetHealthService, _battleSettings, _stompsPerRound,
                 _finalDuration, gameObject.scene.buildIndex);

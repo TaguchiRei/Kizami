@@ -94,10 +94,11 @@ namespace Kizami.EngineAdapter
         /// ダメージの関数を受け取り、ユニットの数だけビームを作る。
         /// </summary>
         /// <param name="applyDamage">プレイヤーにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
-        public void Initialize(Action<int> applyDamage)
+        /// <param name="damage">ビームに当たっているときに、間隔ごとに与えるダメージ量</param>
+        public void Initialize(Action<int> applyDamage, int damage)
         {
             var beams = GetComponent<EnemyFinisherBeams>();
-            if (!beams.Initialize(_target, applyDamage))
+            if (!beams.Initialize(_target, applyDamage, damage))
             {
                 UsefulLogger.LogWarning("フィニッシャーのビームが使えない為、降下フィニッシャーは撃ちません。", this);
                 return;

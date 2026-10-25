@@ -16,7 +16,7 @@ namespace Kizami.Application
         private readonly IPlayerMovementController _movementService;
         private readonly float _flightSpeed;
         private readonly Func<Vector3> _getBodyCenter;
-        private readonly Action<Vector3, float> _carveExplosion;
+        private readonly PlayerSkillEffectEvents _effectEvents;
 
         private FlightTarget? _candidate;
 
@@ -24,15 +24,15 @@ namespace Kizami.Application
         /// <param name="movementService">飛び始められるかを見て、飛行を要求する先</param>
         /// <param name="flightSpeed">飛ぶ速さ（m/s）</param>
         /// <param name="getBodyCenter">プレイヤーの体の中心（ワールド空間）を返す関数。飛び始める位置に使う</param>
-        /// <param name="carveExplosion">中心と半径を受け取り、その球のボクセルを削る関数</param>
+        /// <param name="effectEvents">着地の周囲のボクセルを球で削らせる出来事の流し先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public FlightService(IBlackBoard blackBoard, IPlayerMovementController movementService, float flightSpeed,
-            Func<Vector3> getBodyCenter, Action<Vector3, float> carveExplosion, int sceneId)
+            Func<Vector3> getBodyCenter, PlayerSkillEffectEvents effectEvents, int sceneId)
         {
             _movementService = movementService;
             _flightSpeed = flightSpeed;
             _getBodyCenter = getBodyCenter;
-            _carveExplosion = carveExplosion;
+            _effectEvents = effectEvents;
 
             if (!blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this)) return;
 
@@ -66,7 +66,7 @@ namespace Kizami.Application
         private void Fly(FlightTarget target)
         {
             var start = _getBodyCenter();
-            if (target.CarvesVoxels) _carveExplosion?.Invoke(target.Position, target.CarveRadius);
+            if (target.CarvesVoxels) _effectEvents.RaiseSphereCarve(new SphereCarveNotice(target.Position, target.CarveRadius));
 
             var riseHeight = Mathf.Max(0f, target.Position.y + target.ApproachClearance - start.y);
             if (target.ApproachClearance > 0f && riseHeight > 0f)

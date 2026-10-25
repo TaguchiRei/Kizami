@@ -27,6 +27,7 @@ namespace Kizami.Initialization
         IInjectable<ITimeScaleController>, IInjectable<IInputController>
     {
         private readonly List<System.IDisposable> _buildingSubscriptions = new();
+        private readonly BrilliantSkillEvents _brilliantSkillEvents = new();
         private readonly TargetHealthService _targetHealthService = new();
 
         [SerializeField] private StageClearAdapter _stageClearAdapter;
@@ -80,7 +81,7 @@ namespace Kizami.Initialization
                 UsefulLogger.LogError("ITimeScaleController か IInputController を受け取れなかった為、ポーズを使えません。", this);
             }
 
-            var stage = GetSelectedStage();
+            var stage = StageSelection.GetStageOrDefault(_progressService, this);
             _flowService = new StageFlowService(blackBoard, stage, _timeScaleController, _inputController,
                 _progressService != null ? _progressService.CompleteSelectedStage : null, gameObject.scene.buildIndex);
             _targetHealthService.Register(blackBoard, gameObject.scene.buildIndex);
@@ -88,7 +89,7 @@ namespace Kizami.Initialization
                 _voxelAttraction);
             ConnectHealthTarget(stage);
             _timerAdapter.Initialize(_flowService.Tick);
-            _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
+            _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime, _flowService.Clear,
                 gameObject.scene.buildIndex);
             _voxelDestructionAdapter = FindFirstObjectByType<VoxelDestructionAdapter>();
             if (_isBrilliantSkillEnabled) EnableBrilliantSkill(blackBoard);
@@ -99,17 +100,11 @@ namespace Kizami.Initialization
             var guideScript = FindFirstObjectByType<StageGuideScript>();
             if (guideScript != null)
             {
-                guideScript.Initialize(blackBoard, _guideService.SetObjective, _guideService.SetSubObjective,
-                    _guideService.SetDialogue, _guideService.SetHint, _flowService.Clear);
+                guideScript.Initialize(_guideService);
             }
 
             var bossGuideScript = FindFirstObjectByType<BossGuideScript>();
-            if (bossGuideScript != null &&
-                blackBoard.TryGetSceneState<EnemyBoard, IBossBattleState>(out var bossState, this))
-            {
-                bossGuideScript.Initialize(bossState, _guideService.SetObjective, _guideService.SetSubObjective,
-                    _guideService.SetDialogue, _guideService.SetHint);
-            }
+            if (bossGuideScript != null) bossGuideScript.Initialize(_guideService);
 
             ConnectTowerCrossing();
             ConnectTargetIndicator();
@@ -245,10 +240,17 @@ namespace Kizami.Initialization
         private void EnableBrilliantSkill(IBlackBoard blackBoard)
         {
             var textAdapter = FindOrCreateBrilliantSkillTextAdapter();
+            if (blackBoard.TryGetEventBoard<StageEventBoard>(out var eventBoard, this))
+            {
+                eventBoard.RegisterSceneEvent<IBrilliantSkillEvents>(_brilliantSkillEvents, gameObject.scene.buildIndex);
+            }
+
             _brilliantSkillService = new BrilliantSkillService(blackBoard, _brilliantSkillSettings, _flowService.AddBonusScore,
-                kind => textAdapter.Show(_brilliantSkillSettings.GetWord(kind)),
-                _voxelDestructionAdapter != null ? _voxelDestructionAdapter.CarveExplosionAt : null,
-                _enemySpawnAdapter.DefeatInRadius);
+                _brilliantSkillEvents);
+            // 着弾は、ボクセルを削ってから敵を倒す順に呼ぶ為、削る側を先に購読させる
+            if (_voxelDestructionAdapter != null) _voxelDestructionAdapter.SubscribeBrilliantSkill(blackBoard);
+            _enemySpawnAdapter.SubscribeBrilliantSkill(blackBoard);
+            textAdapter.SubscribeBrilliantSkill(blackBoard);
             _fragmentThrowAdapter.SetWordSource(textAdapter);
             textAdapter.SetOnWordLanded(_brilliantSkillService.OnWordLanded);
             ConnectWordCutting(textAdapter);
@@ -282,6 +284,7 @@ namespace Kizami.Initialization
             }
 
             textAdapter.SetCutter(cutter, orbAdapter.TryTake);
+            cutter.AddOnCut(textAdapter.ReceiveCutResults);
         }
 
         /// <summary>
@@ -300,16 +303,8 @@ namespace Kizami.Initialization
 
             foreach (var building in FindObjectsByType<VoxelBuilding>(FindObjectsSortMode.None))
             {
-                _buildingSubscriptions.Add(building.RegisterOnCollapsed(OnBuildingCollapsed));
+                _buildingSubscriptions.Add(building.RegisterOnCollapsedBounds(_brilliantSkillService.OnBuildingCollapsed));
             }
-        }
-
-        /// <summary>
-        /// 倒れ始めた階のピースをすべて含む範囲を、Brilliant Skill の判定に伝える。
-        /// </summary>
-        private void OnBuildingCollapsed(Rigidbody body)
-        {
-            if (VoxelBuilding.TryGetPiecesBounds(body, out var bounds)) _brilliantSkillService.OnBuildingCollapsed(bounds);
         }
 
         /// <summary>
@@ -338,17 +333,6 @@ namespace Kizami.Initialization
             }
 
             _sceneController.GoToOutGameAsync().Forget();
-        }
-
-        /// <summary>
-        /// アウトゲームで選んだステージの定義を返す。選んでいなければ（インゲームのシーンから直接再生したときなど）、既定の値のステージを作って返す。
-        /// </summary>
-        private StageData GetSelectedStage()
-        {
-            if (_progressService != null && _progressService.TryGetSelectedStage(out var stage)) return stage;
-
-            UsefulLogger.LogWarning("ステージが選ばれていない為、既定の値のステージで始めます。", this);
-            return ScriptableObject.CreateInstance<StageData>();
         }
 
         private void OnDestroy()

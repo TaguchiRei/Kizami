@@ -79,17 +79,9 @@ namespace Kizami.EngineAdapter
         [Tooltip("先端が地面に刺さる深さ（m）")]
         private float _embedDepth = 4f;
 
-        [SerializeField, Min(0)]
-        [Tooltip("飛んでいる塔がプレイヤーに触れたときのダメージ")]
-        private int _playerDamage = 60;
-
         [SerializeField, Min(0f)]
         [Tooltip("塔の幅に足す、プレイヤーとの当たりの余白（m）")]
         private float _hitMargin = 1f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("倒れた塔がボスに触れたときの、ボスの体力のダメージ")]
-        private float _bossDamage = 30f;
 
         [SerializeField, Range(0.05f, 1f)]
         [Tooltip("倒れている間の重力の倍率。小さいほどゆっくり倒れる")]
@@ -101,6 +93,12 @@ namespace Kizami.EngineAdapter
 
         private Transform _target;
         private Action<int> _applyDamage;
+
+        /// <summary> 飛んでいる塔がプレイヤーに触れたときのダメージ量 </summary>
+        private int _playerDamage;
+
+        /// <summary> 倒れた塔がボスに触れたときの、ボスの体力のダメージ量 </summary>
+        private float _bossDamage;
         private BossArena _arena;
         private HealthTarget _boss;
         private GameObject _towerObject;
@@ -122,11 +120,15 @@ namespace Kizami.EngineAdapter
         /// </summary>
         /// <param name="target">狙う相手（プレイヤー）</param>
         /// <param name="applyDamage">プレイヤーにダメージを与える関数（PlayerHealthService.ApplyDamage）</param>
+        /// <param name="playerDamage">飛んでいる塔がプレイヤーに触れたときのダメージ量</param>
+        /// <param name="bossDamage">倒れた塔がボスに触れたときの、ボスの体力のダメージ量</param>
         /// <param name="arena">塔を出す向きと距離の基準にする円形の空間。なければボスの位置を中心にする</param>
-        public void Initialize(Transform target, Action<int> applyDamage, BossArena arena)
+        public void Initialize(Transform target, Action<int> applyDamage, int playerDamage, float bossDamage, BossArena arena)
         {
             _target = target;
             _applyDamage = applyDamage;
+            _playerDamage = playerDamage;
+            _bossDamage = bossDamage;
             _arena = arena;
             _boss = GetComponent<HealthTarget>();
         }

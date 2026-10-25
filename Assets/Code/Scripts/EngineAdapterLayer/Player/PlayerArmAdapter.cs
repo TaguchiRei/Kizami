@@ -30,13 +30,19 @@ namespace Kizami.EngineAdapter
 
         private IPlayerEnhanceState _enhanceState;
         private IDisposable _enhanceSubscription;
+        private IDisposable _armAnimationSubscription;
 
         /// <summary>
-        /// PlayerEnhanceState の登録より後に呼ぶこと。
+        /// PlayerEnhanceState と IPlayerSkillEffectEvents の登録より後に呼ぶこと。スキルの発動を購読して、腕のアニメーションを再生する。
         /// </summary>
-        /// <param name="blackBoard">強化ステートの取得元</param>
+        /// <param name="blackBoard">強化ステートとスキルの効果の出来事の取得元</param>
         public void Initialize(IBlackBoard blackBoard)
         {
+            if (blackBoard.TryGetSceneEvent<PlayerEventBoard, IPlayerSkillEffectEvents>(out var effectEvents, this))
+            {
+                _armAnimationSubscription = effectEvents.OnArmAnimation.Register(PlaySkill);
+            }
+
             if (!blackBoard.TryGetSceneState<PlayerBoard, IPlayerEnhanceState>(out _enhanceState, this)) return;
 
             _enhanceSubscription = _enhanceState.RegisterOnEnhanceChanged(OnEnhanceChanged);
@@ -100,6 +106,7 @@ namespace Kizami.EngineAdapter
         private void OnDestroy()
         {
             _enhanceSubscription?.Dispose();
+            _armAnimationSubscription?.Dispose();
         }
     }
 }

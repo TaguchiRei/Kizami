@@ -11,7 +11,7 @@ namespace Kizami.Application
     /// ワープ中（PlayerMovementState.Mode が Warping）に受けたダメージには軽減率を適用する。言葉をつかんで狙っている間（Aiming）はダメージを受けない。
     /// インゲームの流れ（StageFlowState）がある間は、プレイ中に受けたダメージだけを適用する。開始の表示中とクリア・失敗のあとに HP を変えない為。
     /// </summary>
-    public sealed class PlayerHealthService : IDisposable
+    public sealed class PlayerHealthService : IPlayerHealthController, IDisposable
     {
         private PlayerHealthState _state;
         private IPlayerMovementState _movementState;
@@ -71,6 +71,14 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// インゲームの流れがプレイ中か、流れのないシーン（開発用のシーンなど）かを返す。
+        /// </summary>
+        private bool IsDamageablePhase()
+        {
+            return _flowState == null || _flowState.Phase == StagePhase.Playing;
+        }
+
+        /// <summary>
         /// HP を回復する。最大 HP を超えた分は捨てる。HP が0のときと、回復量が0以下のときは何もしない。
         /// </summary>
         /// <param name="amount">回復量</param>
@@ -81,17 +89,21 @@ namespace Kizami.Application
             _state.SetCurrent(_state.Current + amount);
         }
 
-        /// <summary>
-        /// インゲームの流れがプレイ中か、流れのないシーン（開発用のシーンなど）かを返す。
-        /// </summary>
-        private bool IsDamageablePhase()
-        {
-            return _flowState == null || _flowState.Phase == StagePhase.Playing;
-        }
-
         public void Dispose()
         {
             _flowStateWaiter?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// HP を回復する操作面。回復のスキルが使う。
+    /// </summary>
+    public interface IPlayerHealthController
+    {
+        /// <summary>
+        /// HP を回復する。最大 HP を超えた分は捨てる。
+        /// </summary>
+        /// <param name="amount">回復量</param>
+        void Heal(int amount);
     }
 }

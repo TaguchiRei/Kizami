@@ -259,6 +259,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 敵を倒したときに呼ぶ処理。吸収された敵は含めない </summary>
         private Action<EnemyDefeatNotice> _onDefeated;
+        private IDisposable _wordImpactSubscription;
 
         private IEnemySquadCommandState _commandState;
 
@@ -361,11 +362,14 @@ namespace Kizami.EngineAdapter
         /// <param name="spawnOrb">倒れた体に残っていた切断済みの部位を、オーブにする関数。引数はオーブを出す位置</param>
         /// <param name="emitEnergy">崩落で倒した敵のエネルギーを出す関数。引数は倒した敵の体の中心の位置</param>
         /// <param name="applyDamage">敵の攻撃がプレイヤーに当たったときにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
+        /// <param name="shotDamage">アタッカーの弾がプレイヤーに当たったときのダメージ量</param>
+        /// <param name="finisherBeamDamage">フィニッシャーのビームに当たっているときに、間隔ごとに与えるダメージ量</param>
         /// <param name="requestLaunch">プレイヤーを真上へ打ち上げる関数（PlayerMovementService.RequestLaunch）。引数は上向きの打ち出し速度（m/s）</param>
         /// <param name="stepSquads">部隊の命令を決める関数（EnemySquadService.Step）。引数は経過時間（秒）</param>
         /// <param name="attraction">部隊の中心を渡す吸い寄せ。なければ渡さない</param>
         public void Initialize(IBlackBoard blackBoard, Action<Vector3> spawnOrb, Action<Vector3> emitEnergy, Action<int> applyDamage,
-            Action<float> requestLaunch, Action<float> stepSquads, VoxelAttraction attraction)
+            int shotDamage, int finisherBeamDamage, Action<float> requestLaunch, Action<float> stepSquads,
+            VoxelAttraction attraction)
         {
             _attraction = attraction;
             _emitEnergy = emitEnergy;
@@ -445,7 +449,7 @@ namespace Kizami.EngineAdapter
             }
             else
             {
-                _shooter.Initialize(_bodyPrefabs[(int)EnemyKind.Attacker], _target, applyDamage);
+                _shooter.Initialize(_bodyPrefabs[(int)EnemyKind.Attacker], _target, applyDamage, shotDamage);
             }
 
             if (_barriers == null)
@@ -463,7 +467,7 @@ namespace Kizami.EngineAdapter
             }
             else
             {
-                _finisherAttack.Initialize(_target, _debrisMaterial, applyDamage);
+                _finisherAttack.Initialize(_target, _debrisMaterial, applyDamage, finisherBeamDamage);
             }
 
             base.Initialize();
@@ -661,6 +665,17 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// IBrilliantSkillEvents の登録より後に呼ぶこと。投げた言葉の着弾で、範囲の中の敵を倒す。
+        /// </summary>
+        /// <param name="blackBoard">Brilliant Skill の出来事の取得元</param>
+        public void SubscribeBrilliantSkill(IBlackBoard blackBoard)
+        {
+            if (!blackBoard.TryGetSceneEvent<StageEventBoard, IBrilliantSkillEvents>(out var events, this)) return;
+
+            _wordImpactSubscription = events.OnWordImpact.Register(notice => DefeatInRadius(notice.Center, notice.Radius));
+        }
+
+        /// <summary>
         /// 単独のピース（造山で盛った物など）を、敵の格子と崩落の判定に見張らせる。敵の初期化が済む前は何もしない。
         /// </summary>
         public void WatchPiece(VoxelPiece piece)
@@ -710,6 +725,7 @@ namespace Kizami.EngineAdapter
             }
 
             _buildingSubscriptions.Clear();
+            _wordImpactSubscription?.Dispose();
             _distanceField?.Dispose();
             _collapseDetector?.Dispose();
             _groups?.Dispose();

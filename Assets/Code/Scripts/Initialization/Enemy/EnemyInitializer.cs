@@ -3,6 +3,7 @@ using Kizami.Application;
 using Kizami.BlackBoard;
 using Kizami.EngineAdapter;
 using Kizami.EngineAdapter.Voxel;
+using Kizami.External;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.Debugging;
@@ -29,6 +30,10 @@ namespace Kizami.Initialization
         [Tooltip("切り離されたボクセルの物を引き寄せる吸い寄せ。同じシーンにあるので Inspector で渡す。なければ引き寄せない")]
         private VoxelAttraction _voxelAttraction;
 
+        [SerializeField]
+        [Tooltip("敵の攻撃が与えるダメージ量")]
+        private EnemyDamageSettings _damageSettings = new();
+
         [SerializeField] private EnemySpawnAdapter _spawnAdapter;
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
         [SerializeField] private EnemyEnergyAdapter _energyAdapter;
@@ -54,10 +59,10 @@ namespace Kizami.Initialization
             // EnemySpawnAdapter は EnemySquadCommandState を取得する為、EnemySquadService の初期化より後に初期化する
             _squadService.Initialize(blackBoard, gameObject.scene.buildIndex, _retreatLossRatio);
             _spawnAdapter.Initialize(blackBoard, _fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit,
-                _healthService != null ? _healthService.ApplyDamage : null,
+                _healthService != null ? _healthService.ApplyDamage : null, _damageSettings.Shot, _damageSettings.FinisherBeam,
                 _movementService != null ? _movementService.RequestLaunch : null, _squadService.Step, _voxelAttraction);
             _spawnAdapter.SetOnDefeated(_defeatEvents.Raise);
-            if (_progressService != null && _progressService.TryGetSelectedStage(out var stage))
+            if (StageSelection.TryGetSelectedStage(_progressService, out var stage))
             {
                 _spawnAdapter.SetMaxAttacking(stage.MaxAttackingAttackers, stage.MaxAttackingFinishers);
             }

@@ -17,9 +17,7 @@ namespace Kizami.Application
     {
         private readonly BrilliantSkillSettings _settings;
         private readonly Action<int> _addBonusScore;
-        private readonly Action<BrilliantSkillKind> _onTriggered;
-        private readonly Action<Vector3, float> _carveExplosion;
-        private readonly Action<Vector3, float> _defeatInRadius;
+        private readonly BrilliantSkillEvents _events;
         private readonly List<CollapseWindow> _collapseWindows = new();
         private readonly IDisposable _defeatSubscription;
 
@@ -36,18 +34,13 @@ namespace Kizami.Application
         /// <param name="blackBoard">敵を倒した通知の取得元</param>
         /// <param name="settings">判定の条件と追加スコア</param>
         /// <param name="addBonusScore">追加スコアを足す関数</param>
-        /// <param name="onTriggered">成立した種類を通知する関数。同時に成立した種類の数だけ続けて呼ぶ</param>
-        /// <param name="carveExplosion">中心と半径を受け取り、その球のボクセルを削る関数。なければ着弾で削らない</param>
-        /// <param name="defeatInRadius">中心と半径を受け取り、その球の中の敵を倒す関数</param>
+        /// <param name="events">成立した言葉と、言葉の着弾で削って倒す範囲を、エンジン側へ実行させる出来事の流し先</param>
         public BrilliantSkillService(IBlackBoard blackBoard, BrilliantSkillSettings settings, Action<int> addBonusScore,
-            Action<BrilliantSkillKind> onTriggered, Action<Vector3, float> carveExplosion,
-            Action<Vector3, float> defeatInRadius)
+            BrilliantSkillEvents events)
         {
             _settings = settings;
             _addBonusScore = addBonusScore;
-            _onTriggered = onTriggered;
-            _carveExplosion = carveExplosion;
-            _defeatInRadius = defeatInRadius;
+            _events = events;
             _nextStreakThreshold = settings.RampageDefeatCount;
             if (blackBoard.TryGetSceneEvent<EnemyEventBoard, IEnemyDefeatEvents>(out var defeatEvents, this))
             {
@@ -84,8 +77,7 @@ namespace Kizami.Application
             _isResolvingWordImpact = true;
             try
             {
-                _carveExplosion?.Invoke(point, radius);
-                _defeatInRadius?.Invoke(point, radius);
+                _events.RaiseWordImpact(new SphereCarveNotice(point, radius));
             }
             finally
             {
@@ -157,7 +149,7 @@ namespace Kizami.Application
         private void Trigger(BrilliantSkillKind kind)
         {
             _addBonusScore?.Invoke(_settings.GetScore(kind));
-            _onTriggered?.Invoke(kind);
+            _events.RaiseTriggered(_settings.GetWord(kind));
         }
 
         public void Dispose()

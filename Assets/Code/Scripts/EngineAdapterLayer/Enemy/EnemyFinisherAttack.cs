@@ -225,7 +225,8 @@ namespace Kizami.EngineAdapter
         /// <param name="target">プレイヤー</param>
         /// <param name="dissolveMaterial">吸収された敵を消すディゾルブのマテリアル。null なら対象はディゾルブせずに消える</param>
         /// <param name="applyDamage">ビームがプレイヤーに当たったときにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
-        public void Initialize(Transform target, Material dissolveMaterial, Action<int> applyDamage)
+        /// <param name="beamDamage">ビームに当たっているときに、間隔ごとに与えるダメージ量</param>
+        public void Initialize(Transform target, Material dissolveMaterial, Action<int> applyDamage, int beamDamage)
         {
             if (target == null)
             {
@@ -241,7 +242,7 @@ namespace Kizami.EngineAdapter
             }
             else
             {
-                _hasBeams = _beams.Initialize(target, applyDamage);
+                _hasBeams = _beams.Initialize(target, applyDamage, beamDamage);
             }
 
             if (_effect == null || !_effect.HasGraphicsBuffer(_positionsId) || !_effect.HasInt(_positionCountId) ||

@@ -90,7 +90,7 @@ namespace Kizami.EngineAdapter
             _carve = carve;
             _defeatInRadius = defeatInRadius;
 
-            if (_beams == null || !_beams.Initialize(movement.transform, null))
+            if (_beams == null || !_beams.Initialize(movement.transform, null, 0))
             {
                 UsefulLogger.LogWarning("EnemyFinisherBeams がないか使えない為、羽天轟号はビームを出しません。", this);
                 return;

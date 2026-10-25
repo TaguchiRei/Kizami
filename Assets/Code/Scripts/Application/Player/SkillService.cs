@@ -24,22 +24,16 @@ namespace Kizami.Application
         private readonly SkillSlotState _slotState = new(SLOT_COUNT);
         private readonly IChargeController _chargeService;
         private readonly IPlayerEnhanceController _enhanceService;
-        private readonly Action<float, float> _onBeam;
-        private readonly Action<float> _onExplosion;
-        private readonly Action<int> _onHeal;
-        private readonly Action<float, float, float> _onBomb;
-        private readonly Action<float, float, float, float> _onSweep;
-        private readonly Action<Vector3, Vector3, float, Vector3, float> _carveRushPath;
+        private readonly IPlayerHealthController _healthService;
         private readonly Func<Bounds> _getBodyBounds;
         private readonly IPlayerMovementController _movementService;
         private readonly Func<float, bool> _onMoundBegin;
         private readonly Action _onMoundEnd;
-        private readonly Action<string> _playArmAnimation;
-        private readonly Func<bool> _canAct;
-        private readonly Action _onActed;
+        private readonly IActionIntervalController _intervalController;
         private readonly ISkyBeamController _skyBeamService;
         private readonly List<IDisposable> _subscriptions = new();
         private readonly PlayerActionEvents _actionEvents;
+        private readonly PlayerSkillEffectEvents _effectEvents;
         private readonly IPlayerHealthState _healthState;
         private int _moundSlot = -1;
 
@@ -47,46 +41,33 @@ namespace Kizami.Application
         /// <param name="equippedSkills">枠ごとに装備するスキル。空きの枠と、SLOT_COUNT を超えた分は無視する</param>
         /// <param name="chargeService">発動に使うチャージの消費先</param>
         /// <param name="enhanceService">強化型スキルをかける先</param>
-        /// <param name="onBeam">ビームを出す関数。引数は長さ（m）と半径（m）</param>
-        /// <param name="onExplosion">爆発を出す関数。引数は半径（m）</param>
-        /// <param name="onHeal">HP を回復する関数。引数は回復量</param>
-        /// <param name="onBomb">爆弾を投げる関数。引数は投げる距離（m）、爆発の半径（m）、投げる起点を正面へずらす距離（m）</param>
-        /// <param name="onSweep">正面を横長に削る関数。引数は横幅（m）、奥行き（m）、1m あたりに減る強さ、範囲の中心を正面へずらす距離（m）</param>
-        /// <param name="carveRushPath">攻走の経路を装甲ごと削る関数。引数はカプセルの始点と終点、半径（m）、装甲に当てる起点、1m あたりに減る強さ</param>
+        /// <param name="healthService">回復のスキルで HP を回復する先</param>
         /// <param name="getBodyBounds">プレイヤーの体の範囲（ワールド空間）を返す関数。攻走で削るカプセルの位置に使う</param>
         /// <param name="onMoundBegin">ボクセルを盛り始める関数。引数は球の半径（m）。盛り始められたら true を返す</param>
         /// <param name="onMoundEnd">ボクセルを盛るのを止める関数</param>
         /// <param name="movementService">攻走の向きを決め、突進を要求する先。突進を始められるかも見る</param>
-        /// <param name="canAct">スキルを出せる攻撃間隔が経っているかを返す関数。通常攻撃と共有する</param>
-        /// <param name="onActed">スキルを出したときに呼ぶ関数。通常攻撃と共有する攻撃間隔を数え直す</param>
-        /// <param name="playArmAnimation">スキルを発動したときに、スキルに設定された腕のアニメーションを再生させる関数。引数は Animator のトリガー名。null なら腕は動かさない</param>
+        /// <param name="intervalController">通常攻撃と共有する攻撃間隔。必須。経っているかを見て、スキルを出したら数え直す</param>
         /// <param name="skyBeamService">羽天轟号の使用中の流れ。使用中は、ほかのスキルを出せず、同じスキルの発動は止める操作になる</param>
         /// <param name="actionEvents">スキルの発動とチャージの消費を流す先</param>
+        /// <param name="effectEvents">スキルの効果（ビーム・爆発・爆弾・薙ぎ払い・攻走の経路・腕のアニメーション）をエンジン側へ実行させる出来事の流し先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
-            IChargeController chargeService, IPlayerEnhanceController enhanceService, Action<float, float> onBeam,
-            Action<float> onExplosion, Action<int> onHeal, Action<float, float, float> onBomb, Action<float, float, float, float> onSweep,
-            Action<Vector3, Vector3, float, Vector3, float> carveRushPath, Func<Bounds> getBodyBounds, Func<float, bool> onMoundBegin,
-            Action onMoundEnd, IPlayerMovementController movementService, Func<bool> canAct, Action onActed,
-            Action<string> playArmAnimation, ISkyBeamController skyBeamService, PlayerActionEvents actionEvents, int sceneId)
+            IChargeController chargeService, IPlayerEnhanceController enhanceService, IPlayerHealthController healthService,
+            Func<Bounds> getBodyBounds, Func<float, bool> onMoundBegin, Action onMoundEnd, IPlayerMovementController movementService,
+            IActionIntervalController intervalController, ISkyBeamController skyBeamService, PlayerActionEvents actionEvents,
+            PlayerSkillEffectEvents effectEvents, int sceneId)
         {
             _skyBeamService = skyBeamService;
             _actionEvents = actionEvents;
+            _effectEvents = effectEvents;
             _chargeService = chargeService;
             _enhanceService = enhanceService;
-            _onBeam = onBeam;
-            _onExplosion = onExplosion;
-            _onHeal = onHeal;
-            _onBomb = onBomb;
-            _onSweep = onSweep;
-            _carveRushPath = carveRushPath;
+            _healthService = healthService;
             _getBodyBounds = getBodyBounds;
             _onMoundBegin = onMoundBegin;
             _onMoundEnd = onMoundEnd;
             _movementService = movementService;
-            _canAct = canAct;
-            _onActed = onActed;
-            _playArmAnimation = playArmAnimation;
+            _intervalController = intervalController;
 
             var count = Math.Min(equippedSkills.Count, SLOT_COUNT);
             for (var i = 0; i < count; i++)
@@ -134,7 +115,7 @@ namespace Kizami.Application
             }
 
             if (skill.Effect is SkyBeamEffect && !_skyBeamService.CanBegin) return;
-            if (_canAct != null && !_canAct()) return;
+            if (!_intervalController.CanAct()) return;
             if (skill.Effect is HealEffect && !CanHeal()) return;
             if (skill.Effect is RushEffect && !_movementService.CanRush) return;
             if (skill.Effect is MoundEffect mound && (_onMoundBegin == null || !_onMoundBegin(mound.Radius))) return;
@@ -146,11 +127,11 @@ namespace Kizami.Application
 
             if (skill.Effect is MoundEffect) _moundSlot = slot;
 
-            _onActed?.Invoke();
+            _intervalController.MarkActed();
 
             _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.SkillUsed, skill.DisplayName));
             _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.ChargeSpent, amount: skill.Cost));
-            _playArmAnimation?.Invoke(skill.ArmAnimation);
+            _effectEvents.RaiseArmAnimation(skill.ArmAnimation);
 
             switch (skill.Effect)
             {
@@ -158,19 +139,19 @@ namespace Kizami.Application
                     _enhanceService.Begin(enhance);
                     break;
                 case BeamEffect beam:
-                    _onBeam?.Invoke(beam.Length, beam.Radius);
+                    _effectEvents.RaiseBeam(new BeamEffectNotice(beam.Length, beam.Radius));
                     break;
                 case ExplosionEffect explosion:
-                    _onExplosion?.Invoke(explosion.Radius);
+                    _effectEvents.RaiseExplosion(explosion.Radius);
                     break;
                 case HealEffect heal:
-                    _onHeal?.Invoke(heal.HealAmount);
+                    _healthService.Heal(heal.HealAmount);
                     break;
                 case BombEffect bomb:
-                    _onBomb?.Invoke(bomb.Distance, bomb.Radius, bomb.ForwardOffset);
+                    _effectEvents.RaiseBomb(new BombEffectNotice(bomb.Distance, bomb.Radius, bomb.ForwardOffset));
                     break;
                 case SweepEffect sweep:
-                    _onSweep?.Invoke(sweep.Width, sweep.Depth, sweep.Falloff, sweep.ForwardOffset);
+                    _effectEvents.RaiseSweep(new SweepEffectNotice(sweep.Width, sweep.Depth, sweep.Falloff, sweep.ForwardOffset));
                     break;
                 case RushEffect rush:
                     Rush(rush);
@@ -191,7 +172,8 @@ namespace Kizami.Application
             var body = _getBodyBounds();
             var start = new Vector3(body.center.x, body.min.y + rush.Radius + RUSH_FLOOR_MARGIN, body.center.z);
             var shifted = start + direction * rush.ForwardOffset;
-            _carveRushPath?.Invoke(shifted, shifted + direction * rush.Distance, rush.Radius, body.center, rush.Falloff);
+            _effectEvents.RaiseCapsuleCarve(new CapsuleCarveNotice(shifted, shifted + direction * rush.Distance, rush.Radius, body.center,
+                rush.Falloff));
             _movementService.RequestRush(direction, rush.Distance, rush.Duration);
         }
 

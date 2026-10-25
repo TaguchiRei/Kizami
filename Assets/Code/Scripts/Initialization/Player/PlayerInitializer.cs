@@ -21,6 +21,7 @@ namespace Kizami.Initialization
         private readonly PlayerHealthService _healthService = new();
         private readonly PlayerMovementService _movementService = new();
         private readonly PlayerActionEvents _actionEvents = new();
+        private readonly PlayerSkillEffectEvents _effectEvents = new();
 
         [SerializeField]
         [Tooltip("プレイヤーの移動・HP・近接切断・チャージのパラメータ")]
@@ -88,6 +89,7 @@ namespace Kizami.Initialization
             if (blackBoard.TryGetEventBoard<PlayerEventBoard>(out var eventBoard, this))
             {
                 eventBoard.RegisterSceneEvent<IPlayerActionEvents>(_actionEvents, sceneId);
+                eventBoard.RegisterSceneEvent<IPlayerSkillEffectEvents>(_effectEvents, sceneId);
             }
 
             _movementService.Initialize(blackBoard, _parameters, _actionEvents, sceneId);
@@ -98,11 +100,8 @@ namespace Kizami.Initialization
 
             _enhanceService = new PlayerEnhanceService(blackBoard, sceneId);
             _lookService = new PlayerLookService(blackBoard, sceneId);
-            _chargeService = new ChargeService(blackBoard, _parameters, sceneId);
-            if (_progressService != null && _progressService.TryGetSelectedStage(out var selectedStage))
-            {
-                _chargeService.AddAmount(selectedStage.InitialCharge);
-            }
+            StageSelection.TryGetSelectedStage(_progressService, out var selectedStage);
+            _chargeService = new ChargeService(blackBoard, _parameters, selectedStage, sceneId);
 
             _fragmentOrbAdapter.Initialize(_chargeService.AddFragments);
             _enemyEnergyAdapter.Initialize(_chargeService.AddCollapsedEnemies);
@@ -110,7 +109,7 @@ namespace Kizami.Initialization
 
             // F は、飛び移れるときは飛び移り、そうでなければスローモードになる為、FlightService を先に生成して渡す
             _flightService = new FlightService(blackBoard, _movementService, _parameters.FlightSpeed,
-                () => _movementAdapter.BodyBounds.center, _voxelDestructionAdapter.CarveExplosionAt, sceneId);
+                () => _movementAdapter.BodyBounds.center, _effectEvents, sceneId);
             if (_flightAdapter == null) _flightAdapter = gameObject.AddComponent<FlightAdapter>();
             _flightAdapter.Initialize(_flightService.SetCandidate);
 
@@ -124,20 +123,18 @@ namespace Kizami.Initialization
             _skyBeamAdapter.Initialize(_movementAdapter, _skyBeamService.OnFinished, _skyBeamService.TryContinue,
                 _voxelDestructionAdapter.CarveSkyBeamAt, _enemySpawnAdapter.DefeatInRadius);
 
-            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
-                _slowModeService.TryUseCut, () => _voxelMoundAdapter.IsMounding || _skyBeamService.IsActive, _actionEvents,
-                sceneId);
-            _voxelMoundAdapter.Initialize(_chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
+            // MeleeCutService が VoxelMoundState を取得する為、MeleeCutService の生成より前に初期化する
+            _voxelMoundAdapter.Initialize(blackBoard, _chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
                 _enemySpawnAdapter.RefreshRegion);
+            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
+                _slowModeService.TryUseCut, _skyBeamService, _actionEvents, sceneId);
             if (_bombThrowAdapter == null) _bombThrowAdapter = gameObject.AddComponent<BombThrowAdapter>();
-            _bombThrowAdapter.Initialize(_voxelDestructionAdapter.CarveExplosionAt);
+            _bombThrowAdapter.Initialize(blackBoard, _voxelDestructionAdapter.CarveExplosionAt);
+            _voxelDestructionAdapter.Initialize(blackBoard);
 
-            _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService, _enhanceService,
-                _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
-                _bombThrowAdapter.Throw, _voxelDestructionAdapter.CarveSweep, _voxelDestructionAdapter.CarveCapsuleWithArmor,
-                () => _movementAdapter.BodyBounds, _voxelMoundAdapter.Begin, _voxelMoundAdapter.End, _movementService,
-                _meleeCutService.CanAct, _meleeCutService.MarkActed, _armAdapter != null ? _armAdapter.PlaySkill : null,
-                _skyBeamService, _actionEvents, sceneId);
+            _skillService = new SkillService(blackBoard, StageSelection.GetEquippedSkillsOrDefault(_progressService, _equippedSkills),
+                _chargeService, _enhanceService, _healthService, () => _movementAdapter.BodyBounds, _voxelMoundAdapter.Begin,
+                _voxelMoundAdapter.End, _movementService, _meleeCutService, _skyBeamService, _actionEvents, _effectEvents, sceneId);
 
             _fragmentThrowAdapter.Initialize();
 
@@ -175,16 +172,6 @@ namespace Kizami.Initialization
             hasAll &= this.IsAssigned(_fragmentThrowAdapter, nameof(FragmentThrowAdapter));
             hasAll &= this.IsAssigned(_voxelMoundAdapter, nameof(VoxelMoundAdapter));
             return hasAll;
-        }
-
-        /// <summary>
-        /// アウトゲームで装備したスキルを返す。アウトゲームを通さずに始めたときは、Inspector で装備したスキルを返す。
-        /// </summary>
-        private SkillData[] GetEquippedSkills()
-        {
-            return _progressService != null && _progressService.TryGetSelectedStage(out _)
-                ? _progressService.GetEquippedSkills()
-                : _equippedSkills;
         }
 
         /// <summary>

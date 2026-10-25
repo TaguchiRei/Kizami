@@ -51,10 +51,6 @@ namespace Kizami.EngineAdapter
         [Tooltip("弾の速さ（m/s）")]
         private float _speed = 20f;
 
-        [SerializeField, Min(0)]
-        [Tooltip("弾がプレイヤーに当たったときのダメージ")]
-        private int _damage = 5;
-
         [SerializeField, Min(0.1f)]
         [Tooltip("1 体が撃つ間隔（秒）")]
         private float _interval = 3f;
@@ -81,6 +77,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 弾がプレイヤーに当たったときにダメージを与える関数。引数はダメージ量 </summary>
         private Action<int> _applyDamage;
+
+        /// <summary> 弾がプレイヤーに当たったときのダメージ量 </summary>
+        private int _damage;
 
         private Transform _target;
         private CapsuleCollider _targetCapsule;
@@ -155,9 +154,11 @@ namespace Kizami.EngineAdapter
         /// <param name="attackerPrefab">アタッカーの体のプレハブ</param>
         /// <param name="target">狙うプレイヤー。子に CapsuleCollider を持つ</param>
         /// <param name="applyDamage">弾がプレイヤーに当たったときにダメージを与える関数。引数はダメージ量</param>
-        public void Initialize(EnemyBody attackerPrefab, Transform target, Action<int> applyDamage)
+        /// <param name="damage">弾がプレイヤーに当たったときのダメージ量</param>
+        public void Initialize(EnemyBody attackerPrefab, Transform target, Action<int> applyDamage, int damage)
         {
             _applyDamage = applyDamage;
+            _damage = damage;
             _target = target;
             _targetCapsule = target != null ? target.GetComponentInChildren<CapsuleCollider>() : null;
             if (attackerPrefab == null || _targetCapsule == null)

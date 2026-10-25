@@ -72,16 +72,15 @@ namespace Kizami.EngineAdapter
         [Tooltip("プレイヤーの Transform の位置から足元までの高さ（m）。足元の高さでレーザーに当たるかを決める")]
         private float _targetFootOffset = 1f;
 
-        [SerializeField, Min(0)]
-        [Tooltip("当たったときのダメージ量")]
-        private int _damage = 5;
-
         [SerializeField, Min(0.01f)]
         [Tooltip("当たり続けている間にダメージを与える間隔（秒）")]
         private float _damageInterval = 0.5f;
 
         private BossWeapons _weapons;
         private Action<int> _applyDamage;
+
+        /// <summary> 当たったときのダメージ量 </summary>
+        private int _damage;
         private LineRenderer _line;
 
         /// <summary> 休みの位置のコアの位置（コアの親の空間） </summary>
@@ -126,9 +125,11 @@ namespace Kizami.EngineAdapter
         /// ダメージの関数を受け取る。
         /// </summary>
         /// <param name="applyDamage">プレイヤーにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
-        public void Initialize(Action<int> applyDamage)
+        /// <param name="damage">当たったときのダメージ量</param>
+        public void Initialize(Action<int> applyDamage, int damage)
         {
             _applyDamage = applyDamage;
+            _damage = damage;
         }
 
         /// <summary>

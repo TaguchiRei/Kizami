@@ -4,7 +4,24 @@
 
 各コミットは、着手する前に「着手時に確かめること」を調べて報告し、ユーザーの確認を受けてから実装する。コミットのあとはコンパイルし、プレイモードの確認はユーザーが行う。コンパイルの前に、プレイモードが動いていないことを確かめる（動いていたら止めずに知らせる）。
 
-状態：未着手
+状態：コミット15〜24 の実装済み（2026-10-25）。プレイモードの確認待ち。コミットは未作成で、作業ツリーにまとめて残っている
+
+## 結果
+
+各コミットで決めたこと・確かめたことを書く。プレイモードで確かめることは、上の表の右の列のまま。
+
+| コミット | 結果 |
+|---|---|
+| 15 | 下の「見つけた問題」に書いた |
+| 16 | `VoxelBuilding.RegisterOnCollapsedBounds(Action<Bounds>)` を足した。既存の `RegisterOnCollapsed(Action<Rigidbody>)` はそのまま残し、倒れ始めたときに両方へ通知する（`NotifyCollapsed`）。`StageInitializer.OnBuildingCollapsed` は消し、`BrilliantSkillService.OnBuildingCollapsed` を直接購読させた |
+| 17 | `Application/CoreSystem/StageSelection`（静的クラス）に、選んだステージ・既定のステージ（`ScriptableObject.CreateInstance` は Application に置けた）・装備の出所の判断を移した。初めのチャージ量は `ChargeService` のコンストラクタがステージから足す（`AddAmount` は private にした） |
+| 18 | `IPlayerHealthController`（`Heal`）と `IActionIntervalController`（`CanAct`・`MarkActed`）を、実装する Service と同じファイルに置いた（Application の中だけで使う為。決定 #22）。攻撃間隔は判定と記録の両方が要るので、State ではなく操作面にした |
+| 19 | 別の出来事 `PlayerSkillEffectEvents`（`IPlayerSkillEffectEvents`、`PlayerEventBoard`）を足した。ビーム・爆発・薙ぎ払い・攻走の経路は `VoxelDestructionAdapter`、爆弾は `BombThrowAdapter`、腕は `PlayerArmAdapter` が購読する。盛る（開始と終了）は、開始が戻り値（盛り始められたか）を持つ為、対の終了も合わせて直接配線に残した |
+| 20 | 飛び移りの削る処理は `IPlayerSkillEffectEvents.OnSphereCarve` にした。盛っている間は、止まる理由（止める操作・チャージ切れ）を知る `VoxelMoundAdapter` が `VoxelMoundState` に書く（`SkillService` は Adapter の中でのチャージ切れを知らない為）。`MeleeCutService` は `IVoxelMoundState` と `ISkyBeamController.IsActive` を読む。Adapter の初期化を `MeleeCutService` の生成より前に移した |
+| 21 | `StageEventBoard` と `BrilliantSkillEvents`（`IBrilliantSkillEvents`）を足した。言葉の着弾は `VoxelDestructionAdapter`（削る）と `EnemySpawnAdapter`（倒す）、成立した言葉は `BrilliantSkillTextAdapter` が購読する。着弾は削ってから倒す順に呼ぶ為、削る側を先に購読させる。出す言葉の選び方（`GetWord`）も Initializer の無名関数から Service へ移した。`AddOnCut` は `StageInitializer.ConnectWordCutting` へ移した。`StageEventBoard` は Compositor に手で足したので、作り直しが要る |
+| 22 | 操作面 `IStageGuideController` を BlackBoardLayer に置いた（台本の Adapter が使う為。決定 #22）。条件の種類 `GuideConditionKind` は BlackBoardLayer へ移し、段階の条件は `GuideStepRule` で Service へ渡す。`StageGuideScript` は破壊対象が壊れたことを観測して `ReportTargetDestroyed` で報告し、毎フレーム `TickScript` を呼ぶ。`BossGuideScript` は話題（`BossGuideTopic`）ごとの文（`GuideLine`）だけを持ち、段階と周から話題を選ぶのは `StageGuideService`。ボス戦の State は Service が登録を待ち受けて拾う。大目標・小目標・会話・操作説明の 4 つの関数も、操作面のメソッドにまとめた |
+| 23 | `BossDamageSettings`（`BossInitializer`）と `EnemyDamageSettings`（`EnemyInitializer`）を ExternalLayer に足し、Initializer から各 Adapter の `Initialize` へ量を渡す。保存されていた値（`BossEnemy.prefab`・`Stage_Boss.unity`・`InGame.unity`）はすべて既定値と同じだった為、設定の既定値で写した。`SkyBeamAdapter._healthDamagePerSecond` は、すでに `SkyBeamEffect`（ExternalLayer）の値を受け取っていた為、変えていない。ダメージの間隔は量ではない為、Adapter に残した |
+| 24 | このドキュメントと、全体計画書・親の計画書を直した。40-7 の反映案は下の「設計の正本への反映案」 |
 
 ## 背景
 
@@ -62,14 +79,16 @@
 
 ## 新しく作る型と、今の区間で使う利用者
 
-着手時に確かめて、ここを書き直す。
-
 | 型 | 層 | 利用者 |
 |---|---|---|
-| スキルの効果を実行させる出来事（コミット19 の形による） | BlackBoardLayer | 流す：`SkillService`・`FlightService`。購読：`VoxelDestructionAdapter`・`BombThrowAdapter`・`PlayerArmAdapter` ほか |
-| 回復と攻撃間隔の操作面（コミット18。#22 による） | #22 による | 実装：`PlayerHealthService`・`MeleeCutService`。使う：`SkillService` |
-| ボスの攻撃のダメージ量の設定（コミット23） | ExternalLayer | 持つ：`BossInitializer`。読む：ボスの攻撃の各 Adapter |
-| 敵の攻撃のダメージ量の設定（コミット23。既存の設定に足せれば作らない） | ExternalLayer | 持つ：`EnemyInitializer`。読む：`EnemyShooter`・`EnemyFinisherBeams` |
+| `StageSelection`（コミット17） | Application | `PlayerInitializer`・`StageInitializer`・`EnemyInitializer` |
+| `IPlayerHealthController`・`IActionIntervalController`（コミット18） | Application | 実装：`PlayerHealthService`・`MeleeCutService`。使う：`SkillService` |
+| `PlayerSkillEffectEvents`（コミット19・20） | BlackBoardLayer | 流す：`SkillService`・`FlightService`。購読：`VoxelDestructionAdapter`・`BombThrowAdapter`・`PlayerArmAdapter` |
+| `VoxelMoundState`（コミット20） | BlackBoardLayer | 書く：`VoxelMoundAdapter`。読む：`MeleeCutService` |
+| `StageEventBoard`・`BrilliantSkillEvents`（コミット21） | BlackBoardLayer | 流す：`BrilliantSkillService`。購読：`VoxelDestructionAdapter`・`EnemySpawnAdapter`・`BrilliantSkillTextAdapter` |
+| `IStageGuideController`・`GuideStepRule`・`GuideConditionKind`・`BossGuideTopic`・`GuideLine`（コミット22） | BlackBoardLayer | 実装：`StageGuideService`。使う：`StageGuideScript`・`BossGuideScript` |
+| `BossDamageSettings`（コミット23） | ExternalLayer | 持つ：`BossInitializer`。受け取る：ボスの攻撃の各 Adapter と `BossTowerThrow` |
+| `EnemyDamageSettings`（コミット23） | ExternalLayer | 持つ：`EnemyInitializer`。受け取る：`EnemySpawnAdapter` から `EnemyShooter`・`EnemyFinisherAttack`（`EnemyFinisherBeams`） |
 
 ## 残る直接配線（このあとも残すもの）
 
@@ -77,9 +96,28 @@
 |---|---|
 | Adapter から Service への報告（`applyDamage`・`reportHit`・`reportActionFinished`・`tick` など） | エンジンのイベントを Application の 1 クラスへ届ける、規約の直接配線そのもの（決定 #24） |
 | 案内の文を出す 4 つの関数（`StageGuideScript`・`BossGuideScript` → `StageGuideService`） | 受け手が 1 クラス。表示する文を渡すだけ |
-| `SkillService` の体の範囲・盛り始められたか、`FlightService` の体の中心 | 戻り値がある為、出来事にできない |
+| `SkillService` の体の範囲・盛り始められたか（と対の盛るのを止める）、`FlightService` の体の中心 | 戻り値がある為、出来事にできない |
 | 切断の結果を `EnemySpawnAdapter`・`FragmentOrbAdapter` などへ配ること | Adapter 同士の受け渡しで、MeshCut の型を BlackBoardLayer に出せない為 |
 
 ## 見つけた問題（今回は扱わない）
 
-- なし（コミット15 の調査で足す）
+コミット15 で読んだ範囲：`EnemySpawnAdapter`・`TowerTopple`・`StageHudAdapter`・`EnemyFinisherAttack`。
+
+- `EnemyFinisherAttack.TryStart`：フィニッシャーが攻撃を始める条件（冷却・同時に攻撃する数の上限・グループが追跡中か）を Adapter が決めている。プレイヤーが見えるかと吸収の対象を探す部分はエンジン側の観測だが、始めるかどうかは敵の AI の判断にあたる。群衆の Job と同じデータ（`EnemyAgent`）の上で動く為、移すなら `EnemySquadCommandState` のような命令の State を足す大きな作業になる
+- `StageHudAdapter.UpdateSkills`：スキルが使えるか（チャージがコスト以上か）を表示の為に Adapter が比べている。`SkillService` の判定と同じ式で、変わると表示と食い違う。`ISkillSlotState` に使えるかを足せば済む
+- `EnemySpawnAdapter`：出し直しと補充は `EnemySquadCommandState` の命令に従っていて、判断は Application にある。落下で倒したことにする高さ（`_fallDefeatHeight`）など、物理の観測に使う値が SerializeField にある。ルールの値ともいえるが、観測の閾値として扱う
+- `TowerTopple`：物理と削る処理だけで、ルールは見つからなかった
+
+## 設計の正本への反映案（40-7）
+
+Notion の設計ページと state-centrism-architecture スキルに書き足す案。書き戻しはユーザーが確かめてから行う。
+
+- EventBoard を使う条件：状態を持たない出来事を受け取る相手が 2 つ以上なら EventBoard に流す。Service が決めた効果をエンジン側で実行させる場合も同じで、効果の実行を受け持つ Adapter が購読する（`PlayerSkillEffectEvents`・`BrilliantSkillEvents`）。案内のログのような通知の出来事と、効果の値を持つ出来事は分ける（決定 #17）
+- 戻り値のある関数は直接配線に残す。対になる関数（盛るの開始と終了）も合わせて残す
+- Service が決めた行動を Adapter が実行する：次に何をするかは Service が決めて State に書き、Adapter は実行して報告する（`BossBattleService`）
+- Adapter が観測を State に書く：止まる理由を知るのが Adapter なら、その状態は Adapter が持つ State に書く（`VoxelMoundState`・`BossWeaponState`）
+- 台本の分け方：台本の Adapter は段階と文の定義（データ）とエンジン側の観測の報告だけを持ち、段階を進める判断と文を選ぶ判断は Application が持つ（`IStageGuideController`）
+- ルールの値は ExternalLayer：回数・間隔・ダメージ量などは ExternalLayer の Serializable にまとめ、Initializer から渡す。EngineAdapterLayer は ExternalLayer を参照しない為、Adapter へは値で渡す（`BossDamageSettings`・`EnemyDamageSettings`）
+- 操作面の置き場所：Adapter からも使う操作面は BlackBoardLayer（`IOperationSettingController`・`IStageGuideController`）、Application の中だけで使う操作面は実装する Service と同じ Application のファイル（決定 #22）
+- Adapter から Service への報告は直接配線に残す：受け手が 1 クラスなら規約どおり。量は ExternalLayer に移し、Adapter に残るのは当たったことの報告だけ（決定 #24）
+- デバッグ用の Initializer がキー入力と画面表示を持つのは、デバッグ専用の例外とする（決定 #21）

@@ -1,5 +1,7 @@
 using System;
+using Kizami.BlackBoard;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter
@@ -17,6 +19,7 @@ namespace Kizami.EngineAdapter
         private const int DIRECTION_COUNT = 4;
 
         private Action<Vector3, float> _onExplode;
+        private IDisposable _bombSubscription;
 
         [SerializeField, Min(0.01f)]
         [Tooltip("爆弾の見た目と当たり判定の直径（m）")]
@@ -30,10 +33,17 @@ namespace Kizami.EngineAdapter
         [Tooltip("何にもぶつからない爆弾が爆発するまでの時間（秒）")]
         private float _lifetime = 5f;
 
+        /// <summary>
+        /// IPlayerSkillEffectEvents の登録より後に呼ぶこと。爆弾のスキルの発動を購読する。
+        /// </summary>
+        /// <param name="blackBoard">スキルの効果の出来事の取得元</param>
         /// <param name="onExplode">爆発させる関数。引数は爆発の中心と半径（m）</param>
-        public void Initialize(Action<Vector3, float> onExplode)
+        public void Initialize(IBlackBoard blackBoard, Action<Vector3, float> onExplode)
         {
             _onExplode = onExplode;
+            if (!blackBoard.TryGetSceneEvent<PlayerEventBoard, IPlayerSkillEffectEvents>(out var effectEvents, this)) return;
+
+            _bombSubscription = effectEvents.OnBomb.Register(notice => Throw(notice.Distance, notice.Radius, notice.ForwardOffset));
         }
 
         /// <summary>
@@ -66,6 +76,11 @@ namespace Kizami.EngineAdapter
                 var direction = Quaternion.AngleAxis(90f * i, Vector3.up) * forward;
                 SpawnBomb(origin + direction * _spawnOffset, direction, distance, radius);
             }
+        }
+
+        private void OnDestroy()
+        {
+            _bombSubscription?.Dispose();
         }
 
         private void SpawnBomb(Vector3 position, Vector3 direction, float distance, float radius)

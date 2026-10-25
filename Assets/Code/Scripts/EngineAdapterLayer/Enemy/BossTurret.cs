@@ -51,12 +51,11 @@ namespace Kizami.EngineAdapter
         [Tooltip("狙う所の、プレイヤーの位置からの高さ（m）")]
         private float _aimHeight = 1f;
 
-        [SerializeField, Min(0)]
-        [Tooltip("当たったときのダメージ量")]
-        private int _damage = 5;
-
         private BossWeapons _weapons;
         private Action<int> _applyDamage;
+
+        /// <summary> 当たったときのダメージ量 </summary>
+        private int _damage;
 
         /// <summary> 弾ごとの、位置（ワールド座標） </summary>
         private Vector3[] _positions;
@@ -84,9 +83,11 @@ namespace Kizami.EngineAdapter
         /// ダメージの関数を受け取る。
         /// </summary>
         /// <param name="applyDamage">プレイヤーにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
-        public void Initialize(Action<int> applyDamage)
+        /// <param name="damage">当たったときのダメージ量</param>
+        public void Initialize(Action<int> applyDamage, int damage)
         {
             _applyDamage = applyDamage;
+            _damage = damage;
         }
 
         /// <summary>

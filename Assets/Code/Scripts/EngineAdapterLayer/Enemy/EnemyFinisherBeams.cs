@@ -133,10 +133,6 @@ namespace Kizami.EngineAdapter
         [Tooltip("止めるまで撃ち続けるビームで、模様の変化を止める照射の経過時間（秒）。この時間の模様のまま撃ち続ける")]
         private float _continuousPatternTime = 0.3f;
 
-        [SerializeField, Min(0)]
-        [Tooltip("ビームに当たっているときに、間隔ごとに与えるダメージ")]
-        private int _damage = 1;
-
         [SerializeField, Min(0.01f)]
         [Tooltip("ダメージを与える間隔（秒）")]
         private float _damageInterval = 0.1f;
@@ -164,6 +160,9 @@ namespace Kizami.EngineAdapter
 
         private CapsuleCollider _targetCapsule;
         private Action<int> _applyDamage;
+
+        /// <summary> ビームに当たっているときに、間隔ごとに与えるダメージ量 </summary>
+        private int _damage;
         private CinemachineImpulseSource _impulseSource;
         private MaterialPropertyBlock _glowProperties;
         private Transform _camera;
@@ -214,8 +213,9 @@ namespace Kizami.EngineAdapter
         /// </summary>
         /// <param name="target">プレイヤー。子に CapsuleCollider を持つ</param>
         /// <param name="applyDamage">ビームがプレイヤーに当たったときにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
+        /// <param name="damage">ビームに当たっているときに、間隔ごとに与えるダメージ量</param>
         /// <returns>使えるようになったか</returns>
-        public bool Initialize(Transform target, Action<int> applyDamage)
+        public bool Initialize(Transform target, Action<int> applyDamage, int damage)
         {
             _targetCapsule = target != null ? target.GetComponentInChildren<CapsuleCollider>() : null;
             if (_beamMaterial == null || _targetCapsule == null)
@@ -230,6 +230,7 @@ namespace Kizami.EngineAdapter
             }
 
             _applyDamage = applyDamage;
+            _damage = damage;
             if (_glowMaterial != null) _glowProperties = new MaterialPropertyBlock();
             if (_shakeForce > 0f) _impulseSource = CreateImpulseSource();
 

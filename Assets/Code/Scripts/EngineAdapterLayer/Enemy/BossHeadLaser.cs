@@ -72,10 +72,6 @@ namespace Kizami.EngineAdapter
         [Tooltip("狙う所の、プレイヤーの位置からの高さ（m）")]
         private float _aimHeight = 1f;
 
-        [SerializeField, Min(0)]
-        [Tooltip("当たったときのダメージ量")]
-        private int _damage = 10;
-
         [SerializeField, Min(0.01f)]
         [Tooltip("当たり続けている間にダメージを与える間隔（秒）")]
         private float _damageInterval = 0.5f;
@@ -105,6 +101,9 @@ namespace Kizami.EngineAdapter
         private float _meltInterval = 0.05f;
 
         private Action<int> _applyDamage;
+
+        /// <summary> 当たったときのダメージ量 </summary>
+        private int _damage;
         private Func<Vector3, float, int> _absorbInRadius;
         private Action<Vector3, float> _defeatInRadius;
         private LineRenderer _line;
@@ -147,12 +146,14 @@ namespace Kizami.EngineAdapter
         /// ダメージの関数と、敵を吸収する関数・倒す関数を受け取る。
         /// </summary>
         /// <param name="applyDamage">プレイヤーにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
+        /// <param name="damage">当たったときのダメージ量</param>
         /// <param name="absorbInRadius">球の中の敵を吸収して消す関数（EnemySpawnAdapter.AbsorbInRadius）。引数は中心と半径</param>
         /// <param name="defeatInRadius">球の中の敵を倒してエネルギーを出す関数（EnemySpawnAdapter.DefeatInRadius）。引数は中心と半径</param>
-        public void Initialize(Action<int> applyDamage, Func<Vector3, float, int> absorbInRadius,
+        public void Initialize(Action<int> applyDamage, int damage, Func<Vector3, float, int> absorbInRadius,
             Action<Vector3, float> defeatInRadius)
         {
             _applyDamage = applyDamage;
+            _damage = damage;
             _absorbInRadius = absorbInRadius;
             _defeatInRadius = defeatInRadius;
         }
