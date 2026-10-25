@@ -7,7 +7,7 @@ namespace Kizami.Application
     /// <summary>
     /// 体力制の破壊対象の体力（TargetHealthState）の唯一の書き手。当たりの種類と大きさを、対象ごとの量に直して体力から引く。無敵の間は引かない。
     /// </summary>
-    public sealed class TargetHealthService
+    public sealed class TargetHealthService : ITargetHealthController
     {
         private readonly TargetHealthState _state = new();
 
@@ -111,5 +111,35 @@ namespace Kizami.Application
             _state.SetCurrent(_state.Current - amount);
             return _state.Current <= 0f;
         }
+    }
+
+    /// <summary>
+    /// 体力制の破壊対象の体力を、段階に合わせて回復・時間で減らし、表示の状態と落ちる塊を数えるかを切り替える操作面。ボス戦が使う。体力の値を読むだけなら ITargetHealthState を使う。
+    /// </summary>
+    public interface ITargetHealthController
+    {
+        /// <summary>
+        /// 時間で減っていく間に、体力を減らす。表示の状態が Draining のときだけ減らす。
+        /// </summary>
+        /// <param name="amount">減らす量</param>
+        /// <returns>この呼び出しで体力が0になったら true</returns>
+        bool Drain(float amount);
+
+        /// <summary>
+        /// 体力を最大まで戻す。
+        /// </summary>
+        void Restore();
+
+        /// <summary>
+        /// 表示の状態を設定する。
+        /// </summary>
+        /// <param name="mode">表示の状態</param>
+        void SetMode(TargetHealthMode mode);
+
+        /// <summary>
+        /// 落ちてくる塊の当たりで体力を引くかを切り替える。
+        /// </summary>
+        /// <param name="countsCollapse">落ちてくる塊の当たりで体力を引くか</param>
+        void SetCollapseCounting(bool countsCollapse);
     }
 }

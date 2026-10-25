@@ -26,7 +26,7 @@ namespace Kizami.Application
         private const int ROUND_COUNT = 2;
 
         private readonly BossBattleState _state = new();
-        private readonly TargetHealthService _health;
+        private readonly ITargetHealthController _health;
         private readonly BossBattleSettings _settings;
         private readonly int _stompsPerRound;
         private readonly float _finalDuration;
@@ -47,17 +47,27 @@ namespace Kizami.Application
         private float _fightTime;
 
         private EnemyBoard _enemyBoard;
+        private StageBoard _stageBoard;
+
+        /// <summary> ボスの体力。StageInitializer がこの Service より後に登録するので、登録されるまでは null で、体力が尽きたとみなさない </summary>
+        private ITargetHealthState _healthState;
 
         /// <summary> ボスの武装の数。BossBattleAdapter が登録するので、登録されるまでは null で、行動を飛ばさない </summary>
         private IBossWeaponState _weaponState;
 
-        /// <param name="blackBoard">BossBattleState の登録先と、BossWeaponState の取得元</param>
+        /// <summary> ボスの最大体力。体力の対象がなければ 0 </summary>
+        private float HealthMax => _health != null && _healthState != null ? _healthState.Max : 0f;
+
+        /// <summary> 体力の対象があり、体力が尽きているか </summary>
+        private bool IsHealthDepleted => HealthMax > 0f && _healthState.Current <= 0f;
+
+        /// <param name="blackBoard">BossBattleState の登録先と、BossWeaponState・TargetHealthState の取得元</param>
         /// <param name="health">ボスの体力。なければ体力を見ずに進める</param>
         /// <param name="settings">行動の回数・間隔・待機の値</param>
         /// <param name="stompsPerRound">足踏みの段階で足踏みする回数</param>
         /// <param name="finalDuration">最終で、体力が満タンから尽きるまでの時間（秒）</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
-        public BossBattleService(IBlackBoard blackBoard, TargetHealthService health, BossBattleSettings settings,
+        public BossBattleService(IBlackBoard blackBoard, ITargetHealthController health, BossBattleSettings settings,
             int stompsPerRound, float finalDuration, int sceneId)
         {
             _health = health;
@@ -65,6 +75,7 @@ namespace Kizami.Application
             _stompsPerRound = stompsPerRound;
             _finalDuration = finalDuration;
 
+            blackBoard.TryGetBoard(out _stageBoard, this);
             if (!blackBoard.TryGetBoard(out _enemyBoard, this)) return;
 
             _enemyBoard.RegisterSceneState<IBossBattleState>(_state, sceneId);
@@ -89,6 +100,7 @@ namespace Kizami.Application
         /// <param name="deltaTime">経過時間（秒）</param>
         public void Tick(float deltaTime)
         {
+            if (_healthState == null && _stageBoard != null) _stageBoard.TryGetSceneState(out _healthState, out _);
             UpdateDamageRules(deltaTime);
             SkipUnavailableAction();
             switch (_state.Phase)
@@ -96,7 +108,7 @@ namespace Kizami.Application
                 case BossBattlePhase.Arriving:
                 case BossBattlePhase.Stomping:
                 case BossBattlePhase.CoreExposed:
-                    if (_health != null && _health.IsDepleted)
+                    if (IsHealthDepleted)
                     {
                         _state.SetPhase(BossBattlePhase.Down);
                         _state.SetAction(BossAction.AwaitHit);
@@ -258,10 +270,10 @@ namespace Kizami.Application
         private void TickFinal(float deltaTime)
         {
             _finalTime += deltaTime;
-            var hasHealth = _health != null && _health.Max > 0f;
-            if (hasHealth) _health.Drain(_health.Max / _finalDuration * deltaTime);
+            var hasHealth = HealthMax > 0f;
+            if (hasHealth) _health.Drain(HealthMax / _finalDuration * deltaTime);
 
-            var isFinished = hasHealth ? _health.IsDepleted : _finalTime >= _finalDuration;
+            var isFinished = hasHealth ? IsHealthDepleted : _finalTime >= _finalDuration;
             if (!isFinished) return;
 
             _health?.SetMode(TargetHealthMode.Broken);
