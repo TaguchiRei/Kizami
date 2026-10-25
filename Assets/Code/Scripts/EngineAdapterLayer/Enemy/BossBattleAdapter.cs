@@ -3,6 +3,7 @@ using System.Text;
 using Kizami.BlackBoard;
 using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter
@@ -13,6 +14,7 @@ namespace Kizami.EngineAdapter
     /// 水晶の段階は、退く所へ飛び去ってから水晶を投げて置き、上部タレット・降下フィニッシャー・頭部のレーザーで遠くから攻撃する。水晶がすべて壊れたら、飛来の段階で水晶のあった所へ飛ぶ。
     /// ダウンの段階はコアを出したまま壊せる武装を赤く塗り、武装を壊す行動で、BossWeapons が選んだ武装を 1 つ壊す。
     /// 止まったあとは攻撃をやめ、出ている降下フィニッシャーと塔も消す。
+    /// 武装の種類ごとの数と、壊せる武装が残っているかを BossWeaponState に書き、行えない行動を飛ばす判断は BossBattleService に任せる。
     /// </summary>
     /// <remarks>
     /// ボス戦の間、ボスは自分では歩かない（飛来でだけ動く）。武装を含むすべてのパーツを止まるまで保護し、削れないようにする。
@@ -80,6 +82,8 @@ namespace Kizami.EngineAdapter
         [Tooltip("飛来の間に建物を前もってボクセルにする円の、円形の空間の半径に足す幅（m）。柵のビームが溶かす穴の半径より大きくする")]
         private float _preloadMargin = 8f;
 
+        private readonly BossWeaponState _weaponState = new();
+
         private VoxelModelLoader _loader;
         private IBossBattleState _state;
         private Action _reportCrystalsCleared;
@@ -101,17 +105,30 @@ namespace Kizami.EngineAdapter
         private bool _isProtected;
 
         /// <summary>
-        /// ボス戦の State と、段階が進む出来事を報告する関数を受け取る。
+        /// ボス戦の State と、段階が進む出来事を報告する関数を受け取り、BossWeaponState を登録する。
         /// </summary>
+        /// <param name="blackBoard">BossWeaponState の登録先</param>
         /// <param name="state">ボス戦の State</param>
         /// <param name="reportCrystalsCleared">水晶をすべて壊したことを報告する関数（BossBattleService.ReportCrystalsCleared）</param>
         /// <param name="reportActionFinished">今の行動を終えたことを報告する関数（BossBattleService.ReportActionFinished）。引数は行動を実際に行えたか</param>
         /// <param name="tick">毎フレーム経過時間を渡す関数（BossBattleService.Tick）。体力の無敵と落ちる塊を数えるかを決め、待機の時間を数え、体力が尽きたかを調べ、最終の体力を減らす</param>
         /// <param name="target">プレイヤー。ダウンで壊す武装を選ぶのに使う</param>
-        public void Initialize(IBossBattleState state, Action reportCrystalsCleared, Action<bool> reportActionFinished,
-            Action<float> tick, Transform target)
+        public void Initialize(IBlackBoard blackBoard, IBossBattleState state, Action reportCrystalsCleared,
+            Action<bool> reportActionFinished, Action<float> tick, Transform target)
         {
             _state = state;
+            if (_weapons != null)
+            {
+                _weaponState.SetCounts(_weapons.CountOf(BossWeaponKind.Outrigger), _weapons.CountOf(BossWeaponKind.Laser),
+                    _weapons.CountOf(BossWeaponKind.Missile));
+                _weaponState.SetHasBreakable(_weapons.CountBroken() < _weapons.Count);
+            }
+
+            if (blackBoard.TryGetBoard<EnemyBoard>(out var enemyBoard, this))
+            {
+                enemyBoard.RegisterSceneState<IBossWeaponState>(_weaponState, gameObject.scene.buildIndex);
+            }
+
             _reportCrystalsCleared = reportCrystalsCleared;
             _reportActionFinished = reportActionFinished;
             _tick = tick;
@@ -170,6 +187,7 @@ namespace Kizami.EngineAdapter
             if (_state == null) return;
 
             UpdateProtection();
+            _weaponState.SetHasBreakable(_weapons.CountBroken() < _weapons.Count);
             _tick?.Invoke(Time.deltaTime);
 
             var phase = _state.Phase;
@@ -256,7 +274,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 今の行動を 1 フレームぶん進め、終えたら報告する。待機と何もしない行動では何もしない。
+        /// 今の行動を 1 フレームぶん進め、終えたら報告する。待機・攻撃を待つ・何もしない行動では何もしない。
         /// </summary>
         private void TickAction(BossAction action)
         {
@@ -276,18 +294,12 @@ namespace Kizami.EngineAdapter
                     TickBarrage();
                     break;
                 case BossAction.Stomp:
-                    if (_weapons.CountOf(BossWeaponKind.Outrigger) == 0 || _shockwaves.TryStomp()) ReportActionFinished(true);
+                    if (_shockwaves.TryStomp()) ReportActionFinished(true);
                     break;
                 case BossAction.Laser:
                     TickLaser();
                     break;
                 case BossAction.Strike:
-                    if (_weapons.CountOf(BossWeaponKind.Missile) == 0)
-                    {
-                        ReportActionFinished(false);
-                        break;
-                    }
-
                     if (_finisherStrikes.TryFire(0f)) ReportActionFinished(true);
                     break;
                 case BossAction.AwaitStrikes:
@@ -298,9 +310,6 @@ namespace Kizami.EngineAdapter
                     break;
                 case BossAction.FinalVolley:
                     TickFinalVolley();
-                    break;
-                case BossAction.AwaitHit:
-                    if (_weapons.CountBroken() >= _weapons.Count) ReportActionFinished(false);
                     break;
                 case BossAction.BreakWeapon:
                     ReportActionFinished(TryBreakWeapon());
@@ -326,13 +335,13 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 次の番の下部レーザーを撃ち、撃ち終えたら報告する。番のレーザーが壊れていれば、撃たずにクールタイムだけ過ぎるので、撃ち終えたものとする。レーザーがなければすぐ報告する。
+        /// 次の番の下部レーザーを撃ち、撃ち終えたら報告する。番のレーザーが壊れていれば、撃たずにクールタイムだけ過ぎるので、撃ち終えたものとする。
         /// </summary>
         private void TickLaser()
         {
             if (!_isLaserStarted)
             {
-                _isLaserStarted = _weapons.CountOf(BossWeaponKind.Laser) == 0 || _laser.TryFire();
+                _isLaserStarted = _laser.TryFire();
                 return;
             }
 
@@ -346,7 +355,7 @@ namespace Kizami.EngineAdapter
         {
             if (!_isLaserStarted)
             {
-                _isLaserStarted = _weapons.CountOf(BossWeaponKind.Laser) == 0 || _laser.TryFire();
+                _isLaserStarted = _laser.TryFire();
             }
 
             if (_laser.IsFiring)

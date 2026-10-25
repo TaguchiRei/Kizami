@@ -127,7 +127,7 @@ namespace Kizami.Initialization
                 _finalDuration, gameObject.scene.buildIndex);
             if (blackBoard.TryGetSceneState<EnemyBoard, IBossBattleState>(out var battleState, this))
             {
-                battleAdapter.Initialize(battleState, battleService.ReportCrystalsCleared,
+                battleAdapter.Initialize(blackBoard, battleState, battleService.ReportCrystalsCleared,
                     battleService.ReportActionFinished, battleService.Tick, target);
                 if (boss.TryGetComponent<HealthTarget>(out var healthTarget))
                 {

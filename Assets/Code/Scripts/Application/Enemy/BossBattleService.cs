@@ -46,7 +46,12 @@ namespace Kizami.Application
         /// <summary> 足踏みとコア露出の段階が続いている時間（秒）。それ以外の段階では 0 </summary>
         private float _fightTime;
 
-        /// <param name="blackBoard">BossBattleState の登録先</param>
+        private EnemyBoard _enemyBoard;
+
+        /// <summary> ボスの武装の数。BossBattleAdapter が登録するので、登録されるまでは null で、行動を飛ばさない </summary>
+        private IBossWeaponState _weaponState;
+
+        /// <param name="blackBoard">BossBattleState の登録先と、BossWeaponState の取得元</param>
         /// <param name="health">ボスの体力。なければ体力を見ずに進める</param>
         /// <param name="settings">行動の回数・間隔・待機の値</param>
         /// <param name="stompsPerRound">足踏みの段階で足踏みする回数</param>
@@ -60,9 +65,9 @@ namespace Kizami.Application
             _stompsPerRound = stompsPerRound;
             _finalDuration = finalDuration;
 
-            if (!blackBoard.TryGetBoard<EnemyBoard>(out var enemyBoard, this)) return;
+            if (!blackBoard.TryGetBoard(out _enemyBoard, this)) return;
 
-            enemyBoard.RegisterSceneState<IBossBattleState>(_state, sceneId);
+            _enemyBoard.RegisterSceneState<IBossBattleState>(_state, sceneId);
         }
 
         /// <summary>
@@ -79,12 +84,13 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 毎フレーム呼ぶ。無敵と落ちる塊を数えるかを決め、待機の時間を数える。直接戦闘で体力が尽きていればダウンへ進む。最終では体力を時間で減らし、尽きたら止まる。
+        /// 毎フレーム呼ぶ。無敵と落ちる塊を数えるかを決め、行えない行動を飛ばし、待機の時間を数える。直接戦闘で体力が尽きていればダウンへ進む。最終では体力を時間で減らし、尽きたら止まる。
         /// </summary>
         /// <param name="deltaTime">経過時間（秒）</param>
         public void Tick(float deltaTime)
         {
             UpdateDamageRules(deltaTime);
+            SkipUnavailableAction();
             switch (_state.Phase)
             {
                 case BossBattlePhase.Arriving:
@@ -111,7 +117,7 @@ namespace Kizami.Application
         /// <summary>
         /// 今の行動を終えたことを受け取り、次の行動を決める。
         /// </summary>
-        /// <param name="isPerformed">行動を実際に行えたか。降下フィニッシャーが 1 つもなく出せなかったときは false</param>
+        /// <param name="isPerformed">行動を実際に行えたか。使う武装がなく飛ばしたとき（降下フィニッシャー・ダウンで壊す武装）と、塔投げや武装の破壊を試みて行えなかったときは false</param>
         public void ReportActionFinished(bool isPerformed)
         {
             switch (_state.Action)
@@ -199,6 +205,29 @@ namespace Kizami.Application
             var isGraceOver = _fightTime >= _settings.CollapseGrace;
             _health.SetCollapseCounting(isGraceOver);
             _health.SetMode(isGraceOver ? TargetHealthMode.Normal : TargetHealthMode.Invincible);
+        }
+
+        /// <summary>
+        /// 今の行動に使う武装がなければ、行動を終えたものとして次へ進める。1 フレームに飛ばすのは 1 つだけにし、続けて行えない行動が並んでも 1 フレームで回りきらないようにする。
+        /// アウトリガーと下部レーザーがなければ行ったものとし（足踏みの回数も数える）、降下フィニッシャーがなければ出せなかったものとして残りを飛ばす。壊せる武装が残っていなければ、ダウンを終える。
+        /// </summary>
+        private void SkipUnavailableAction()
+        {
+            if (_weaponState == null && _enemyBoard != null) _enemyBoard.TryGetSceneState(out _weaponState, out _);
+            if (_weaponState == null) return;
+
+            switch (_state.Action)
+            {
+                case BossAction.Stomp when _weaponState.OutriggerCount == 0:
+                case BossAction.Laser when _weaponState.LaserCount == 0:
+                case BossAction.FinalVolley when _weaponState.LaserCount == 0:
+                    ReportActionFinished(true);
+                    break;
+                case BossAction.Strike when _weaponState.MissileCount == 0:
+                case BossAction.AwaitHit when !_weaponState.HasBreakable:
+                    ReportActionFinished(false);
+                    break;
+            }
         }
 
         /// <summary>
