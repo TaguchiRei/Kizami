@@ -576,7 +576,8 @@ namespace Kizami.Application
     }
 
     /// <summary>
-    /// プレイヤーの移動に、突進・飛び移り・言葉をつかんでいる間・羽天轟号の間を伝える操作面。スキル・羽天轟号・飛び移り・言葉の投擲が使う。
+    /// プレイヤーの移動に、突進・飛び移り・打ち上げ・弾き飛ばし・言葉をつかんでいる間・羽天轟号の間を伝える操作面。
+    /// スキル・羽天轟号・飛び移り・言葉の投擲と、敵・ボスの攻撃が使う。
     /// </summary>
     public interface IPlayerMovementController
     {
@@ -619,5 +620,17 @@ namespace Kizami.Application
         /// <param name="followDisplacement">続けて飛ぶ向きと距離。続けないときはゼロ</param>
         /// <param name="followDuration">続けて飛ぶ所要時間（秒）</param>
         void RequestFlight(Vector3 displacement, float duration, Vector3 followDisplacement, float followDuration);
+
+        /// <summary>
+        /// 次の Step でプレイヤーを真上へ打ち上げるよう要求する。
+        /// </summary>
+        /// <param name="speed">上向きの打ち出し速度（m/s）</param>
+        void RequestLaunch(float speed);
+
+        /// <summary>
+        /// 次の Step でプレイヤーを velocity の向きへ弾くよう要求する。
+        /// </summary>
+        /// <param name="velocity">打ち出し速度（m/s、ワールド空間）</param>
+        void RequestKnockback(Vector3 velocity);
     }
 }

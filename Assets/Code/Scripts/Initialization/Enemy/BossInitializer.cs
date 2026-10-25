@@ -17,8 +17,8 @@ namespace Kizami.Initialization
     /// 次に向かう場所を選ぶ BossTargetSelector と、段階ごとの案内の BossGuideScript をボスに付ける。どちらも StageInitializer が拾って繋ぐ。
     /// ボスの体力は StageInitializer が作って配線した TargetHealthService を受け取り、BossBattleService が段階に合わせて切り替える。
     /// </summary>
-    public sealed class BossInitializer : InitializerBase, IInjectable<PlayerHealthService>,
-        IInjectable<PlayerMovementService>, IInjectable<TargetHealthService>
+    public sealed class BossInitializer : InitializerBase, IInjectable<IPlayerHealthController>,
+        IInjectable<IPlayerMovementController>, IInjectable<ITargetHealthController>
     {
         [SerializeField]
         [Tooltip("切り離されたボクセルの物を引き寄せる吸い寄せ。同じシーンにあるので Inspector で渡す。なければ引き寄せない")]
@@ -48,9 +48,9 @@ namespace Kizami.Initialization
         [Tooltip("初期化の終わりにボス戦を始める")]
         private bool _beginOnInitialize = true;
 
-        private PlayerHealthService _healthService;
-        private PlayerMovementService _movementService;
-        private TargetHealthService _targetHealthService;
+        private IPlayerHealthController _healthService;
+        private IPlayerMovementController _movementService;
+        private ITargetHealthController _targetHealthService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -164,17 +164,17 @@ namespace Kizami.Initialization
             return null;
         }
 
-        public void Inject(PlayerHealthService instance)
+        public void Inject(IPlayerHealthController instance)
         {
             _healthService = instance;
         }
 
-        public void Inject(PlayerMovementService instance)
+        public void Inject(IPlayerMovementController instance)
         {
             _movementService = instance;
         }
 
-        public void Inject(TargetHealthService instance)
+        public void Inject(ITargetHealthController instance)
         {
             _targetHealthService = instance;
         }

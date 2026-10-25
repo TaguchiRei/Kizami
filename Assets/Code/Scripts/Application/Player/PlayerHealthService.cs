@@ -96,10 +96,16 @@ namespace Kizami.Application
     }
 
     /// <summary>
-    /// HP を回復する操作面。回復のスキルが使う。
+    /// HP を増減する操作面。ダメージは敵・ボスの攻撃とデバッグ、回復は回復のスキルが使う。
     /// </summary>
     public interface IPlayerHealthController
     {
+        /// <summary>
+        /// ダメージを適用する。適用するかと軽減率は PlayerHealthService が決める。
+        /// </summary>
+        /// <param name="amount">ダメージ量</param>
+        void ApplyDamage(int amount);
+
         /// <summary>
         /// HP を回復する。最大 HP を超えた分は捨てる。
         /// </summary>

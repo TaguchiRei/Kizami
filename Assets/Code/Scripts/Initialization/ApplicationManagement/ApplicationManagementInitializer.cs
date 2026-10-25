@@ -1,6 +1,6 @@
 using Kizami.BlackBoard;
+using Kizami.Application;
 using UnityEngine;
-using UnityEngine.XR;
 using UsefulToolkit.Attributes;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.Initialization;
@@ -9,7 +9,7 @@ using UsefulToolkit.Utility;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// アプリケーション全体に関わるステート（BuildModeState）を生成する Initializer。常駐シーンへ置く。
+    /// アプリケーション全体に関わるユースケース（BuildModeService）を初期化する Initializer。常駐シーンへ置く。
     /// BuildModeState は入力経路とプレイヤーリグの選択が参照するので、入力システム（InputInitializerBase）より先に初期化する。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.InitializerEarly - 10)]
@@ -26,50 +26,24 @@ namespace Kizami.Initialization
             VR
         }
 
+        private readonly BuildModeService _buildModeService = new();
+
         [SerializeField]
         [Tooltip("エディタ上でのみ有効。Auto 以外にすると実行環境の判定を無視して固定する。")]
         private BuildModeOverride _editorBuildModeOverride = BuildModeOverride.Auto;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
-            if (!blackBoard.TryGetBoard<AppBoard>(out var appBoard, this))
+            BuildMode? editorOverride = _editorBuildModeOverride switch
             {
-                base.Initialize(blackBoard);
-                return;
-            }
-
-            var buildModeState = new BuildModeState();
-            buildModeState.SetBuildMode(ResolveBuildMode());
-            appBoard.RegisterGameState<IBuildModeState>(buildModeState);
+                BuildModeOverride.PC => BuildMode.PC,
+                BuildModeOverride.Mobile => BuildMode.Mobile,
+                BuildModeOverride.VR => BuildMode.VR,
+                _ => null
+            };
+            _buildModeService.Initialize(blackBoard, editorOverride);
 
             base.Initialize(blackBoard);
-        }
-
-        /// <summary>
-        /// 実行環境からビルドモードを判定する。
-        /// XR デバイスが動いているかを最初に見る為、PCVR も VR として扱える。
-        /// </summary>
-        private BuildMode ResolveBuildMode()
-        {
-#if UNITY_EDITOR
-            if (_editorBuildModeOverride != BuildModeOverride.Auto)
-            {
-                return _editorBuildModeOverride switch
-                {
-                    BuildModeOverride.PC => BuildMode.PC,
-                    BuildModeOverride.Mobile => BuildMode.Mobile,
-                    _ => BuildMode.VR
-                };
-            }
-#endif
-
-            if (XRSettings.isDeviceActive) return BuildMode.VR;
-
-#if UNITY_ANDROID || UNITY_IOS
-            return BuildMode.Mobile;
-#else
-            return BuildMode.PC;
-#endif
         }
     }
 }

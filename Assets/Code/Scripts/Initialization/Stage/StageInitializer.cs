@@ -23,7 +23,7 @@ namespace Kizami.Initialization
     /// Brilliant Skill の判定（BrilliantSkillService）に、ボクセルを壊した体積と建物の倒壊を繋ぎ、成立したら追加スコアを足す。
     /// 失敗条件の判定と、案内のログにプレイヤーの State と出来事の通知、敵を倒した通知を使う為、PlayerInitializer と EnemyInitializer より後に初期化する。
     /// </summary>
-    public sealed class StageInitializer : InitializerBase, IInjectable<GameProgressService>, IInjectable<IGameSceneController>,
+    public sealed class StageInitializer : InitializerBase, IInjectable<IGameProgressController>, IInjectable<IGameSceneController>,
         IInjectable<ITimeScaleController>, IInjectable<IInputController>
     {
         private readonly List<System.IDisposable> _buildingSubscriptions = new();
@@ -59,7 +59,7 @@ namespace Kizami.Initialization
         [Tooltip("Brilliant Skill の判定の条件と追加スコア")]
         private BrilliantSkillSettings _brilliantSkillSettings = new();
 
-        private GameProgressService _progressService;
+        private IGameProgressController _progressService;
         private IGameSceneController _sceneController;
         private ITimeScaleController _timeScaleController;
         private IInputController _inputController;
@@ -121,7 +121,7 @@ namespace Kizami.Initialization
 
         private void Awake()
         {
-            InGameCompositor.TryRegisterContent(_targetHealthService);
+            InGameCompositor.TryRegisterContent<ITargetHealthController>(_targetHealthService);
         }
 
         /// <summary>
@@ -348,7 +348,7 @@ namespace Kizami.Initialization
             _brilliantSkillService?.Dispose();
         }
 
-        public void Inject(GameProgressService instance)
+        public void Inject(IGameProgressController instance)
         {
             _progressService = instance;
         }

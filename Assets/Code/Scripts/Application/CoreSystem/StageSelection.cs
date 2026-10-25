@@ -16,7 +16,7 @@ namespace Kizami.Application
         /// <param name="progress">進行の Service。受け取れなかったときは null</param>
         /// <param name="stage">選んだステージの定義。選んでいなければ null</param>
         /// <returns>ステージを選んでいるか</returns>
-        public static bool TryGetSelectedStage(GameProgressService progress, out StageData stage)
+        public static bool TryGetSelectedStage(IGameProgressController progress, out StageData stage)
         {
             stage = null;
             return progress != null && progress.TryGetSelectedStage(out stage);
@@ -27,7 +27,7 @@ namespace Kizami.Application
         /// </summary>
         /// <param name="progress">進行の Service。受け取れなかったときは null</param>
         /// <param name="context">警告のログに添えるオブジェクト</param>
-        public static StageData GetStageOrDefault(GameProgressService progress, object context)
+        public static StageData GetStageOrDefault(IGameProgressController progress, object context)
         {
             if (TryGetSelectedStage(progress, out var stage)) return stage;
 
@@ -40,7 +40,7 @@ namespace Kizami.Application
         /// </summary>
         /// <param name="progress">進行の Service。受け取れなかったときは null</param>
         /// <param name="fallback">アウトゲームを通さずに始めたときの装備</param>
-        public static SkillData[] GetEquippedSkillsOrDefault(GameProgressService progress, SkillData[] fallback)
+        public static SkillData[] GetEquippedSkillsOrDefault(IGameProgressController progress, SkillData[] fallback)
         {
             return TryGetSelectedStage(progress, out _) ? progress.GetEquippedSkills() : fallback;
         }

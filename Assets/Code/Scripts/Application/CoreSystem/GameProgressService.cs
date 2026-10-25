@@ -13,7 +13,7 @@ namespace Kizami.Application
     /// ステージの番号とステージの定義（StageData）、スキルの番号とスキルの定義（SkillData）の対応を持つ。常駐シーンで一度だけ生成する。
     /// 進行はクリアと装備の変更のたびに保存し、生成するときに読み込む。
     /// </summary>
-    public sealed class GameProgressService
+    public sealed class GameProgressService : IGameProgressController
     {
         private const string SAVE_FILE_NAME = "progress.json";
 
@@ -288,5 +288,48 @@ namespace Kizami.Application
                 ShownUnlockSkillIds = _shownUnlockSkillIds.ToArray(),
             });
         }
+    }
+
+    /// <summary>
+    /// 進行を読み、装備とクリアを書き込む操作面。アウトゲームのメニューと、インゲームのステージ・プレイヤー・敵の初期化が使う。
+    /// </summary>
+    public interface IGameProgressController
+    {
+        /// <summary> 装備できるスキル。番号はこの並びの位置 </summary>
+        IReadOnlyList<SkillData> Skills { get; }
+
+        /// <summary> スキル装備の画面で専用の枠に置くスキルの番号。なければ GameProgressState.NO_SKILL </summary>
+        int UltimateSkillIndex { get; }
+
+        /// <summary>
+        /// 選んだステージの定義を取得する。
+        /// </summary>
+        /// <param name="stage">選んだステージの定義</param>
+        /// <returns>ステージを選んでいるか</returns>
+        bool TryGetSelectedStage(out StageData stage);
+
+        /// <summary>
+        /// 装備枠にスキルを装備して保存する。
+        /// </summary>
+        /// <param name="slot">枠の番号（0から）</param>
+        /// <param name="skillIndex">スキルの番号（0から）。空きにするなら GameProgressState.NO_SKILL</param>
+        /// <returns>装備を変えたか</returns>
+        bool EquipSkill(int slot, int skillIndex);
+
+        /// <summary>
+        /// 解放の演出をまだ出していないスキルを、演出の順番待ちに渡す。
+        /// </summary>
+        /// <param name="queueNotice">演出を順番待ちに加える関数。引数はスキルの名前と、専用の枠のスキルか</param>
+        void QueuePendingUnlockNotices(Action<string, bool> queueNotice);
+
+        /// <summary>
+        /// 装備枠ごとに、装備しているスキルの定義を返す。空きの枠は null。
+        /// </summary>
+        SkillData[] GetEquippedSkills();
+
+        /// <summary>
+        /// 選んだステージをクリアしたことにする。
+        /// </summary>
+        void CompleteSelectedStage();
     }
 }

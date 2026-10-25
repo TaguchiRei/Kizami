@@ -16,7 +16,7 @@ namespace Kizami.Initialization
     /// 投擲の Adapter は、かけらの Adapter の管理から外せたかけらだけをつかむ。
     /// 操作系ごとの視点の回転のさせ方の違いは、シーンへ置く PlayerMovementAdapterBase の派生が吸収する。
     /// </summary>
-    public sealed class PlayerInitializer : InitializerBase, IInjectable<ITimeScaleController>, IInjectable<GameProgressService>
+    public sealed class PlayerInitializer : InitializerBase, IInjectable<ITimeScaleController>, IInjectable<IGameProgressController>
     {
         private readonly PlayerHealthService _healthService = new();
         private readonly PlayerMovementService _movementService = new();
@@ -68,7 +68,7 @@ namespace Kizami.Initialization
         private SkyBeamService _skyBeamService;
         private FragmentThrowService _fragmentThrowService;
         private ITimeScaleController _timeScaleController;
-        private GameProgressService _progressService;
+        private IGameProgressController _progressService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -186,8 +186,8 @@ namespace Kizami.Initialization
 
         private void Awake()
         {
-            InGameCompositor.TryRegisterContent(_healthService);
-            InGameCompositor.TryRegisterContent(_movementService);
+            InGameCompositor.TryRegisterContent<IPlayerHealthController>(_healthService);
+            InGameCompositor.TryRegisterContent<IPlayerMovementController>(_movementService);
         }
 
         private void OnDestroy()
@@ -206,7 +206,7 @@ namespace Kizami.Initialization
             _timeScaleController = instance;
         }
 
-        public void Inject(GameProgressService instance)
+        public void Inject(IGameProgressController instance)
         {
             _progressService = instance;
         }

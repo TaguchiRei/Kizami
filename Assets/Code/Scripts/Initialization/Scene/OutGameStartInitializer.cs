@@ -12,10 +12,10 @@ namespace Kizami.Initialization
     /// インゲームから戻ってきたとき（選んだステージが残っているとき）は、ステージ選択から始める。
     /// </summary>
     public sealed class OutGameStartInitializer : InitializerBase, IInjectable<IGameSceneController>,
-        IInjectable<GameProgressService>, IInjectable<IOperationSettingController>, IInjectable<InputRebindAdapter>
+        IInjectable<IGameProgressController>, IInjectable<IOperationSettingController>, IInjectable<InputRebindAdapter>
     {
         private IGameSceneController _sceneController;
-        private GameProgressService _progressService;
+        private IGameProgressController _progressService;
         private IGameProgressState _progressState;
         private IOperationSettingController _settingController;
         private IOperationSettingState _settingState;
@@ -113,7 +113,7 @@ namespace Kizami.Initialization
             _sceneController = instance;
         }
 
-        public void Inject(GameProgressService instance)
+        public void Inject(IGameProgressController instance)
         {
             _progressService = instance;
         }

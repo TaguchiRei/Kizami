@@ -15,8 +15,8 @@ namespace Kizami.Initialization
     /// 部隊の意思決定（EnemySquadService）と、敵の生成と体のプール（EnemySpawnAdapter）を生成して繋ぎ、敵を倒した通知（IEnemyDefeatEvents）を EnemyEventBoard へ登録し、敵の数や処理時間を画面に出す配線役。インゲームのシーンへ置く。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
-    public sealed class EnemyInitializer : InitializerBase, IInjectable<PlayerHealthService>,
-        IInjectable<PlayerMovementService>, IInjectable<GameProgressService>
+    public sealed class EnemyInitializer : InitializerBase, IInjectable<IPlayerHealthController>,
+        IInjectable<IPlayerMovementController>, IInjectable<IGameProgressController>
     {
         private readonly StringBuilder _spawnPointText = new();
         private readonly EnemySquadService _squadService = new();
@@ -38,9 +38,9 @@ namespace Kizami.Initialization
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
         [SerializeField] private EnemyEnergyAdapter _energyAdapter;
 
-        private PlayerHealthService _healthService;
-        private PlayerMovementService _movementService;
-        private GameProgressService _progressService;
+        private IPlayerHealthController _healthService;
+        private IPlayerMovementController _movementService;
+        private IGameProgressController _progressService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -152,17 +152,17 @@ namespace Kizami.Initialization
             return _spawnPointText.ToString();
         }
 
-        public void Inject(PlayerHealthService instance)
+        public void Inject(IPlayerHealthController instance)
         {
             _healthService = instance;
         }
 
-        public void Inject(PlayerMovementService instance)
+        public void Inject(IPlayerMovementController instance)
         {
             _movementService = instance;
         }
 
-        public void Inject(GameProgressService instance)
+        public void Inject(IGameProgressController instance)
         {
             _progressService = instance;
         }
