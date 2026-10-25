@@ -94,6 +94,7 @@ namespace Kizami.EngineAdapter
 
         private bool EnsureTower()
         {
+            // 塔は街のシーンにあり、ステージシーンからは Inspector で渡せない為、探す
             if (_tower == null) _tower = FindFirstObjectByType<TowerTopple>();
             return _tower != null;
         }

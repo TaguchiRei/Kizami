@@ -2,6 +2,7 @@ using System.Text;
 using Kizami.Application;
 using Kizami.BlackBoard;
 using Kizami.EngineAdapter;
+using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.Debugging;
@@ -23,6 +24,10 @@ namespace Kizami.Initialization
         [SerializeField, Range(0f, 1f)]
         [Tooltip("撤退する損耗の割合。追跡中の部隊が、満員の人数のうちこの割合以上を失ったらスポーン位置へ撤退する")]
         private float _retreatLossRatio = 0.6f;
+
+        [SerializeField]
+        [Tooltip("切り離されたボクセルの物を引き寄せる吸い寄せ。同じシーンにあるので Inspector で渡す。なければ引き寄せない")]
+        private VoxelAttraction _voxelAttraction;
 
         [SerializeField] private EnemySpawnAdapter _spawnAdapter;
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
@@ -50,7 +55,7 @@ namespace Kizami.Initialization
             _squadService.Initialize(blackBoard, gameObject.scene.buildIndex, _retreatLossRatio);
             _spawnAdapter.Initialize(blackBoard, _fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit,
                 _healthService != null ? _healthService.ApplyDamage : null,
-                _movementService != null ? _movementService.RequestLaunch : null, _squadService.Step);
+                _movementService != null ? _movementService.RequestLaunch : null, _squadService.Step, _voxelAttraction);
             _spawnAdapter.SetOnDefeated(_defeatEvents.Raise);
             if (_progressService != null && _progressService.TryGetSelectedStage(out var stage))
             {

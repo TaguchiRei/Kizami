@@ -1,6 +1,7 @@
 using Kizami.Application;
 using Kizami.BlackBoard;
 using Kizami.EngineAdapter;
+using Kizami.EngineAdapter.Voxel;
 using Kizami.External;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
@@ -19,6 +20,10 @@ namespace Kizami.Initialization
     public sealed class BossInitializer : InitializerBase, IInjectable<PlayerHealthService>,
         IInjectable<PlayerMovementService>, IInjectable<TargetHealthService>
     {
+        [SerializeField]
+        [Tooltip("切り離されたボクセルの物を引き寄せる吸い寄せ。同じシーンにあるので Inspector で渡す。なければ引き寄せない")]
+        private VoxelAttraction _voxelAttraction;
+
         [SerializeField]
         [Tooltip("頭部のレーザーで敵を吸収・撃破する先。なければ敵を巻き込まない")]
         private EnemySpawnAdapter _enemySpawnAdapter;
@@ -128,7 +133,7 @@ namespace Kizami.Initialization
             if (blackBoard.TryGetSceneState<EnemyBoard, IBossBattleState>(out var battleState, this))
             {
                 battleAdapter.Initialize(blackBoard, battleState, battleService.ReportCrystalsCleared,
-                    battleService.ReportActionFinished, battleService.Tick, target);
+                    battleService.ReportActionFinished, battleService.Tick, target, _voxelAttraction);
                 if (boss.TryGetComponent<HealthTarget>(out var healthTarget))
                 {
                     healthTarget.SetOnHitWhileDepleted(battleService.ReportHitWhileDown);

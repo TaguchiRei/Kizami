@@ -2135,6 +2135,7 @@ MonoBehaviour:
   _pauseAdapter: {fileID: 1452220895}
   _fragmentThrowAdapter: {fileID: 1258148392}
   _timerAdapter: {fileID: 219009642}
+  _voxelAttraction: {fileID: 35306855}
   _guideLogMaxCount: 8
   _guideLogLifetime: 5
   _isBrilliantSkillEnabled: 0
@@ -2255,6 +2256,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.EnemyInitializer
   _retreatLossRatio: 0.6
+  _voxelAttraction: {fileID: 35306855}
   _spawnAdapter: {fileID: 1539543158}
   _fragmentOrbAdapter: {fileID: 1946405260}
   _energyAdapter: {fileID: 1579939516}
@@ -3137,6 +3139,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 57fe2b3b426d422b8956c2c9fea01cad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.BossInitializer
+  _voxelAttraction: {fileID: 35306855}
   _enemySpawnAdapter: {fileID: 1539543158}
   _stompsPerRound: 3
   _finalDuration: 20

@@ -80,6 +80,8 @@ namespace Kizami.EngineAdapter
 
         private readonly EnemySquadObservationState _observationState = new();
 
+        private VoxelAttraction _attraction;
+
         [SerializeField]
         [Tooltip("敵の種類ごとの体の設定。種類 1 つにつき 1 件。設定のない種類の敵は出さない")]
         private EnemyKindSettings[] _kindSettings = Array.Empty<EnemyKindSettings>();
@@ -361,9 +363,11 @@ namespace Kizami.EngineAdapter
         /// <param name="applyDamage">敵の攻撃がプレイヤーに当たったときにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
         /// <param name="requestLaunch">プレイヤーを真上へ打ち上げる関数（PlayerMovementService.RequestLaunch）。引数は上向きの打ち出し速度（m/s）</param>
         /// <param name="stepSquads">部隊の命令を決める関数（EnemySquadService.Step）。引数は経過時間（秒）</param>
+        /// <param name="attraction">部隊の中心を渡す吸い寄せ。なければ渡さない</param>
         public void Initialize(IBlackBoard blackBoard, Action<Vector3> spawnOrb, Action<Vector3> emitEnergy, Action<int> applyDamage,
-            Action<float> requestLaunch, Action<float> stepSquads)
+            Action<float> requestLaunch, Action<float> stepSquads, VoxelAttraction attraction)
         {
+            _attraction = attraction;
             _emitEnergy = emitEnergy;
             _stepSquads = stepSquads;
 
@@ -375,6 +379,7 @@ namespace Kizami.EngineAdapter
 
             if (!TryCollectBodyPrefabs()) return;
 
+            // 敵の出し方・ボクセル・建物はステージシーンと街のシーンにあり、インゲームのシーンからは配線できない為、探す
             _spawnSystem = FindAnyObjectByType<EnemySpawnSystem>();
             if (_spawnSystem == null)
             {
@@ -689,7 +694,7 @@ namespace Kizami.EngineAdapter
         private void OnDestroy()
         {
             _squadCenters.Clear();
-            if (VoxelAttraction.Instance != null) VoxelAttraction.Instance.SetSquadCenters(_squadCenters);
+            if (_attraction != null) _attraction.SetSquadCenters(_squadCenters);
 
             if (_crowdRenderers != null)
             {
@@ -845,7 +850,7 @@ namespace Kizami.EngineAdapter
                     IsReturnBlocked = group.IsReturnBlocked
                 });
             }
-            if (VoxelAttraction.Instance != null) VoxelAttraction.Instance.SetSquadCenters(_squadCenters);
+            if (_attraction != null) _attraction.SetSquadCenters(_squadCenters);
 
 
             var slotPoints = _groups.SlotPoints;

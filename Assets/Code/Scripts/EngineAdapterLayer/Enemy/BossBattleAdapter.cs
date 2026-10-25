@@ -89,6 +89,7 @@ namespace Kizami.EngineAdapter
         private Action _reportCrystalsCleared;
         private Action<bool> _reportActionFinished;
         private Action<float> _tick;
+        private VoxelAttraction _attraction;
         private HealthTarget _healthTarget;
         private BossTowerThrow _towerThrow;
         private Transform _target;
@@ -113,10 +114,12 @@ namespace Kizami.EngineAdapter
         /// <param name="reportActionFinished">今の行動を終えたことを報告する関数（BossBattleService.ReportActionFinished）。引数は行動を実際に行えたか</param>
         /// <param name="tick">毎フレーム経過時間を渡す関数（BossBattleService.Tick）。体力の無敵と落ちる塊を数えるかを決め、待機の時間を数え、体力が尽きたかを調べ、最終の体力を減らす</param>
         /// <param name="target">プレイヤー。ダウンで壊す武装を選ぶのに使う</param>
+        /// <param name="attraction">胴体を優先の引き寄せ対象として登録する吸い寄せ。なければ登録しない</param>
         public void Initialize(IBlackBoard blackBoard, IBossBattleState state, Action reportCrystalsCleared,
-            Action<bool> reportActionFinished, Action<float> tick, Transform target)
+            Action<bool> reportActionFinished, Action<float> tick, Transform target, VoxelAttraction attraction)
         {
             _state = state;
+            _attraction = attraction;
             if (_weapons != null)
             {
                 _weaponState.SetCounts(_weapons.CountOf(BossWeaponKind.Outrigger), _weapons.CountOf(BossWeaponKind.Laser),
@@ -138,7 +141,7 @@ namespace Kizami.EngineAdapter
             // 1 周目の着地点は初めから決まっている為、ステージの読み込み中に先読みを済ませる
             PreloadArrivalArea();
             VoxelBuilding.LoadPreloadAreaNow();
-            if (VoxelAttraction.Instance != null) VoxelAttraction.Instance.AddPriorityTarget(this);
+            if (_attraction != null) _attraction.AddPriorityTarget(this);
         }
 
         /// <summary>
@@ -179,7 +182,7 @@ namespace Kizami.EngineAdapter
         private void OnDestroy()
         {
             VoxelBuilding.ClearPreloadArea();
-            if (VoxelAttraction.Instance != null) VoxelAttraction.Instance.RemovePriorityTarget(this);
+            if (_attraction != null) _attraction.RemovePriorityTarget(this);
         }
 
         private void Update()

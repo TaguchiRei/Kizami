@@ -38,6 +38,10 @@ namespace Kizami.Initialization
         [SerializeField] private FragmentThrowAdapter _fragmentThrowAdapter;
         [SerializeField] private StageTimerAdapter _timerAdapter;
 
+        [SerializeField]
+        [Tooltip("切り離されたボクセルの物を引き寄せる吸い寄せ。同じシーンにあるので Inspector で渡す。なければ引き寄せない")]
+        private VoxelAttraction _voxelAttraction;
+
         [SerializeField, Min(1)]
         [Tooltip("案内のログを持つ件数の上限。超えたら古いものから消える")]
         private int _guideLogMaxCount = 8;
@@ -80,7 +84,8 @@ namespace Kizami.Initialization
             _flowService = new StageFlowService(blackBoard, stage, _timeScaleController, _inputController,
                 _progressService != null ? _progressService.CompleteSelectedStage : null, gameObject.scene.buildIndex);
             _targetHealthService.Register(blackBoard, gameObject.scene.buildIndex);
-            _stageClearAdapter.Initialize(_flowService.ReportTargets, stage.TargetGimmickIds, stage.AttractsToTargets);
+            _stageClearAdapter.Initialize(_flowService.ReportTargets, stage.TargetGimmickIds, stage.AttractsToTargets,
+                _voxelAttraction);
             ConnectHealthTarget(stage);
             _timerAdapter.Initialize(_flowService.Tick);
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
@@ -143,6 +148,8 @@ namespace Kizami.Initialization
         {
             var tower = FindFirstObjectByType<TowerTopple>();
             if (tower == null) return;
+
+            tower.SetCrushAdapter(_voxelDestructionAdapter);
 
             var movementAdapter = FindFirstObjectByType<PlayerMovementAdapterBase>();
             if (movementAdapter == null)

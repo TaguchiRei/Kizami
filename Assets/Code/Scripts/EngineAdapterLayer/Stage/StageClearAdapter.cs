@@ -17,6 +17,7 @@ namespace Kizami.EngineAdapter
         private readonly List<IDestructionTarget> _targets = new();
 
         private Action<int, int> _onTargetsChanged;
+        private VoxelAttraction _attraction;
         private int _destroyedCount = -1;
 
         /// <summary> ステージシーンにある破壊対象 </summary>
@@ -31,11 +32,15 @@ namespace Kizami.EngineAdapter
         /// <param name="onTargetsChanged">破壊済みの数が変わったときに呼ぶ処理。引数は破壊対象の数と破壊済みの数</param>
         /// <param name="targetGimmickIds">クリアの対象にするギミックの ID。末尾の * は前方一致。空なら、見つけた破壊対象をすべて対象にする</param>
         /// <param name="attractsToTargets">対象を吸い寄せの優先の引き寄せ対象にするか</param>
-        public void Initialize(Action<int, int> onTargetsChanged, IReadOnlyList<string> targetGimmickIds, bool attractsToTargets)
+        /// <param name="attraction">対象を登録する吸い寄せ。なければ登録しない</param>
+        public void Initialize(Action<int, int> onTargetsChanged, IReadOnlyList<string> targetGimmickIds, bool attractsToTargets,
+            VoxelAttraction attraction)
         {
             _onTargetsChanged = onTargetsChanged;
             SetAttractionTargets(false);
+            _attraction = attraction;
             _targets.Clear();
+            // 破壊対象はステージシーンと街のシーンにあり、インゲームのシーンからは配線できない為、探す
             _targets.AddRange(FindObjectsByType<DestructionTarget>(FindObjectsSortMode.None));
             _targets.AddRange(FindObjectsByType<VoxelBuildingDestructionTarget>(FindObjectsSortMode.None));
             _targets.AddRange(FindObjectsByType<CoreSystem>(FindObjectsSortMode.None));
@@ -117,15 +122,14 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void SetAttractionTargets(bool isAttracting)
         {
-            var attraction = VoxelAttraction.Instance;
-            if (attraction == null) return;
+            if (_attraction == null) return;
 
             foreach (var target in _targets)
             {
                 if (target is not IAttractionTarget attractionTarget) continue;
 
-                if (isAttracting) attraction.AddPriorityTarget(attractionTarget);
-                else attraction.RemovePriorityTarget(attractionTarget);
+                if (isAttracting) _attraction.AddPriorityTarget(attractionTarget);
+                else _attraction.RemovePriorityTarget(attractionTarget);
             }
         }
 

@@ -114,6 +114,15 @@ namespace Kizami.EngineAdapter
             PrepareUpperHull();
         }
 
+        /// <summary>
+        /// 倒れて止まった塔の下を削る Adapter を受け取る。渡さなければ削らない。
+        /// </summary>
+        /// <param name="crushAdapter">ボクセルを削る Adapter</param>
+        public void SetCrushAdapter(VoxelDestructionAdapter crushAdapter)
+        {
+            _crushAdapter = crushAdapter;
+        }
+
         private void Update()
         {
             StopWhenSettled();
@@ -123,7 +132,6 @@ namespace Kizami.EngineAdapter
             {
                 _hasReleasedSpawns = true;
                 ReleaseTopFaceSpawns();
-                _crushAdapter = FindFirstObjectByType<VoxelDestructionAdapter>();
                 if (_crushAdapter != null) _crushIndex = 0;
             }
 

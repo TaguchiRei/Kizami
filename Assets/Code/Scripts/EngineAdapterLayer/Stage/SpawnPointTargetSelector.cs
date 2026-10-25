@@ -12,6 +12,7 @@ namespace Kizami.EngineAdapter
 
         protected override void OnInitialize()
         {
+            // スポーン位置は街のシーンにあり、ステージシーンからは Inspector で渡せない為、探す
             _spawnPoints = FindObjectsByType<EnemySpawnPoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         }
 
