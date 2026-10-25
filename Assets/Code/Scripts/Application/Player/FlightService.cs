@@ -13,7 +13,7 @@ namespace Kizami.Application
     public sealed class FlightService
     {
         private readonly FlightPromptState _state = new();
-        private readonly PlayerMovementService _movementService;
+        private readonly IPlayerMovementController _movementService;
         private readonly float _flightSpeed;
         private readonly Func<Vector3> _getBodyCenter;
         private readonly Action<Vector3, float> _carveExplosion;
@@ -26,7 +26,7 @@ namespace Kizami.Application
         /// <param name="getBodyCenter">プレイヤーの体の中心（ワールド空間）を返す関数。飛び始める位置に使う</param>
         /// <param name="carveExplosion">中心と半径を受け取り、その球のボクセルを削る関数</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
-        public FlightService(IBlackBoard blackBoard, PlayerMovementService movementService, float flightSpeed,
+        public FlightService(IBlackBoard blackBoard, IPlayerMovementController movementService, float flightSpeed,
             Func<Vector3> getBodyCenter, Action<Vector3, float> carveExplosion, int sceneId)
         {
             _movementService = movementService;

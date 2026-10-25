@@ -22,8 +22,8 @@ namespace Kizami.Application
 
         private readonly SkillData[] _slots = new SkillData[SLOT_COUNT];
         private readonly SkillSlotState _slotState = new(SLOT_COUNT);
-        private readonly ChargeService _chargeService;
-        private readonly PlayerEnhanceService _enhanceService;
+        private readonly IChargeController _chargeService;
+        private readonly IPlayerEnhanceController _enhanceService;
         private readonly Action<float, float> _onBeam;
         private readonly Action<float> _onExplosion;
         private readonly Action<int> _onHeal;
@@ -31,13 +31,13 @@ namespace Kizami.Application
         private readonly Action<float, float, float, float> _onSweep;
         private readonly Action<Vector3, Vector3, float, Vector3, float> _carveRushPath;
         private readonly Func<Bounds> _getBodyBounds;
-        private readonly PlayerMovementService _movementService;
+        private readonly IPlayerMovementController _movementService;
         private readonly Func<float, bool> _onMoundBegin;
         private readonly Action _onMoundEnd;
         private readonly Action<string> _playArmAnimation;
         private readonly Func<bool> _canAct;
         private readonly Action _onActed;
-        private readonly SkyBeamService _skyBeamService;
+        private readonly ISkyBeamController _skyBeamService;
         private readonly List<IDisposable> _subscriptions = new();
         private readonly PlayerActionEvents _actionEvents;
         private readonly IPlayerHealthState _healthState;
@@ -64,11 +64,11 @@ namespace Kizami.Application
         /// <param name="actionEvents">スキルの発動とチャージの消費を流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
-            ChargeService chargeService, PlayerEnhanceService enhanceService, Action<float, float> onBeam,
+            IChargeController chargeService, IPlayerEnhanceController enhanceService, Action<float, float> onBeam,
             Action<float> onExplosion, Action<int> onHeal, Action<float, float, float> onBomb, Action<float, float, float, float> onSweep,
             Action<Vector3, Vector3, float, Vector3, float> carveRushPath, Func<Bounds> getBodyBounds, Func<float, bool> onMoundBegin,
-            Action onMoundEnd, PlayerMovementService movementService, Func<bool> canAct, Action onActed,
-            Action<string> playArmAnimation, SkyBeamService skyBeamService, PlayerActionEvents actionEvents, int sceneId)
+            Action onMoundEnd, IPlayerMovementController movementService, Func<bool> canAct, Action onActed,
+            Action<string> playArmAnimation, ISkyBeamController skyBeamService, PlayerActionEvents actionEvents, int sceneId)
         {
             _skyBeamService = skyBeamService;
             _actionEvents = actionEvents;

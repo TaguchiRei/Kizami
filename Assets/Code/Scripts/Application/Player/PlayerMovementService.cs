@@ -14,7 +14,7 @@ namespace Kizami.Application
     /// 入力イベントと打ち上げの要求では値を記録し、判定と State の更新は Step で行う。
     /// 物理への反映と加減速の補間は PlayerMovementAdapterBase が行う。
     /// </summary>
-    public sealed class PlayerMovementService : IDisposable
+    public sealed class PlayerMovementService : IPlayerMovementController, IDisposable
     {
         private readonly PlayerMovementState _state = new();
         private readonly List<IDisposable> _subscriptions = new();
@@ -573,5 +573,51 @@ namespace Kizami.Application
             _subscriptions.Clear();
             _contactStateWaiter?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// プレイヤーの移動に、突進・飛び移り・言葉をつかんでいる間・羽天轟号の間を伝える操作面。スキル・羽天轟号・飛び移り・言葉の投擲が使う。
+    /// </summary>
+    public interface IPlayerMovementController
+    {
+        /// <summary> 言葉をつかんでいるか </summary>
+        bool IsHoldingWord { get; }
+
+        /// <summary> 突進（と飛び移り）を始められるか </summary>
+        bool CanRush { get; }
+
+        /// <summary>
+        /// 言葉をつかんでいるかを設定する。
+        /// </summary>
+        /// <param name="isHolding">つかんでいるか</param>
+        void SetHoldingWord(bool isHolding);
+
+        /// <summary>
+        /// 羽天轟号を撃っているかを設定する。
+        /// </summary>
+        /// <param name="isActive">撃っているか</param>
+        void SetSkyBeamActive(bool isActive);
+
+        /// <summary>
+        /// 突進する向きを返す。
+        /// </summary>
+        Vector3 GetRushDirection();
+
+        /// <summary>
+        /// 次の Step で、direction の向きへ決めた距離を決めた時間で突進するよう要求する。
+        /// </summary>
+        /// <param name="direction">突進の向き（上下を含む）</param>
+        /// <param name="distance">進む距離（m）</param>
+        /// <param name="duration">所要時間（秒）</param>
+        void RequestRush(Vector3 direction, float distance, float duration);
+
+        /// <summary>
+        /// 次の Step で、決めた時間で displacement だけ一直線に飛ぶよう要求する。
+        /// </summary>
+        /// <param name="displacement">飛ぶ向きと距離（ワールド空間）</param>
+        /// <param name="duration">所要時間（秒）</param>
+        /// <param name="followDisplacement">続けて飛ぶ向きと距離。続けないときはゼロ</param>
+        /// <param name="followDuration">続けて飛ぶ所要時間（秒）</param>
+        void RequestFlight(Vector3 displacement, float duration, Vector3 followDisplacement, float followDuration);
     }
 }

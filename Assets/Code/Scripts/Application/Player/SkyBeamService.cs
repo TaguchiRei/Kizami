@@ -9,10 +9,10 @@ namespace Kizami.Application
     /// 照射中の判定のたびにチャージを使い、足りなければ止める。
     /// 時間の進行（上昇・チャージ・判定の間隔・戻り）は実行役が持ち、判定の前に TryContinue で続けてよいかを尋ね、戻り終えたら OnFinished で知らせる。
     /// </summary>
-    public sealed class SkyBeamService
+    public sealed class SkyBeamService : ISkyBeamController
     {
-        private readonly PlayerMovementService _movementService;
-        private readonly ChargeService _chargeService;
+        private readonly IPlayerMovementController _movementService;
+        private readonly IChargeController _chargeService;
         private readonly PlayerActionEvents _actionEvents;
         private readonly Action<float, float, float, float, float> _onBegin;
         private readonly Action _onStop;
@@ -33,7 +33,7 @@ namespace Kizami.Application
         /// <param name="actionEvents">判定ごとのチャージの消費を流す先</param>
         /// <param name="onBegin">上昇を始める関数。引数は上昇先のワールド高度（Y）、上昇と戻りの所要時間（秒）、判定の間隔（秒）、判定で壊す球の半径（m）、体力制の対象の体力を 1 秒あたりに減らす量</param>
         /// <param name="onStop">止めて、発動した地点へ戻る関数</param>
-        public SkyBeamService(PlayerMovementService movementService, ChargeService chargeService,
+        public SkyBeamService(IPlayerMovementController movementService, IChargeController chargeService,
             PlayerActionEvents actionEvents, Action<float, float, float, float, float> onBegin, Action onStop)
         {
             _movementService = movementService;
@@ -95,5 +95,28 @@ namespace Kizami.Application
             _isStopping = false;
             _movementService.SetSkyBeamActive(false);
         }
+    }
+
+    /// <summary>
+    /// 羽天轟号を始める・止める操作面。スキルが使う。
+    /// </summary>
+    public interface ISkyBeamController
+    {
+        /// <summary> 撃っているか </summary>
+        bool IsActive { get; }
+
+        /// <summary> 撃ち始められるか </summary>
+        bool CanBegin { get; }
+
+        /// <summary>
+        /// 撃ち始める。
+        /// </summary>
+        /// <param name="effect">羽天轟号の効果</param>
+        void Begin(SkyBeamEffect effect);
+
+        /// <summary>
+        /// 撃つのをやめる。
+        /// </summary>
+        void Stop();
     }
 }

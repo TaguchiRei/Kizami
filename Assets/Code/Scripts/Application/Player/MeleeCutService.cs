@@ -23,7 +23,8 @@ namespace Kizami.Application
         private readonly MeleeCutState _state = new();
         private readonly IOperationSettingState _settingState;
         private readonly PlayerParameterData _parameters;
-        private readonly PlayerEnhanceService _enhanceService;
+        private readonly IPlayerEnhanceController _enhanceService;
+        private readonly IPlayerEnhanceState _enhanceState;
         private readonly Action<float, float, DamageType> _onSwing;
         private readonly Func<bool> _tryUseCut;
         private readonly Func<bool> _isActionBlocked;
@@ -38,14 +39,14 @@ namespace Kizami.Application
 
         /// <param name="blackBoard">MeleeCutState の登録先と、入力・回転角度の設定の取得元</param>
         /// <param name="parameters">攻撃間隔の取得元</param>
-        /// <param name="enhanceService">切断にかかる強化の取得元</param>
+        /// <param name="enhanceService">切断にかかる強化を使う操作面</param>
         /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）、範囲に掛ける倍率、ダメージの種類</param>
         /// <param name="tryUseCut">振る直前に呼び、振れる回数を1回使う関数。false なら振らない</param>
         /// <param name="isActionBlocked">造山で盛っている間か、羽天轟号の使用中か。その間は通常攻撃もスキルも出せない</param>
         /// <param name="actionEvents">振ったことを流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public MeleeCutService(IBlackBoard blackBoard, PlayerParameterData parameters,
-            PlayerEnhanceService enhanceService, Action<float, float, DamageType> onSwing, Func<bool> tryUseCut,
+            IPlayerEnhanceController enhanceService, Action<float, float, DamageType> onSwing, Func<bool> tryUseCut,
             Func<bool> isActionBlocked, PlayerActionEvents actionEvents, int sceneId)
         {
             _actionEvents = actionEvents;
@@ -60,6 +61,8 @@ namespace Kizami.Application
                 !blackBoard.TryGetGameState<AppBoard, IOperationSettingState>(out _settingState, this)) return;
 
             playerBoard.RegisterSceneState<IMeleeCutState>(_state, sceneId);
+            // PlayerEnhanceState は、先に作る PlayerEnhanceService が登録している
+            playerBoard.TryGetSceneState(out _enhanceState, out _);
 
             // BossBattleState はボスのいるシーンでだけ、ボスの Initializer が登録するので、登録を待ち受けて拾う
             if (blackBoard.TryGetBoard<EnemyBoard>(out var enemyBoard, this))
@@ -87,7 +90,8 @@ namespace Kizami.Application
             if (_isActionBlocked != null && _isActionBlocked()) return false;
 
 
-            _enhanceService.IsActive(EnhanceKind.Speed,  out var intervalScale);
+            var intervalScale = 1f;
+            _enhanceState?.TryGet(EnhanceKind.Speed, out intervalScale, out _);
             return Time.unscaledTimeAsDouble - _lastActionTime >= _parameters.MeleeAttackInterval * intervalScale;
         }
 

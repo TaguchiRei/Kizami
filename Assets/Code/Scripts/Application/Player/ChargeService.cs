@@ -8,7 +8,7 @@ namespace Kizami.Application
     /// チャージ量を管理するユースケース。
     /// 吸収したかけらの数と、崩落で倒した敵の数に、それぞれ1つあたりのチャージ量を掛けて加え、スキルの発動で消費する。
     /// </summary>
-    public sealed class ChargeService
+    public sealed class ChargeService : IChargeController
     {
         private readonly ChargeState _state;
         private readonly int _chargePerFragment;
@@ -73,5 +73,18 @@ namespace Kizami.Application
             _state.SetCurrent(_state.Current - amount);
             return true;
         }
+    }
+
+    /// <summary>
+    /// チャージを消費する操作面。スキル・スローモード・羽天轟号が使う。
+    /// </summary>
+    public interface IChargeController
+    {
+        /// <summary>
+        /// 足りていれば amount だけ消費する。
+        /// </summary>
+        /// <param name="amount">消費する量</param>
+        /// <returns>消費できたら true</returns>
+        bool TryConsume(int amount);
     }
 }
