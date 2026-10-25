@@ -89,6 +89,7 @@
 
 - #4・#6・#7・#8 は案のとおり
 - #5：腕のアニメーションは出来事の購読に分けない。分けてもクラスが増えるだけで、分ける理由がない為。通常攻撃の腕の振りは `MeleeCutAdapter` が腕の Adapter を持って自分で振らせ、スキルの腕のアニメーションは `SkillService` の発動の通知を腕の Adapter へ直接つなぐ。どちらも配線の相手は 1 つになる
+  - 2026-10-25 に見直した：スキルの腕のアニメーションは、ほかのスキルの効果と合わせて、発動の出来事を購読する形にする（[後半の計画書](Section40_ArchitectureRefactoring_Part2.md)の決定 #17）。スキルの配線相手が 5 クラスになっていた為。通常攻撃の腕の振りは今のまま
 
 ## コミット5（ボスの行動の順番）の詳細計画（2026-10-24）
 
@@ -225,6 +226,7 @@
   - `BossBattleService` の `UpdateDamageRules` は、飛来・猶予の間は `Invincible`、猶予のあとは `Normal` を `TargetHealthService` に指示し、落ちる塊を数えるかも `TargetHealthService` に指示する
   - `BossBattleState.IsInvulnerable`・`CountsCollapse`・`SetDamageRules` と、Adapter の `ApplyDamageRules` を消す（コミット6 で足したものを戻す形）
 - 量を決めたダメージ（羽天轟号・倒れた塔）は、量を攻撃側が持ったまま `Direct` で報告する。量が攻撃ごとの設定で、対象ごとの設定ではない為
+  - 2026-10-25 に見直した：この 2 つの量も ExternalLayer の設定へ移す（[後半の計画書](Section40_ArchitectureRefactoring_Part2.md)の決定 #23）。手本の「ルールの値は ExternalLayer」と揃える為
 
 ### 挙動が変わる箇所
 
@@ -287,6 +289,10 @@ asmdef の参照、Board のキーの型、Application・BlackBoardLayer・Exter
 | 14 | 操作面に読み取り（`IsActive`・`IsHoldingWord`・`CanRush`・`IsDepleted` など）を含めるか | 対応する State の Getter に同じ値があれば、そちらを読む。なければ操作面に含める。読み取りのためだけに State へ値を足すことはしない |
 | 15 | 操作面の分け方 | 実装する Service 1 つにつき 1 つにする。使う側ごとにさらに細かく分けることはしない（型が増えるだけの為） |
 | 16 | `StageDebugInitializer` の置き場所 | InGame のシーンの `Stage` と同じ GameObject に置く。置いたあとに `UsefulToolkit/Generate/Scene Compositor` で作り直す（ユーザーの作業） |
+
+## 後半の作業計画
+
+コミット9〜14 のあとにユーザーが改めて調べた結果をもとに、残った原則違反の整理（コミット15〜24）を [Section40_ArchitectureRefactoring_Part2.md](Section40_ArchitectureRefactoring_Part2.md) に分けて書いた。続きの作業計画のコミット15（ドキュメント）は、後半のコミット23 に含める。
 
 ## 追加：崩壊ステージの改修と吸い寄せ（2026-10-24、ユーザー）
 
