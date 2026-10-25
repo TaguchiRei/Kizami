@@ -196,7 +196,7 @@
 |---|---|---|
 | 12 | 無敵をこのコミットで State に置くか | 置く。コミット7 で `TargetHealthMode.Invincible` にまとめるときに、`BossBattleService` が `TargetHealthService` へ無敵を指示する形へ書き換える。先にコミット7 を行えば書き換えは 1 回で済むが、コミット7 は対象すべての体力に関わり大きいので、ボスの判断を移すことを先に済ませる |
 
-## コミット7（体力を減らす量）の詳細計画（2026-10-24 案。ユーザーの確認待ち）
+## コミット7（体力を減らす量）の詳細計画（2026-10-24。#13 は案のとおり）
 
 ### 今の分担
 
@@ -244,6 +244,49 @@
 | 13 | 対象ごとの量の置き場所 | `TargetDamageSettings`（Serializable、通常攻撃・スキル・落ちる塊 1m³ の 3 つ）を作り、`StageData` に持たせる。体力の対象は 1 ステージに 1 つなので、ステージの設定として置ける。`StageInitializer.ConnectHealthTarget` が `Setup` に渡す。値はボスのステージに 0.5 / 1 / 1、崩壊のステージに 0.5 / 1 / 2 を写す。別案は、値を `HealthTarget` に残して Initializer が読んで渡す形で、アセットは触らずに済むが、ルールの値が EngineAdapterLayer に残る |
 
 asmdef の参照、Board のキーの型、Application・BlackBoardLayer・ExternalLayer にライフサイクルがないことは確認済みで、問題はない。
+
+## 続きの作業計画（2026-10-25 案。ユーザーの確認待ち）
+
+コミット1〜8 のあとで、ユーザーの指摘により、完了条件に照らして残っている問題が 4 つ見つかった。4 つとも次の案で直すことに決まった（2026-10-25、ユーザー）。
+
+| # | 問題 | 直し方 |
+|---|---|---|
+| A | `StageInitializer` に判断が残っている（分岐 35 個。ほかの Initializer は 13 個以下） | 体力制の対象の選び方は `StageClearAdapter`、デバッグの文字列はデバッグ用の Initializer、開始位置へ置く処理は `PlayerStartPoint` へ移す。参照が取れないときのエラーログと、既定のステージへの切り替えは残す |
+| B | Service が別の Service を具象型で持つ（7 つの Service、11 か所） | 使う操作だけの狭いインターフェースを BlackBoardLayer に定義し、Initializer がそれを渡す |
+| C | EngineAdapter の検索とシングルトン | 同じシーンにある物は Initializer から渡す。別のシーンにある物の検索と、実行中に作られる物が使う `Instance` は残し、理由をサマリーに書く |
+| D | ボスの Adapter が、武装の数で行動を飛ばすかを決めている | 武装の残りの数を `BossWeaponState` に Adapter が書き、飛ばすかは `BossBattleService` が決める |
+
+### コミットの分け方
+
+| コミット | 作業 | 内容 | 確かめること |
+|---|---|---|---|
+| 9 | A | `IsStageTarget` と `ConnectHealthTarget` の選び方を `StageClearAdapter` へ移す（`KeepGimmicks` と同じ突き合わせを使う）。Initializer は見つかった `HealthTarget` を `TargetHealthService` へつなぐだけにする。`PlacePlayerAtStartPoint` を `PlayerStartPoint` へ移す | ボス・崩壊のステージで体力のゲージが出て減る。開始位置の目印のあるステージで、その位置と向きから始まる |
+| 10 | A | `GetTargetText` を `StageDebugInitializer`（新規）へ移す。`BossDebugInitializer` と同じ形 | デバッグ表示の「Stage」が前と同じに出る |
+| 11 | D | `BossWeaponState`（新規）に、種類ごとの残りの数と、壊せる武装が残っているかを持たせる。`BossBattleAdapter` が書き、`BossBattleService` が読んで、足踏み（アウトリガー）・下部レーザー・降下フィニッシャーがないときに行動を飛ばし、壊せる武装がないときにダウンを終える。Adapter の `ReportActionFinished(false)` は、実行してみて行えなかったとき（カメラがない等）だけにする | ボス戦を最初から最後まで通す。武装を壊したあとの周で、壊れた武装の行動が飛ばされる |
+| 12 | B | プレイヤーの Service の操作面を作る：チャージの消費（`ChargeService`。使う側 `SkillService`・`SlowModeService`・`SkyBeamService`）、強化（`PlayerEnhanceService`。`SkillService`・`MeleeCutService`）、移動（`PlayerMovementService`。`SkillService`・`SkyBeamService`・`FlightService`・`FragmentThrowService`）、羽天轟号（`SkyBeamService`。`SkillService`） | スキル・スロー・羽天轟号・飛び移り・言葉をつかむ・通常攻撃の強化が前と同じに動く |
+| 13 | B | ボスの体力の操作面を作る（`TargetHealthService`。`BossBattleService`） | ボス戦で体力の減り方・無敵・最終の減り方が前と同じ |
+| 14 | C | EngineAdapter の `Find〜`（10 ファイル）と `Instance`（`SoundPlayer`・`VoxelAttraction`・`GlassShardPool`）を 1 つずつ調べ、同じシーンにある物は Initializer から渡す。残すものはサマリーに理由を書く | 変えた Adapter のあるステージを一通り遊ぶ |
+| 15 | ― | 全体計画書の手本（操作面のインターフェース、Adapter が書く State の例）と、この計画書の状態を直す。40-7（Notion とスキルへの反映案）を出す | ― |
+
+### 新しく作る型と、今の区間で使う利用者
+
+| 型 | 層 | 利用者 |
+|---|---|---|
+| `StageDebugInitializer` | Initialization | 置く：InGame のシーン。読む：`IStageFlowState`・`StageClearAdapter.Targets` |
+| `BossWeaponState`（と Getter） | BlackBoardLayer | 書く：`BossBattleAdapter`。読む：`BossBattleService` |
+| チャージの消費の操作面 | BlackBoardLayer | 実装：`ChargeService`。使う：`SkillService`・`SlowModeService`・`SkyBeamService` |
+| 強化の操作面 | BlackBoardLayer | 実装：`PlayerEnhanceService`。使う：`SkillService`・`MeleeCutService` |
+| 移動の操作面 | BlackBoardLayer | 実装：`PlayerMovementService`。使う：`SkillService`・`SkyBeamService`・`FlightService`・`FragmentThrowService` |
+| 羽天轟号の操作面 | BlackBoardLayer | 実装：`SkyBeamService`。使う：`SkillService`（利用者は 1 つだが、規約で分ける） |
+| ボスの体力の操作面 | BlackBoardLayer | 実装：`TargetHealthService`。使う：`BossBattleService`（利用者は 1 つだが、規約で分ける） |
+
+### 決めること
+
+| # | 項目 | 案 |
+|---|---|---|
+| 14 | 操作面に読み取り（`IsActive`・`IsHoldingWord`・`CanRush`・`IsDepleted` など）を含めるか | 対応する State の Getter に同じ値があれば、そちらを読む。なければ操作面に含める。読み取りのためだけに State へ値を足すことはしない |
+| 15 | 操作面の分け方 | 実装する Service 1 つにつき 1 つにする。使う側ごとにさらに細かく分けることはしない（型が増えるだけの為） |
+| 16 | `StageDebugInitializer` の置き場所 | InGame のシーンの `Stage` と同じ GameObject に置く。置いたあとに `UsefulToolkit/Generate/Scene Compositor` で作り直す（ユーザーの作業） |
 
 ## 追加：崩壊ステージの改修と吸い寄せ（2026-10-24、ユーザー）
 

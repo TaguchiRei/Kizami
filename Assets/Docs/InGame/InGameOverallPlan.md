@@ -41,6 +41,10 @@
 | DI で操作面を渡す | [GameSceneInitializer](../../Code/Scripts/Initialization/Scene/GameSceneInitializer.cs)、[PlayerInputRouteInitializerBase](../../Code/Scripts/Initialization/Input/PlayerInputRouteInitializerBase.cs) | 渡す側は `TryRegisterContent`、受け取る側は `IInjectable<T>` |
 | Application と EngineAdapter の直接配線 | [PlayerInitializer](../../Code/Scripts/Initialization/Player/PlayerInitializer.cs) が `PlayerMovementService.Step` を `PlayerMovementAdapterBase.Initialize` に渡す | 毎ステップ変わる値（視線の向き、経過時間）は引数で渡し、結果（打ち出し速度）は戻り値で返す。続く状態は State で渡す |
 | EngineAdapter が持つ State | [PlayerContactState](../../Code/Scripts/BlackBoardLayer/Player/Runtime/PlayerContactState.cs) | 物理の判定の結果を、物理ステップの後に Adapter が書く。チラつきは Adapter 側で抑える |
+| 複数の Service が受け取る出来事 | [EnemyEventBoard](../../Code/Scripts/BlackBoardLayer/Enemy/Runtime/EnemyEventBoard.cs)・[EnemyDefeatEvents](../../Code/Scripts/BlackBoardLayer/Enemy/Runtime/EnemyDefeatEvents.cs)（撃破） | 状態を持たない出来事を受け取る相手が 2 つ以上なら、Initializer で配らず EventBoard に流す。流すのは Adapter、購読するのは各 Service。受け取る相手が 1 つなら直接配線のままにする（区間40） |
+| Service が決めた行動を Adapter が実行する | [BossBattleService](../../Code/Scripts/Application/Enemy/BossBattleService.cs)・[BossBattleState](../../Code/Scripts/BlackBoardLayer/Enemy/Runtime/BossBattleState.cs)・[BossBattleAdapter](../../Code/Scripts/EngineAdapterLayer/Enemy/BossBattleAdapter.cs) | 次に何をするか（行動の順番・回数・待機）は Service が決めて State に書く。Adapter は今の行動を 1 つ実行し、終わったら行えたかを報告する。同じ行動が続いても新しい指示と分かるよう、行動を設定した回数も State に持つ（区間40） |
+| Adapter が検出し、Service が量を決める | [HealthTarget](../../Code/Scripts/EngineAdapterLayer/Stage/HealthTarget.cs) → [TargetHealthService.ReportHit](../../Code/Scripts/Application/Stage/TargetHealthService.cs) | Adapter は当たりの種類と大きさだけを報告し、減らす量・無敵・数えるかは Service が決める（区間40） |
+| ルールの値 | [BossBattleSettings](../../Code/Scripts/ExternalLayer/Stage/BossBattleSettings.cs)（`BossInitializer` が持つ）、[TargetDamageSettings](../../Code/Scripts/ExternalLayer/Stage/TargetDamageSettings.cs)（`StageData` が持つ） | 回数・間隔・量などルールの値は、Adapter の SerializeField に置かず、ExternalLayer の Serializable にまとめて Service に渡す。攻撃 1 つの実行の中身（武装ごとのクールタイム 等）は Adapter に残してよい（区間40） |
 
 ### 守ること
 
@@ -85,7 +89,7 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-15 時点。区間17・18・19・20 の完了まで。区間21 以降の成果はまだ書き足していない）
+## 3. 現状（2026-10-15 時点。区間17・18・19・20 の完了まで。区間21〜39 の成果はまだ書き足していない。区間40 の整理は「層の責務の整理」の行だけ足した）
 
 | 分野 | 状態 |
 |---|---|
@@ -115,6 +119,7 @@
 | ディフェンダーのバリア | あり（区間13・39）。プレイヤーとディフェンダーの水平距離が 80 m 以内の間、`EnemyBarriers` が `EnemyGroup.BarrierTimer` を進め（近いほど速く、10 m 以内で 4 倍。20 秒で張る）、範囲を出るとタイマーを戻してバリアを解く。壊れたバリアは張り直さない。耐久値は、バリアより一回り大きい球のシェーダー（`BarrierDurability`）で、四角の帯・頭頂部の三角形・台形として見せ、バリア本体は `BarrierBody` で六角形の格子にする。攻撃が当たると `HitChromaticAberration` が色収差を掛ける。割れると、砕いた破片（`GlassShardPool` の Barrier 種）が飛ぶ。装甲のパネルが壊れるときも、同じ仕組みの Armor 種の破片が飛ぶ |
 | ダメージタイプと判定の窓口 | あり（区間18）。`DamageType`（BlackBoard、Flags の enum：攻撃・破壊・粉砕）を攻撃が持ち、装甲への効き方は `ArmorPanel.ApplyDamage` の 1 か所で決める（粉砕を含めば一撃、攻撃か破壊を含めば耐久値を 1 減らす） |
 | スキル | あり（区間8）。1 キーで前方ビーム（消費 30。カメラから視線の向きへ半径 1m・長さ 30m のカプセルで削り、壁を貫通する）、2 キーで自分中心の爆発（消費 50。カメラの位置を中心に半径 4m の球で削る）。`SkillData`（External）を、アウトゲームで選んだ装備（`GameProgressState`。アウトゲームを通さずに始めたときは `PlayerInitializer` の Inspector の 3 枠）から受け取り、`SkillService` が入力を受けてチャージを消費し、`VoxelDestructionAdapter` の `CarveBeam` / `CarveExplosion` を呼ぶ。チャージが足りなければ発動も消費もしない。クールタイムと見た目の演出はない。スキルは敵に当たらない（Enemy のレイヤーを除いて削る）。区間18で、回復（`SkillEffect.Heal`）と強化型 5 種（ボクセル破壊・シルブレ・範囲アップ・速さアップ・かけらの爆発。`PlayerEnhanceService` が実時間か攻撃の回数で切れる効果を持つ）を足し、HUD にスキルごとのアイコンと可・不、チャージの数値を出した。HUD の表示は、区間19の `StageHudAdapter`（uGUI）へ移した。アイコンは `StageHudAdapter` が `ISkillSlotState.GetIcon` から読む（区間20） |
+| 層の責務の整理 | 区間40（2026-10-24）で、Initializer に残っていた判断を Application と Adapter へ移した。撃破は `EnemyEventBoard` の出来事で、流れ・案内・Brilliant Skill の 3 つの Service が購読する。言葉の着弾の扱いは `BrilliantSkillService`、突進の形は `SkillService`、飛び移りの上昇・下降は `FlightService`、解放の演出の判断は `GameProgressService`、通常攻撃の腕の振りは `MeleeCutAdapter` が持つ。ボスの行動の順番・無敵・ダウン中に武装を壊す判断は `BossBattleService`、ボスの体力を減らす量は `TargetHealthService`（値は `StageData.TargetDamage`）が持ち、無敵は `TargetHealthMode.Invincible` だけ。残した例外：切断の結果を Adapter から Adapter へ渡す `PlayerInitializer.DistributeCutResults`、吸い寄せ（`VoxelAttraction`）の `Instance` 参照 |
 | 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブ（`Enemy/AttakkerEnemy.prefab` など。区間4 で作った `Enemy/AttackerEnemy.prefab` は除く）は旧構成のもの。旧 FBX `AttakkerEnemy.fbx` と区間4 の `AttackerEnemy.fbx` は、区間10の途中でユーザーが消した。旧構成の `AttakkerEnemy.prefab` と開発用のシーン（`ShaderTest`、`VoxelModelTest`）は、参照が切れたまま。`Assets/Art/` は区間4 から git の対象。`Test/InGame.unity` は Build Settings から外してあり、`BuildScenes.InGame` は新しい `Master/InGame` を指す |
 
 ## 4. 進め方

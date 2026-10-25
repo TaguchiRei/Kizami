@@ -10,6 +10,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// ステージシーンの破壊対象（DestructionTarget・CoreSystem・TutorialDummy）を集め、破壊済みの数が変わるたびに、破壊対象の数と破壊済みの数を通知する Adapter。インゲームのシーンへ置く。
     /// クリアの判定は通知を受ける Application 側が行う。指定があれば、対象を吸い寄せ（VoxelAttraction）の優先の引き寄せ対象にする。
+    /// クリアの対象のギミックに体力制の破壊対象（HealthTarget）があれば、1 つ見つけて渡す。町のシーンはステージ間で共有され、ほかのステージの対象も置かれている為、ギミックの ID で選ぶ。
     /// </summary>
     public sealed class StageClearAdapter : InitializableMonoBehaviour
     {
@@ -20,6 +21,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> ステージシーンにある破壊対象 </summary>
         public IReadOnlyList<IDestructionTarget> Targets => _targets;
+
+        /// <summary> クリアの対象のギミックにある体力制の破壊対象。なければ null </summary>
+        public HealthTarget HealthTarget { get; private set; }
 
         /// <summary>
         /// ステージシーンの破壊対象を集め、最初の数を通知する。ステージシーンを読み込んだあとに呼ぶ。
@@ -37,7 +41,13 @@ namespace Kizami.EngineAdapter
             _targets.AddRange(FindObjectsByType<CoreSystem>(FindObjectsSortMode.None));
             // チュートリアルのダミーは、台本が出すまで非アクティブで待つ
             _targets.AddRange(FindObjectsByType<TutorialDummy>(FindObjectsInactive.Include, FindObjectsSortMode.None));
-            if (targetGimmickIds.Count > 0) KeepGimmicks(targetGimmickIds);
+            HealthTarget = null;
+            if (targetGimmickIds.Count > 0)
+            {
+                KeepGimmicks(targetGimmickIds);
+                HealthTarget = FindHealthTarget(targetGimmickIds);
+            }
+
             if (attractsToTargets) SetAttractionTargets(true);
 
             if (_targets.Count == 0)
@@ -64,6 +74,20 @@ namespace Kizami.EngineAdapter
                 var found = _targets.Exists(target => StageGimmick.Matches(id, ((Component)target).GetComponent<StageGimmick>().Id));
                 if (!found) UsefulLogger.LogWarning($"ID '{id}' の破壊対象が見つかりません。", this);
             }
+        }
+
+        /// <summary>
+        /// 体力制の破壊対象のうち、付いたギミック（親を含む）の ID が一覧に当たる最初のものを返す。
+        /// </summary>
+        private static HealthTarget FindHealthTarget(IReadOnlyList<string> ids)
+        {
+            foreach (var healthTarget in FindObjectsByType<HealthTarget>(FindObjectsSortMode.None))
+            {
+                var gimmick = healthTarget.GetComponentInParent<StageGimmick>();
+                if (gimmick != null && ContainsId(ids, gimmick.Id)) return healthTarget;
+            }
+
+            return null;
         }
 
         private static bool ContainsId(IReadOnlyList<string> ids, string id)

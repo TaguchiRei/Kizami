@@ -87,8 +87,8 @@ namespace Kizami.Initialization
                 _progressService != null ? _progressService.CompleteSelectedStage : null, gameObject.scene.buildIndex);
             blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this);
             _targetHealthService.Register(blackBoard, gameObject.scene.buildIndex);
-            ConnectHealthTarget(stage);
             _stageClearAdapter.Initialize(_flowService.ReportTargets, stage.TargetGimmickIds, stage.AttractsToTargets);
+            ConnectHealthTarget(stage);
             _timerAdapter.Initialize(_flowService.Tick);
             _guideService = new StageGuideService(blackBoard, _guideLogMaxCount, _guideLogLifetime,
                 gameObject.scene.buildIndex);
@@ -129,41 +129,21 @@ namespace Kizami.Initialization
             _flowService.Begin();
         }
 
-        /// <summary>
-        /// 対象に付いたギミックの ID が、ステージの破壊対象のどれかに当たるか。
-        /// </summary>
-        private static bool IsStageTarget(HealthTarget healthTarget, StageData stage)
-        {
-            var gimmick = healthTarget.GetComponentInParent<StageGimmick>();
-            if (gimmick == null) return false;
-
-            foreach (var pattern in stage.TargetGimmickIds)
-            {
-                if (StageGimmick.Matches(pattern, gimmick.Id)) return true;
-            }
-
-            return false;
-        }
-
         private void Awake()
         {
             InGameCompositor.TryRegisterContent(_targetHealthService);
         }
 
         /// <summary>
-        /// ステージの破壊対象のギミックに、体力制の破壊対象（HealthTarget）があれば、名前と最大体力を体力の Service へ渡し、ダメージの報告先を繋ぐ。ないステージでは何もしない。
-        /// 町のシーンはステージ間で共有され、ほかのステージの対象も置かれている為、ギミックの ID で選ぶ。
+        /// StageClearAdapter が見つけた体力制の破壊対象があれば、名前と最大体力を体力の Service へ渡し、当たりの報告先を繋ぐ。ないステージでは何もしない。
         /// </summary>
         private void ConnectHealthTarget(StageData stage)
         {
-            foreach (var healthTarget in FindObjectsByType<HealthTarget>(FindObjectsSortMode.None))
-            {
-                if (!IsStageTarget(healthTarget, stage)) continue;
+            var healthTarget = _stageClearAdapter.HealthTarget;
+            if (healthTarget == null) return;
 
-                _targetHealthService.Setup(healthTarget.DisplayName, healthTarget.MaxHealth, stage.TargetDamage);
-                healthTarget.Initialize(_targetHealthService.ReportHit);
-                return;
-            }
+            _targetHealthService.Setup(healthTarget.DisplayName, healthTarget.MaxHealth, stage.TargetDamage);
+            healthTarget.Initialize(_targetHealthService.ReportHit);
         }
 
         /// <summary>
@@ -229,7 +209,7 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// ステージシーンに開始位置の目印があれば、プレイヤーをその位置へ置き、視点を目印の向きにする。置いていないステージでは動かさない。
+        /// ステージシーンに開始位置の目印があれば、プレイヤーと視点を渡して置かせる。置いていないステージでは動かさない。
         /// </summary>
         private void PlacePlayerAtStartPoint()
         {
@@ -243,10 +223,7 @@ namespace Kizami.Initialization
                 return;
             }
 
-            movementAdapter.PlaceAt(startPoint.transform.position);
-
-            var cameraAdapter = FindFirstObjectByType<PlayerCameraAdapterBase>();
-            if (cameraAdapter != null) cameraAdapter.FaceYaw(startPoint.transform.eulerAngles.y);
+            startPoint.Place(movementAdapter, FindFirstObjectByType<PlayerCameraAdapterBase>());
         }
 
         /// <summary>
