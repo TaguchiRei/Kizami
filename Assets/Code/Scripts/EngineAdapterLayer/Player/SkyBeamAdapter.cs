@@ -258,7 +258,7 @@ namespace Kizami.EngineAdapter
                 _hoverTime = 0f;
                 _judgeTimer = 0f;
                 _enemyTimer = 0f;
-                if (_shot != null && TryGetAim(out _, out var direction)) _shot.BeginContinuous(direction, false);
+                if (_shot != null && TryGetAim(out _, out var direction)) _shot.BeginContinuous(direction, EnemyFinisherBeams.BeamMode.VisualOnly);
                 return;
             }
 

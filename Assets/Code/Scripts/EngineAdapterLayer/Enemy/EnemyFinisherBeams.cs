@@ -408,6 +408,21 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 照射中のビームの溶かし方とダメージの与え方
+        /// </summary>
+        public enum BeamMode
+        {
+            /// <summary> ボクセルを溶かして進み、プレイヤーにダメージを与える </summary>
+            Melt,
+
+            /// <summary> 見た目だけを最初に当たった物まで出す。壊すのは呼び出し側が受け持つ </summary>
+            VisualOnly,
+
+            /// <summary> ボクセルを溶かさず、最初に当たった物までの範囲でプレイヤーにダメージを与える </summary>
+            DamageOnly
+        }
+
+        /// <summary>
         /// ビーム1本の状態と見た目。帯・ビーム・光・火花を1組ずつ持つ。
         /// </summary>
         public sealed class Shot
@@ -435,8 +450,8 @@ namespace Kizami.EngineAdapter
             /// <summary> 止めるまで照射を続けるか </summary>
             private bool _isContinuous;
 
-            /// <summary> 照射中にボクセルを溶かして進み、プレイヤーにダメージを与えるか。false なら見た目だけを最初に当たった物まで出す </summary>
-            private bool _melts = true;
+            /// <summary> 照射中の溶かし方とダメージの与え方 </summary>
+            private BeamMode _mode = BeamMode.Melt;
 
             /// <summary> 次にダメージを与えられるまでの時間（秒） </summary>
             private float _damageTimer;
@@ -470,7 +485,7 @@ namespace Kizami.EngineAdapter
                 _headHistory.Clear();
                 _aimTime = 0f;
                 _isContinuous = false;
-                _melts = true;
+                _mode = BeamMode.Melt;
                 SetPhase(Phase.Aiming);
             }
 
@@ -480,17 +495,17 @@ namespace Kizami.EngineAdapter
             /// <param name="direction">ビームの向き（ワールド座標）</param>
             public void BeginFixed(Vector3 direction)
             {
-                BeginTelegraph(direction, false, true);
+                BeginTelegraph(direction, false, BeamMode.Melt);
             }
 
             /// <summary>
             /// 向きを決めて予兆から始め、Stop を呼ぶまで照射を続ける。照準はしない。
             /// </summary>
             /// <param name="direction">ビームの向き（ワールド座標）</param>
-            /// <param name="melts">照射中にボクセルを溶かして進み、プレイヤーにダメージを与えるか。false なら見た目だけを出し、壊すのは呼び出し側が受け持つ</param>
-            public void BeginContinuous(Vector3 direction, bool melts = true)
+            /// <param name="mode">照射中の溶かし方とダメージの与え方</param>
+            public void BeginContinuous(Vector3 direction, BeamMode mode = BeamMode.Melt)
             {
-                BeginTelegraph(direction, true, melts);
+                BeginTelegraph(direction, true, mode);
             }
 
             /// <summary>
@@ -559,11 +574,11 @@ namespace Kizami.EngineAdapter
                 SetPhase(Phase.Idle);
             }
 
-            private void BeginTelegraph(Vector3 direction, bool isContinuous, bool melts)
+            private void BeginTelegraph(Vector3 direction, bool isContinuous, BeamMode mode)
             {
                 _aimDirection = direction.normalized;
                 _isContinuous = isContinuous;
-                _melts = melts;
+                _mode = mode;
                 SetPhase(Phase.Telegraph);
             }
 
@@ -607,15 +622,29 @@ namespace Kizami.EngineAdapter
             }
 
             /// <summary>
-            /// 溶かさないビームは、見た目だけを pivot から最初に当たった物まで出す。
-            /// 溶かす先端を進め、ビームを pivot からボクセルでない壁まで出す。プレイヤーが、当たり判定のレイの範囲（IsPlayerHit）に入っていれば、間隔ごとにダメージを与える。
+            /// 見た目だけのビームは、pivot から最初に当たった物まで出す。ダメージだけのビームは、同じ長さで出して、その範囲のプレイヤーにダメージを与える。
+            /// 溶かすビームは、溶かす先端を進め、ビームを pivot からボクセルでない壁まで出す。プレイヤーが、当たり判定のレイの範囲（IsPlayerHit）に入っていれば、間隔ごとにダメージを与える。
             /// </summary>
             private void UpdateFiring(Vector3 pivot, float3 capsuleStart, float3 capsuleEnd, float capsuleRadius,
                 float deltaTime)
             {
-                if (!_melts)
+                if (_mode == BeamMode.VisualOnly)
                 {
                     ShowFiring(pivot, CastBeam(pivot, out var firstHit, out var firstNormal), firstNormal, firstHit);
+                    return;
+                }
+
+                if (_mode == BeamMode.DamageOnly)
+                {
+                    var firstDistance = CastBlock(pivot, out var stopNormal, true);
+                    ShowFiring(pivot, pivot + _aimDirection * firstDistance, stopNormal, firstDistance < MAX_BEAM_LENGTH);
+                    _damageTimer -= deltaTime;
+                    if (_damageTimer > 0f) return;
+
+                    if (!IsPlayerHit(pivot, firstDistance, capsuleStart, capsuleEnd, capsuleRadius)) return;
+
+                    _damageTimer = _owner._damageInterval;
+                    _owner._applyDamage?.Invoke(_owner._damage);
                     return;
                 }
 
@@ -654,12 +683,12 @@ namespace Kizami.EngineAdapter
             /// プレイヤーがビームに当たっているか。ビームの中心と、それを囲む4か所から射線と同じ向きにレイを飛ばし、それぞれが溶かす先端か壁の近いほうまでを範囲にする。
             /// 中心はビームの半径、周囲の4本は半径の HIT_RING_RATIO 倍の位置から同じ割合の半径で調べる。敵は貫通する。
             /// </summary>
-            /// <param name="centerBlockDistance">中心のレイの、ボクセルでも敵でもない壁までの距離（m）</param>
+            /// <param name="centerBlockDistance">中心のレイの、壁までの距離（m）。ダメージだけのビームではボクセルも壁に含み、ほかではボクセルと敵を含まない</param>
             private bool IsPlayerHit(Vector3 pivot, float centerBlockDistance, float3 capsuleStart, float3 capsuleEnd,
                 float capsuleRadius)
             {
                 var beamRadius = _owner._beamRadius;
-                var centerEnd = pivot + _aimDirection * Mathf.Min(_meltFrontDistance, centerBlockDistance);
+                var centerEnd = pivot + _aimDirection * (_mode == BeamMode.DamageOnly ? centerBlockDistance : Mathf.Min(_meltFrontDistance, centerBlockDistance));
                 var centerReach = beamRadius + capsuleRadius;
                 if (CapsuleGeometry.GetSegmentDistanceSq(pivot, centerEnd, capsuleStart, capsuleEnd, out _) <=
                     centerReach * centerReach) return true;
@@ -673,7 +702,7 @@ namespace Kizami.EngineAdapter
                 {
                     var offset = i switch { 0 => right, 1 => -right, 2 => up, _ => -up } * ringOffset;
                     var origin = pivot + offset;
-                    var distance = Mathf.Min(_meltFrontDistance, CastBlock(origin, out _));
+                    var distance = _mode == BeamMode.DamageOnly ? CastBlock(origin, out _, true) : Mathf.Min(_meltFrontDistance, CastBlock(origin, out _));
                     if (CapsuleGeometry.GetSegmentDistanceSq(origin, origin + _aimDirection * distance, capsuleStart,
                             capsuleEnd, out _) <= ringReach * ringReach) return true;
                 }
@@ -708,10 +737,11 @@ namespace Kizami.EngineAdapter
             }
 
             /// <summary>
-            /// origin から _aimDirection へ調べ、最初に当たったボクセルでも敵でもない物（壁、装甲、地形）までの距離を返す。当たらなければ MAX_BEAM_LENGTH を返す。
+            /// origin から _aimDirection へ調べ、最初に当たった敵でない物までの距離を返す。当たらなければ MAX_BEAM_LENGTH を返す。
             /// </summary>
+            /// <param name="includesVoxel">ボクセルも当たる物に含めるか。false なら壁、装甲、地形だけを調べる</param>
             /// <param name="normal">当たった面の向き。当たらなければ pivot へ戻る向き</param>
-            private float CastBlock(Vector3 origin, out Vector3 normal)
+            private float CastBlock(Vector3 origin, out Vector3 normal, bool includesVoxel = false)
             {
                 var castBuffer = _owner._castBuffer;
                 var count = Physics.RaycastNonAlloc(origin, _aimDirection, castBuffer, MAX_BEAM_LENGTH,
@@ -721,7 +751,7 @@ namespace Kizami.EngineAdapter
                 for (var i = 0; i < count; i++)
                 {
                     var hit = castBuffer[i];
-                    if (hit.distance >= distance || IsVoxel(hit.collider) || IsEnemy(hit.collider)) continue;
+                    if (hit.distance >= distance || (!includesVoxel && IsVoxel(hit.collider)) || IsEnemy(hit.collider)) continue;
 
                     distance = hit.distance;
                     normal = hit.normal;
