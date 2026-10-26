@@ -287,7 +287,13 @@ namespace Kizami.EngineAdapter
             {
                 case BossAction.Retreat:
                 case BossAction.Arrive:
-                    if (_arrival == null || !_arrival.IsArriving) ReportActionFinished(true);
+                    if (_arrival == null || !_arrival.IsArriving)
+                    {
+                        // 飛来の間に置いた足は、着いたあとに削られた地面の高さに残るので置き直す
+                        if (_body != null) _body.Replant();
+                        ReportActionFinished(true);
+                    }
+
                     break;
                 case BossAction.ThrowCrystals:
                     if (_crystals != null) _crystals.Throw();
