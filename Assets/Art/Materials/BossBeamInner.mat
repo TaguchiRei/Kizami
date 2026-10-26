@@ -26,19 +26,19 @@ Material:
     m_Ints: []
     m_Floats:
     - _BeamLength: 1489.6
-    - _CoreAmount: 0.1
+    - _CoreAmount: 0.25
     - _CoreSharpness: 3
     - _DitherOpacity: 1
     - _EdgeSoftness: 0.35
-    - _Emission: 3
+    - _Emission: 6
     - _NoiseLevel: 0.295
-    - _ScrollSpeed: 0.3
+    - _ScrollSpeed: 1.2
     - _SoftDistance: 3
     - _ZWrite: 0
     m_Colors:
-    - _Color1: {r: 0.35, g: 0.02, b: 0.04, a: 1}
-    - _Color2: {r: 0.12, g: 0, b: 0.2, a: 1}
-    - _Color3: {r: 0.03, g: 0.03, b: 0.08, a: 1}
+    - _Color1: {r: 1, g: 0.04, b: 0.08, a: 1}
+    - _Color2: {r: 0.45, g: 0, b: 0.8, a: 1}
+    - _Color3: {r: 0.1, g: 0.1, b: 0.5, a: 1}
     - _Offset: {r: 0.1, g: 0.1, b: 0, a: 0}
     - _Tilling: {r: 1, g: -6.9, b: 0, a: 0}
   m_BuildTextureStacks: []
