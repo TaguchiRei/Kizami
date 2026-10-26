@@ -33,6 +33,10 @@ namespace Kizami.EngineAdapter
         /// <summary> 塔のボリュームの範囲を、形より広げる余白（m）。法線を整える </summary>
         private const float VOLUME_PADDING = 1f;
 
+        private const string DEFAULT_LAYER = "Default";
+        private const string GROUND_LAYER = "Ground";
+        private const string WALL_LAYER = "Wall";
+
         private static readonly Color _lineColor = new(1f, 0.1f, 0.05f, 0.6f);
 
         [SerializeField]
@@ -48,8 +52,8 @@ namespace Kizami.EngineAdapter
         private Material _lineMaterial;
 
         [SerializeField]
-        [Tooltip("狙う地点の地面を探すレイヤー")]
-        private LayerMask _groundLayers = ~0;
+        [Tooltip("狙う地点の地面を探すレイヤー。未設定なら Default・Ground・Wall。敵やバリアの上を地面とみなさないよう、それらのレイヤーは含めない")]
+        private LayerMask _groundLayers;
 
         [SerializeField, Min(0.5f)]
         [Tooltip("塔の太さ（m）")]
@@ -185,6 +189,12 @@ namespace Kizami.EngineAdapter
             _piece = null;
             _body = null;
             _state = TowerState.Idle;
+        }
+
+        private void Awake()
+        {
+            // 実行時に AddComponent で付けるので、Inspector で設定していない値をここで決める
+            if (_groundLayers == 0) _groundLayers = LayerMask.GetMask(DEFAULT_LAYER, GROUND_LAYER, WALL_LAYER);
         }
 
         private void Update()

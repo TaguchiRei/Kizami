@@ -122,7 +122,7 @@
 ### 決めたこと
 - 柵のビームの撃ち方は `EnemyFinisherBeams.BeamMode`（`Melt`・`VisualOnly`・`DamageOnly`）の enum にした。bool 2 つだと「溶かす」と「ダメージを与える」の組み合わせが 4 通りになり、使わない組み合わせが混ざる為。`DamageOnly` はボクセルを含む最初に当たった物までをビームの長さと当たり判定の範囲にする（`CastBlock` にボクセルを含めるかの引数を足した）。`SkyBeamAdapter`（プレイヤーのビーム）は `VisualOnly`
 - 足の置き直しは、`BossBody` の `Replant()`（飛来を終えたとき `BossBattleAdapter` が呼ぶ）と、置いた足が真下の地面より `_floatThreshold`（1m）以上浮いたら運び直す定期チェック（`_groundCheckInterval` 0.5 秒）の 2 つ
-- 塔投げの狙う地点は、円の中心からプレイヤーの方向へ水平に `_aimDistance`（18m）離れた所。地面は、狙う地点の真上（中心の地面から `_spawnHeight`）から下へ探し、見つからなければ中心の地面の高さ
+- 塔投げの狙う地点は、円の中心からプレイヤーの方向へ水平に `_aimDistance`（18m）離れた所。地面は、狙う地点の真上（中心の地面から `_spawnHeight`）から下へ探し、見つからなければ中心の地面の高さ。地面を探すレイヤーは Default・Ground・Wall だけにする（レビューで直した。下の「完了条件の確認結果」）
 - ビームの色：シェーダー（`FinisherBeam.shader`）は加算合成ではなく、プリマルチプライドアルファ合成（`Blend One OneMinusSrcAlpha`）。色は `_BaseColor` ではなく `_Color1〜3` で決まり、中心は `_CoreAmount` で白に寄る。暗くしすぎると「ビームに見えない」ので、ユーザーの見た目で明るさを戻した。ボス用マテリアル `BossBeam`・`BossBeamInner` の最終値は `_Color1` (1, 0.04, 0.08)、`_Color2` (0.45, 0, 0.8)、`_Color3` (0.1, 0.1, 0.5)、`_Emission` 6、`_CoreAmount` 0.25、`_ScrollSpeed` 1.2（元は 0.3）。発射口と先端の光は `_glowColor` (0.25, 0.05, 0.08)、`_glowScale` 0.3
 - 攻撃の予兆は、点滅の色を黄色（`BossWeapons._warningColor`）、間隔 0.1 秒、予兆の長さ `_warningDuration` を 0.8 秒にした。音は `BossWarning_v2`・`v3` を、ランダムに 1 つ選ぶのではなく重ねて鳴らす（`SoundPlayer.PlayLayered`）。予兆の対象は、足踏み・下部レーザー・降下フィニッシャー・最終の一斉攻撃（下部レーザーの前）。水晶の段階（`Barrage`）には付けていない
 - 止まったあとのクリアは、`HealthTarget` の通知を落ちる塊以外の当たり全部に広げ（`SetOnPlayerHit`）、`BossBattleService.ReportPlayerHit` が止まったあとの最初の当たりから `StoppedClearDelay`（5 秒）を数えて `IsDefeated` にし、`StageFlowService.Tick` が `Clear` を呼ぶ。案内の文は「ボスを壊せ」、5 秒の残りは出さない
@@ -130,7 +130,7 @@
 ### 作った主なもの
 - 柵：`EnemyFinisherBeams`（`BeamMode`）、`BossArena`（`DamageOnly` で撃ち、削りジョブのまとめ待ちを外した）
 - 足：`BossBody`（`Replant`・`FindFloatingPair`）、`BossBattleAdapter`
-- 塔投げ：`BossTowerThrow`（`_aimDistance`）
+- 塔投げ：`BossTowerThrow`（`_aimDistance`、`_groundLayers` の既定を `Awake` で決める）
 - ビーム：`Art/Materials/BossBeam.mat`・`BossBeamInner.mat`。`BossEnemy.prefab` と `Stage_Boss.unity` の `EnemyFinisherBeams` に割り当てた
 - 予兆：`BossWeapons`（`PeekNext`・`SetWarning`・`SetPaint`）、`BossShockwaves`・`BossLaser`・`BossFinisherStrikes` の `IsReady`、`BossBattleAdapter`（`IsWarningDone`・`CancelWarning`）、`SoundEffectKind.BossWarning`、`SoundPlayer`（`_bossWarningClips`・`PlayLayered`）、`LocalAssets/Sound/BossWarning_v2.wav`・`v3.wav`。常駐シーンの `SoundPlayer` に割り当てた
 - クリア：`BossBattleState`（`IsDefeated`）、`BossBattleSettings`（`_stoppedClearDelay`）、`BossBattleService`、`HealthTarget`、`StageFlowService`、`BossGuideScript`
@@ -139,9 +139,9 @@
 - 円の柵がボクセルを溶かさず、触れるとダメージを受ける：ユーザーがプレイして確認した（60700c6）。フレーム時間（Profiler の `Voxel.BeamMelt`）は測っていない
 - 2 周目の着地のあと足が地面に着く：ユーザーがプレイして確認した（5b5118a）
 - ボスのビームが暗い色でまぶしくない：ユーザーが見た目を確認し、暗すぎて見えない点を明るさと動く速さの調整で直した（34b5f8f・96d3f0e）。通常の敵のフィニッシャーは変えていない
-- 塔投げが、プレイヤーが空中・遠くにいても地面に刺さり、倒すとボスに当たる：コンパイルは確認したが、動かして確かめた結果は記録していない。レビューのときに確認する
-- 足踏み・下部レーザー・降下フィニッシャーの前に、部位の点滅と音が出る：コンパイルは確認したが、動かして確かめた結果は記録していない。壊れた武装の番で出ないこと、ダウン中の赤い塗りと混ざらないことも、レビューのときに確認する
-- 止まったあと、ボスのどこかを壊すと 5 秒後にクリアになる：コンパイルと、アウトゲームの起動でエラーが出ないことだけ確認した。止まったあとの当たりが `HealthTarget` まで届くか、コアを先に壊しきったら今までどおりすぐクリアになるか、止まる前の当たりで数え始めないかは、動かして確かめていない。レビューのときに確認する
+- 塔投げが地面に刺さる：レビュー（2026-10-26）で、狙う地点（円の中心から 18.0m）の真下にいたディフェンダーのバリアの上（y 16.9m）に刺さった。`BossTowerThrow` は `BossInitializer` が実行時に `AddComponent` で付ける為、`_groundLayers` が既定の「すべてのレイヤー」のままで、バリア（Barrier）や敵（Enemy）も地面とみなしていた。未設定なら `Awake` で Default・Ground・Wall にするよう直し、直したあとは y 0.05m の道路に刺さることを確かめた（このときはバリアがなかったので、バリアがある場面はレイヤーから除いたことで代えている）。倒した塔がボスに当たるかは確かめていない
+- 足踏みの前の点滅：レビューで、次に使うアウトリガー 1 つだけが約 0.8 秒点滅してから足踏みすることを、2 回分確かめた。下部レーザー・降下フィニッシャーの点滅の瞬間と、音は確かめていない。壊れた武装の番、ダウン中の赤い塗りとの切り分けはコードで確かめた
+- 止まったあと、ボスのどこかを壊すと 5 秒後にクリアになる：レビューで、段階を Stopped にしただけでは数え始めず、ボスへ通常攻撃の当たりを送ると 5 秒後に `IsDefeated` になり、ステージがクリアになることを確かめた。段階と当たりは実行中のコードから直接操作した。コアを先に壊しきったときは確かめていない
 - 2 周目の直接戦闘が、1 周目と同じ流れで進む（45-6）：確かめていない。ユーザーの判断で、コミット2（調査）は後回しにした
 
 ### 次の区間へ持ち越すこと
