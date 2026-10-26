@@ -141,7 +141,7 @@ namespace Kizami.Initialization
                     battleService.ReportActionFinished, battleService.Tick, target, _voxelAttraction);
                 if (boss.TryGetComponent<HealthTarget>(out var healthTarget))
                 {
-                    healthTarget.SetOnHitWhileDepleted(battleService.ReportHitWhileDown);
+                    healthTarget.SetOnPlayerHit(battleService.ReportPlayerHit);
                 }
 
                 boss.AddComponent<BossTargetSelector>().Connect(battleState, boss.GetComponentInChildren<BossCrystals>(true));

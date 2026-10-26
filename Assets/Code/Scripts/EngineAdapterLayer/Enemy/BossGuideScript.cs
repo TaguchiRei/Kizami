@@ -27,8 +27,8 @@ namespace Kizami.EngineAdapter
             [BossGuideTopic.Final] = new GuideLine("ボスの攻撃を避けて耐えろ",
                 OPERATOR + "ボスが最後の攻撃に入った。地面の警告を見て、ビームを避け続けろ。",
                 "[W][A][S][D] 移動  [Space] ジャンプ  [Shift] ダッシュ"),
-            [BossGuideTopic.Stopped] = new GuideLine("ボスのコアを壊せ",
-                OPERATOR + "ボスが止まった。コアを壊せば作戦完了だ。", "黄色い印の方向へ進め  " + ATTACK_HINT),
+            [BossGuideTopic.Stopped] = new GuideLine("ボスを壊せ",
+                OPERATOR + "ボスが止まった。どこでもいい、壊せば作戦完了だ。", "黄色い印の方向へ進め  " + ATTACK_HINT),
         };
 
         private IStageGuideController _controller;

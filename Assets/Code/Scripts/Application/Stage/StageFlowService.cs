@@ -34,6 +34,11 @@ namespace Kizami.Application
         private readonly IInputController _inputController;
         private readonly Action _onCleared;
 
+        private EnemyBoard _enemyBoard;
+
+        /// <summary> ボス戦の State。ボスのいるステージでだけ、BossInitializer が登録するまで null </summary>
+        private IBossBattleState _bossState;
+
         /// <summary> ポーズを解いたときに戻す時間の倍率 </summary>
         private float _resumeScale = 1f;
 
@@ -61,6 +66,7 @@ namespace Kizami.Application
             _inputController = inputController;
             _onCleared = onCleared;
 
+            blackBoard.TryGetBoard(out _enemyBoard, this);
             if (!blackBoard.TryGetBoard<StageBoard>(out var stageBoard, this) ||
                 !blackBoard.TryGetGameState<AppBoard, ITimeScaleState>(out _timeScaleState, this) ||
                 !blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this) ||
@@ -113,6 +119,15 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// ボスを倒していればクリアにする。ボスの State は登録されるまで毎フレーム取りに行く。
+        /// </summary>
+        private void TryClearByBoss()
+        {
+            if (_bossState == null && _enemyBoard != null) _enemyBoard.TryGetSceneState(out _bossState, out _);
+            if (_bossState != null && _bossState.IsDefeated) Clear();
+        }
+
+        /// <summary>
         /// よい行動の追加スコアを足す。プレイ中のときだけ足す。
         /// </summary>
         /// <param name="score">追加スコア</param>
@@ -124,11 +139,12 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 制限時間を進める。プレイ中でポーズしていないときだけ進め、残りが0になったら失敗にする。
+        /// ボスを倒していればクリアにする。制限時間は、プレイ中でポーズしていないときだけ進め、残りが0になったら失敗にする。
         /// </summary>
         /// <param name="deltaSeconds">前回から経った実時間（秒）</param>
         public void Tick(float deltaSeconds)
         {
+            TryClearByBoss();
             if (!_hasTimeLimit || _state.Phase != StagePhase.Playing || _state.IsPaused) return;
 
             var remaining = Math.Max(0f, _state.RemainingTime - deltaSeconds);
