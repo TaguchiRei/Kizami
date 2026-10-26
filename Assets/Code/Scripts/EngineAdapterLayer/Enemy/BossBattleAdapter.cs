@@ -82,6 +82,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("飛来の間に建物を前もってボクセルにする円の、円形の空間の半径に足す幅（m）。柵のビームが溶かす穴の半径より大きくする")]
         private float _preloadMargin = 8f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("足踏み・下部レーザー・降下フィニッシャーの前に、使う武装を点滅させて音を鳴らす時間（秒）")]
+        private float _warningDuration = 0.8f;
+
         private readonly BossWeaponState _weaponState = new();
 
         private VoxelModelLoader _loader;
@@ -101,6 +105,15 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 下部レーザーを撃つ行動で、撃つ番を進めたか </summary>
         private bool _isLaserStarted;
+
+        /// <summary> 予兆で点滅させている武装の番号。点滅させていなければ -1 </summary>
+        private int _warningIndex = -1;
+
+        /// <summary> 予兆を始めてからの残り時間（秒） </summary>
+        private float _warningRemaining;
+
+        /// <summary> 今の行動の予兆を終えたか </summary>
+        private bool _isWarningDone;
 
         /// <summary> すべてのパーツを保護したか </summary>
         private bool _isProtected;
@@ -192,6 +205,9 @@ namespace Kizami.EngineAdapter
             UpdateProtection();
             _weaponState.SetHasBreakable(_weapons.CountBroken() < _weapons.Count);
             _tick?.Invoke(Time.deltaTime);
+
+            // 行動が変わったら予兆の点滅を止める。段階の切り替えで塗る色を消さないよう、Enter より先に行う
+            if (_state.ActionCount != _handledActionCount) CancelWarning();
 
             var phase = _state.Phase;
             if (phase != _handledPhase)
@@ -303,13 +319,22 @@ namespace Kizami.EngineAdapter
                     TickBarrage();
                     break;
                 case BossAction.Stomp:
-                    if (_shockwaves.TryStomp()) ReportActionFinished(true);
+                    if (IsWarningDone(BossWeaponKind.Outrigger, _shockwaves.IsReady) && _shockwaves.TryStomp())
+                    {
+                        ReportActionFinished(true);
+                    }
+
                     break;
                 case BossAction.Laser:
                     TickLaser();
                     break;
                 case BossAction.Strike:
-                    if (_finisherStrikes.TryFire(0f)) ReportActionFinished(true);
+                    if (IsWarningDone(BossWeaponKind.Missile, _finisherStrikes.IsReady) &&
+                        _finisherStrikes.TryFire(0f))
+                    {
+                        ReportActionFinished(true);
+                    }
+
                     break;
                 case BossAction.AwaitStrikes:
                     if (!_finisherStrikes.IsBusy) ReportActionFinished(true);
@@ -350,7 +375,7 @@ namespace Kizami.EngineAdapter
         {
             if (!_isLaserStarted)
             {
-                _isLaserStarted = _laser.TryFire();
+                if (IsWarningDone(BossWeaponKind.Laser, _laser.IsReady)) _isLaserStarted = _laser.TryFire();
                 return;
             }
 
@@ -362,7 +387,7 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void TickFinalVolley()
         {
-            if (!_isLaserStarted)
+            if (!_isLaserStarted && IsWarningDone(BossWeaponKind.Laser, _laser.IsReady))
             {
                 _isLaserStarted = _laser.TryFire();
             }
@@ -374,6 +399,52 @@ namespace Kizami.EngineAdapter
             }
 
             if (_isLaserStarted) ReportActionFinished(true);
+        }
+
+        /// <summary>
+        /// 攻撃の予兆を進め、終えたかを返す。クールタイムが空いたら、次に使う武装を点滅させて音を鳴らし、_warningDuration 秒待つ。
+        /// 次に使う武装が壊れているか、その種類の武装がなければ、予兆を出さずに終えたものとする。終えたあとは、行動が変わるまで true を返す。
+        /// </summary>
+        /// <param name="kind">次に使う武装の種類</param>
+        /// <param name="isReady">攻撃のクールタイムが空いているか</param>
+        private bool IsWarningDone(BossWeaponKind kind, bool isReady)
+        {
+            if (_isWarningDone) return true;
+            if (!isReady) return false;
+
+            if (_warningIndex < 0)
+            {
+                var index = _weapons.PeekNext(kind);
+                if (index < 0 || _weapons.IsBroken(index) || _warningDuration <= 0f)
+                {
+                    _isWarningDone = true;
+                    return true;
+                }
+
+                _warningIndex = index;
+                _warningRemaining = _warningDuration;
+                _weapons.SetWarning(index, true);
+                SoundPlayer.PlayLayered(SoundEffectKind.BossWarning, _weapons.GetPosition(index));
+                return false;
+            }
+
+            _warningRemaining -= Time.deltaTime;
+            if (_warningRemaining > 0f) return false;
+
+            _weapons.SetWarning(_warningIndex, false);
+            _warningIndex = -1;
+            _isWarningDone = true;
+            return true;
+        }
+
+        /// <summary>
+        /// 予兆の点滅を止め、次の行動の予兆を最初からにする。
+        /// </summary>
+        private void CancelWarning()
+        {
+            if (_warningIndex >= 0) _weapons.SetWarning(_warningIndex, false);
+            _warningIndex = -1;
+            _isWarningDone = false;
         }
 
         private void ReportActionFinished(bool isPerformed)

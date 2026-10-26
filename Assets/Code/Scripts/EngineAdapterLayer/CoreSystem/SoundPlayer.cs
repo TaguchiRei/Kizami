@@ -42,6 +42,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("ボクセルが崩れる音。複数あれば毎回ランダムに選ぶ")]
         private AudioClip[] _voxelCollapseClips;
 
+        [SerializeField]
+        [Tooltip("ボスの攻撃の予兆の音。複数あればすべて重ねて鳴らす")]
+        private AudioClip[] _bossWarningClips;
+
         [SerializeField, Min(1)]
         [Tooltip("同時に鳴らせる効果音の数")]
         private int _voiceCount = 16;
@@ -72,6 +76,16 @@ namespace Kizami.EngineAdapter
         public static void Play(SoundEffectKind kind, Vector3 position)
         {
             if (Instance != null) Instance.PlayEffect(kind, position);
+        }
+
+        /// <summary>
+        /// 種類 kind のクリップをすべて同時に position で鳴らす。ランダムに 1 つ選ぶ Play と違い、重ねて鳴らす。
+        /// </summary>
+        /// <param name="kind">効果音の種類</param>
+        /// <param name="position">鳴らす位置（ワールド空間）</param>
+        public static void PlayLayered(SoundEffectKind kind, Vector3 position)
+        {
+            if (Instance != null) Instance.PlayAllClips(kind, position);
         }
 
         private void Awake()
@@ -139,6 +153,31 @@ namespace Kizami.EngineAdapter
             }
         }
 
+        private void PlayAllClips(SoundEffectKind kind, Vector3 position)
+        {
+            var clips = GetClips(kind);
+            if (clips == null) return;
+
+            var now = Time.unscaledTime;
+            if (now - _lastPlayedTimes[(int)kind] < _minInterval) return;
+
+            _lastPlayedTimes[(int)kind] = now;
+            foreach (var clip in clips)
+            {
+                if (clip == null) continue;
+
+                foreach (var voice in _voices)
+                {
+                    if (voice.isPlaying) continue;
+
+                    voice.transform.position = position;
+                    voice.clip = clip;
+                    voice.Play();
+                    break;
+                }
+            }
+        }
+
         private AudioClip[] GetClips(SoundEffectKind kind)
         {
             return kind switch
@@ -147,6 +186,7 @@ namespace Kizami.EngineAdapter
                 SoundEffectKind.ArmorCut => _armorCutClips,
                 SoundEffectKind.VoxelHit => _voxelHitClips,
                 SoundEffectKind.VoxelCollapse => _voxelCollapseClips,
+                SoundEffectKind.BossWarning => _bossWarningClips,
                 _ => null
             };
         }

@@ -22,7 +22,12 @@ AudioMixerController:
     name: BgmVolume
   - guid: 8dc535ce399829c419affd610af642a1
     name: SeVolume
-  m_AudioMixerGroupViews: []
+  m_AudioMixerGroupViews:
+  - guids:
+    - f9eeac4f9e61bdc49813c65b4525f8e8
+    - d0329b8294cad4a4fae2eafa0148a4c2
+    - 3f7ea59df30d6e14fac7f703f7a622d7
+    name: View
   m_CurrentViewIndex: 0
   m_TargetSnapshot: {fileID: 24500006}
 --- !u!243 &24300002

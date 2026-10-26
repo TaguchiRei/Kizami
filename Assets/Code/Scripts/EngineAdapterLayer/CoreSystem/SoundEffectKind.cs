@@ -8,6 +8,7 @@ namespace Kizami.EngineAdapter
         GlassBreak,
         ArmorCut,
         VoxelHit,
-        VoxelCollapse
+        VoxelCollapse,
+        BossWarning
     }
 }

@@ -164,6 +164,9 @@ MonoBehaviour:
   _voxelCollapseClips:
   - {fileID: 8300000, guid: b7db80258ba4ee7488ca7112c8284667, type: 3}
   - {fileID: 8300000, guid: 5dab3a5989340974db5b29a40d7c97c6, type: 3}
+  _bossWarningClips:
+  - {fileID: 8300000, guid: 78e320dfc8c61b94ba5477163aa66f26, type: 3}
+  - {fileID: 8300000, guid: ec361be8d622cf64795578495f89777f, type: 3}
   _voiceCount: 16
   _minInterval: 0.05
   _spatialBlend: 0.6
