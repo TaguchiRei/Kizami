@@ -188,7 +188,7 @@
 | 43 | 背景映像 | マップを周回するカメラの映像をアウトゲームで流す | 42 | 未定 | 未定 | 未着手 | [Section43](Sections/Section43_BackgroundVideo.md) |
 | 44 | 通しの調整と不具合の修正 | 負荷とパラメータの調整、不具合の修正、HUD の見た目、使っていないコードとアセットの削除 | 43 | 未定 | 未定 | 未着手 | [Section44](Sections/Section44_FinalTuning.md) |
 | 45 | 今後の修正と変更 | 2026-10-25 に挙がった修正と変更（45-1〜45-19）。作業は子の区間 45A〜45E で行う | 40 | 未定 | 未定 | 計画済み（2026-10-26） | [Section45](Sections/Section45_Backlog.md) |
-| 45A | ボス戦の修正 | 2 周目の直接戦闘、足、円の柵、ビームの色、塔投げの位置、攻撃の予兆、止まったあとのクリア | 40 | 未定 | 未定 | 未着手 | [Section45A](Sections/Section45A_BossFix.md) |
+| 45A | ボス戦の修正 | 2 周目の直接戦闘、足、円の柵、ビームの色、塔投げの位置、攻撃の予兆、止まったあとのクリア | 40 | 未定 | 未定 | 実装済み（2026-10-26。45-6 だけ確認待ちで持ち越し） | [Section45A](Sections/Section45A_BossFix.md) |
 | 45B | 移動と破壊の修正 | ガラス、ウォールランの条件、小さいかけら、屋上への飛び上がり | 40 | 未定 | 未定 | 未着手 | [Section45B](Sections/Section45B_MoveAndBreakFix.md) |
 | 45C | 造山の作り直し、ヒットエフェクト、デバッグ表示 | 造山を石柱の単発スキルに、剣とスキルのヒットエフェクト、デバッグ表示の出し入れ | 40 | 未定 | 未定 | 未着手 | [Section45C](Sections/Section45C_SkillAndDebug.md) |
 | 45D | アウトゲームの UI とボタン | 区間42 のデザインとプレハブ化を先に行う | 40 | 未定 | 未定 | 未着手 | [Section45D](Sections/Section45D_OutGameUi.md) |
