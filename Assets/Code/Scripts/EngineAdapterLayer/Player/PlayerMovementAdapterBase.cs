@@ -170,7 +170,7 @@ namespace Kizami.EngineAdapter
         /// 1. 直前の物理ステップの結果から触れている物を判定し、PlayerContactState に書き込む
         /// 2. 視線の向きと経過時間を渡して PlayerMovementService.Step を呼び、打ち出し速度を受け取る
         /// 3. 水平速度を目標速度（PlayerMovementState.TargetVelocity の水平成分）へ、地上と壁走り中は即座に、空中は加速度を制限して合わせ、
-        ///    自前で持つ縦の速度（壁走り中は 0、それ以外は重力を足す）と合わせて Rigidbody に反映する
+        ///    自前で持つ縦の速度（壁走り中は 0、それ以外は重力を足す）と合わせて Rigidbody に反映する。弾かれたステップは水平速度を弾きの値のままにする
         /// Step が触れている物を読むので、1は2より先に行う。
         /// ワープ中は目標速度（Y 成分を含む）をそのまま Rigidbody に設定し、
         /// ワープが終わったステップでは水平速度をワープを始める直前の値に戻してから補間する。
@@ -213,12 +213,14 @@ namespace Kizami.EngineAdapter
 
             var isWallRunning = mode == PlayerMoveMode.WallRunning;
 
+            var hasHorizontalLaunch = false;
             if (launchVelocity.HasValue)
             {
                 var launchHorizontal = new Vector3(launchVelocity.Value.x, 0f, launchVelocity.Value.z);
                 if (launchHorizontal.sqrMagnitude > 0f)
                 {
                     _horizontalVelocity = launchHorizontal;
+                    hasHorizontalLaunch = true;
                 }
             }
 
@@ -226,14 +228,18 @@ namespace Kizami.EngineAdapter
             target.y = 0f;
 
             var isGrounded = (_contactState.Contacts & PlayerContact.Ground) != 0;
-            if (isGrounded || isWallRunning)
+            // 弾かれたステップは、まだ地面に触れていても目標速度へ合わせない。合わせると地上で受けた弾きの水平成分が消える
+            if (!hasHorizontalLaunch)
             {
-                _horizontalVelocity = target;
-            }
-            else if (target.sqrMagnitude > 0f)
-            {
-                // 入力がないときは今の水平速度を保つ。減速させると壁キックの勢いが空中で消える
-                _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, target, _airAcceleration * Time.fixedDeltaTime);
+                if (isGrounded || isWallRunning)
+                {
+                    _horizontalVelocity = target;
+                }
+                else if (target.sqrMagnitude > 0f)
+                {
+                    // 入力がないときは今の水平速度を保つ。減速させると壁キックの勢いが空中で消える
+                    _horizontalVelocity = Vector3.MoveTowards(_horizontalVelocity, target, _airAcceleration * Time.fixedDeltaTime);
+                }
             }
 
             UpdateVerticalVelocity(launchVelocity, isGrounded, isWallRunning || hasWarpEnded);

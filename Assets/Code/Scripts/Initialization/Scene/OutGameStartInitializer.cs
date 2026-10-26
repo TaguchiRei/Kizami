@@ -21,7 +21,6 @@ namespace Kizami.Initialization
         private IOperationSettingState _settingState;
         private InputRebindAdapter _rebindAdapter;
         private OutGameMenuAdapter _menuAdapter;
-        private bool _isTransitioning;
 
         /// <summary>
         /// 進行の State を取得し、画面を組み立てる。依存の注入より後に呼ばれる。
@@ -36,8 +35,10 @@ namespace Kizami.Initialization
 
             _menuAdapter = gameObject.AddComponent<OutGameMenuAdapter>();
             _menuAdapter.SetConfig(_settingState, _settingController, _rebindAdapter);
+            // このオブジェクトは遷移中のアンロードで破棄される。destroyCancellationToken を渡すと
+            // アンロードの途中で中断され、SceneState に OutGame がロード済みのまま残る為、トークンは渡さない。
             _menuAdapter.Initialize(BuildStageEntries(), BuildSkillEntries(), _progressService.UltimateSkillIndex,
-                GetEquippedSkillIndices(), GoToStage, EquipSkill,
+                _progressState, stageIndex => _sceneController.GoToStageAsync(stageIndex), _progressService.EquipSkill,
                 _progressState.SelectedStageIndex != GameProgressState.NO_STAGE);
             _progressService.QueuePendingUnlockNotices(_menuAdapter.QueueUnlockNotice);
         }
@@ -77,35 +78,6 @@ namespace Kizami.Initialization
             }
 
             return entries;
-        }
-
-        private int[] GetEquippedSkillIndices()
-        {
-            var indices = new int[_progressState.SlotCount];
-            for (var slot = 0; slot < indices.Length; slot++)
-            {
-                indices[slot] = _progressState.GetEquippedSkillIndex(slot);
-            }
-
-            return indices;
-        }
-
-        private void EquipSkill(int slot, int skillIndex)
-        {
-            if (_progressService.EquipSkill(slot, skillIndex)) _menuAdapter.SetEquipped(GetEquippedSkillIndices());
-        }
-
-        private async void GoToStage(int stageIndex)
-        {
-            if (_isTransitioning) return;
-
-            _isTransitioning = true;
-            _menuAdapter.SetInteractable(false);
-            // このオブジェクトは遷移中のアンロードで破棄される。destroyCancellationToken を渡すと
-            // アンロードの途中で中断され、SceneState に OutGame がロード済みのまま残る為、トークンは渡さない。
-            await _sceneController.GoToStageAsync(stageIndex);
-            _isTransitioning = false;
-            if (_menuAdapter != null) _menuAdapter.SetInteractable(true);
         }
 
         public void Inject(IGameSceneController instance)
