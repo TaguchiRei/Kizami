@@ -15,18 +15,20 @@ namespace Kizami.Application
     /// 通常攻撃とスキルは攻撃間隔を共有し、どちらかを出してから攻撃間隔が経つまで、どちらも出せない。
     /// 切断は攻撃タイプで、ボクセル破壊の強化中は破壊タイプを、装甲破壊の強化中は粉砕タイプを足す。ボスが止まったあとは、強化がなくても常に破壊タイプを足す。
     /// </summary>
-    public sealed class MeleeCutService : IDisposable
+    public sealed class MeleeCutService : IActionIntervalController, IDisposable
     {
-        /// <summary> 切断面の角度の範囲（度）。180度回すと同じ面になる </summary>
-        private const float ANGLE_RANGE = 180f;
+        /// <summary> 切断面の角度の範囲（度） </summary>
+        private const float ANGLE_RANGE = 360f;
 
         private readonly MeleeCutState _state = new();
         private readonly IOperationSettingState _settingState;
         private readonly PlayerParameterData _parameters;
-        private readonly PlayerEnhanceService _enhanceService;
+        private readonly IPlayerEnhanceController _enhanceService;
+        private readonly IPlayerEnhanceState _enhanceState;
         private readonly Action<float, float, DamageType> _onSwing;
         private readonly Func<bool> _tryUseCut;
-        private readonly Func<bool> _isActionBlocked;
+        private readonly IVoxelMoundState _moundState;
+        private readonly ISkyBeamController _skyBeamService;
         private readonly PlayerActionEvents _actionEvents;
         private readonly List<IDisposable> _subscriptions = new();
 
@@ -38,18 +40,18 @@ namespace Kizami.Application
 
         /// <param name="blackBoard">MeleeCutState の登録先と、入力・回転角度の設定の取得元</param>
         /// <param name="parameters">攻撃間隔の取得元</param>
-        /// <param name="enhanceService">切断にかかる強化の取得元</param>
+        /// <param name="enhanceService">切断にかかる強化を使う操作面</param>
         /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）、範囲に掛ける倍率、ダメージの種類</param>
         /// <param name="tryUseCut">振る直前に呼び、振れる回数を1回使う関数。false なら振らない</param>
-        /// <param name="isActionBlocked">造山で盛っている間か、羽天轟号の使用中か。その間は通常攻撃もスキルも出せない</param>
+        /// <param name="skyBeamService">羽天轟号の使用中の流れ。必須。使用中は、盛っている間（VoxelMoundState）と同じく、通常攻撃もスキルも出せない</param>
         /// <param name="actionEvents">振ったことを流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public MeleeCutService(IBlackBoard blackBoard, PlayerParameterData parameters,
-            PlayerEnhanceService enhanceService, Action<float, float, DamageType> onSwing, Func<bool> tryUseCut,
-            Func<bool> isActionBlocked, PlayerActionEvents actionEvents, int sceneId)
+            IPlayerEnhanceController enhanceService, Action<float, float, DamageType> onSwing, Func<bool> tryUseCut,
+            ISkyBeamController skyBeamService, PlayerActionEvents actionEvents, int sceneId)
         {
             _actionEvents = actionEvents;
-            _isActionBlocked = isActionBlocked;
+            _skyBeamService = skyBeamService;
             _parameters = parameters;
             _enhanceService = enhanceService;
             _onSwing = onSwing;
@@ -60,6 +62,10 @@ namespace Kizami.Application
                 !blackBoard.TryGetGameState<AppBoard, IOperationSettingState>(out _settingState, this)) return;
 
             playerBoard.RegisterSceneState<IMeleeCutState>(_state, sceneId);
+            // PlayerEnhanceState は、先に作る PlayerEnhanceService が登録している
+            playerBoard.TryGetSceneState(out _enhanceState, out _);
+            // VoxelMoundState は、先に初期化する VoxelMoundAdapter が登録している
+            playerBoard.TryGetSceneState(out _moundState, out _);
 
             // BossBattleState はボスのいるシーンでだけ、ボスの Initializer が登録するので、登録を待ち受けて拾う
             if (blackBoard.TryGetBoard<EnemyBoard>(out var enemyBoard, this))
@@ -77,26 +83,6 @@ namespace Kizami.Application
 
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.CutRotate, OnCutRotate));
             _subscriptions.Add(inputState.RegisterInput<float>(ActionMaps.Player, PlayerActions.Attack, OnAttack));
-        }
-
-        /// <summary>
-        /// 造山で盛っている間と羽天轟号の使用中でなく、前回、通常攻撃かスキルを出してから、今の攻撃間隔が経っているかを返す。スローモード中も攻撃間隔は実時間で数える。
-        /// </summary>
-        public bool CanAct()
-        {
-            if (_isActionBlocked != null && _isActionBlocked()) return false;
-
-
-            _enhanceService.IsActive(EnhanceKind.Speed,  out var intervalScale);
-            return Time.unscaledTimeAsDouble - _lastActionTime >= _parameters.MeleeAttackInterval * intervalScale;
-        }
-
-        /// <summary>
-        /// 通常攻撃かスキルを出した時刻を、今にする。
-        /// </summary>
-        public void MarkActed()
-        {
-            _lastActionTime = Time.unscaledTimeAsDouble;
         }
 
         /// <summary>
@@ -134,6 +120,27 @@ namespace Kizami.Application
             _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.MeleeSwung));
         }
 
+        /// <summary>
+        /// 造山で盛っている間と羽天轟号の使用中でなく、前回、通常攻撃かスキルを出してから、今の攻撃間隔が経っているかを返す。スローモード中も攻撃間隔は実時間で数える。
+        /// </summary>
+        public bool CanAct()
+        {
+            if (_skyBeamService.IsActive || (_moundState != null && _moundState.IsMounding)) return false;
+
+
+            var intervalScale = 1f;
+            _enhanceState?.TryGet(EnhanceKind.Speed, out intervalScale, out _);
+            return Time.unscaledTimeAsDouble - _lastActionTime >= _parameters.MeleeAttackInterval * intervalScale;
+        }
+
+        /// <summary>
+        /// 通常攻撃かスキルを出した時刻を、今にする。
+        /// </summary>
+        public void MarkActed()
+        {
+            _lastActionTime = Time.unscaledTimeAsDouble;
+        }
+
         public void Dispose()
         {
             foreach (var subscription in _subscriptions)
@@ -144,5 +151,21 @@ namespace Kizami.Application
             _subscriptions.Clear();
             _bossBattleStateWaiter?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// 通常攻撃とスキルで共有する攻撃間隔の操作面。スキルが使う。
+    /// </summary>
+    public interface IActionIntervalController
+    {
+        /// <summary>
+        /// 攻撃を出せるか（動けない間でなく、前回から攻撃間隔が経っているか）を返す。
+        /// </summary>
+        bool CanAct();
+
+        /// <summary>
+        /// 攻撃を出した時刻を今にする。
+        /// </summary>
+        void MarkActed();
     }
 }

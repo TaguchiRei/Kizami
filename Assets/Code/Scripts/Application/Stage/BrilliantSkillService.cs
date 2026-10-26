@@ -3,69 +3,101 @@ using System.Collections.Generic;
 using Kizami.BlackBoard;
 using Kizami.External;
 using UnityEngine;
+using UsefulToolkit.BlackBoard.BlackBoard;
 
 namespace Kizami.Application
 {
     /// <summary>
     /// プレイヤーのよい行動（連続キル・倒壊の巻き込み・一撃の破壊）を判定し、成立したら追加スコアを渡して通知するユースケース。
     /// 複数の種類が同時に成立したときは、種類ごとに成立させる。
+    /// 投げた言葉の着弾では、ボクセルを削って範囲の中の敵を倒す。着弾の結果で別の言葉が出て、それをまた投げて追加スコアを重ねられないよう、着弾で倒した敵と壊したボクセルは判定に数えない。ボスでの撃破も数えない。
     /// 時間はゲーム内の時間（Time.time）で数える。倒れる建物の物理と敵の動きが同じ時間で進む為で、スローモード中は実時間では長く、ポーズ中は進まない。
     /// </summary>
-    public sealed class BrilliantSkillService
+    public sealed class BrilliantSkillService : IDisposable
     {
         private readonly BrilliantSkillSettings _settings;
         private readonly Action<int> _addBonusScore;
-        private readonly Action<BrilliantSkillKind> _onTriggered;
+        private readonly BrilliantSkillEvents _events;
         private readonly List<CollapseWindow> _collapseWindows = new();
+        private readonly IDisposable _defeatSubscription;
 
         private float _lastDefeatTime = float.NegativeInfinity;
         private int _streakCount;
         private int _nextStreakThreshold;
 
+        /// <summary> 投げた言葉の着弾を処理している間は true </summary>
+        private bool _isResolvingWordImpact;
+
+        /// <summary>
+        /// 敵を倒した通知を購読する。敵を倒した通知の登録より後に生成する。
+        /// </summary>
+        /// <param name="blackBoard">敵を倒した通知の取得元</param>
         /// <param name="settings">判定の条件と追加スコア</param>
         /// <param name="addBonusScore">追加スコアを足す関数</param>
-        /// <param name="onTriggered">成立した種類を通知する関数。同時に成立した種類の数だけ続けて呼ぶ</param>
-        public BrilliantSkillService(BrilliantSkillSettings settings, Action<int> addBonusScore,
-            Action<BrilliantSkillKind> onTriggered)
+        /// <param name="events">成立した言葉と、言葉の着弾で削って倒す範囲を、エンジン側へ実行させる出来事の流し先</param>
+        public BrilliantSkillService(IBlackBoard blackBoard, BrilliantSkillSettings settings, Action<int> addBonusScore,
+            BrilliantSkillEvents events)
         {
             _settings = settings;
             _addBonusScore = addBonusScore;
-            _onTriggered = onTriggered;
+            _events = events;
             _nextStreakThreshold = settings.RampageDefeatCount;
+            if (blackBoard.TryGetSceneEvent<EnemyEventBoard, IEnemyDefeatEvents>(out var defeatEvents, this))
+            {
+                _defeatSubscription = defeatEvents.OnDefeated.Register(OnDefeated);
+            }
         }
 
         /// <summary>
-        /// 敵を倒したことを伝える。連続キルの数に足し、崩落で倒した敵は、倒れた建物の範囲にいれば倒壊の巻き込みの数にも足す。
+        /// 建物が倒れ始めたことを伝える。この瞬間から決めた時間の間、範囲の中で崩落で倒した敵を数える。
         /// </summary>
-        /// <param name="notice">倒した敵の通知</param>
-        public void OnDefeated(EnemyDefeatNotice notice)
+        /// <param name="bounds">倒れた階のピースをすべて含む範囲（ワールド空間）。余白は含まない</param>
+        public void OnBuildingCollapsed(Bounds bounds)
         {
+            _collapseWindows.Add(new CollapseWindow(bounds.center, bounds.extents.magnitude + _settings.CollapseMargin,
+                Time.time + _settings.CollapseWindow));
+        }
+
+        /// <summary>
+        /// 1回の攻撃でボクセルを壊したことを伝える。着弾による破壊は数えない。
+        /// </summary>
+        /// <param name="volume">壊したボクセルの体積（m3）</param>
+        public void OnVoxelsDestroyed(float volume)
+        {
+            if (!_isResolvingWordImpact && volume >= _settings.ShatterVolume) Trigger(BrilliantSkillKind.Shatter);
+        }
+
+        /// <summary>
+        /// 投げた言葉がぶつかった点で、ボクセルを削り、範囲の中の敵を倒す。
+        /// </summary>
+        /// <param name="point">ぶつかった点（ワールド空間）</param>
+        public void OnWordLanded(Vector3 point)
+        {
+            var radius = _settings.WordImpactRadius;
+            _isResolvingWordImpact = true;
+            try
+            {
+                _events.RaiseWordImpact(new SphereCarveNotice(point, radius));
+            }
+            finally
+            {
+                _isResolvingWordImpact = false;
+            }
+        }
+
+        /// <summary>
+        /// 敵を倒したことを伝える。着弾とボスでの撃破は数えない。連続キルの数に足し、崩落で倒した敵は、倒れた建物の範囲にいれば倒壊の巻き込みの数にも足す。
+        /// </summary>
+        private void OnDefeated(EnemyDefeatNotice notice)
+        {
+            if (_isResolvingWordImpact || notice.Cause == EnemyDefeatCause.Boss) return;
+
             var now = Time.time;
             CountStreak(notice.Count, now);
 
             if (notice.Cause != EnemyDefeatCause.Collapse) return;
 
             CountCollapse(notice, now);
-        }
-
-        /// <summary>
-        /// 建物が倒れ始めたことを伝える。この瞬間から決めた時間の間、範囲の中で崩落で倒した敵を数える。
-        /// </summary>
-        /// <param name="center">倒れた階の中心（ワールド空間）</param>
-        /// <param name="radius">倒れた階の範囲の半径（m）。余白は含まない</param>
-        public void OnBuildingCollapsed(Vector3 center, float radius)
-        {
-            _collapseWindows.Add(new CollapseWindow(center, radius + _settings.CollapseMargin,
-                Time.time + _settings.CollapseWindow));
-        }
-
-        /// <summary>
-        /// 1回の攻撃でボクセルを壊したことを伝える。
-        /// </summary>
-        /// <param name="volume">壊したボクセルの体積（m3）</param>
-        public void OnVoxelsDestroyed(float volume)
-        {
-            if (volume >= _settings.ShatterVolume) Trigger(BrilliantSkillKind.Shatter);
         }
 
         /// <summary>
@@ -117,7 +149,12 @@ namespace Kizami.Application
         private void Trigger(BrilliantSkillKind kind)
         {
             _addBonusScore?.Invoke(_settings.GetScore(kind));
-            _onTriggered?.Invoke(kind);
+            _events.RaiseTriggered(_settings.GetWord(kind));
+        }
+
+        public void Dispose()
+        {
+            _defeatSubscription?.Dispose();
         }
 
         /// <summary>

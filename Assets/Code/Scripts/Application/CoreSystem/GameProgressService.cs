@@ -13,7 +13,7 @@ namespace Kizami.Application
     /// ステージの番号とステージの定義（StageData）、スキルの番号とスキルの定義（SkillData）の対応を持つ。常駐シーンで一度だけ生成する。
     /// 進行はクリアと装備の変更のたびに保存し、生成するときに読み込む。
     /// </summary>
-    public sealed class GameProgressService
+    public sealed class GameProgressService : IGameProgressController
     {
         private const string SAVE_FILE_NAME = "progress.json";
 
@@ -138,54 +138,32 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// ステージの初回クリアで解放されたスキルのうち、解放の演出をまだ出していないものを、ステージの並び順で返す。
+        /// ステージの初回クリアで解放されたスキルのうち、解放の演出をまだ出していないものを、ステージの並び順で演出の順番待ちに渡し、出したものとして記録して保存する。
+        /// 記録は順番待ちに渡した時点で行う為、演出の途中で閉じても二度は出ない。
         /// </summary>
-        public List<SkillData> GetPendingUnlockSkills()
+        /// <param name="queueNotice">演出を順番待ちに加える関数。引数はスキルの名前と、専用の枠のスキルか</param>
+        public void QueuePendingUnlockNotices(Action<string, bool> queueNotice)
         {
-            var pending = new List<SkillData>();
+            var ultimateSkill = UltimateSkillIndex >= 0 ? _skills[UltimateSkillIndex] : null;
+            var isRecorded = false;
             for (var i = 0; i < _stages.Length; i++)
             {
                 var skill = _stages[i] != null && _state.IsStageCleared(i) ? _stages[i].UnlockSkill : null;
-                if (skill != null && Array.IndexOf(_skills, skill) >= 0 && !_shownUnlockSkillIds.Contains(skill.Id))
-                {
-                    pending.Add(skill);
-                }
+                if (skill == null || Array.IndexOf(_skills, skill) < 0 || !_shownUnlockSkillIds.Add(skill.Id)) continue;
+
+                queueNotice(skill.DisplayName, skill == ultimateSkill);
+                isRecorded = true;
             }
 
-            return pending;
-        }
-
-        /// <summary>
-        /// 解放の演出を出したスキルとして記録して保存する。
-        /// </summary>
-        /// <param name="skill">演出を出したスキル</param>
-        public void MarkUnlockShown(SkillData skill)
-        {
-            if (skill == null || !_shownUnlockSkillIds.Add(skill.Id)) return;
-
-            Save();
+            if (isRecorded) Save();
         }
 
         /// <summary>
         /// 装備枠ごとに、装備しているスキルの定義を返す。空きの枠は null。
-        /// 選んだステージがスキルを固定しているときは、装備に関わらず、固定したスキルを先頭の枠から順に返す。
         /// </summary>
         public SkillData[] GetEquippedSkills()
         {
             var equipped = new SkillData[_state.SlotCount];
-            var stageIndex = _state.SelectedStageIndex;
-            if (stageIndex >= 0 && stageIndex < _stages.Length && _stages[stageIndex] != null &&
-                _stages[stageIndex].FixedSkills.Count > 0)
-            {
-                var fixedSkills = _stages[stageIndex].FixedSkills;
-                for (var slot = 0; slot < equipped.Length && slot < fixedSkills.Count; slot++)
-                {
-                    equipped[slot] = fixedSkills[slot];
-                }
-
-                return equipped;
-            }
-
             for (var slot = 0; slot < equipped.Length; slot++)
             {
                 var index = _state.GetEquippedSkillIndex(slot);
@@ -310,5 +288,48 @@ namespace Kizami.Application
                 ShownUnlockSkillIds = _shownUnlockSkillIds.ToArray(),
             });
         }
+    }
+
+    /// <summary>
+    /// 進行を読み、装備とクリアを書き込む操作面。アウトゲームのメニューと、インゲームのステージ・プレイヤー・敵の初期化が使う。
+    /// </summary>
+    public interface IGameProgressController
+    {
+        /// <summary> 装備できるスキル。番号はこの並びの位置 </summary>
+        IReadOnlyList<SkillData> Skills { get; }
+
+        /// <summary> スキル装備の画面で専用の枠に置くスキルの番号。なければ GameProgressState.NO_SKILL </summary>
+        int UltimateSkillIndex { get; }
+
+        /// <summary>
+        /// 選んだステージの定義を取得する。
+        /// </summary>
+        /// <param name="stage">選んだステージの定義</param>
+        /// <returns>ステージを選んでいるか</returns>
+        bool TryGetSelectedStage(out StageData stage);
+
+        /// <summary>
+        /// 装備枠にスキルを装備して保存する。
+        /// </summary>
+        /// <param name="slot">枠の番号（0から）</param>
+        /// <param name="skillIndex">スキルの番号（0から）。空きにするなら GameProgressState.NO_SKILL</param>
+        /// <returns>装備を変えたか</returns>
+        bool EquipSkill(int slot, int skillIndex);
+
+        /// <summary>
+        /// 解放の演出をまだ出していないスキルを、演出の順番待ちに渡す。
+        /// </summary>
+        /// <param name="queueNotice">演出を順番待ちに加える関数。引数はスキルの名前と、専用の枠のスキルか</param>
+        void QueuePendingUnlockNotices(Action<string, bool> queueNotice);
+
+        /// <summary>
+        /// 装備枠ごとに、装備しているスキルの定義を返す。空きの枠は null。
+        /// </summary>
+        SkillData[] GetEquippedSkills();
+
+        /// <summary>
+        /// 選んだステージをクリアしたことにする。
+        /// </summary>
+        void CompleteSelectedStage();
     }
 }

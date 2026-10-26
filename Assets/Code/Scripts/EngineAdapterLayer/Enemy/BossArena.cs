@@ -45,15 +45,15 @@ namespace Kizami.EngineAdapter
         [Tooltip("地面を探すレイを、円周の位置からこの高さ（m）上から下へ撃つ")]
         private float _groundRayHeight = 50f;
 
-        [SerializeField, Min(0)]
-        [Tooltip("円の外にいるときのダメージ量")]
-        private int _damage = 10;
-
         [SerializeField, Min(0.01f)]
         [Tooltip("円の外にいる間にダメージを与える間隔（秒）")]
         private float _damageInterval = 0.5f;
 
         private Action<int> _applyDamage;
+
+        /// <summary> 円の外にいるときのダメージ量 </summary>
+        private int _damage;
+
         private EnemyFinisherBeams.Shot[] _shots;
         private Transform[] _units;
 
@@ -87,12 +87,15 @@ namespace Kizami.EngineAdapter
         /// ダメージの関数を受け取り、ユニットの数だけビームを作る。
         /// </summary>
         /// <param name="applyDamage">プレイヤーにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
-        public void Initialize(Action<int> applyDamage)
+        /// <param name="damage">円の外にいるときのダメージ量</param>
+        /// <param name="beamDamage">柵のビームに当たっているときに、間隔ごとに与えるダメージ量</param>
+        public void Initialize(Action<int> applyDamage, int damage, int beamDamage)
         {
             _applyDamage = applyDamage;
+            _damage = damage;
 
             var beams = GetComponent<EnemyFinisherBeams>();
-            if (beams == null || !beams.Initialize(_target, applyDamage))
+            if (beams == null || !beams.Initialize(_target, applyDamage, beamDamage))
             {
                 UsefulLogger.LogWarning("円形の空間に EnemyFinisherBeams がないか使えない為、柵のビームは出ません。", this);
                 return;

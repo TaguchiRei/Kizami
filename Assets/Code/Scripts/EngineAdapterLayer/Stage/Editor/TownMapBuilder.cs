@@ -39,7 +39,7 @@ namespace Kizami.Editor
         private const float FAR_GROUND_THICKNESS = 20f;
         private const int FAR_GROUND_BOXES = 8;
 
-        // チュートリアルのダミーのスポーン位置。東の大通りの上
+        // チュートリアルのダミー（Stage_Tutorial に置く TutorialDummy）の位置。東の大通りの上
         private static readonly Vector3 _tutorialDummyPosition = new(135f, 0f, 0f);
 
         // 地面の当たり判定のレイヤー。倒れた塔の接地用の球は、このレイヤーとだけ接触する
@@ -67,7 +67,7 @@ namespace Kizami.Editor
             var oldTower = GameObject.Find("Stage_Tower_Tensho_01");
             if (oldTower != null) Object.DestroyImmediate(oldTower);
 
-            // チュートリアルのダミーの区画には施設を置かない。区画の重なりでは先に置いたダミーが使われ、施設から敵が出なくなる為
+            // チュートリアルのダミーの区画には施設を置かない。ダミーが施設に埋まらないようにする為
             var plan = TownLayout.Plan(SEED, SECTION_SIZE, new[] { GetSection(_tutorialDummyPosition) });
             var root = new GameObject(ROOT_NAME).transform;
             var meltSystem = Instantiate($"{BUILDING_FOLDER}/Town_VoxelMeltSystem.prefab", root).GetComponent<VoxelMeltSystem>();
@@ -87,7 +87,6 @@ namespace Kizami.Editor
             }
 
             var spawnSystem = CreateSpawnSystem(root);
-            CreateTutorialDummy(spawnSystem);
             var factoryCount = 0;
             var buildings = CreateGroup("Buildings", root);
             foreach (var building in plan.Buildings)
@@ -207,27 +206,6 @@ namespace Kizami.Editor
             serialized.FindProperty("_sectionSize").floatValue = SECTION_SIZE;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             return system.transform;
-        }
-
-        /// <summary>
-        /// チュートリアルのダミー（動かない Defender 1 体）のスポーン位置を、出現を保留して置く。台本が ID（Spawn_TutorialDummy）で解放する。
-        /// 他のステージでは保留のまま敵を出さない。
-        /// </summary>
-        private static void CreateTutorialDummy(Transform spawnSystem)
-        {
-            var spawnObject = new GameObject("SpawnPoint_TutorialDummy");
-            spawnObject.transform.SetParent(spawnSystem, false);
-            spawnObject.transform.position = _tutorialDummyPosition;
-            var spawnPoint = spawnObject.AddComponent<EnemySpawnPoint>();
-            spawnObject.AddComponent<StageGimmick>().SetId("Spawn_TutorialDummy");
-
-            var serialized = new SerializedObject(spawnPoint);
-            serialized.FindProperty("_composition").objectReferenceValue =
-                AssetDatabase.LoadAssetAtPath<ScriptableObject>($"{SQUAD_FOLDER}/EnemySquad_Dummy.asset");
-            serialized.FindProperty("_isStationary").boolValue = true;
-            serialized.FindProperty("_isHeld").boolValue = true;
-            serialized.FindProperty("_radius").floatValue = 1f;
-            serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
         /// <summary>

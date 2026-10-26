@@ -1,6 +1,9 @@
 using System.Text;
 using Kizami.Application;
+using Kizami.BlackBoard;
 using Kizami.EngineAdapter;
+using Kizami.EngineAdapter.Voxel;
+using Kizami.External;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.Debugging;
@@ -9,26 +12,35 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// 部隊の意思決定（EnemySquadService）と、敵の生成と体のプール（EnemySpawnAdapter）を生成して繋ぎ、敵の数や処理時間を画面に出す配線役。インゲームのシーンへ置く。
+    /// 部隊の意思決定（EnemySquadService）と、敵の生成と体のプール（EnemySpawnAdapter）を生成して繋ぎ、敵を倒した通知（IEnemyDefeatEvents）を EnemyEventBoard へ登録し、敵の数や処理時間を画面に出す配線役。インゲームのシーンへ置く。
     /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。表示はエディタと Development Build でのみ行う。
     /// </summary>
-    public sealed class EnemyInitializer : InitializerBase, IInjectable<PlayerHealthService>,
-        IInjectable<PlayerMovementService>, IInjectable<GameProgressService>
+    public sealed class EnemyInitializer : InitializerBase, IInjectable<IPlayerHealthController>,
+        IInjectable<IPlayerMovementController>, IInjectable<IGameProgressController>
     {
         private readonly StringBuilder _spawnPointText = new();
         private readonly EnemySquadService _squadService = new();
+        private readonly EnemyDefeatEvents _defeatEvents = new();
 
         [SerializeField, Range(0f, 1f)]
         [Tooltip("撤退する損耗の割合。追跡中の部隊が、満員の人数のうちこの割合以上を失ったらスポーン位置へ撤退する")]
         private float _retreatLossRatio = 0.6f;
 
+        [SerializeField]
+        [Tooltip("切り離されたボクセルの物を引き寄せる吸い寄せ。同じシーンにあるので Inspector で渡す。なければ引き寄せない")]
+        private VoxelAttraction _voxelAttraction;
+
+        [SerializeField]
+        [Tooltip("敵の攻撃が与えるダメージ量")]
+        private EnemyDamageSettings _damageSettings = new();
+
         [SerializeField] private EnemySpawnAdapter _spawnAdapter;
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
         [SerializeField] private EnemyEnergyAdapter _energyAdapter;
 
-        private PlayerHealthService _healthService;
-        private PlayerMovementService _movementService;
-        private GameProgressService _progressService;
+        private IPlayerHealthController _healthService;
+        private IPlayerMovementController _movementService;
+        private IGameProgressController _progressService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -38,12 +50,19 @@ namespace Kizami.Initialization
                 return;
             }
 
+            // 購読する Service は StageInitializer で生成される為、ここで登録しておく
+            if (blackBoard.TryGetEventBoard<EnemyEventBoard>(out var eventBoard, this))
+            {
+                eventBoard.RegisterSceneEvent<IEnemyDefeatEvents>(_defeatEvents, gameObject.scene.buildIndex);
+            }
+
             // EnemySpawnAdapter は EnemySquadCommandState を取得する為、EnemySquadService の初期化より後に初期化する
             _squadService.Initialize(blackBoard, gameObject.scene.buildIndex, _retreatLossRatio);
             _spawnAdapter.Initialize(blackBoard, _fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit,
-                _healthService != null ? _healthService.ApplyDamage : null,
-                _movementService != null ? _movementService.RequestLaunch : null, _squadService.Step);
-            if (_progressService != null && _progressService.TryGetSelectedStage(out var stage))
+                _healthService != null ? _healthService.ApplyDamage : null, _damageSettings.Shot, _damageSettings.FinisherBeam,
+                _movementService != null ? _movementService.RequestLaunch : null, _squadService.Step, _voxelAttraction);
+            _spawnAdapter.SetOnDefeated(_defeatEvents.Raise);
+            if (StageSelection.TryGetSelectedStage(_progressService, out var stage))
             {
                 _spawnAdapter.SetMaxAttacking(stage.MaxAttackingAttackers, stage.MaxAttackingFinishers);
             }
@@ -133,17 +152,17 @@ namespace Kizami.Initialization
             return _spawnPointText.ToString();
         }
 
-        public void Inject(PlayerHealthService instance)
+        public void Inject(IPlayerHealthController instance)
         {
             _healthService = instance;
         }
 
-        public void Inject(PlayerMovementService instance)
+        public void Inject(IPlayerMovementController instance)
         {
             _movementService = instance;
         }
 
-        public void Inject(GameProgressService instance)
+        public void Inject(IGameProgressController instance)
         {
             _progressService = instance;
         }

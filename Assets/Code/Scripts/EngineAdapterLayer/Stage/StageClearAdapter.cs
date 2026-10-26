@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
@@ -7,32 +8,52 @@ using UsefulToolkit.Initialization;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// ステージシーンの破壊対象（DestructionTarget・CoreSystem）を集め、破壊済みの数が変わるたびに、破壊対象の数と破壊済みの数を通知する Adapter。インゲームのシーンへ置く。
-    /// クリアの判定は通知を受ける Application 側が行う。
+    /// ステージシーンの破壊対象（DestructionTarget・CoreSystem・TutorialDummy）を集め、破壊済みの数が変わるたびに、破壊対象の数と破壊済みの数を通知する Adapter。インゲームのシーンへ置く。
+    /// クリアの判定は通知を受ける Application 側が行う。指定があれば、対象を吸い寄せ（VoxelAttraction）の優先の引き寄せ対象にする。
+    /// クリアの対象のギミックに体力制の破壊対象（HealthTarget）があれば、1 つ見つけて渡す。町のシーンはステージ間で共有され、ほかのステージの対象も置かれている為、ギミックの ID で選ぶ。
     /// </summary>
     public sealed class StageClearAdapter : InitializableMonoBehaviour
     {
         private readonly List<IDestructionTarget> _targets = new();
 
         private Action<int, int> _onTargetsChanged;
+        private VoxelAttraction _attraction;
         private int _destroyedCount = -1;
 
         /// <summary> ステージシーンにある破壊対象 </summary>
         public IReadOnlyList<IDestructionTarget> Targets => _targets;
+
+        /// <summary> クリアの対象のギミックにある体力制の破壊対象。なければ null </summary>
+        public HealthTarget HealthTarget { get; private set; }
 
         /// <summary>
         /// ステージシーンの破壊対象を集め、最初の数を通知する。ステージシーンを読み込んだあとに呼ぶ。
         /// </summary>
         /// <param name="onTargetsChanged">破壊済みの数が変わったときに呼ぶ処理。引数は破壊対象の数と破壊済みの数</param>
         /// <param name="targetGimmickIds">クリアの対象にするギミックの ID。末尾の * は前方一致。空なら、見つけた破壊対象をすべて対象にする</param>
-        public void Initialize(Action<int, int> onTargetsChanged, IReadOnlyList<string> targetGimmickIds)
+        /// <param name="attractsToTargets">対象を吸い寄せの優先の引き寄せ対象にするか</param>
+        /// <param name="attraction">対象を登録する吸い寄せ。なければ登録しない</param>
+        public void Initialize(Action<int, int> onTargetsChanged, IReadOnlyList<string> targetGimmickIds, bool attractsToTargets,
+            VoxelAttraction attraction)
         {
             _onTargetsChanged = onTargetsChanged;
+            SetAttractionTargets(false);
+            _attraction = attraction;
             _targets.Clear();
+            // 破壊対象はステージシーンと街のシーンにあり、インゲームのシーンからは配線できない為、探す
             _targets.AddRange(FindObjectsByType<DestructionTarget>(FindObjectsSortMode.None));
             _targets.AddRange(FindObjectsByType<VoxelBuildingDestructionTarget>(FindObjectsSortMode.None));
             _targets.AddRange(FindObjectsByType<CoreSystem>(FindObjectsSortMode.None));
-            if (targetGimmickIds.Count > 0) KeepGimmicks(targetGimmickIds);
+            // チュートリアルのダミーは、台本が出すまで非アクティブで待つ
+            _targets.AddRange(FindObjectsByType<TutorialDummy>(FindObjectsInactive.Include, FindObjectsSortMode.None));
+            HealthTarget = null;
+            if (targetGimmickIds.Count > 0)
+            {
+                KeepGimmicks(targetGimmickIds);
+                HealthTarget = FindHealthTarget(targetGimmickIds);
+            }
+
+            if (attractsToTargets) SetAttractionTargets(true);
 
             if (_targets.Count == 0)
             {
@@ -60,6 +81,20 @@ namespace Kizami.EngineAdapter
             }
         }
 
+        /// <summary>
+        /// 体力制の破壊対象のうち、付いたギミック（親を含む）の ID が一覧に当たる最初のものを返す。
+        /// </summary>
+        private static HealthTarget FindHealthTarget(IReadOnlyList<string> ids)
+        {
+            foreach (var healthTarget in FindObjectsByType<HealthTarget>(FindObjectsSortMode.None))
+            {
+                var gimmick = healthTarget.GetComponentInParent<StageGimmick>();
+                if (gimmick != null && ContainsId(ids, gimmick.Id)) return healthTarget;
+            }
+
+            return null;
+        }
+
         private static bool ContainsId(IReadOnlyList<string> ids, string id)
         {
             for (var i = 0; i < ids.Count; i++)
@@ -75,6 +110,27 @@ namespace Kizami.EngineAdapter
             if (!Initialized) return;
 
             CountDestroyed();
+        }
+
+        private void OnDestroy()
+        {
+            SetAttractionTargets(false);
+        }
+
+        /// <summary>
+        /// 今の破壊対象のうち引き寄せ対象になれるものを、吸い寄せの優先の引き寄せ対象に加えるか、外す。
+        /// </summary>
+        private void SetAttractionTargets(bool isAttracting)
+        {
+            if (_attraction == null) return;
+
+            foreach (var target in _targets)
+            {
+                if (target is not IAttractionTarget attractionTarget) continue;
+
+                if (isAttracting) _attraction.AddPriorityTarget(attractionTarget);
+                else _attraction.RemovePriorityTarget(attractionTarget);
+            }
         }
 
         /// <summary>

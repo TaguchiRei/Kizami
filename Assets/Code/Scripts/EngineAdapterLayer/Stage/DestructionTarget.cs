@@ -13,7 +13,7 @@ namespace Kizami.EngineAdapter
     /// 本体から分離した塊はパーツの体積に含まれない為、切り離した分も削れた分に数える。
     /// </summary>
     [RequireComponent(typeof(VoxelModelLoader))]
-    public sealed class DestructionTarget : MonoBehaviour, IDestructionTarget
+    public sealed class DestructionTarget : MonoBehaviour, IDestructionTarget, IAttractionTarget
     {
         private readonly List<VoxelPiece> _importantParts = new();
 
@@ -120,6 +120,12 @@ namespace Kizami.EngineAdapter
             {
                 UsefulLogger.LogError($"{name} の重要パーツが 1 つもない為、破壊済みになりません。", this);
             }
+        }
+
+        public bool TryGetAttractionPoint(out Vector3 point)
+        {
+            point = Center;
+            return !IsDestroyed;
         }
     }
 }

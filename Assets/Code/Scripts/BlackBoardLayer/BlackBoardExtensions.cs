@@ -86,5 +86,27 @@ namespace Kizami.BlackBoard
                 logContext);
             return false;
         }
+
+        /// <summary>
+        /// Event 用の ChildBoard に登録されたシーンの通知を取り出す。
+        /// </summary>
+        /// <param name="blackBoard">取り出し元</param>
+        /// <param name="channel">取り出した通知の購読面</param>
+        /// <param name="logContext">取り出せなかったときのエラーログの出力元</param>
+        /// <returns>取り出せたか</returns>
+        public static bool TryGetSceneEvent<TBoard, TEvent>(this IBlackBoard blackBoard, out TEvent channel,
+            object logContext)
+            where TBoard : ChildEventBoardBase
+            where TEvent : IEvent
+        {
+            channel = default;
+            if (!blackBoard.TryGetEventBoard<TBoard>(out var board, logContext)) return false;
+            if (board.TryGetSceneEvent(out channel, out _)) return true;
+
+            UsefulLogger.LogError(
+                $"{typeof(TEvent).Name} が {typeof(TBoard).Name} に未登録です。Initializer の初期化順を確認してください。",
+                logContext);
+            return false;
+        }
     }
 }

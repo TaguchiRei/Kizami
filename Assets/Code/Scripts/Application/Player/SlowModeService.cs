@@ -20,7 +20,7 @@ namespace Kizami.Application
     {
         private readonly SlowModeState _state = new();
         private readonly PlayerParameterData _parameters;
-        private readonly ChargeService _chargeService;
+        private readonly IChargeController _chargeService;
         private readonly ITimeScaleController _timeScaleController;
         private readonly IChargeState _chargeState;
         private readonly ITimeScaleState _timeScaleState;
@@ -35,7 +35,7 @@ namespace Kizami.Application
         /// <param name="timeScaleController">時間の倍率を変える操作面</param>
         /// <param name="tryFlight">飛び移れるときに飛んで true を返す関数。スローモードと同じ入力なので、先に呼ぶ</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
-        public SlowModeService(IBlackBoard blackBoard, PlayerParameterData parameters, ChargeService chargeService,
+        public SlowModeService(IBlackBoard blackBoard, PlayerParameterData parameters, IChargeController chargeService,
             ITimeScaleController timeScaleController, Func<bool> tryFlight, int sceneId)
         {
             _tryFlight = tryFlight;

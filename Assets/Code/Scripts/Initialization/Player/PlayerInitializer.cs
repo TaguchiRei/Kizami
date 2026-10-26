@@ -16,14 +16,12 @@ namespace Kizami.Initialization
     /// 投擲の Adapter は、かけらの Adapter の管理から外せたかけらだけをつかむ。
     /// 操作系ごとの視点の回転のさせ方の違いは、シーンへ置く PlayerMovementAdapterBase の派生が吸収する。
     /// </summary>
-    public sealed class PlayerInitializer : InitializerBase, IInjectable<ITimeScaleController>, IInjectable<GameProgressService>
+    public sealed class PlayerInitializer : InitializerBase, IInjectable<ITimeScaleController>, IInjectable<IGameProgressController>
     {
-        /// <summary> 攻走で削るカプセルの下端と、足元との隙間（m） </summary>
-        private const float RUSH_FLOOR_MARGIN = 0.1f;
-
         private readonly PlayerHealthService _healthService = new();
         private readonly PlayerMovementService _movementService = new();
         private readonly PlayerActionEvents _actionEvents = new();
+        private readonly PlayerSkillEffectEvents _effectEvents = new();
 
         [SerializeField]
         [Tooltip("プレイヤーの移動・HP・近接切断・チャージのパラメータ")]
@@ -70,7 +68,7 @@ namespace Kizami.Initialization
         private SkyBeamService _skyBeamService;
         private FragmentThrowService _fragmentThrowService;
         private ITimeScaleController _timeScaleController;
-        private GameProgressService _progressService;
+        private IGameProgressController _progressService;
 
         public override void Initialize(IBlackBoard blackBoard)
         {
@@ -91,6 +89,7 @@ namespace Kizami.Initialization
             if (blackBoard.TryGetEventBoard<PlayerEventBoard>(out var eventBoard, this))
             {
                 eventBoard.RegisterSceneEvent<IPlayerActionEvents>(_actionEvents, sceneId);
+                eventBoard.RegisterSceneEvent<IPlayerSkillEffectEvents>(_effectEvents, sceneId);
             }
 
             _movementService.Initialize(blackBoard, _parameters, _actionEvents, sceneId);
@@ -101,18 +100,16 @@ namespace Kizami.Initialization
 
             _enhanceService = new PlayerEnhanceService(blackBoard, sceneId);
             _lookService = new PlayerLookService(blackBoard, sceneId);
-            _chargeService = new ChargeService(blackBoard, _parameters, sceneId);
-            if (_progressService != null && _progressService.TryGetSelectedStage(out var selectedStage))
-            {
-                _chargeService.AddAmount(selectedStage.InitialCharge);
-            }
+            StageSelection.TryGetSelectedStage(_progressService, out var selectedStage);
+            _chargeService = new ChargeService(blackBoard, _parameters, selectedStage, sceneId);
 
             _fragmentOrbAdapter.Initialize(_chargeService.AddFragments);
             _enemyEnergyAdapter.Initialize(_chargeService.AddCollapsedEnemies);
-            _meleeCutAdapter.Initialize(DistributeCutResults);
+            _meleeCutAdapter.Initialize(DistributeCutResults, _armAdapter);
 
             // F は、飛び移れるときは飛び移り、そうでなければスローモードになる為、FlightService を先に生成して渡す
-            _flightService = new FlightService(blackBoard, () => _movementService.CanRush, Fly, sceneId);
+            _flightService = new FlightService(blackBoard, _movementService, _parameters.FlightSpeed,
+                () => _movementAdapter.BodyBounds.center, _effectEvents, sceneId);
             if (_flightAdapter == null) _flightAdapter = gameObject.AddComponent<FlightAdapter>();
             _flightAdapter.Initialize(_flightService.SetCandidate);
 
@@ -126,18 +123,18 @@ namespace Kizami.Initialization
             _skyBeamAdapter.Initialize(_movementAdapter, _skyBeamService.OnFinished, _skyBeamService.TryContinue,
                 _voxelDestructionAdapter.CarveSkyBeamAt, _enemySpawnAdapter.DefeatInRadius);
 
-            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, Swing,
-                _slowModeService.TryUseCut, () => _voxelMoundAdapter.IsMounding || _skyBeamService.IsActive, _actionEvents,
-                sceneId);
-            _voxelMoundAdapter.Initialize(_chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
+            // MeleeCutService が VoxelMoundState を取得する為、MeleeCutService の生成より前に初期化する
+            _voxelMoundAdapter.Initialize(blackBoard, _chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
                 _enemySpawnAdapter.RefreshRegion);
+            _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
+                _slowModeService.TryUseCut, _skyBeamService, _actionEvents, sceneId);
             if (_bombThrowAdapter == null) _bombThrowAdapter = gameObject.AddComponent<BombThrowAdapter>();
-            _bombThrowAdapter.Initialize(_voxelDestructionAdapter.CarveExplosionAt);
+            _bombThrowAdapter.Initialize(blackBoard, _voxelDestructionAdapter.CarveExplosionAt);
+            _voxelDestructionAdapter.Initialize(blackBoard);
 
-            _skillService = new SkillService(blackBoard, GetEquippedSkills(), _chargeService, _enhanceService,
-                _voxelDestructionAdapter.CarveBeam, _voxelDestructionAdapter.CarveExplosion, _healthService.Heal,
-                _bombThrowAdapter.Throw, _voxelDestructionAdapter.CarveSweep, Rush, _voxelMoundAdapter.Begin, _voxelMoundAdapter.End, () => _movementService.CanRush,
-                _meleeCutService.CanAct, _meleeCutService.MarkActed, OnSkillUsed, _skyBeamService, _actionEvents, sceneId);
+            _skillService = new SkillService(blackBoard, StageSelection.GetEquippedSkillsOrDefault(_progressService, _equippedSkills),
+                _chargeService, _enhanceService, _healthService, () => _movementAdapter.BodyBounds, _voxelMoundAdapter.Begin,
+                _voxelMoundAdapter.End, _movementService, _meleeCutService, _skyBeamService, _actionEvents, _effectEvents, sceneId);
 
             _fragmentThrowAdapter.Initialize();
 
@@ -160,62 +157,6 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// 近接切断を振り、腕を同じ角度で振らせる。
-        /// </summary>
-        private void Swing(float angle, float rangeScale, DamageType damageType)
-        {
-            _meleeCutAdapter.Swing(angle, rangeScale, damageType);
-            if (_armAdapter != null) _armAdapter.PlaySwing(angle);
-        }
-
-        /// <summary>
-        /// スキルを発動したときに、スキルに設定された腕のアニメーションを再生させる。
-        /// </summary>
-        private void OnSkillUsed(SkillData skill)
-        {
-            if (_armAdapter != null) _armAdapter.PlaySkill(skill.ArmAnimation);
-        }
-
-        /// <summary>
-        /// 移動入力の向き（なければ正面）へ突進を要求し、通る経路を先に削る。経路を先に削るので、途中の壁で止まらずに通り抜ける。
-        /// 削るカプセルは進む向きへ forwardOffset だけ前にずらす（突進の移動距離は変えない）。軸は、足元から半径と RUSH_FLOOR_MARGIN だけ上に置き、足場に穴を開けない。
-        /// </summary>
-        private void Rush(float distance, float duration, float radius, float falloff, float forwardOffset)
-        {
-            var direction = _movementService.GetRushDirection();
-            var body = _movementAdapter.BodyBounds;
-            var start = new Vector3(body.center.x, body.min.y + radius + RUSH_FLOOR_MARGIN, body.center.z);
-            var shifted = start + direction * forwardOffset;
-            _voxelDestructionAdapter.CarveCapsuleWithArmor(shifted, shifted + direction * distance, radius, body.center,
-                falloff);
-            _movementService.RequestRush(direction, distance, duration);
-        }
-
-        /// <summary>
-        /// 目印へ飛ぶ。着地の周囲のボクセルを壊す目印なら、飛び始めに先に壊す。
-        /// 余裕の高さがある目印へは、真上へ上がってから目印へ下りる。目印が壁に取りつく目印なら、着いたその場で壁に取りつく。
-        /// </summary>
-        private void Fly(FlightTarget target)
-        {
-            var start = _movementAdapter.BodyBounds.center;
-            if (target.CarvesVoxels) _voxelDestructionAdapter.CarveExplosionAt(target.Position, target.CarveRadius);
-
-            var riseHeight = Mathf.Max(0f, target.Position.y + target.ApproachClearance - start.y);
-            if (target.ApproachClearance > 0f && riseHeight > 0f)
-            {
-                var rise = Vector3.up * riseHeight;
-                var descent = target.Position - (start + rise);
-                _movementService.RequestFlight(rise, rise.magnitude / _parameters.FlightSpeed, descent,
-                    descent.magnitude / _parameters.FlightSpeed);
-                return;
-            }
-
-            var displacement = target.Position - start;
-            _movementService.RequestFlight(displacement, displacement.magnitude / _parameters.FlightSpeed, Vector3.zero,
-                0f);
-        }
-
-        /// <summary>
         /// 必須の参照がすべて設定されているかを返す。足りないものは、すべてエラーログに出す。
         /// </summary>
         private bool HasRequiredReferences()
@@ -234,16 +175,6 @@ namespace Kizami.Initialization
         }
 
         /// <summary>
-        /// アウトゲームで装備したスキルを返す。アウトゲームを通さずに始めたときは、Inspector で装備したスキルを返す。
-        /// </summary>
-        private SkillData[] GetEquippedSkills()
-        {
-            return _progressService != null && _progressService.TryGetSelectedStage(out _)
-                ? _progressService.GetEquippedSkills()
-                : _equippedSkills;
-        }
-
-        /// <summary>
         /// 切断の結果を、敵の Adapter、かけらの Adapter の順に渡す。
         /// 敵の Adapter は体に残す側のかけらをプールへ返して非アクティブにするので、かけらの Adapter はそれを管理に加えない。
         /// </summary>
@@ -255,8 +186,8 @@ namespace Kizami.Initialization
 
         private void Awake()
         {
-            InGameCompositor.TryRegisterContent(_healthService);
-            InGameCompositor.TryRegisterContent(_movementService);
+            InGameCompositor.TryRegisterContent<IPlayerHealthController>(_healthService);
+            InGameCompositor.TryRegisterContent<IPlayerMovementController>(_movementService);
         }
 
         private void OnDestroy()
@@ -275,7 +206,7 @@ namespace Kizami.Initialization
             _timeScaleController = instance;
         }
 
-        public void Inject(GameProgressService instance)
+        public void Inject(IGameProgressController instance)
         {
             _progressService = instance;
         }

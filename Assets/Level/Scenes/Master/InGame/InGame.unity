@@ -119,6 +119,53 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &35306854
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 35306856}
+  - component: {fileID: 35306855}
+  m_Layer: 0
+  m_Name: VoxelAttraction
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &35306855
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 35306854}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3347ea3d18e309a4fbcf555976435bbf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.Voxel.VoxelAttraction
+  _liftRatio: 0.6
+  _leanRatio: 0.5
+  _range: 60
+--- !u!4 &35306856
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 35306854}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &60550491
 GameObject:
   m_ObjectHideFlags: 0
@@ -831,6 +878,7 @@ MonoBehaviour:
   _playerInitializer: {fileID: 903436362}
   _stageInitializer: {fileID: 1452220891}
   _playerDebugInitializer: {fileID: 903436369}
+  _stageDebugInitializer: {fileID: 1452220896}
 --- !u!4 &653370830
 Transform:
   m_ObjectHideFlags: 0
@@ -1007,7 +1055,6 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   _continuousPatternTime: 0.3
-  _damage: 1
   _damageInterval: 0.1
   _meltSpeed: 20
   _meltRadius: 14
@@ -1702,6 +1749,7 @@ MonoBehaviour:
   _reach: 9
   _width: 6
   _thickness: 0.2
+  _destroyRangeScale: 3
   _targetLayers:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -2059,6 +2107,7 @@ GameObject:
   - component: {fileID: 1452220891}
   - component: {fileID: 1452220894}
   - component: {fileID: 1452220895}
+  - component: {fileID: 1452220896}
   m_Layer: 0
   m_Name: Stage
   m_TagString: Untagged
@@ -2086,6 +2135,7 @@ MonoBehaviour:
   _pauseAdapter: {fileID: 1452220895}
   _fragmentThrowAdapter: {fileID: 1258148392}
   _timerAdapter: {fileID: 219009642}
+  _voxelAttraction: {fileID: 35306855}
   _guideLogMaxCount: 8
   _guideLogLifetime: 5
   _isBrilliantSkillEnabled: 0
@@ -2158,6 +2208,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.StagePauseAdapter
   _backgroundColor: {r: 0, g: 0, b: 0, a: 0.4}
   _buttonColor: {r: 0.2, g: 0.2, b: 0.2, a: 0.9}
+--- !u!114 &1452220896
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1452220890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3ccf1eed223302441b9cd3d9eaea6159, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.StageDebugInitializer
+  _stageClearAdapter: {fileID: 1452220892}
 --- !u!1 &1539543156
 GameObject:
   m_ObjectHideFlags: 0
@@ -2193,6 +2256,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.EnemyInitializer
   _retreatLossRatio: 0.6
+  _voxelAttraction: {fileID: 35306855}
+  _damageSettings:
+    _shot: 5
+    _finisherBeam: 1
   _spawnAdapter: {fileID: 1539543158}
   _fragmentOrbAdapter: {fileID: 1946405260}
   _energyAdapter: {fileID: 1579939516}
@@ -2302,7 +2369,6 @@ MonoBehaviour:
   _effect: {fileID: 1064112299}
   _range: 100
   _speed: 20
-  _damage: 5
   _interval: 3
   _intervalJitter: 0.3
   _radius: 0.3
@@ -2478,7 +2544,6 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   _continuousPatternTime: 0.3
-  _damage: 1
   _damageInterval: 0.1
   _meltSpeed: 20
   _meltRadius: 14
@@ -3075,9 +3140,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 57fe2b3b426d422b8956c2c9fea01cad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.BossInitializer
+  _voxelAttraction: {fileID: 35306855}
   _enemySpawnAdapter: {fileID: 1539543158}
   _stompsPerRound: 3
   _finalDuration: 20
+  _battleSettings:
+    _landingPause: 1
+    _meleeStrikeCount: 3
+    _meleeStrikeInterval: 1.5
+    _towerRest: 10
+    _finalStomps: 3
+    _collapseGrace: 2
+  _damageSettings:
+    _shockwave: 5
+    _laser: 5
+    _turret: 5
+    _headLaser: 10
+    _finisherStrike: 1
+    _arenaOutside: 10
+    _arenaBeam: 1
+    _towerToPlayer: 60
+    _towerToBoss: 30
   _beginOnInitialize: 1
 --- !u!4 &1964918683
 Transform:
@@ -3122,3 +3205,4 @@ SceneRoots:
   - {fileID: 890729162}
   - {fileID: 113389637}
   - {fileID: 861783956}
+  - {fileID: 35306856}

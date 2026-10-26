@@ -41,6 +41,12 @@
 | DI で操作面を渡す | [GameSceneInitializer](../../Code/Scripts/Initialization/Scene/GameSceneInitializer.cs)、[PlayerInputRouteInitializerBase](../../Code/Scripts/Initialization/Input/PlayerInputRouteInitializerBase.cs) | 渡す側は `TryRegisterContent`、受け取る側は `IInjectable<T>` |
 | Application と EngineAdapter の直接配線 | [PlayerInitializer](../../Code/Scripts/Initialization/Player/PlayerInitializer.cs) が `PlayerMovementService.Step` を `PlayerMovementAdapterBase.Initialize` に渡す | 毎ステップ変わる値（視線の向き、経過時間）は引数で渡し、結果（打ち出し速度）は戻り値で返す。続く状態は State で渡す |
 | EngineAdapter が持つ State | [PlayerContactState](../../Code/Scripts/BlackBoardLayer/Player/Runtime/PlayerContactState.cs) | 物理の判定の結果を、物理ステップの後に Adapter が書く。チラつきは Adapter 側で抑える |
+| 複数の Service が受け取る出来事 | [EnemyEventBoard](../../Code/Scripts/BlackBoardLayer/Enemy/Runtime/EnemyEventBoard.cs)・[EnemyDefeatEvents](../../Code/Scripts/BlackBoardLayer/Enemy/Runtime/EnemyDefeatEvents.cs)（撃破） | 状態を持たない出来事を受け取る相手が 2 つ以上なら、Initializer で配らず EventBoard に流す。流すのは Adapter、購読するのは各 Service。受け取る相手が 1 つなら直接配線のままにする（区間40） |
+| Service が決めた行動を Adapter が実行する | [BossBattleService](../../Code/Scripts/Application/Enemy/BossBattleService.cs)・[BossBattleState](../../Code/Scripts/BlackBoardLayer/Enemy/Runtime/BossBattleState.cs)・[BossBattleAdapter](../../Code/Scripts/EngineAdapterLayer/Enemy/BossBattleAdapter.cs) | 次に何をするか（行動の順番・回数・待機）は Service が決めて State に書く。Adapter は今の行動を 1 つ実行し、終わったら行えたかを報告する。同じ行動が続いても新しい指示と分かるよう、行動を設定した回数も State に持つ（区間40） |
+| Adapter が検出し、Service が量を決める | [HealthTarget](../../Code/Scripts/EngineAdapterLayer/Stage/HealthTarget.cs) → [TargetHealthService.ReportHit](../../Code/Scripts/Application/Stage/TargetHealthService.cs) | Adapter は当たりの種類と大きさだけを報告し、減らす量・無敵・数えるかは Service が決める（区間40） |
+| ルールの値 | [BossBattleSettings](../../Code/Scripts/ExternalLayer/Stage/BossBattleSettings.cs)・[BossDamageSettings](../../Code/Scripts/ExternalLayer/Stage/BossDamageSettings.cs)（`BossInitializer` が持つ）、[EnemyDamageSettings](../../Code/Scripts/ExternalLayer/Stage/EnemyDamageSettings.cs)（`EnemyInitializer` が持つ）、[TargetDamageSettings](../../Code/Scripts/ExternalLayer/Stage/TargetDamageSettings.cs)（`StageData` が持つ） | 回数・間隔・量などルールの値は、Adapter の SerializeField に置かず、ExternalLayer の Serializable にまとめて Service に渡す。EngineAdapterLayer は ExternalLayer を参照しない為、Adapter には Initializer が値で渡す。攻撃 1 つの実行の中身（武装ごとのクールタイム・ダメージの間隔 等）は Adapter に残してよい（区間40） |
+| Service が決めた効果を Adapter に実行させる | [PlayerSkillEffectEvents](../../Code/Scripts/BlackBoardLayer/Player/Runtime/PlayerSkillEffectEvents.cs)（スキルの効果）、[BrilliantSkillEvents](../../Code/Scripts/BlackBoardLayer/Stage/BrilliantSkillEvents.cs) | 効果を実行する Adapter が複数なら、Service は出来事を流し、各 Adapter が購読する。案内のログ用の `IPlayerActionEvents` とは分ける。戻り値のある関数は直接配線に残す（区間40） |
+| 台本の定義と判断を分ける | [IStageGuideController](../../Code/Scripts/BlackBoardLayer/Stage/IStageGuideController.cs)、[StageGuideScript](../../Code/Scripts/EngineAdapterLayer/Stage/StageGuideScript.cs)・[BossGuideScript](../../Code/Scripts/EngineAdapterLayer/Enemy/BossGuideScript.cs) → [StageGuideService](../../Code/Scripts/Application/Stage/StageGuideService.cs) | 台本の Adapter は段階と文の定義と、エンジン側の観測の報告だけを持つ。段階を進める判断と、出す文を選ぶ判断は Service が持つ。Adapter から使う操作面は BlackBoardLayer に置く（区間40） |
 
 ### 守ること
 
@@ -85,7 +91,7 @@
 - スマホと VR の既存コード（ビルドモード、Adapter、入力マップ）は壊さずに保つ
 - 他プラットフォームへの対応は番号付きの区間とは別に、随時行う。各区間計画書の「他プラットフォームへの対応」に、その区間で気をつけることを書く
 
-## 3. 現状（2026-10-15 時点。区間17・18・19・20 の完了まで。区間21 以降の成果はまだ書き足していない）
+## 3. 現状（2026-10-15 時点。区間17・18・19・20 の完了まで。区間21〜39 の成果はまだ書き足していない。区間40 の整理は「層の責務の整理」の行だけ足した）
 
 | 分野 | 状態 |
 |---|---|
@@ -115,6 +121,7 @@
 | ディフェンダーのバリア | あり（区間13・39）。プレイヤーとディフェンダーの水平距離が 80 m 以内の間、`EnemyBarriers` が `EnemyGroup.BarrierTimer` を進め（近いほど速く、10 m 以内で 4 倍。20 秒で張る）、範囲を出るとタイマーを戻してバリアを解く。壊れたバリアは張り直さない。耐久値は、バリアより一回り大きい球のシェーダー（`BarrierDurability`）で、四角の帯・頭頂部の三角形・台形として見せ、バリア本体は `BarrierBody` で六角形の格子にする。攻撃が当たると `HitChromaticAberration` が色収差を掛ける。割れると、砕いた破片（`GlassShardPool` の Barrier 種）が飛ぶ。装甲のパネルが壊れるときも、同じ仕組みの Armor 種の破片が飛ぶ |
 | ダメージタイプと判定の窓口 | あり（区間18）。`DamageType`（BlackBoard、Flags の enum：攻撃・破壊・粉砕）を攻撃が持ち、装甲への効き方は `ArmorPanel.ApplyDamage` の 1 か所で決める（粉砕を含めば一撃、攻撃か破壊を含めば耐久値を 1 減らす） |
 | スキル | あり（区間8）。1 キーで前方ビーム（消費 30。カメラから視線の向きへ半径 1m・長さ 30m のカプセルで削り、壁を貫通する）、2 キーで自分中心の爆発（消費 50。カメラの位置を中心に半径 4m の球で削る）。`SkillData`（External）を、アウトゲームで選んだ装備（`GameProgressState`。アウトゲームを通さずに始めたときは `PlayerInitializer` の Inspector の 3 枠）から受け取り、`SkillService` が入力を受けてチャージを消費し、`VoxelDestructionAdapter` の `CarveBeam` / `CarveExplosion` を呼ぶ。チャージが足りなければ発動も消費もしない。クールタイムと見た目の演出はない。スキルは敵に当たらない（Enemy のレイヤーを除いて削る）。区間18で、回復（`SkillEffect.Heal`）と強化型 5 種（ボクセル破壊・シルブレ・範囲アップ・速さアップ・かけらの爆発。`PlayerEnhanceService` が実時間か攻撃の回数で切れる効果を持つ）を足し、HUD にスキルごとのアイコンと可・不、チャージの数値を出した。HUD の表示は、区間19の `StageHudAdapter`（uGUI）へ移した。アイコンは `StageHudAdapter` が `ISkillSlotState.GetIcon` から読む（区間20） |
+| 層の責務の整理 | 区間40（2026-10-24）で、Initializer に残っていた判断を Application と Adapter へ移した。撃破は `EnemyEventBoard` の出来事で、流れ・案内・Brilliant Skill の 3 つの Service が購読する。言葉の着弾の扱いは `BrilliantSkillService`、突進の形は `SkillService`、飛び移りの上昇・下降は `FlightService`、解放の演出の判断は `GameProgressService`、通常攻撃の腕の振りは `MeleeCutAdapter` が持つ。ボスの行動の順番・無敵・ダウン中に武装を壊す判断は `BossBattleService`、ボスの体力を減らす量は `TargetHealthService`（値は `StageData.TargetDamage`）が持ち、無敵は `TargetHealthMode.Invincible` だけ。後半（2026-10-25）で、スキルと Brilliant Skill の効果は EventBoard の出来事（`PlayerSkillEffectEvents`・`BrilliantSkillEvents`）で Adapter に実行させ、台本の段階を進める判断とボス戦の案内の文を選ぶ判断は `StageGuideService` へ、攻撃のダメージ量は ExternalLayer（`BossDamageSettings`・`EnemyDamageSettings`）へ移した。盛っている間は `VoxelMoundAdapter` が `VoxelMoundState` に書く。残した例外：切断の結果を Adapter から Adapter へ渡す `PlayerInitializer.DistributeCutResults`、吸い寄せ（`VoxelAttraction`）の `Instance` 参照 |
 | 旧構成 | `Test/InGame.unity` と `Test/OutGame.unity`、`Assets/Level/Prefabs/` の既存プレハブ（`Enemy/AttakkerEnemy.prefab` など。区間4 で作った `Enemy/AttackerEnemy.prefab` は除く）は旧構成のもの。旧 FBX `AttakkerEnemy.fbx` と区間4 の `AttackerEnemy.fbx` は、区間10の途中でユーザーが消した。旧構成の `AttakkerEnemy.prefab` と開発用のシーン（`ShaderTest`、`VoxelModelTest`）は、参照が切れたまま。`Assets/Art/` は区間4 から git の対象。`Test/InGame.unity` は Build Settings から外してあり、`BuildScenes.InGame` は新しい `Master/InGame` を指す |
 
 ## 4. 進め方
@@ -168,18 +175,19 @@
 | 30 | 敵の広がり | 隊列の間隔を広げ、通常攻撃でまとめて倒せる数を減らす。着いたグループのメンバーを空いている床に割り当て、遠回りでしかたどり着けない列を置き場から外す | 16 | 未定 | 未定 | 完了（2026-10-20） | [Section30](Sections/Section30_EnemySpread.md) |
 | 31 | 体力制の破壊対象 | 体力が尽きるまで壊せない対象、上部の体力ゲージ、崩壊の半球の対象、殲滅の撃破数の条件 | 29, 22, 19 | 未定 | 未定 | 実装済み（最終確認はレビュー時） | [Section31](Sections/Section31_TargetHealth.md) |
 | 32 | ボス戦の作り直し | ボスの体力、直接戦闘 → 遠距離 → 直接戦闘 → 最終、降下フィニッシャー、武装を 1 つ選んで壊す、隙間のない円形の空間 | 31, 26C, 23 | 未定 | 未定 | 実装済み（2026-10-21。通して遊ぶ確認はレビュー時） | [Section32](Sections/Section32_BossRework.md) |
-| 33 | 仕上げ（アルファ版の完了） | 34〜44 の親。作業は子の区間で行う | 全部 | 12/04〜12/17 | 10/28〜10/31 | 未着手（子の区間に分けた） | [Section33](Sections/Section33_Polish.md) |
+| 33 | 仕上げ（アルファ版の完了） | 34〜45 の親。作業は子の区間で行う | 全部 | 12/04〜12/17 | 10/28〜10/31 | 未着手（子の区間に分けた） | [Section33](Sections/Section33_Polish.md) |
 | 34 | プレイヤーの挙動の修正とスキルの範囲 | 段差で空へ飛ぶ不具合、慣性の強すぎる移動、向いている方向への壁キック、スキルの範囲を正面に広げる | 32 | 未定 | 未定 | 実装済み（2026-10-21。到達での確認は持ち越し） | [Section34](Sections/Section34_PlayerFix.md) |
 | 35 | 火術奥義・羽天轟号 | 上空から撃つ、視点を動かせる無敵のビーム | 34、アウトゲームの区間5 | 未定 | 未定 | 実装済み（2026-10-21。手触りの確認はレビュー時） | [Section35](Sections/Section35_Utenkougou.md) |
 | 36 | SE と BGM | 音の土台（AudioMixer と音量の反映）、BGM、SE 4 つ（ガラス・装甲・ボクセル攻撃・崩壊）。ほかの SE とスロー中の音は持ち越し | 35 | 未定 | 未定 | 完了（2026-10-21） | [Section36](Sections/Section36_Sound.md) |
 | 37 | 爆発とがれき | 爆発のエフェクト、壊した物から落ちるがれき（エフェクト） | 36 | 未定 | 未定 | 実装済み（2026-10-22。SE は持ち越し） | [Section37](Sections/Section37_ExplosionDebris.md) |
 | 38 | プレイヤーの行動の演出 | 腕のアニメーション、行動のエフェクト。実装したのは腕、かけらの投擲のオミット、Brilliant Skill の一時無効化、ウォールラン中のカメラの傾き。エフェクトと SE は持ち越し | 37 | 未定 | 未定 | 打ち切り（2026-10-23。エフェクトと SE は持ち越し） | [Section38](Sections/Section38_PlayerFeel.md) |
 | 39 | 敵の弾道とシールドの表示 | アタッカーの弾道の軌跡、ディフェンダーのシールドの耐久値の表示（球のシェーダー、色収差、バリア本体の模様）、バリアを張る条件のタイマー、バリアと装甲が割れる演出、窓ガラスの破片の最適化。敵が出てくる・吸収とビームの見た目・暗さと姿勢は扱わない。SE は洗い出しだけで、生成と実装は後ほど | 38 | 未定 | 未定 | 実装済み（2026-10-24。SE の生成と実装は持ち越し） | [Section39](Sections/Section39_EnemyVisual.md) |
-| 40 | アーキテクチャのリファクタリング | State-Centrism Architecture の原則に沿って、層の責務を整理する（Initialization のロジック、直接配線の相手の数、ボスの行動と体力の置き場所） | 39 | 未定 | 未定 | 未着手 | [Section40](Sections/Section40_ArchitectureRefactoring.md) |
+| 40 | アーキテクチャのリファクタリング | State-Centrism Architecture の原則に沿って、層の責務を整理する（Initialization のロジック、直接配線の相手の数、ボスの行動と体力の置き場所） | 39 | 未定 | 未定 | 実装済み（確認待ち） | [Section40](Sections/Section40_ArchitectureRefactoring.md) |
 | 41 | Brilliant Skill の文字の見せ方 | 文字が出そろうまで、画面の手前でプレイヤーに追従させる | 24, 40 | 未定 | 未定 | 未着手 | [Section41](Sections/Section41_BrilliantDisplay.md) |
 | 42 | アルファ版の UI | アウトゲームの画面のデザインとプレハブ化 | 41、アウトゲームの区間1・2・4 | 未定 | 未定 | 未着手 | [Section42](Sections/Section42_AlphaUi.md) |
 | 43 | 背景映像 | マップを周回するカメラの映像をアウトゲームで流す | 42 | 未定 | 未定 | 未着手 | [Section43](Sections/Section43_BackgroundVideo.md) |
 | 44 | 通しの調整と不具合の修正 | 負荷とパラメータの調整、不具合の修正、HUD の見た目、使っていないコードとアセットの削除 | 43 | 未定 | 未定 | 未着手 | [Section44](Sections/Section44_FinalTuning.md) |
+| 45 | 今後の修正と変更 | 2026-10-25 に挙がった一覧（基本機能・ボス・最適化と UX・到達ステージ）。UI とデバッグ機能の削除は区間42・44-5 と統合する | 未定（44 の前か、アルファ版のあとかを着手前に決める） | 未定 | 未定 | 未着手（項目の洗い出しのみ） | [Section45](Sections/Section45_Backlog.md) |
 
 - 目安の時期と最速の推定は、そのときどきの割り方で引いた値のまま残している。区間0〜3 は計画の約 4 倍、区間4〜19 は約 20 倍の速さで終わった。最後に引き直したのは 2026-10-15（区間20-3）で、そのときの完了の目安は 2026/12/17、完了の最速の推定は 2026/10/31
 - 区間12 は、区間13のディフェンダーの円形のバリアと隊列からの攻撃が、二重螺旋の並び方の上に成り立つ為に、区間13の前に置いた
@@ -189,7 +197,8 @@
 - 区間28〜32 は 2026-10-19 に足した。ユーザーが「壊すこと自体は面白いが挑戦性がない。殲滅・崩壊・ボス戦は対象をちょっと壊すだけ」と判断し、壊す手段を強める（28・29）、通常攻撃を相対的に弱める（30）、ミッションの対象とボスを体力制にする（31・32）と決めた為。28・30 はほかの区間に依存しない。31 は 29 の「通常攻撃で切れる」印を使い、32 は 31 の体力の仕組みを使う。時期は未定
 - 区間21（広いマップの格子）は保留のまま。今の格子で問題が出たら着手する（44-4）
 - 到達ステージは、飛び移り（区間34 の計画の外で追加）の挙動が安定しなかったため、2026-10-21 にステージ選択から外した（ステージのアセットとシーンは残してある）。戻すときは、常駐シーンの `GameSceneInitializer._stages` に `ArrivalStageData` を足し、区間34 の持ち越し（飛び移りの確認、各スキルで天照塔を倒せるか）を確かめる
-- 区間33 は 2026-10-21 に、アルファ版の仕上げとして子の区間 34〜43 に分けた（2026-10-24 に区間40 を子として足し、今は 34〜44）。アウトゲームの未着手の区間（旧 3・6・7）もアルファ版の完了に必要なので、インゲームの区間 43・35・42 に移した。順番はユーザーの優先度（機能がないもの → 体験に直結するもの → あった方が良いもの → システムの都合）で決めた。理由は [Section33](Sections/Section33_Polish.md) の「アルファ版の仕上げの区間」
+- 区間33 は 2026-10-21 に、アルファ版の仕上げとして子の区間 34〜43 に分けた（2026-10-24 に区間40、2026-10-25 に区間45 を子として足し、今は 34〜45）。アウトゲームの未着手の区間（旧 3・6・7）もアルファ版の完了に必要なので、インゲームの区間 43・35・42 に移した。順番はユーザーの優先度（機能がないもの → 体験に直結するもの → あった方が良いもの → システムの都合）で決めた。理由は [Section33](Sections/Section33_Polish.md) の「アルファ版の仕上げの区間」
+- 区間45 は 2026-10-25 に足した。ユーザーが挙げた今後の修正と変更の置き場で、仕様は確定していない。区間42・44-5・29・32 と、区間34 の持ち越し（到達ステージの復帰）と重なる項目は、着手時にそちらへ移す。区間44 との前後は未定（区間45 の決めること #2）
 - 区間40（アーキテクチャのリファクタリング）は 2026-10-24 に足した。区間39 までの細部の確認ではなく、層の責務そのものを原則に照らして整理する。Brilliant Skill の文字（区間41）以降の作業が、整理したあとの構造の上に乗るよう、アルファ版の仕上げの途中に、区間33 の子として入れた
 
 ### 旧番号との対応

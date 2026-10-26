@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using Kizami.BlackBoard;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,7 +10,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// アウトゲームの画面（ホーム、ステージ選択、スキル装備の仮の画面）を 1 つの Canvas に組み立てて切り替える Adapter。アウトゲームのシーンへ置く。
-    /// ステージの表示内容とスキルの枠の表示は Initializer から受け取り、ボタンの操作は Action で返す。どの画面を出しているかはこの Adapter の中だけで持つ。
+    /// ステージの表示内容とスキルの枠の表示は Initializer から受け取り、ボタンの操作は Initializer から受け取った関数で返し、遷移中のロックと装備の読み直しはこの Adapter で行う。どの画面を出しているかはこの Adapter の中だけで持つ。
     /// 画面は uGUI の Canvas を初期化のときに組み立てる。シーンに EventSystem がなければ、ボタンを押せるように作る。
     /// </summary>
     // TODO: スキル装備の画面は区間2で本来の画面に置き換える
@@ -118,9 +119,9 @@ namespace Kizami.EngineAdapter
         private Color _ultimateColor = new(0.6f, 0.45f, 0.1f, 0.95f);
 
         private CanvasGroup _canvasGroup;
-        private Action<int> _startStage;
-        private Action _quit;
-        private Action<int, int> _equipSkill;
+        private Func<int, UniTask<bool>> _startStage;
+        private Func<int, int, bool> _equipSkill;
+        private IGameProgressState _progressState;
         private IOperationSettingState _settingState;
         private IOperationSettingController _settingController;
         private InputRebindAdapter _rebindAdapter;
@@ -155,39 +156,24 @@ namespace Kizami.EngineAdapter
         /// <param name="stages">ステージ選択に出すステージ。番号はこの並びの位置</param>
         /// <param name="skills">スキル装備に出すスキル。番号はこの並びの位置</param>
         /// <param name="ultimateSkillIndex">専用の枠に置くスキルの番号。なければ -1</param>
-        /// <param name="equippedSkillIndices">装備枠ごとのスキルの番号。空きは -1</param>
-        /// <param name="startStage">ステージのボタンを押したときに呼ぶ処理。引数はステージの番号</param>
-        /// <param name="equipSkill">スキルのボタンを押したときに呼ぶ処理。引数は枠の番号とスキルの番号（空きにするなら -1）</param>
-        /// <param name="quit">ゲームの終了ボタンを押したときに呼ぶ処理</param>
+        /// <param name="progressState">装備枠ごとのスキルの番号の取得元</param>
+        /// <param name="startStage">ステージのボタンを押したときに呼ぶ処理。引数はステージの番号。遷移が終わるまでボタンを押せなくする</param>
+        /// <param name="equipSkill">スキルのボタンを押したときに呼ぶ処理。引数は枠の番号とスキルの番号（空きにするなら -1）。装備を変えたら true を返す</param>
         /// <param name="startOnStageSelect">ステージ選択から始めるか。false ならホームから始める</param>
         public void Initialize(IReadOnlyList<StageEntry> stages, IReadOnlyList<SkillEntry> skills,
-            int ultimateSkillIndex, IReadOnlyList<int> equippedSkillIndices, Action<int> startStage,
-            Action<int, int> equipSkill, Action quit, bool startOnStageSelect)
+            int ultimateSkillIndex, IGameProgressState progressState, Func<int, UniTask<bool>> startStage,
+            Func<int, int, bool> equipSkill, bool startOnStageSelect)
         {
             _startStage = startStage;
             _equipSkill = equipSkill;
-            _quit = quit;
+            _progressState = progressState;
             _skills = skills;
-            _equippedSkillIndices = new int[equippedSkillIndices.Count];
+            _equippedSkillIndices = new int[progressState.SlotCount];
 
             BuildView(stages, ultimateSkillIndex);
-            SetEquipped(equippedSkillIndices);
+            RefreshEquipped();
             ShowScreen(startOnStageSelect ? MenuScreen.StageSelect : MenuScreen.Home);
             base.Initialize();
-        }
-
-        /// <summary>
-        /// 装備枠ごとのスキルの番号を受け取り、枠とスキルの表示を更新する。
-        /// </summary>
-        /// <param name="equippedSkillIndices">装備枠ごとのスキルの番号。空きは -1</param>
-        public void SetEquipped(IReadOnlyList<int> equippedSkillIndices)
-        {
-            for (var slot = 0; slot < _equippedSkillIndices.Length && slot < equippedSkillIndices.Count; slot++)
-            {
-                _equippedSkillIndices[slot] = equippedSkillIndices[slot];
-            }
-
-            RefreshSkillEquip();
         }
 
         /// <summary>
@@ -200,13 +186,6 @@ namespace Kizami.EngineAdapter
             _notices.Enqueue((skillName, isUltimate));
         }
 
-        /// <summary>
-        /// ボタンを押せるかを切り替える。ステージへ遷移している間は押せなくする。
-        /// </summary>
-        public void SetInteractable(bool isInteractable)
-        {
-            if (_canvasGroup != null) _canvasGroup.interactable = isInteractable;
-        }
 
         private void Update()
         {
@@ -233,6 +212,18 @@ namespace Kizami.EngineAdapter
                 _toastTimer = TOAST_SECONDS;
                 _toast.SetActive(true);
             }
+        }
+
+        /// <summary>
+        /// ゲームを終了する。エディタではプレイモードを止める。
+        /// </summary>
+        private static void Quit()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            UnityEngine.Application.Quit();
+#endif
         }
 
         private static string GetSlotText(int slot, string skillName)
@@ -333,7 +324,7 @@ namespace Kizami.EngineAdapter
             configButton.onClick.AddListener(() => ShowScreen(MenuScreen.Config));
 
             var quitButton = CreateButton(panel, "QuitButton", "Quit", 3, 4, HOME_BUTTON_HEIGHT);
-            quitButton.onClick.AddListener(() => _quit?.Invoke());
+            quitButton.onClick.AddListener(Quit);
         }
 
         private void BuildStageSelect(Transform canvas, IReadOnlyList<StageEntry> stages)
@@ -347,7 +338,7 @@ namespace Kizami.EngineAdapter
                 var button = CreateButton(panel, $"Stage{i}Button", GetStageText(stages[i]), i, count,
                     STAGE_BUTTON_HEIGHT);
                 button.interactable = stages[i].IsUnlocked;
-                button.onClick.AddListener(() => _startStage?.Invoke(stageIndex));
+                button.onClick.AddListener(() => StartStageAsync(stageIndex).Forget());
             }
 
             CreateBackButton(panel, stages.Count, count, STAGE_BUTTON_HEIGHT);
@@ -370,7 +361,7 @@ namespace Kizami.EngineAdapter
             var unequipY = 60f + _equippedSkillIndices.Length * (SLOT_HEIGHT + ROW_GAP);
             var unequipButton = CreateButtonAt(panel, "UnequipButton", "Unequip", SLOT_X, unequipY, SLOT_WIDTH, SLOT_HEIGHT * 0.8f,
                 _buttonColor);
-            unequipButton.onClick.AddListener(() => _equipSkill?.Invoke(_selectedSlot, NO_SKILL));
+            unequipButton.onClick.AddListener(() => EquipSkill(_selectedSlot, NO_SKILL));
 
             _detailText = UiBuilder.CreateText(panel, "Detail", DETAIL_FONT_SIZE, TextAnchor.UpperLeft);
             _detailText.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -413,8 +404,50 @@ namespace Kizami.EngineAdapter
 
         private void PickSkill(int skillIndex)
         {
-            _equipSkill?.Invoke(_selectedSlot, skillIndex);
+            EquipSkill(_selectedSlot, skillIndex);
             ShowDetail(skillIndex);
+        }
+
+        /// <summary>
+        /// ステージへの遷移を要求し、遷移が終わるまでボタンを押せなくする。
+        /// 遷移に成功するとこのオブジェクトはアンロードで破棄されるので、戻すのは破棄されていないときだけ。
+        /// </summary>
+        /// <param name="stageIndex">ステージの番号（0から）</param>
+        private async UniTaskVoid StartStageAsync(int stageIndex)
+        {
+            if (_startStage == null) return;
+
+            SetInteractable(false);
+            await _startStage(stageIndex);
+            if (this != null) SetInteractable(true);
+        }
+
+        /// <summary>
+        /// 装備を要求し、変わったら装備枠ごとのスキルの番号を State から読み直す。
+        /// </summary>
+        /// <param name="slot">枠の番号（0から）</param>
+        /// <param name="skillIndex">スキルの番号（0から）。空きにするなら NO_SKILL</param>
+        private void EquipSkill(int slot, int skillIndex)
+        {
+            if (_equipSkill != null && _equipSkill(slot, skillIndex)) RefreshEquipped();
+        }
+
+        /// <summary>
+        /// 装備枠ごとのスキルの番号を State から読み直し、枠とスキルの表示を更新する。
+        /// </summary>
+        private void RefreshEquipped()
+        {
+            for (var slot = 0; slot < _equippedSkillIndices.Length; slot++)
+            {
+                _equippedSkillIndices[slot] = _progressState.GetEquippedSkillIndex(slot);
+            }
+
+            RefreshSkillEquip();
+        }
+
+        private void SetInteractable(bool isInteractable)
+        {
+            if (_canvasGroup != null) _canvasGroup.interactable = isInteractable;
         }
 
         private void ShowDetail(int skillIndex)

@@ -50,10 +50,6 @@ namespace Kizami.EngineAdapter
         [Tooltip("プレイヤーの Transform の位置から足元までの高さ（m）。足元の高さで輪に当たるかを決める")]
         private float _targetFootOffset = 1f;
 
-        [SerializeField, Min(0)]
-        [Tooltip("当たったときのダメージ量")]
-        private int _damage = 5;
-
         [SerializeField, Min(0f)]
         [Tooltip("当たったときに外側へ弾く水平の速さ（m/s）")]
         private float _knockbackSpeed = 8f;
@@ -64,6 +60,9 @@ namespace Kizami.EngineAdapter
 
         private BossWeapons _weapons;
         private Action<int> _applyDamage;
+
+        /// <summary> 当たったときのダメージ量 </summary>
+        private int _damage;
         private Action<Vector3> _requestKnockback;
 
         /// <summary> 輪ごとの、中心（ワールド座標） </summary>
@@ -106,10 +105,12 @@ namespace Kizami.EngineAdapter
         /// ダメージと弾く関数を受け取る。
         /// </summary>
         /// <param name="applyDamage">プレイヤーにダメージを与える関数（PlayerHealthService.ApplyDamage）。引数はダメージ量</param>
+        /// <param name="damage">当たったときのダメージ量</param>
         /// <param name="requestKnockback">プレイヤーを弾く関数（PlayerMovementService.RequestKnockback）。引数は打ち出し速度</param>
-        public void Initialize(Action<int> applyDamage, Action<Vector3> requestKnockback)
+        public void Initialize(Action<int> applyDamage, int damage, Action<Vector3> requestKnockback)
         {
             _applyDamage = applyDamage;
+            _damage = damage;
             _requestKnockback = requestKnockback;
         }
 

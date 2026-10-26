@@ -8,7 +8,7 @@ namespace Kizami.Application
     /// 強化型スキルの効果を、強化の種類（EnhanceKind）ごとに PlayerEnhanceState へ書くユースケース。
     /// 効果はプレイヤーが決めた回数だけ攻撃すると切れる。同じ種類を重ねて使うと最初から数え直し、違う種類は同時にかかる。
     /// </summary>
-    public sealed class PlayerEnhanceService
+    public sealed class PlayerEnhanceService : IPlayerEnhanceController
     {
         private readonly PlayerEnhanceState _state = new();
 
@@ -28,16 +28,6 @@ namespace Kizami.Application
         public void Begin(EnhanceEffect effect)
         {
             _state.Set(ToKind(effect), effect.Scale, effect.Count);
-        }
-
-        /// <summary>
-        /// 強化がかかっているかを返す。回数は使わない。
-        /// </summary>
-        /// <param name="kind">強化の種類</param>
-        /// <param name="scale">かかっていれば強化の倍率、かかっていなければ1</param>
-        public bool IsActive(EnhanceKind kind, out float scale)
-        {
-            return _state.TryGet(kind, out scale, out _);
         }
 
         /// <summary>
@@ -67,5 +57,25 @@ namespace Kizami.Application
                     "EnhanceKind に対応していない強化です。")
             };
         }
+    }
+
+    /// <summary>
+    /// 強化をかけ、攻撃のたびに使う操作面。スキルと通常攻撃が使う。強化がかかっているかを読むだけなら IPlayerEnhanceState を使う。
+    /// </summary>
+    public interface IPlayerEnhanceController
+    {
+        /// <summary>
+        /// 強化をかける。
+        /// </summary>
+        /// <param name="effect">強化の効果</param>
+        void Begin(EnhanceEffect effect);
+
+        /// <summary>
+        /// 攻撃を1回行うときに呼び、強化がかかっていれば残りを1減らす。
+        /// </summary>
+        /// <param name="kind">強化の種類</param>
+        /// <param name="scale">かかっていれば強化の倍率、かかっていなければ1</param>
+        /// <returns>この攻撃に強化がかかるなら true</returns>
+        bool TryUse(EnhanceKind kind, out float scale);
     }
 }

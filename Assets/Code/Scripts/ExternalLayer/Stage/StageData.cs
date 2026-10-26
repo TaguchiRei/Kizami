@@ -37,10 +37,6 @@ namespace Kizami.External
         private int _initialCharge;
 
         [SerializeField]
-        [Tooltip("このステージで使うスキルを固定する。空でなければ、アウトゲームでの装備を無視して、先頭から順に装備枠へ入れる。空なら装備したスキルを使う")]
-        private SkillData[] _fixedSkills = System.Array.Empty<SkillData>();
-
-        [SerializeField]
         [Tooltip("クリアの対象にするギミックの ID。末尾を * にすると、その前までで始まる ID をすべて対象にする（Factory_* など）。空なら、読み込んだシーンの破壊対象をすべて対象にする")]
         private string[] _targetGimmickIds = System.Array.Empty<string>();
 
@@ -65,8 +61,16 @@ namespace Kizami.External
         private bool _clearsOnTargets = true;
 
         [SerializeField]
+        [Tooltip("クリアの対象の破壊対象を、吸い寄せの優先の引き寄せ対象にするか。切り離されたボクセルの物が破壊対象の側へ倒れやすくなる")]
+        private bool _attractsToTargets;
+
+        [SerializeField]
         [Tooltip("すべてのスキルの破壊力を最大にする。どのスキルでも、強度が硬い素材を普通の素材と同じ範囲まで削れる")]
         private bool _isMaxDestructionPower;
+
+        [SerializeField]
+        [Tooltip("体力制の破壊対象（HealthTarget）で、当たりの種類ごとに減る体力の量。体力制の対象がないステージでは使わない")]
+        private TargetDamageSettings _targetDamage = new();
 
         [SerializeReference, SubclassSelector]
         [Tooltip("失敗条件。どれか 1 つを満たしたら失敗にする。空ならこのステージでは失敗しない")]
@@ -90,14 +94,14 @@ namespace Kizami.External
         /// <summary> ステージを始めるときのチャージ量 </summary>
         public int InitialCharge => _initialCharge;
 
-        /// <summary> このステージで使うスキルの固定。空なら固定しない </summary>
-        public IReadOnlyList<SkillData> FixedSkills => _fixedSkills;
-
         /// <summary> クリアの対象にするギミックの ID。末尾の * は前方一致。空なら破壊対象をすべて対象にする </summary>
         public IReadOnlyList<string> TargetGimmickIds => _targetGimmickIds;
 
         /// <summary> 破壊対象の破壊でクリアにするか </summary>
         public bool ClearsOnTargets => _clearsOnTargets;
+
+        /// <summary> クリアの対象の破壊対象を、吸い寄せの優先の引き寄せ対象にするか </summary>
+        public bool AttractsToTargets => _attractsToTargets;
 
         /// <summary> クリアに必要な破壊済みの対象の数。0 なら対象すべて </summary>
         public int RequiredTargetCount => _requiredTargetCount;
@@ -113,6 +117,9 @@ namespace Kizami.External
 
         /// <summary> すべてのスキルの破壊力を最大にするか </summary>
         public bool IsMaxDestructionPower => _isMaxDestructionPower;
+
+        /// <summary> 体力制の破壊対象で、当たりの種類ごとに減る体力の量 </summary>
+        public TargetDamageSettings TargetDamage => _targetDamage;
 
         /// <summary> 失敗条件。どれか1つを満たしたら失敗にする </summary>
         public IReadOnlyList<StageFailCondition> FailConditions => _failConditions;

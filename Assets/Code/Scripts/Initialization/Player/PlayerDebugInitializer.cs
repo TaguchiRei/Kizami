@@ -20,7 +20,7 @@ namespace Kizami.Initialization
     /// PlayerInitializer が登録する State を読むので、それより後に初期化する。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.DefaultLate)]
-    public sealed class PlayerDebugInitializer : InitializerBase, IInjectable<PlayerHealthService>
+    public sealed class PlayerDebugInitializer : InitializerBase, IInjectable<IPlayerHealthController>
     {
         [SerializeField, Min(1)]
         [Tooltip("1 回に与えるダメージ量")]
@@ -38,7 +38,7 @@ namespace Kizami.Initialization
         [Tooltip("破壊攻撃のキーを押している間に削る間隔（秒）")]
         private float _destructionInterval = 0.1f;
 
-        private PlayerHealthService _healthService;
+        private IPlayerHealthController _healthService;
         private IPlayerHealthState _healthState;
         private IDisposable _healthSubscription;
         private IDisposable _modeSubscription;
@@ -129,7 +129,7 @@ namespace Kizami.Initialization
             _modeSubscription?.Dispose();
         }
 
-        public void Inject(PlayerHealthService instance)
+        public void Inject(IPlayerHealthController instance)
         {
             _healthService = instance;
         }

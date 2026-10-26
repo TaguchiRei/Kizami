@@ -4,6 +4,7 @@ using Kizami.BlackBoard;
 using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UnityEngine.VFX;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 
 namespace Kizami.EngineAdapter
@@ -37,6 +38,7 @@ namespace Kizami.EngineAdapter
         private readonly Collider[] _armorHitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly HashSet<VoxelPiece> _pieces = new();
         private readonly HashSet<ArmorPanel> _armorPanels = new();
+        private readonly List<IDisposable> _subscriptions = new();
 
         [SerializeField, Min(0f)]
         [Tooltip("狙える最大の距離（m）")]
@@ -139,6 +141,34 @@ namespace Kizami.EngineAdapter
         public void SetMaxPower(bool isMax)
         {
             _powerBonus = isMax ? MAX_POWER_BONUS : 0f;
+        }
+
+        /// <summary>
+        /// IPlayerSkillEffectEvents の登録より後に呼ぶこと。スキルの効果（ビーム・爆発・薙ぎ払い・攻走の経路）と、飛び移りの着地の周囲を削る出来事を購読して削る。
+        /// </summary>
+        /// <param name="blackBoard">スキルの効果の出来事の取得元</param>
+        public void Initialize(IBlackBoard blackBoard)
+        {
+            if (!blackBoard.TryGetSceneEvent<PlayerEventBoard, IPlayerSkillEffectEvents>(out var effectEvents, this)) return;
+
+            _subscriptions.Add(effectEvents.OnBeam.Register(notice => CarveBeam(notice.Length, notice.Radius)));
+            _subscriptions.Add(effectEvents.OnExplosion.Register(CarveExplosion));
+            _subscriptions.Add(effectEvents.OnSphereCarve.Register(notice => CarveExplosionAt(notice.Center, notice.Radius)));
+            _subscriptions.Add(effectEvents.OnSweep.Register(notice =>
+                CarveSweep(notice.Width, notice.Depth, notice.Falloff, notice.ForwardOffset)));
+            _subscriptions.Add(effectEvents.OnCapsuleCarve.Register(notice =>
+                CarveCapsuleWithArmor(notice.Start, notice.End, notice.Radius, notice.Origin, notice.Falloff)));
+        }
+
+        /// <summary>
+        /// IBrilliantSkillEvents の登録より後に呼ぶこと。投げた言葉の着弾で、球の中を削る。
+        /// </summary>
+        /// <param name="blackBoard">Brilliant Skill の出来事の取得元</param>
+        public void SubscribeBrilliantSkill(IBlackBoard blackBoard)
+        {
+            if (!blackBoard.TryGetSceneEvent<StageEventBoard, IBrilliantSkillEvents>(out var events, this)) return;
+
+            _subscriptions.Add(events.OnWordImpact.Register(notice => CarveExplosionAt(notice.Center, notice.Radius)));
         }
 
         /// <summary>
@@ -324,6 +354,16 @@ namespace Kizami.EngineAdapter
             var reach = ReachRadius(radius, _explosionFalloff);
             var hitCount = QuerySphere(center, reach);
             Carve(new SphereShape(center, reach), _explosionFalloff, hitCount, reportsHealthHit: false);
+        }
+
+        private void OnDestroy()
+        {
+            foreach (var subscription in _subscriptions)
+            {
+                subscription.Dispose();
+            }
+
+            _subscriptions.Clear();
         }
 
         private void Awake()

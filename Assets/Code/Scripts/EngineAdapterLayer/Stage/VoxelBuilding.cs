@@ -58,6 +58,7 @@ namespace Kizami.EngineAdapter
         private readonly List<Rigidbody> _restingBodies = new();
         private readonly ActionChannel<Rigidbody> _collapsed = new();
         private readonly ActionChannel<Transform> _collapsing = new();
+        private readonly ActionChannel<Bounds> _collapsedBounds = new();
 
         [SerializeField]
         [Tooltip("下から順に積む区間。区間ごとに、モデルと付属物を指定の回数だけ積む")]
@@ -222,6 +223,27 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 倒れ始めた階のピースをすべて含む範囲を求める。RegisterOnCollapsed の通知で受け取った Rigidbody に使う。
+        /// </summary>
+        /// <param name="body">倒れた階のまとまりの Rigidbody</param>
+        /// <param name="bounds">ピースをすべて含む範囲（ワールド空間）</param>
+        /// <returns>ピースが 1 つもなければ false</returns>
+        public static bool TryGetPiecesBounds(Rigidbody body, out Bounds bounds)
+        {
+            var pieces = body.GetComponentsInChildren<VoxelPiece>();
+            bounds = default;
+            if (pieces.Length == 0) return false;
+
+            bounds = pieces[0].WorldBounds;
+            for (var i = 1; i < pieces.Length; i++)
+            {
+                bounds.Encapsulate(pieces[i].WorldBounds);
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// 境目が切れて上の階が倒れ始めたときに呼ぶ処理を登録する。引数は、倒れた階をまとめた Rigidbody。
         /// 倒れた階のピースは、その Rigidbody の子孫にある。
         /// </summary>
@@ -229,6 +251,15 @@ namespace Kizami.EngineAdapter
         public IDisposable RegisterOnCollapsed(Action<Rigidbody> callback)
         {
             return _collapsed.Register(callback);
+        }
+
+        /// <summary>
+        /// 境目が切れて上の階が倒れ始めたときに、倒れた階のピースをすべて含む範囲（ワールド空間）を受け取る関数を登録する。
+        /// </summary>
+        /// <returns>Dispose すると登録を解除する</returns>
+        public IDisposable RegisterOnCollapsedBounds(Action<Bounds> callback)
+        {
+            return _collapsedBounds.Register(callback);
         }
 
         /// <summary>
@@ -562,7 +593,16 @@ namespace Kizami.EngineAdapter
             _fallingBodies.Add(body);
             ShatterGlass(groupObject.transform, body.worldCenterOfMass);
             SoundPlayer.Play(SoundEffectKind.VoxelCollapse, body.worldCenterOfMass);
+            NotifyCollapsed(body);
+        }
+
+        /// <summary>
+        /// 倒れ始めた階のまとまりを、Rigidbody と範囲の購読者へ通知する。
+        /// </summary>
+        private void NotifyCollapsed(Rigidbody body)
+        {
             _collapsed.Invoke(body);
+            if (TryGetPiecesBounds(body, out var bounds)) _collapsedBounds.Invoke(bounds);
         }
 
         /// <summary>
@@ -598,13 +638,16 @@ namespace Kizami.EngineAdapter
             source.mass = MeasureGroupMass(source.transform);
             source.isKinematic = false;
             source.WakeUp();
+            // 上の階が抜けて形が変わった為、重心を形から求め直してからずらす
+            source.ResetCenterOfMass();
+            Attract(source);
 
             var body = AddGroupBody(groupObject);
             body.linearVelocity = source.GetPointVelocity(body.worldCenterOfMass);
             body.angularVelocity = source.angularVelocity;
             _fallingBodies.Add(body);
             SoundPlayer.Play(SoundEffectKind.VoxelCollapse, body.worldCenterOfMass);
-            _collapsed.Invoke(body);
+            NotifyCollapsed(body);
         }
 
         private GameObject CreateGroupObject(int firstFloor)
@@ -620,7 +663,16 @@ namespace Kizami.EngineAdapter
             var body = groupObject.AddComponent<Rigidbody>();
             body.mass = MeasureGroupMass(groupObject.transform);
             body.interpolation = RigidbodyInterpolation.Interpolate;
+            Attract(body);
             return body;
+        }
+
+        /// <summary>
+        /// まとまりの重心を、ピースをすべて含む範囲を基準に、高くして引き寄せ対象の側へずらす。
+        /// </summary>
+        private static void Attract(Rigidbody body)
+        {
+            if (TryGetPiecesBounds(body, out var bounds)) VoxelAttraction.Apply(body, bounds);
         }
 
         /// <summary>

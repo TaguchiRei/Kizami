@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
+using Kizami.BlackBoard;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Serialization;
+using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.MeshCut;
 
@@ -148,6 +150,7 @@ namespace Kizami.EngineAdapter
         private System.Func<CuttableObject, bool> _untrackFragment;
 
         private MeleeCutAdapter _cutter;
+        private System.IDisposable _triggeredSubscription;
         private Material _fillMaterial;
         private Material _capMaterial;
         private Material _outlineMaterial;
@@ -183,7 +186,18 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 文字を切れるようにする。通常攻撃の切断の結果を受け取り、2 回目の切断を MeleeCutAdapter に頼む。
+        /// IBrilliantSkillEvents の登録より後に呼ぶこと。成立した言葉を受け取って出す。
+        /// </summary>
+        /// <param name="blackBoard">Brilliant Skill の出来事の取得元</param>
+        public void SubscribeBrilliantSkill(IBlackBoard blackBoard)
+        {
+            if (!blackBoard.TryGetSceneEvent<StageEventBoard, IBrilliantSkillEvents>(out var events, this)) return;
+
+            _triggeredSubscription = events.OnTriggered.Register(Show);
+        }
+
+        /// <summary>
+        /// 文字を切れるようにする。2 回目の切断を MeleeCutAdapter に頼む。通常攻撃の切断の結果は ReceiveCutResults で受け取る。
         /// </summary>
         /// <param name="cutter">通常攻撃の切断を行う Adapter</param>
         /// <param name="untrackFragment">かけらをオーブにする管理から外す関数</param>
@@ -191,7 +205,6 @@ namespace Kizami.EngineAdapter
         {
             _cutter = cutter;
             _untrackFragment = untrackFragment;
-            _cutter.AddOnCut(ReceiveCutResults);
         }
 
         /// <summary>
@@ -212,7 +225,7 @@ namespace Kizami.EngineAdapter
         /// </summary>
         /// <param name="results">MultiCutBlade.ExecuteCut の結果</param>
         /// <param name="plane">切断面。法線は表のかけらの側を向く</param>
-        private void ReceiveCutResults(MultiCutResult[] results, Plane plane)
+        public void ReceiveCutResults(MultiCutResult[] results, Plane plane)
         {
             List<(CuttableObject[] Halves, Vector3 Center)> secondCuts = null;
             List<CuttableObject> pieces = null;
@@ -477,6 +490,7 @@ namespace Kizami.EngineAdapter
 
         private void OnDestroy()
         {
+            _triggeredSubscription?.Dispose();
             foreach (var material in new[]
                      {
                          _fillMaterial, _capMaterial, _outlineMaterial, _fillOverlayMaterial, _outlineOverlayMaterial

@@ -12,7 +12,7 @@ namespace Kizami.Application
 {
     /// <summary>
     /// ゲームの場面（アウトゲーム / ステージごとのインゲーム）の単位でシーン遷移を要求するユースケース。
-    /// アウトゲームに1つ、ステージごとに1つのシーングループを持ち、3ビルドで共通に使う。
+    /// アウトゲームに1つ、ステージごとに1つのシーングループを持ち、3ビルドで共通に使う。遷移している間に来た遷移の要求は断る。
     /// </summary>
     public sealed class GameSceneController : IGameSceneController
     {
@@ -24,6 +24,7 @@ namespace Kizami.Application
 
         private SceneLoadService _sceneLoadService;
         private GameProgressService _progressService;
+        private bool _isTransitioning;
 
         public IReadOnlyList<StageData> Stages => _progressService?.Stages ?? System.Array.Empty<StageData>();
 
@@ -82,7 +83,27 @@ namespace Kizami.Application
         {
             if (!TryGetService(out var service)) return UniTask.FromResult(false);
 
-            return service.LoadGroupAsync(groupIndex, true, cancellationToken);
+            return TransitionAsync(() => service.LoadGroupAsync(groupIndex, true, cancellationToken));
+        }
+
+        /// <summary>
+        /// 遷移を1つずつ行う。遷移している間に来た要求は、連打による二重のロードを防ぐ為に断る。
+        /// </summary>
+        /// <param name="transition">遷移の処理</param>
+        /// <returns>遷移できたか。遷移している間に来た要求は false</returns>
+        private async UniTask<bool> TransitionAsync(System.Func<UniTask<bool>> transition)
+        {
+            if (_isTransitioning) return false;
+
+            _isTransitioning = true;
+            try
+            {
+                return await transition();
+            }
+            finally
+            {
+                _isTransitioning = false;
+            }
         }
 
         private bool TryGetService(out SceneLoadService service)
@@ -102,7 +123,10 @@ namespace Kizami.Application
 
         public UniTask<bool> GoToStageAsync(int stageIndex, CancellationToken cancellationToken = default)
         {
-            if (!TryGetService(out _) || !_progressService.SelectStage(stageIndex)) return UniTask.FromResult(false);
+            if (_isTransitioning || !TryGetService(out _) || !_progressService.SelectStage(stageIndex))
+            {
+                return UniTask.FromResult(false);
+            }
 
             return LoadAsync(FIRST_STAGE_INDEX + stageIndex, cancellationToken);
         }
@@ -118,7 +142,7 @@ namespace Kizami.Application
                 return UniTask.FromResult(false);
             }
 
-            return service.ReloadGroupAsync(FIRST_STAGE_INDEX + stageIndex, cancellationToken);
+            return TransitionAsync(() => service.ReloadGroupAsync(FIRST_STAGE_INDEX + stageIndex, cancellationToken));
         }
     }
 

@@ -1,22 +1,17 @@
 using System;
 using Kizami.BlackBoard;
 using UnityEngine;
-using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
 using UsefulToolkit.Initialization;
 
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// ステージの進行の台本。ステージシーンへ置く。段階を順に進め、段階に入るたびに小目標・会話・操作説明（StageGuideTexts の文）を出して、敵のスポーン位置の保留を解く。
-    /// 段階の条件を満たしたら、段階ごとの待ち時間のあとに次の段階へ進む。1回の Update で進むのは1段階まで。プレイ中のときだけ進める。
-    /// 画面に出す文は、初期化で受け取った関数で Application へ渡す。
+    /// ステージの進行の台本。ステージシーンへ置く。段階の定義を持ち、段階に入るたびに小目標・会話・操作説明（StageGuideTexts の文）を出して、物をアクティブにし、敵のスポーン位置の保留を解く。
+    /// 段階を進める判断は IStageGuideController（StageGuideService）が持つ。台本は毎フレーム進め時かを尋ね、待っている破壊対象が破壊済みになったことを報告する。
     /// </summary>
     public sealed class StageGuideScript : InitializableMonoBehaviour
     {
-        /// <summary> プレイヤーが動いているとみなす目標速度の大きさの2乗（m²/s²） </summary>
-        private const float MOVED_SQUARE_SPEED = 0.01f;
-
         [SerializeField]
         [Tooltip("大目標と、段階ごとの小目標・会話の文。段階は上から順に、この台本の段階と対応する")]
         private StageGuideTexts _texts;
@@ -29,100 +24,72 @@ namespace Kizami.EngineAdapter
         [Tooltip("進行の段階。上から順に進む。最後の段階の条件を満たすと、小目標と会話を消す")]
         private GuideStep[] _steps = Array.Empty<GuideStep>();
 
-        private IDisposable _actionSubscription;
-        private IStageFlowState _flowState;
-        private IPlayerMovementState _movementState;
-        private Action<string> _setObjective;
-        private Action<string> _setSubObjective;
-        private Action<string> _setDialogue;
-        private Action<string> _setHint;
-        private Action _onFinished;
+        private IStageGuideController _controller;
 
         /// <summary> 今の段階の番号。まだ始めていなければ -1、全部終えたら段階の数 </summary>
         private int _stepIndex = -1;
 
-        /// <summary> 今の段階に入ってから起きたプレイヤーの出来事。種類の番号のビットで持つ </summary>
-        private int _seenActions;
-
-        /// <summary> 今の段階の条件を満たした時刻。まだ満たしていなければ負 </summary>
-        private float _metTime = -1f;
-
-        /// <summary> 今の段階に入ったときの、倒した敵の数 </summary>
-        private int _defeatBaseline;
+        /// <summary> 今の段階で待っている破壊対象が破壊済みになったことを報告したか </summary>
+        private bool _hasReportedTarget;
 
         /// <summary>
-        /// 必要な State を取得し、プレイヤーの出来事を購読する。流れ・プレイヤーの State と、プレイヤーの出来事の通知の登録より後に呼ぶ。
+        /// 段階の定義を案内の操作面へ渡す。流れ・プレイヤーの State と、プレイヤーの出来事の通知の登録より後に、案内の操作面を作ってから呼ぶ。
         /// </summary>
-        /// <param name="blackBoard">流れ・プレイヤーの State と、プレイヤーの出来事の通知の取得元</param>
-        /// <param name="setObjective">大目標を画面に出す関数</param>
-        /// <param name="setSubObjective">小目標を画面に出す関数</param>
-        /// <param name="setDialogue">会話を画面に出す関数</param>
-        /// <param name="setHint">操作説明を画面に出す関数</param>
-        /// <param name="onFinished">最後の段階を終えたときに呼ぶ処理。クリアにする設定のときだけ呼ぶ</param>
-        public void Initialize(IBlackBoard blackBoard, Action<string> setObjective, Action<string> setSubObjective,
-            Action<string> setDialogue, Action<string> setHint, Action onFinished)
+        /// <param name="controller">案内の文を出し、段階を進める判断をする操作面（StageGuideService）</param>
+        public void Initialize(IStageGuideController controller)
         {
-            if (!blackBoard.TryGetSceneState<StageBoard, IStageFlowState>(out _flowState, this) ||
-                !blackBoard.TryGetSceneState<PlayerBoard, IPlayerMovementState>(out _movementState, this) ||
-                !blackBoard.TryGetEventBoard<PlayerEventBoard>(out var eventBoard, this)) return;
-
-            if (!eventBoard.TryGetSceneEvent<IPlayerActionEvents>(out var actionEvents, out _))
+            _controller = controller;
+            var rules = new GuideStepRule[_steps.Length];
+            for (var i = 0; i < _steps.Length; i++)
             {
-                UsefulLogger.LogError("IPlayerActionEvents が未登録です。PlayerInitializer の初期化順を確認してください。", this);
-                return;
+                var step = _steps[i];
+                rules[i] = new GuideStepRule(step.Condition.Kind, step.Condition.Count, step.Condition.Action, step.Delay);
             }
 
-            _setObjective = setObjective;
-            _setSubObjective = setSubObjective;
-            _setDialogue = setDialogue;
-            _setHint = setHint;
-            _onFinished = onFinished;
-            _actionSubscription = actionEvents.OnAction.Register(OnAction);
             WarnInvalidSteps();
+            _controller.StartScript(rules, _clearsOnFinish, EnterStep);
             base.Initialize();
         }
 
         private void Update()
         {
-            if (!Initialized || _flowState.Phase != StagePhase.Playing) return;
+            if (!Initialized) return;
 
-            if (_stepIndex < 0)
-            {
-                _setObjective?.Invoke(_texts != null ? _texts.Objective : string.Empty);
-                EnterStep(0);
-                return;
-            }
-
-            if (_stepIndex >= _steps.Length) return;
-
-            // 移動の入力のように一瞬しか成り立たない条件も、一度満たしたら待ち時間のあいだ保つ
-            if (_metTime < 0f && IsMet(_steps[_stepIndex].Condition)) _metTime = Time.time;
-            if (_metTime < 0f || Time.time - _metTime < _steps[_stepIndex].Delay) return;
-
-            EnterStep(_stepIndex + 1);
-        }
-
-        private void OnDestroy()
-        {
-            _actionSubscription?.Dispose();
+            ReportTargetIfDestroyed();
+            _controller.TickScript();
         }
 
         /// <summary>
-        /// 指定した段階に入る。小目標と会話を出し、スポーン位置の保留を解いて、条件の基準を取り直す。段階がなければ、小目標と会話を消す。
+        /// 今の段階が破壊対象を待つ条件で、その破壊対象が破壊済みなら、一度だけ報告する。
+        /// </summary>
+        private void ReportTargetIfDestroyed()
+        {
+            if (_hasReportedTarget || _stepIndex < 0 || _stepIndex >= _steps.Length) return;
+
+            var condition = _steps[_stepIndex].Condition;
+            if (condition.Kind != GuideConditionKind.TargetDestroyed) return;
+
+            var target = condition.Target;
+            if (target == null || !target.IsDestroyed) return;
+
+            _hasReportedTarget = true;
+            _controller.ReportTargetDestroyed();
+        }
+
+        /// <summary>
+        /// 指定した段階に入る。最初の段階なら大目標を出す。小目標と会話を出し、物をアクティブにしてスポーン位置の保留を解く。段階がなければ、小目標と会話を消す。
         /// </summary>
         private void EnterStep(int index)
         {
             _stepIndex = index;
-            _metTime = -1f;
-            _seenActions = 0;
-            _defeatBaseline = _flowState.DefeatCount;
+            _hasReportedTarget = false;
+            if (index == 0) _controller.SetObjective(_texts != null ? _texts.Objective : string.Empty);
 
             if (index >= _steps.Length)
             {
-                _setSubObjective?.Invoke(string.Empty);
-                _setDialogue?.Invoke(string.Empty);
-                _setHint?.Invoke(string.Empty);
-                if (_clearsOnFinish) _onFinished?.Invoke();
+                _controller.SetSubObjective(string.Empty);
+                _controller.SetDialogue(string.Empty);
+                _controller.SetHint(string.Empty);
                 return;
             }
 
@@ -131,9 +98,14 @@ namespace Kizami.EngineAdapter
             var dialogue = string.Empty;
             var hint = string.Empty;
             _texts?.TryGetStep(index, out subObjective, out dialogue, out hint);
-            _setSubObjective?.Invoke(subObjective);
-            _setDialogue?.Invoke(dialogue);
-            _setHint?.Invoke(hint);
+            _controller.SetSubObjective(subObjective);
+            _controller.SetDialogue(dialogue);
+            _controller.SetHint(hint);
+            foreach (var showObject in step.ShowObjects)
+            {
+                if (showObject != null) showObject.SetActive(true);
+            }
+
             foreach (var spawnPoint in step.ReleaseSpawnPoints)
             {
                 if (spawnPoint != null) spawnPoint.Release();
@@ -150,33 +122,6 @@ namespace Kizami.EngineAdapter
                     UsefulLogger.LogWarning($"ID '{id}' のスポーン位置が見つからない為、出現の保留を解けません。", this);
                 }
             }
-        }
-
-        private bool IsMet(in GuideCondition condition)
-        {
-            switch (condition.Kind)
-            {
-                case GuideConditionKind.TargetDestroyed:
-                    var target = condition.Target;
-                    return target != null && target.IsDestroyed;
-                case GuideConditionKind.DestroyedTargetCount:
-                    return _flowState.DestroyedTargetCount >= Mathf.Max(1, condition.Count);
-                case GuideConditionKind.DefeatCount:
-                    return _flowState.DefeatCount - _defeatBaseline >= Mathf.Max(1, condition.Count);
-                case GuideConditionKind.PlayerAction:
-                    return (_seenActions & (1 << (int)condition.Action)) != 0;
-                case GuideConditionKind.PlayerMoved:
-                    return _movementState.TargetVelocity.sqrMagnitude > MOVED_SQUARE_SPEED;
-                case GuideConditionKind.None:
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        private void OnAction(PlayerActionNotice notice)
-        {
-            _seenActions |= 1 << (int)notice.Kind;
         }
 
         /// <summary>
@@ -227,6 +172,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("この段階に入ったときに、出現の保留を解くスポーン位置の ID。別のシーンにあるスポーン位置はこちらで指定する")]
         private string[] _releaseSpawnPointIds = Array.Empty<string>();
 
+        [SerializeField]
+        [Tooltip("この段階に入ったときに、アクティブにする物（チュートリアルのダミーなど）")]
+        private GameObject[] _showObjects = Array.Empty<GameObject>();
+
         /// <summary> この段階を終える条件 </summary>
         public GuideCondition Condition => _condition;
 
@@ -238,30 +187,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> この段階に入ったときに、出現の保留を解くスポーン位置の ID </summary>
         public string[] ReleaseSpawnPointIds => _releaseSpawnPointIds;
-    }
 
-    /// <summary>
-    /// 段階を終える条件の種類。
-    /// </summary>
-    public enum GuideConditionKind
-    {
-        /// <summary> 指定した破壊対象が破壊済みになった </summary>
-        TargetDestroyed,
-
-        /// <summary> この段階に入ってから、指定した数の敵を倒した </summary>
-        DefeatCount,
-
-        /// <summary> この段階に入ってから、指定したプレイヤーの出来事が起きた </summary>
-        PlayerAction,
-
-        /// <summary> プレイヤーが移動の入力をしている </summary>
-        PlayerMoved,
-
-        /// <summary> 条件はなく、段階に入ってすぐ満たす。待ち時間だけで進める </summary>
-        None,
-
-        /// <summary> クリアの対象のうち、どれでもよいので、指定した数が破壊済みになった。ステージを始めてからの数で数える </summary>
-        DestroyedTargetCount
+        /// <summary> この段階に入ったときに、アクティブにする物 </summary>
+        public GameObject[] ShowObjects => _showObjects;
     }
 
     /// <summary>

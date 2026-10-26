@@ -19,7 +19,7 @@ namespace Kizami.Application
         private readonly Func<float, bool> _tryThrow;
         private readonly Func<bool> _tryGrabWord;
         private readonly Func<bool> _isHolding;
-        private readonly PlayerMovementService _movementService;
+        private readonly IPlayerMovementController _movementService;
         private readonly IOperationSettingState _settingState;
         private readonly List<IDisposable> _subscriptions = new();
 
@@ -30,7 +30,7 @@ namespace Kizami.Application
         /// <param name="movementService">言葉をつかんでいる間のプレイヤーの静止の設定先</param>
         /// <param name="tryThrow">持っている言葉を投げる関数。引数は初速（m/s）。投げたら true</param>
         public FragmentThrowService(IBlackBoard blackBoard, PlayerParameterData parameters,
-            PlayerMovementService movementService, Func<bool> tryGrabWord, Func<bool> isHolding,
+            IPlayerMovementController movementService, Func<bool> tryGrabWord, Func<bool> isHolding,
             Func<float, bool> tryThrow)
         {
             _parameters = parameters;

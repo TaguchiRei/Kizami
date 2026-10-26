@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kizami.BlackBoard;
 using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
@@ -8,7 +9,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 体力制の破壊対象。VoxelModelLoader と同じ GameObject に置く。
-    /// 読み込んだパーツを保護して、体力が尽きるまで削りも切りも受けない。体力は、通常攻撃・スキルの当たり（攻撃の Adapter が報告する）と、落ちてくる塊の当たり（FixedUpdate で調べる）で減る。
+    /// 読み込んだパーツを保護して、体力が尽きるまで削りも切りも受けない。通常攻撃・スキルの当たり（攻撃の Adapter が報告する）と、落ちてくる塊の当たり（FixedUpdate で調べる）を、種類と大きさだけ報告する。減る量と無敵は報告先（TargetHealthService）が決める。
     /// 体力が尽きたら保護を外し、通常攻撃で切り分けられる印を付ける。
     /// </summary>
     [RequireComponent(typeof(VoxelModelLoader))]
@@ -32,18 +33,6 @@ namespace Kizami.EngineAdapter
         private float _maxHealth = 100f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("通常攻撃1回（1回の振り）で減る体力")]
-        private float _meleeDamage = 0.5f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("スキル1回（1回の発動）で減る体力")]
-        private float _skillDamage = 1f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("落ちてくる塊の体積1m³あたりで減る体力")]
-        private float _collapseDamagePerCubicMeter = 2f;
-
-        [SerializeField, Min(0f)]
         [Tooltip("体力を減らす落ちる塊の、下向きの速さの下限（m/s）。敵の崩落の判定と同じ値にする")]
         private float _minFallSpeed = 3f;
 
@@ -61,12 +50,10 @@ namespace Kizami.EngineAdapter
 
         private Collider[] _hitBuffer = new Collider[INITIAL_HIT_COUNT];
         private VoxelModelLoader _loader;
-        private Func<float, bool> _applyDamage;
+        private Func<TargetHitKind, float, bool> _reportHit;
         private Action _onHitWhileDepleted;
         private bool _isProtected;
         private bool _isDepleted;
-        private bool _countsCollapse = true;
-        private bool _isInvulnerable;
 
         /// <summary> ゲージに出す名前 </summary>
         public string DisplayName => _displayName;
@@ -75,13 +62,13 @@ namespace Kizami.EngineAdapter
         public float MaxHealth => _maxHealth;
 
         /// <summary>
-        /// 体力を減らす処理を受け取り、動き始める。読み込みが終わったら保護を始める。
+        /// 当たりの報告先を受け取り、動き始める。読み込みが終わったら保護を始める。
         /// </summary>
-        /// <param name="applyDamage">体力を減らす量を受け取り、この呼び出しで体力が尽きたら true を返す処理</param>
-        public void Initialize(Func<float, bool> applyDamage)
+        /// <param name="reportHit">当たりの種類と大きさを受け取り、この呼び出しで体力が尽きたら true を返す処理（TargetHealthService.ReportHit）</param>
+        public void Initialize(Func<TargetHitKind, float, bool> reportHit)
         {
             _loader = GetComponent<VoxelModelLoader>();
-            _applyDamage = applyDamage;
+            _reportHit = reportHit;
             enabled = true;
         }
 
@@ -90,7 +77,7 @@ namespace Kizami.EngineAdapter
         /// </summary>
         public void ReportMeleeHit()
         {
-            ApplyDamage(_meleeDamage);
+            ReportHit(TargetHitKind.Melee, 0f);
         }
 
         /// <summary>
@@ -98,16 +85,16 @@ namespace Kizami.EngineAdapter
         /// </summary>
         public void ReportSkillHit()
         {
-            ApplyDamage(_skillDamage);
+            ReportHit(TargetHitKind.Skill, 0f);
         }
 
         /// <summary>
-        /// 量を決めて体力を減らす。当たっている間、続けて減らす攻撃（羽天轟号）が毎フレーム呼ぶ。
+        /// 量を決めたダメージが当たったことを報告する。当たっている間、続けて減らす攻撃（羽天轟号）が毎フレーム呼ぶ。
         /// </summary>
         /// <param name="amount">減らす体力</param>
         public void ReportDamage(float amount)
         {
-            ApplyDamage(amount);
+            if (amount > 0f) ReportHit(TargetHitKind.Direct, amount);
         }
 
         /// <summary>
@@ -116,25 +103,6 @@ namespace Kizami.EngineAdapter
         public void SetOnHitWhileDepleted(Action onHitWhileDepleted)
         {
             _onHitWhileDepleted = onHitWhileDepleted;
-        }
-
-        /// <summary>
-        /// 落ちてくる塊のダメージを数えるかを切り替える。数えない間に触れた塊は、あとからも数えない。
-        /// ボスの飛来のように、体力に関わらない崩落が起きる間に切る。
-        /// </summary>
-        /// <param name="countsCollapse">落ちてくる塊のダメージを数えるか</param>
-        public void SetCollapseCounting(bool countsCollapse)
-        {
-            _countsCollapse = countsCollapse;
-        }
-
-        /// <summary>
-        /// 無敵を切り替える。無敵の間は、通常攻撃・スキル・落ちてくる塊・量を決めたダメージのどれでも体力が減らない。
-        /// </summary>
-        /// <param name="isInvulnerable">無敵か</param>
-        public void SetInvulnerable(bool isInvulnerable)
-        {
-            _isInvulnerable = isInvulnerable;
         }
 
         /// <summary>
@@ -177,7 +145,7 @@ namespace Kizami.EngineAdapter
             if (!_isProtected || _isDepleted) return;
 
             var hitCount = QueryBox(GetPartsBounds());
-            var damage = 0f;
+            var volume = 0f;
             for (var i = 0; i < hitCount; i++)
             {
                 var body = _hitBuffer[i].attachedRigidbody;
@@ -186,19 +154,19 @@ namespace Kizami.EngineAdapter
                 var piece = _hitBuffer[i].GetComponentInParent<VoxelPiece>();
                 if (piece == null || piece.Volume < _minCollapseVolume || IsOwnPiece(piece)) continue;
 
-                // 同じ塊は何度触れても1回だけ数える。数えない間に触れた塊も、ダメージにはせず数えたことにする
-                if (_countedPieces.Add(piece) && _countsCollapse) damage += piece.Volume * _collapseDamagePerCubicMeter;
+                // 同じ塊は何度触れても1回だけ報告する。報告先が数えない間に触れた塊も、報告したことにする
+                if (_countedPieces.Add(piece)) volume += piece.Volume;
             }
 
-            ApplyDamage(damage);
+            if (volume > 0f) ReportHit(TargetHitKind.Collapse, volume);
         }
 
         /// <summary>
-        /// 体力を減らす。尽きたら保護を解く。
+        /// 当たりを報告する。尽きたら保護を解く。尽きたあとの当たりは、報告せずに知らせる。
         /// </summary>
-        private void ApplyDamage(float amount)
+        private void ReportHit(TargetHitKind kind, float size)
         {
-            if (!_isProtected || amount <= 0f || _isInvulnerable) return;
+            if (!_isProtected) return;
 
             if (_isDepleted)
             {
@@ -206,7 +174,7 @@ namespace Kizami.EngineAdapter
                 return;
             }
 
-            if (!_applyDamage(amount)) return;
+            if (!_reportHit(kind, size)) return;
 
             _isDepleted = true;
             if (!_releasesOnDepleted) return;

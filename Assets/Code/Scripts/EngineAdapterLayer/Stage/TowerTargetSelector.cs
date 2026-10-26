@@ -9,7 +9,7 @@ namespace Kizami.EngineAdapter
     public sealed class TowerTargetSelector : TargetSelectorBase
     {
         [SerializeField]
-        [Tooltip("目標にする塔。未設定ならステージシーンから探す")]
+        [Tooltip("目標にする塔。未設定なら読み込んだシーンから探す。塔は街のシーンにあり、ステージシーンからは渡せない")]
         private TowerTopple _tower;
 
         protected override void OnInitialize()

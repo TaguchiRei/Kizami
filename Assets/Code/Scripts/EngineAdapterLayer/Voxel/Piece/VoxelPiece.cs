@@ -1333,6 +1333,8 @@ namespace Kizami.EngineAdapter.Voxel
                 body.angularVelocity = sourceBody.angularVelocity;
             }
 
+            VoxelAttraction.Apply(body, piece.WorldBounds);
+
             LastSpawnBodyMilliseconds += spawnWatch.Elapsed.TotalMilliseconds;
             return piece;
         }

@@ -53,10 +53,6 @@ namespace Kizami.Editor
         private const float ARCADE_HALF_SPACING = 7.6f;
         private const float ARCADE_SHOP_DEPTH = 8f;
 
-        // 崩壊のコアの置き場（Town_CollapseSite）の、原点から見た範囲の中心（X, m）と、まわりの余白を足した広さ（m）。長辺はモデルの X
-        private const float SITE_CENTER_X = 5f;
-        private const float SITE_LENGTH = 18f;
-        private const float SITE_WIDTH = 10f;
 
         // 歩道の上面と車道の上面の高さ（m）。道路の部品に合わせる
         private const float SIDEWALK_TOP = 0.25f;
@@ -134,9 +130,10 @@ namespace Kizami.Editor
 
             var occupied = new List<Rect>();
             var arcade = PlanArcade(plan, occupied);
+            // 崩壊のコアは、アーケードの棟を崩して潰す為、屋根の下の通りの真ん中に置く
+            plan.Sites.Add(new PartPlacement("CollapseSite", new Vector3(arcade.center.x, 0f, arcade.center.y), 0f));
             var crossings = PlanRoads(plan, lines);
             PlanFactories(plan, subBlocks, occupied, random, sectionSize, skippedSections);
-            PlanCollapseSite(plan, subBlocks, occupied, random);
 
             // 幅の広い道に面した辺から先に埋める
             var sides = new List<(SubBlock Block, BlockSide Side)>();
@@ -513,31 +510,6 @@ namespace Kizami.Editor
         {
             occupied.Add(footprint);
             plan.Buildings.Add(new PartPlacement(type.Name, new Vector3(footprint.center.x, 0f, footprint.center.y), yaw));
-        }
-
-        /// <summary>
-        /// 崩壊のコアの置き場を、ビル街の小区画の真ん中に、建物より先に確保する。道に面さない中庭になる。向きは 90 度ごとに乱数で選ぶ。
-        /// </summary>
-        private static void PlanCollapseSite(TownPlan plan, List<SubBlock> subBlocks, List<Rect> occupied, Random random)
-        {
-            var candidates = subBlocks.FindAll(block => !block.Commercial);
-            Shuffle(candidates, random);
-            var yaw = random.Next(4) * 90f;
-            var turned = yaw is 90f or 270f;
-            var size = turned ? new Vector2(SITE_WIDTH, SITE_LENGTH) : new Vector2(SITE_LENGTH, SITE_WIDTH);
-            foreach (var block in candidates)
-            {
-                var center = block.Rect.center;
-                var footprint = new Rect(center - size * 0.5f, size);
-                if (!CanPlace(footprint, occupied)) continue;
-
-                occupied.Add(footprint);
-                var offset = Quaternion.Euler(0f, yaw, 0f) * new Vector3(SITE_CENTER_X, 0f, 0f);
-                plan.Sites.Add(new PartPlacement("CollapseSite", new Vector3(center.x - offset.x, 0f, center.y - offset.z), yaw));
-                return;
-            }
-
-            Debug.LogWarning("崩壊のコアの置き場を置ける小区画がありません。");
         }
 
         /// <summary>

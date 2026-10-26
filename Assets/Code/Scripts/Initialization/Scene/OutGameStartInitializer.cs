@@ -8,20 +8,19 @@ using UsefulToolkit.Initialization;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// アウトゲームの画面（OutGameMenuAdapter）を組み立て、ステージの開始、スキルの装備、コンフィグ、ゲームの終了をつなぐ Initializer。アウトゲームの場面シーンへ置く。
+    /// アウトゲームの画面（OutGameMenuAdapter）を組み立て、ステージの開始、スキルの装備、コンフィグ、解放の演出をつなぐ Initializer。アウトゲームの場面シーンへ置く。
     /// インゲームから戻ってきたとき（選んだステージが残っているとき）は、ステージ選択から始める。
     /// </summary>
     public sealed class OutGameStartInitializer : InitializerBase, IInjectable<IGameSceneController>,
-        IInjectable<GameProgressService>, IInjectable<IOperationSettingController>, IInjectable<InputRebindAdapter>
+        IInjectable<IGameProgressController>, IInjectable<IOperationSettingController>, IInjectable<InputRebindAdapter>
     {
         private IGameSceneController _sceneController;
-        private GameProgressService _progressService;
+        private IGameProgressController _progressService;
         private IGameProgressState _progressState;
         private IOperationSettingController _settingController;
         private IOperationSettingState _settingState;
         private InputRebindAdapter _rebindAdapter;
         private OutGameMenuAdapter _menuAdapter;
-        private bool _isTransitioning;
 
         /// <summary>
         /// 進行の State を取得し、画面を組み立てる。依存の注入より後に呼ばれる。
@@ -36,19 +35,12 @@ namespace Kizami.Initialization
 
             _menuAdapter = gameObject.AddComponent<OutGameMenuAdapter>();
             _menuAdapter.SetConfig(_settingState, _settingController, _rebindAdapter);
+            // このオブジェクトは遷移中のアンロードで破棄される。destroyCancellationToken を渡すと
+            // アンロードの途中で中断され、SceneState に OutGame がロード済みのまま残る為、トークンは渡さない。
             _menuAdapter.Initialize(BuildStageEntries(), BuildSkillEntries(), _progressService.UltimateSkillIndex,
-                GetEquippedSkillIndices(), GoToStage, EquipSkill, Quit,
+                _progressState, stageIndex => _sceneController.GoToStageAsync(stageIndex), _progressService.EquipSkill,
                 _progressState.SelectedStageIndex != GameProgressState.NO_STAGE);
-            QueueUnlockNotices();
-        }
-
-        private static void Quit()
-        {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-#else
-            UnityEngine.Application.Quit();
-#endif
+            _progressService.QueuePendingUnlockNotices(_menuAdapter.QueueUnlockNotice);
         }
 
         private List<OutGameMenuAdapter.StageEntry> BuildStageEntries()
@@ -88,56 +80,12 @@ namespace Kizami.Initialization
             return entries;
         }
 
-        /// <summary>
-        /// 解放の演出をまだ出していないスキルを演出の順番待ちに加え、出したものとして記録する。
-        /// 記録は順番待ちに加えた時点で行う為、演出の途中で閉じても二度は出ない。
-        /// </summary>
-        private void QueueUnlockNotices()
-        {
-            var ultimateIndex = _progressService.UltimateSkillIndex;
-            foreach (var skill in _progressService.GetPendingUnlockSkills())
-            {
-                var isUltimate = ultimateIndex >= 0 && _progressService.Skills[ultimateIndex] == skill;
-                _menuAdapter.QueueUnlockNotice(skill.DisplayName, isUltimate);
-                _progressService.MarkUnlockShown(skill);
-            }
-        }
-
-        private int[] GetEquippedSkillIndices()
-        {
-            var indices = new int[_progressState.SlotCount];
-            for (var slot = 0; slot < indices.Length; slot++)
-            {
-                indices[slot] = _progressState.GetEquippedSkillIndex(slot);
-            }
-
-            return indices;
-        }
-
-        private void EquipSkill(int slot, int skillIndex)
-        {
-            if (_progressService.EquipSkill(slot, skillIndex)) _menuAdapter.SetEquipped(GetEquippedSkillIndices());
-        }
-
-        private async void GoToStage(int stageIndex)
-        {
-            if (_isTransitioning) return;
-
-            _isTransitioning = true;
-            _menuAdapter.SetInteractable(false);
-            // このオブジェクトは遷移中のアンロードで破棄される。destroyCancellationToken を渡すと
-            // アンロードの途中で中断され、SceneState に OutGame がロード済みのまま残る為、トークンは渡さない。
-            await _sceneController.GoToStageAsync(stageIndex);
-            _isTransitioning = false;
-            if (_menuAdapter != null) _menuAdapter.SetInteractable(true);
-        }
-
         public void Inject(IGameSceneController instance)
         {
             _sceneController = instance;
         }
 
-        public void Inject(GameProgressService instance)
+        public void Inject(IGameProgressController instance)
         {
             _progressService = instance;
         }
