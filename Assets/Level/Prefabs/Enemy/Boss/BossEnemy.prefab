@@ -14801,6 +14801,8 @@ MonoBehaviour:
   _stepThreshold: 2
   _stepDuration: 0.6
   _stepHeight: 1.5
+  _floatThreshold: 1
+  _groundCheckInterval: 0.5
 --- !u!114 &7341799750420490255
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14884,7 +14886,6 @@ MonoBehaviour:
   _maxRadius: 40
   _height: 1
   _targetFootOffset: 1
-  _damage: 5
   _knockbackSpeed: 8
   _knockbackUpSpeed: 3
 --- !u!114 &7619419835033456080
@@ -14915,7 +14916,6 @@ MonoBehaviour:
   _height: 0.6
   _groundRayHeight: 10
   _targetFootOffset: 1
-  _damage: 5
   _damageInterval: 0.5
 --- !u!114 &7579335390703154969
 MonoBehaviour:
@@ -14938,7 +14938,6 @@ MonoBehaviour:
   _lifetime: 6
   _hitRadius: 1
   _aimHeight: 1
-  _damage: 5
 --- !u!114 &1014938977512887518
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14972,7 +14971,6 @@ MonoBehaviour:
   _beamRadius: 1.5
   _maxLength: 300
   _aimHeight: 1
-  _damage: 10
   _damageInterval: 0.5
   _defeatRadius: 3
   _defeatInterval: 0.1
@@ -15073,8 +15071,8 @@ MonoBehaviour:
   _arena: {fileID: 0}
   _openingLandingPoint: {fileID: 0}
   _retreatPoint: {fileID: 0}
-  _landingPause: 1
-  _allOutDuration: 10
+  _crystalStrikeCooldown: 6
+  _preloadMargin: 8
 --- !u!114 &8271805734102527412
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15087,12 +15085,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 36b6c3ddb34b87844adb3289eeae309e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.EnemyFinisherBeams
-  _beamMaterial: {fileID: 2100000, guid: f1ee0f09a79d09a49809cb68c0313769, type: 2}
-  _beamInnerMaterial: {fileID: 2100000, guid: 3351652a32aa23c40bc8913f9a4c8035, type: 2}
+  _beamMaterial: {fileID: 2100000, guid: d3724152a5f65084da5c437cce4f26f0, type: 2}
+  _beamInnerMaterial: {fileID: 2100000, guid: 6b72be5c7a3726148a196d5c92ef3410, type: 2}
   _telegraphMaterial: {fileID: 2100000, guid: 75145594f275da24eaabc61d61316f8c, type: 2}
   _glowMaterial: {fileID: 2100000, guid: f665de0a18fffa2409bc87f9767ad42e, type: 2}
-  _glowColor: {r: 0.4, g: 1, b: 0.9, a: 1}
+  _glowColor: {r: 0.25, g: 0.05, b: 0.08, a: 1}
   _telegraphGlowColor: {r: 2, g: 0.35, b: 0.1, a: 1}
+  _glowScale: 0.3
   _muzzleSize: 24
   _tipSize: 60
   _shakeForce: 0.5
@@ -15187,11 +15186,11 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   _continuousPatternTime: 0.3
-  _damage: 1
   _damageInterval: 0.1
   _meltSpeed: 20
   _meltRadius: 14
   _meltInterval: 0.3
+  _isOpenEnded: 0
   _blockLayers:
     serializedVersion: 2
     m_Bits: 42497
@@ -15234,9 +15233,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.HealthTarget
   _displayName: "\u30DC\u30B9"
   _maxHealth: 100
-  _meleeDamage: 0.5
-  _skillDamage: 1
-  _collapseDamagePerCubicMeter: 1
   _minFallSpeed: 3
   _minCollapseVolume: 0.5
   _collapseLayers:
