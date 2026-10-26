@@ -5,7 +5,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 窓のガラスの1枚の板。ボクセルにはせず、攻撃が当たったら、板を消して GlassShardPool の破片を飛ばす。
-    /// 板はコライダーを持たず、割れる前の板だけが静的な空間グリッドに載る。範囲の判定は ShatterInSphere・ShatterInCapsule が、範囲が通るセルの板だけを板の箱との距離で調べる。
+    /// 板はコライダーを持たず、割れる前の板だけが静的な空間グリッドに載る。範囲の判定は ShatterInSphere・ShatterInCapsule・ShatterInBox が、範囲が通るセルの板だけを板の箱との距離で調べる。
     /// 割れる前の板は動かない前提で、有効になった時点の中心と外接球の半径でセルに登録し、遠い板を Transform を読まずに除く。
     /// 建物には板が数百枚並ぶので、コライダーを付けると崩落で建物ごと落とすときの物理の負荷になる。
     /// 破片は物理を使わず、寿命が来たらプールへ戻る。
@@ -118,7 +118,55 @@ namespace Kizami.EngineAdapter
                 }
             }
 
-            // 割るとセルの一覧から外れる為、調べ終えてから割る
+            ShatterHits(origin);
+        }
+
+        /// <summary>
+        /// 向きを持った箱に触れた割れる前の板をすべて、origin を起点に割る。
+        /// 箱を包む軸平行の範囲にかかるセルの板を調べ、板の箱の頂点を箱のローカル空間に置いて、箱と重なるかを軸ごとに比べる。
+        /// </summary>
+        /// <param name="center">箱の中心（ワールド空間）</param>
+        /// <param name="halfExtents">箱の各軸の半分の長さ（ローカル空間, m）</param>
+        /// <param name="rotation">箱の向き</param>
+        /// <param name="origin">割れの起点（ワールド空間）</param>
+        public static void ShatterInBox(Vector3 center, Vector3 halfExtents, Quaternion rotation, Vector3 origin)
+        {
+            if (_cells.Count == 0) return;
+
+            _queryStamp++;
+            var axisX = rotation * new Vector3(halfExtents.x, 0f, 0f);
+            var axisY = rotation * new Vector3(0f, halfExtents.y, 0f);
+            var axisZ = rotation * new Vector3(0f, 0f, halfExtents.z);
+            var worldExtents = new Vector3(
+                Mathf.Abs(axisX.x) + Mathf.Abs(axisY.x) + Mathf.Abs(axisZ.x),
+                Mathf.Abs(axisX.y) + Mathf.Abs(axisY.y) + Mathf.Abs(axisZ.y),
+                Mathf.Abs(axisX.z) + Mathf.Abs(axisY.z) + Mathf.Abs(axisZ.z));
+            var min = ToCell(center - worldExtents);
+            var max = ToCell(center + worldExtents);
+            var inverseRotation = Quaternion.Inverse(rotation);
+            for (var x = min.x; x <= max.x; x++)
+            for (var y = min.y; y <= max.y; y++)
+            for (var z = min.z; z <= max.z; z++)
+            {
+                if (!_cells.TryGetValue(ToKey(x, y, z), out var panes)) continue;
+
+                foreach (var pane in panes)
+                {
+                    if (pane._checkedStamp == _queryStamp) continue;
+
+                    pane._checkedStamp = _queryStamp;
+                    if (pane.IsOverlappingBox(center, halfExtents, inverseRotation)) _hits.Add(pane);
+                }
+            }
+
+            ShatterHits(origin);
+        }
+
+        /// <summary>
+        /// 判定で集めた板をすべて割る。割るとセルの一覧から外れる為、調べ終えてから割る。
+        /// </summary>
+        private static void ShatterHits(Vector3 origin)
+        {
             foreach (var pane in _hits)
             {
                 pane.Shatter(origin);
@@ -190,6 +238,35 @@ namespace Kizami.EngineAdapter
                 Mathf.Clamp(local.y, -halfExtents.y, halfExtents.y),
                 Mathf.Clamp(local.z, -halfExtents.z, halfExtents.z));
             return (local - nearest).sqrMagnitude <= radius * radius;
+        }
+
+        /// <summary>
+        /// 板の箱が、中心 boxCenter・半分の長さ boxHalfExtents の箱と重なるか。
+        /// 板の箱の頂点を箱のローカル空間に置き、その軸平行の範囲が箱と重なるかを軸ごとに比べる。板は薄いので、斜めの板でも誤差は小さい。
+        /// </summary>
+        /// <param name="boxCenter">箱の中心（ワールド空間）</param>
+        /// <param name="boxHalfExtents">箱の各軸の半分の長さ（ローカル空間, m）</param>
+        /// <param name="inverseBoxRotation">箱の向きの逆回転</param>
+        private bool IsOverlappingBox(Vector3 boxCenter, Vector3 boxHalfExtents, Quaternion inverseBoxRotation)
+        {
+            var halfExtents = Vector3.Scale(_size, transform.lossyScale) * 0.5f;
+            var paneRotation = transform.rotation;
+            var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+            var max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+            for (var corner = 0; corner < 8; corner++)
+            {
+                var offset = new Vector3(
+                    (corner & 1) == 0 ? -halfExtents.x : halfExtents.x,
+                    (corner & 2) == 0 ? -halfExtents.y : halfExtents.y,
+                    (corner & 4) == 0 ? -halfExtents.z : halfExtents.z);
+                var local = inverseBoxRotation * (_worldCenter + paneRotation * offset - boxCenter);
+                min = Vector3.Min(min, local);
+                max = Vector3.Max(max, local);
+            }
+
+            return min.x <= boxHalfExtents.x && max.x >= -boxHalfExtents.x &&
+                   min.y <= boxHalfExtents.y && max.y >= -boxHalfExtents.y &&
+                   min.z <= boxHalfExtents.z && max.z >= -boxHalfExtents.z;
         }
 
         /// <summary>

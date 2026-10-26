@@ -158,6 +158,10 @@ namespace Kizami.EngineAdapter
             var slicesVoxels = (damageType & DamageType.Destroy) != 0;
             CollectTargets(origin, forward, normal, bladeRotation, rangeScale, slicesVoxels);
 
+            // ガラスの板はコライダーを持たない為、CollectTargets の範囲と同じ箱で割る
+            GetCutBox(origin, forward, rangeScale, out var glassCenter, out var glassHalfExtents);
+            GlassPane.ShatterInBox(glassCenter, glassHalfExtents, bladeRotation, origin);
+
             foreach (var armorPanel in _armorPanels)
             {
                 armorPanel.ApplyDamage(damageType);
@@ -203,6 +207,17 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 切断の範囲の箱を求める。カメラの位置から前方へ届く距離だけ伸びる。
+        /// </summary>
+        private void GetCutBox(Vector3 origin, Vector3 forward, float rangeScale, out Vector3 center,
+            out Vector3 halfExtents)
+        {
+            var reach = _reach * rangeScale;
+            center = origin + forward * (reach * 0.5f);
+            halfExtents = new Vector3(_width * rangeScale * 0.5f, _thickness * 0.5f, reach * 0.5f);
+        }
+
+        /// <summary>
         /// 範囲内にあり、今切れる状態で、Renderer のバウンディングボックスが刃の平面をまたぎ、装甲の奥にない CuttableObject を _targets に集める。
         /// Brilliant Skill の言葉（BrilliantWord）は文字が当たり判定を持たない為、言葉の箱が範囲に入っていたら、その文字を同じ条件で集める。
         /// 範囲内の装甲のパネルは _armorPanels に集める。範囲内にあり装甲の奥にないボクセルのピースを _pieces に集める。
@@ -216,9 +231,7 @@ namespace Kizami.EngineAdapter
             _pieces.Clear();
             _hitHealthTarget = null;
 
-            var reach = _reach * rangeScale;
-            var center = origin + forward * (reach * 0.5f);
-            var halfExtents = new Vector3(_width * rangeScale * 0.5f, _thickness * 0.5f, reach * 0.5f);
+            GetCutBox(origin, forward, rangeScale, out var center, out var halfExtents);
             var hitCount = Physics.OverlapBoxNonAlloc(center, halfExtents, _hitBuffer, bladeRotation,
                 _targetLayers, QueryTriggerInteraction.Ignore);
 
@@ -253,7 +266,7 @@ namespace Kizami.EngineAdapter
                 if (_hitBuffer[i].TryGetComponent(out CuttableObject cuttable)) TryAddTarget(cuttable, origin, normal);
             }
 
-            if (collectsPieces) CollectWidePieces(origin, forward, bladeRotation, reach, halfExtents);
+            if (collectsPieces) CollectWidePieces(origin, forward, bladeRotation, _reach * rangeScale, halfExtents);
         }
 
         /// <summary>
