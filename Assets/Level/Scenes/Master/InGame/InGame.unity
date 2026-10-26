@@ -878,6 +878,7 @@ MonoBehaviour:
   _playerInitializer: {fileID: 903436362}
   _stageInitializer: {fileID: 1452220891}
   _playerDebugInitializer: {fileID: 903436369}
+  _stageDebugInitializer: {fileID: 1452220896}
 --- !u!4 &653370830
 Transform:
   m_ObjectHideFlags: 0
@@ -1054,7 +1055,6 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   _continuousPatternTime: 0.3
-  _damage: 1
   _damageInterval: 0.1
   _meltSpeed: 20
   _meltRadius: 14
@@ -2257,6 +2257,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.Initialization.Runtime::Kizami.Initialization.EnemyInitializer
   _retreatLossRatio: 0.6
   _voxelAttraction: {fileID: 35306855}
+  _damageSettings:
+    _shot: 5
+    _finisherBeam: 1
   _spawnAdapter: {fileID: 1539543158}
   _fragmentOrbAdapter: {fileID: 1946405260}
   _energyAdapter: {fileID: 1579939516}
@@ -2366,7 +2369,6 @@ MonoBehaviour:
   _effect: {fileID: 1064112299}
   _range: 100
   _speed: 20
-  _damage: 5
   _interval: 3
   _intervalJitter: 0.3
   _radius: 0.3
@@ -2542,7 +2544,6 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   _continuousPatternTime: 0.3
-  _damage: 1
   _damageInterval: 0.1
   _meltSpeed: 20
   _meltRadius: 14
@@ -3150,6 +3151,16 @@ MonoBehaviour:
     _towerRest: 10
     _finalStomps: 3
     _collapseGrace: 2
+  _damageSettings:
+    _shockwave: 5
+    _laser: 5
+    _turret: 5
+    _headLaser: 10
+    _finisherStrike: 1
+    _arenaOutside: 10
+    _arenaBeam: 1
+    _towerToPlayer: 60
+    _towerToBoss: 30
   _beginOnInitialize: 1
 --- !u!4 &1964918683
 Transform:
