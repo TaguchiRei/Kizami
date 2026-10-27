@@ -36,7 +36,7 @@ namespace Kizami.BlackBoard
     /// </summary>
     public interface IPlayerContactState : IStateGetter
     {
-        /// <summary> 触れている物。空中にいるときは None </summary>
+        /// <summary> 触れている物。何にも触れていないときは None </summary>
         PlayerContact Contacts { get; }
 
         /// <summary> 触れている壁の、壁から離れる向きの水平な単位ベクトル。壁に触れていないときは Vector3.zero </summary>
@@ -56,6 +56,9 @@ namespace Kizami.BlackBoard
         Ground = 1 << 0,
 
         /// <summary> 壁走りのできる壁 </summary>
-        Wall = 1 << 1
+        Wall = 1 << 1,
+
+        /// <summary> 足元の近くに地面がある。地面に触れているときも付く </summary>
+        NearGround = 1 << 2
     }
 }

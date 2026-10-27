@@ -105,6 +105,9 @@ namespace Kizami.Application
         /// <summary> 地面に触れているか </summary>
         private bool IsGrounded => _contactState != null && (_contactState.Contacts & PlayerContact.Ground) != 0;
 
+        /// <summary> 足元の近くに地面があるか </summary>
+        private bool IsNearGround => _contactState != null && (_contactState.Contacts & PlayerContact.NearGround) != 0;
+
         /// <summary> 空中で壁に触れているか。地面と壁の両方に触れているときは地面を優先して false </summary>
         private bool IsTouchingWallInAir => _contactState != null && !IsGrounded &&
                                             (_contactState.Contacts & PlayerContact.Wall) != 0;
@@ -381,12 +384,12 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 壁走りに入れるかどうか。空中で壁に触れ、前向きの移動入力と壁の法線のなす角が WallDetachAngle より大きく、
+        /// 壁走りに入れるかどうか。足元の近くに地面がなく、空中で壁に触れ、前向きの移動入力と壁の法線のなす角が WallDetachAngle より大きく、
         /// 持ち時間が残り、壁ジャンプ後の待ちが解けているときに入れる。
         /// </summary>
         private bool CanEnterWallRun(Vector3 worldInput)
         {
-            return IsTouchingWallInAir && _moveInput.y > 0f && !IsPullingAwayFromWall(worldInput) &&
+            return !IsNearGround && IsTouchingWallInAir && _moveInput.y > 0f && !IsPullingAwayFromWall(worldInput) &&
                    _wallRunTimeRemaining > 0f && !_isWaitingWallRelease;
         }
 

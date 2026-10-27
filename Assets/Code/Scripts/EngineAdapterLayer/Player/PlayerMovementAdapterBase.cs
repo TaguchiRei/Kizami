@@ -49,6 +49,14 @@ namespace Kizami.EngineAdapter
         [Tooltip("壁走りのできる壁として判定するレイヤー。ボクセルと Brilliant Skill の言葉は、レイヤーによらず壁として判定する")]
         private LayerMask _wallLayers;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("足元からこの距離（m）以内に地面があるとき、壁走りに入れない")]
+        private float _wallMinGroundClearance = 1.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ボクセルのピースの高さ（m）がこれより小さいと、壁として判定しない")]
+        private float _minWallPieceHeight = 2f;
+
         [SerializeField] private Rigidbody _rigidbody;
         [SerializeField] private CapsuleCollider _collider;
 
@@ -309,9 +317,14 @@ namespace Kizami.EngineAdapter
 
             var contacts = PlayerContact.None;
 
-            if (IsGrounded(bottomSphereCenter, radius))
+            if (IsGroundWithin(bottomSphereCenter, radius, _groundCheckDistance))
             {
                 contacts |= PlayerContact.Ground;
+            }
+
+            if (IsGroundWithin(bottomSphereCenter, radius, _wallMinGroundClearance))
+            {
+                contacts |= PlayerContact.NearGround;
             }
 
             if (TryFindWallNormal(bottomSphereCenter, topSphereCenter, radius, out var wallNormal))
@@ -326,9 +339,9 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// カプセルの下側の球を下向きに飛ばし、_groundCheckDistance 以内に地面があるかを判定する。
+        /// カプセルの下側の球を下向きに飛ばし、カプセルの下端から distance 以内に地面があるかを判定する。
         /// </summary>
-        private bool IsGrounded(Vector3 bottomSphereCenter, float radius)
+        private bool IsGroundWithin(Vector3 bottomSphereCenter, float radius, float distance)
         {
             // SphereCast は開始時点で重なっているコライダーを検出しない。
             // 落下中に1ステップで地面へめり込んでも取りこぼさないよう、球をカプセルより SKIN_WIDTH だけ小さくし、
@@ -336,7 +349,7 @@ namespace Kizami.EngineAdapter
             const float SKIN_WIDTH = 0.05f;
             var castRadius = radius - SKIN_WIDTH;
             var castOrigin = bottomSphereCenter + Vector3.up * radius;
-            var castDistance = radius + SKIN_WIDTH + _groundCheckDistance;
+            var castDistance = radius + SKIN_WIDTH + distance;
 
             return Physics.SphereCast(castOrigin, castRadius, Vector3.down, out _, castDistance,
                 _groundLayers, QueryTriggerInteraction.Ignore);
@@ -383,14 +396,17 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// コライダーが壁走りのできる壁か。_wallLayers のレイヤーか、ボクセルのピース、Brilliant Skill の言葉なら壁。
+        /// コライダーが壁走りのできる壁か。ボクセルのピースは、高さが _minWallPieceHeight 以上なら壁（レイヤーによらない）。
+        /// ピース以外は、_wallLayers のレイヤーか、Brilliant Skill の言葉なら壁。
         /// </summary>
         private bool IsWall(Collider wallCollider)
         {
+            var piece = wallCollider.GetComponentInParent<VoxelPiece>();
+            if (piece != null) return piece.WorldBounds.size.y >= _minWallPieceHeight;
+
             if (((1 << wallCollider.gameObject.layer) & _wallLayers.value) != 0) return true;
 
-            return wallCollider.GetComponentInParent<VoxelPiece>() != null ||
-                   wallCollider.GetComponentInParent<BrilliantWord>() != null;
+            return wallCollider.GetComponentInParent<BrilliantWord>() != null;
         }
     }
 }
