@@ -45,7 +45,12 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("硬い素材の丸みの倍率")]
         private float _hardRoundnessScale = 0.3f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("削られて分かれた塊を、別のピースとして切り離す体積の下限（ワールド空間, m³）。これより小さい塊は切り離さずに消す")]
+        private float _minPieceVolume = 0.064f;
+
         public float VoxelSize => _voxelSize;
+        public float MinPieceVolume => _minPieceVolume;
         public int ChunkSize => _chunkSize;
         public int RemeshChunksPerFrame => _remeshChunksPerFrame;
         public bool UseBlockShape => _useBlockShape;

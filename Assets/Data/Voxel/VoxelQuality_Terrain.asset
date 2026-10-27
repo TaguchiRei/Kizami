@@ -15,3 +15,10 @@ MonoBehaviour:
   _voxelSize: 0.2
   _chunkSize: 32
   _remeshChunksPerFrame: 8
+  _useBlockShape: 0
+  _roundnessChangeVoxels: 0.05
+  _roundnessFalloffVoxels: 2.5
+  _softRoundnessScale: 1.5
+  _normalRoundnessScale: 1
+  _hardRoundnessScale: 0.3
+  _minPieceVolume: 0.064

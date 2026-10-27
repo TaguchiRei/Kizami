@@ -21,3 +21,4 @@ MonoBehaviour:
   _softRoundnessScale: 1.5
   _normalRoundnessScale: 1
   _hardRoundnessScale: 0.3
+  _minPieceVolume: 0.064

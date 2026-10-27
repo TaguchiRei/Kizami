@@ -94,10 +94,6 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("削られて分かれた塊を、別の VoxelPiece として切り離すか")]
         private bool _splittable = true;
 
-        [SerializeField, Min(1)]
-        [Tooltip("内側サンプルがこの数より少ない塊は、切り離さずに消す")]
-        private int _minPieceSamples = 8;
-
         [SerializeField, Min(0.001f)]
         [Tooltip("切り離したピースの密度（kg/m³）。質量は 体積 × 密度")]
         private float _density = 500f;
@@ -1185,7 +1181,7 @@ namespace Kizami.EngineAdapter.Voxel
                     var component = components[i];
                     LastMeasureOtherMilliseconds += Lap();
 
-                    if (component.SampleCount >= _minPieceSamples)
+                    if (component.SampleCount * VoxelCubicVolume >= _quality.MinPieceVolume)
                     {
                         var extracted = _volume.ExtractComponent(labels, component);
                         LastMeasureExtractMilliseconds += Lap();
@@ -1221,7 +1217,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// ボリュームの内側を塊に分け、切り離す最小のサンプル数以上の塊ごとに新しいピースを生成する。
+        /// ボリュームの内側を塊に分け、体積が品質設定の下限以上の塊ごとに新しいピースを生成する。
         /// 小さすぎる塊は捨てる。volume は変更しない。
         /// </summary>
         private VoxelPiece[] SpawnComponents(VoxelVolume volume)
@@ -1238,7 +1234,7 @@ namespace Kizami.EngineAdapter.Voxel
                 for (var i = 0; i < components.Length; i++)
                 {
                     var component = components[i];
-                    if (component.SampleCount < _minPieceSamples) continue;
+                    if (component.SampleCount * VoxelCubicVolume < _quality.MinPieceVolume) continue;
 
                     pieces.Add(SpawnPiece(volume.ExtractComponent(labels, component), component.SampleCount));
                 }
@@ -1299,7 +1295,6 @@ namespace Kizami.EngineAdapter.Voxel
             piece._strengths = _strengths;
             piece._colliderMode = VoxelColliderMode.ConvexHull;
             piece._splittable = _splittable;
-            piece._minPieceSamples = _minPieceSamples;
             piece._density = _density;
             piece._destroyBelowY = _destroyBelowY;
             piece._cutByMelee = _cutByMelee;
