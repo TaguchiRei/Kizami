@@ -4,25 +4,28 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// 視線の先にある飛び移りの目印と、F キーの誘導を出すかを保持するステート。
+    /// 視線の先にある飛び移りの目印と、F キーの誘導を出すか、誘導を出す飛び先の位置を保持するステート。
     /// </summary>
     [RegisterBoard(typeof(PlayerBoard))]
     public sealed class FlightPromptState : SceneStateBase, IFlightPromptState
     {
         public bool IsVisible { get; private set; }
+        public Vector3 TargetPosition { get; private set; }
 
         public override string GetLog()
         {
-            return $"IsVisible: {IsVisible}";
+            return $"IsVisible: {IsVisible}  \nTargetPosition: {TargetPosition}";
         }
 
         /// <summary>
-        /// 誘導を出すかを設定する。
+        /// 誘導を出すかと、誘導を出す飛び先の位置を設定する。
         /// </summary>
         /// <param name="isVisible">飛び移れる目印が視線の先にあるとき true</param>
-        public void SetVisible(bool isVisible)
+        /// <param name="targetPosition">飛び先（ワールド空間）。出さないときは読まれない</param>
+        public void SetTarget(bool isVisible, Vector3 targetPosition)
         {
             IsVisible = isVisible;
+            TargetPosition = targetPosition;
         }
     }
 
@@ -33,6 +36,9 @@ namespace Kizami.BlackBoard
     {
         /// <summary> F キーの誘導を出すか </summary>
         bool IsVisible { get; }
+
+        /// <summary> 誘導を出す飛び先（ワールド空間）。IsVisible のときだけ意味を持つ </summary>
+        Vector3 TargetPosition { get; }
     }
 
     /// <summary>

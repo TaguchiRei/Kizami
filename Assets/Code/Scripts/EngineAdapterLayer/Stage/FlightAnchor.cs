@@ -11,6 +11,7 @@ namespace Kizami.EngineAdapter
     /// 倒れた塔の目印は、塔の上の部分の側面（TowerFace）の子にあらかじめ置いておく。塔が倒れて止まったとき、TowerTopple が真上を向いた面の目印だけを解放し、
     /// その上側の面に着地する。ボクセルは壊さない。
     /// 塔は別のシーンにあるので、帯の目印はシーンの参照ではなく TowerTopple を探して使う。
+    /// 屋上の目印は、VoxelBuilding が最上階の四隅に生成して ConfigureAsRoof で設定する。屋上の面より少し上に飛び、ボクセルは壊さない。
     /// </summary>
     public sealed class FlightAnchor : MonoBehaviour
     {
@@ -49,12 +50,23 @@ namespace Kizami.EngineAdapter
         private bool _isSnapped;
         private bool _isReleased;
 
+        /// <summary> 建物の屋上の目印か </summary>
+        private bool _isRoof;
+
+        /// <summary> 屋上の目印の着地点を、目印から上へ離す距離（m） </summary>
+        private float _roofLift;
+
         /// <summary> 有効な目印の一覧 </summary>
         public static IReadOnlyList<FlightAnchor> Anchors => _anchors;
 
         /// <summary> 今、飛び移れるか </summary>
         public bool IsAvailable => !_isFallenTowerFace || _isReleased;
 
+        /// <summary> 飛び先がカメラよりこの高さ（m）以上高いときだけ選ぶ。塔の目印は 0 </summary>
+        public float MinHeightAbove { get; private set; }
+
+        /// <summary> 飛び先までの、カメラからの水平な距離（m）がこれ以内のときだけ選ぶ。塔の目印は無制限 </summary>
+        public float MaxHorizontalDistance { get; private set; } = float.PositiveInfinity;
         private void OnEnable()
         {
             _anchors.Add(this);
@@ -67,7 +79,7 @@ namespace Kizami.EngineAdapter
 
         private void Update()
         {
-            if (_isFallenTowerFace || _isSnapped || !EnsureTower()) return;
+            if (_isRoof || _isFallenTowerFace || _isSnapped || !EnsureTower()) return;
 
             _isSnapped = true;
             SnapToTowerSurface();
@@ -82,10 +94,26 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 建物の屋上の目印として設定する。この目印の位置は屋上の面の上の点。
+        /// </summary>
+        /// <param name="lift">着地点を、目印から上へ離す距離（m）</param>
+        /// <param name="minHeightAbove">飛び先がカメラよりこの高さ（m）以上高いときだけ選ぶ</param>
+        /// <param name="maxHorizontalDistance">飛び先がカメラからの水平な距離（m）でこれ以内のときだけ選ぶ</param>
+        public void ConfigureAsRoof(float lift, float minHeightAbove, float maxHorizontalDistance)
+        {
+            _isRoof = true;
+            _roofLift = lift;
+            MinHeightAbove = minHeightAbove;
+            MaxHorizontalDistance = maxHorizontalDistance;
+        }
+
+        /// <summary>
         /// 飛び先を返す。
         /// </summary>
         public FlightTarget GetTarget()
         {
+            if (_isRoof) return new FlightTarget(transform.position + Vector3.up * _roofLift, false, 0f, 0f);
+
             return _isFallenTowerFace
                 ? new FlightTarget(transform.position + Vector3.up * _fallenTowerLift, false, 0f,
                     _fallenTowerClearance)

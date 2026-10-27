@@ -7,6 +7,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 毎フレーム、カメラの視線の先にある飛び移りの目印（FlightAnchor）を探して報告する Adapter。
     /// 目印へ向かう向きと視線のなす角が最も小さい目印を選ぶ。遮る物は調べない。
+    /// 目印ごとの条件（カメラより高いか、水平な距離が近いか）を満たさない目印は選ばない。
     /// </summary>
     public sealed class FlightAdapter : MonoBehaviour
     {
@@ -48,6 +49,10 @@ namespace Kizami.EngineAdapter
 
                 var toTarget = target.Position - cameraTransform.position;
                 if (toTarget.sqrMagnitude > _range * _range) continue;
+                if (toTarget.y < anchor.MinHeightAbove) continue;
+
+                var maxHorizontalDistance = anchor.MaxHorizontalDistance;
+                if (new Vector2(toTarget.x, toTarget.z).sqrMagnitude > maxHorizontalDistance * maxHorizontalDistance) continue;
 
                 var angle = Vector3.Angle(cameraTransform.forward, toTarget);
                 if (angle > bestAngle) continue;

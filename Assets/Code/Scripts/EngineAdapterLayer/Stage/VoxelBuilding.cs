@@ -21,6 +21,7 @@ namespace Kizami.EngineAdapter
     /// 境目が切れたら、その上の階をまとめて1つの Rigidbody の子にして落とす。当たり判定は各階のチャンクの BoxCollider をそのまま使う。
     /// 落ちた Rigidbody が眠ったらキネマティックにして止め、地形として残す。落ちた階は、以後つながりを判定しない。
     /// 階ごとに、ガラスの板などボクセルにしない付属物のプレハブを、階の子として置く。階と一緒に落ち、倒れ始めたらガラスを割る。
+    /// 最上階の上面の四隅に、F キーで飛び上がる屋上の目印（FlightAnchor）を置く。倒れ始めたら無効にする。
     /// 区間に遠景用のプレハブ（ベイクの元のモデル）があれば、手付かずの間は遠くでそれを描く（VoxelModelLoader.SetStaticProxy）。マテリアルは階ごとの複製に差し替え、模様を続ける。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/LargeObjectVoxel.md">説明ドキュメント: 巨大なオブジェクトへのボクセルの適用</seealso>
@@ -31,6 +32,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 1階に記録する攻撃と切断の数の上限。超えた階はメッシュに戻さずボクセルのまま残す </summary>
         private const int MAX_EDIT_RECORDS = 128;
+
+        /// <summary> 屋上の面とみなす面の法線の Y 成分の下限 </summary>
+        private const float MIN_ROOF_NORMAL_Y = 0.7f;
+
+        /// <summary> 屋上の目印の位置を探すレイを、最上階の上面より上から飛ばす高さ（m） </summary>
+        private const float ROOF_RAY_MARGIN = 0.5f;
 
         private static readonly int _patternOffsetId = Shader.PropertyToID("_PatternOffset");
 
@@ -59,6 +66,7 @@ namespace Kizami.EngineAdapter
         private readonly ActionChannel<Rigidbody> _collapsed = new();
         private readonly ActionChannel<Transform> _collapsing = new();
         private readonly ActionChannel<Bounds> _collapsedBounds = new();
+        private readonly List<FlightAnchor> _roofAnchors = new();
 
         [SerializeField]
         [Tooltip("下から順に積む区間。区間ごとに、モデルと付属物を指定の回数だけ積む")]
@@ -103,6 +111,23 @@ namespace Kizami.EngineAdapter
         [SerializeField, Range(0f, 1f)]
         [Tooltip("手付かずの階を、画面に対する高さの割合がこれを下回ったら遠景用のプレハブで描く")]
         private float _proxyTransitionHeight = 0.3f;
+
+        [Header("屋上の目印")]
+        [SerializeField, Min(0f)]
+        [Tooltip("最上階の上面の四隅を、水平方向に内側へ寄せる距離（m）")]
+        private float _roofAnchorInset = 3f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("屋上の目印の飛び先を、屋上の面から上へ離す距離（m）")]
+        private float _roofAnchorLift = 2f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("カメラより飛び先がこの高さ（m）以上高いときだけ、屋上の目印を選ぶ")]
+        private float _roofAnchorMinHeightAbove = 10f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("カメラからの水平な距離（m）がこれ以内の屋上の目印だけを選ぶ")]
+        private float _roofAnchorMaxHorizontalDistance = 20f;
 
         private float[] _initialAreas = Array.Empty<float>();
         private float[] _connectionRatios = Array.Empty<float>();
@@ -506,6 +531,79 @@ namespace Kizami.EngineAdapter
             _replayFrames[floorIndex] = Time.frameCount;
         }
 
+        /// <summary>
+        /// 最上階の上面の四隅に、F キーで飛び上がる屋上の目印を置く。
+        /// 四隅は最上階の範囲を内側へ寄せた点で、真上から最上階のコライダーへ真下にレイを飛ばし、上向きの面に当たった角にだけ置く。
+        /// 目印は最上階の子にする。階が倒れると目印も一緒に動く為、倒れ始めたら無効にする（DisableRoofAnchors）。
+        /// </summary>
+        private void CreateRoofAnchors()
+        {
+            var top = _floors[^1];
+            var bounds = _floorBounds[^1];
+            var min = bounds.min + new Vector3(_roofAnchorInset, 0f, _roofAnchorInset);
+            var max = bounds.max - new Vector3(_roofAnchorInset, 0f, _roofAnchorInset);
+            if (min.x >= max.x || min.z >= max.z) return;
+
+            Physics.SyncTransforms();
+            var colliders = top.GetComponentsInChildren<Collider>();
+            var corners = new[]
+            {
+                new Vector2(min.x, min.z), new Vector2(min.x, max.z),
+                new Vector2(max.x, min.z), new Vector2(max.x, max.z)
+            };
+            foreach (var corner in corners)
+            {
+                if (!TryFindRoofPoint(colliders, corner, bounds, out var point)) continue;
+
+                var anchorObject = new GameObject("RoofAnchor")
+                {
+                    layer = gameObject.layer
+                };
+                anchorObject.transform.SetParent(top.transform, false);
+                anchorObject.transform.position = point;
+
+                var anchor = anchorObject.AddComponent<FlightAnchor>();
+                anchor.ConfigureAsRoof(_roofAnchorLift, _roofAnchorMinHeightAbove, _roofAnchorMaxHorizontalDistance);
+                _roofAnchors.Add(anchor);
+            }
+
+            if (_roofAnchors.Count == 0) UsefulLogger.LogWarning("最上階の上面に屋上の目印を置けませんでした。", this);
+        }
+
+        /// <summary>
+        /// 水平位置 corner の、最上階の上面より上から真下へ colliders にレイを飛ばし、最も高い上向きの面の点を返す。
+        /// </summary>
+        private static bool TryFindRoofPoint(Collider[] colliders, Vector2 corner, Bounds floorBounds, out Vector3 point)
+        {
+            var ray = new Ray(new Vector3(corner.x, floorBounds.max.y + ROOF_RAY_MARGIN, corner.y), Vector3.down);
+            var distance = floorBounds.size.y + ROOF_RAY_MARGIN;
+            var nearest = float.MaxValue;
+            point = default;
+            foreach (var collider in colliders)
+            {
+                if (!collider.Raycast(ray, out var hit, distance) || hit.distance >= nearest) continue;
+                if (hit.normal.y < MIN_ROOF_NORMAL_Y) continue;
+
+                nearest = hit.distance;
+                point = hit.point;
+            }
+
+            return nearest < float.MaxValue;
+        }
+
+        /// <summary>
+        /// 屋上の目印をすべて無効にする。
+        /// </summary>
+        private void DisableRoofAnchors()
+        {
+            foreach (var anchor in _roofAnchors)
+            {
+                if (anchor != null) anchor.gameObject.SetActive(false);
+            }
+
+            _roofAnchors.Clear();
+        }
+
         private Bounds MeasureFloorBounds(VoxelModelLoader floor)
         {
             var bounds = new Bounds(floor.transform.position, Vector3.zero);
@@ -587,6 +685,7 @@ namespace Kizami.EngineAdapter
             }
 
             _standingFloorCount = firstFloor;
+            DisableRoofAnchors();
 
             _collapsing.Invoke(groupObject.transform);
             var body = AddGroupBody(groupObject);
@@ -1043,7 +1142,11 @@ namespace Kizami.EngineAdapter
 
         private void Start()
         {
-            if (_floors.Count > 0) InitializeFloors();
+            if (_floors.Count > 0)
+            {
+                InitializeFloors();
+                CreateRoofAnchors();
+            }
 
             if (Array.Exists(_sections, section => section.Attachments != null) && GlassShardPool.Instance == null)
             {

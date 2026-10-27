@@ -40,6 +40,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 装備していない枠の、表示した消費量 </summary>
         private const int UNEQUIPPED_COST = -1;
 
+        /// <summary> F キーの誘導の大きさの半分（画面の割合） </summary>
+        private static readonly Vector2 _flightPromptHalfSize = new(0.1f, 0.03f);
+
         /// <summary> ゲージのひびの折れ目。ゲージの背景に対する割合の位置で、上から下へ順に線で継ぐ </summary>
         private static readonly Vector2[] _crackPoints =
         {
@@ -270,7 +273,30 @@ namespace Kizami.EngineAdapter
             UpdateTargetHealth();
             UpdateTimeText();
             UpdateStartText();
-            _flightText.enabled = _flightPromptState.IsVisible;
+            UpdateFlightPrompt();
+        }
+
+        /// <summary>
+        /// 飛び先があるとき、F キーの誘導をカメラに映る飛び先の位置に出す。カメラの後ろにあるときは出さない。
+        /// 画面のビューポート座標は Canvas の全体に対するアンカーの割合と一致する為、そのままアンカーにする。画面の外にあるときは端に寄せる。
+        /// </summary>
+        private void UpdateFlightPrompt()
+        {
+            var cameraMain = Camera.main;
+            var isVisible = _flightPromptState.IsVisible && cameraMain != null;
+            if (isVisible)
+            {
+                var viewport = cameraMain.WorldToViewportPoint(_flightPromptState.TargetPosition);
+                isVisible = viewport.z > 0f;
+                if (isVisible)
+                {
+                    var center = new Vector2(Mathf.Clamp01(viewport.x), Mathf.Clamp01(viewport.y));
+                    UiBuilder.SetAnchors(_flightText.rectTransform, center - _flightPromptHalfSize,
+                        center + _flightPromptHalfSize);
+                }
+            }
+
+            _flightText.enabled = isVisible;
         }
 
         /// <summary>
@@ -589,7 +615,6 @@ namespace Kizami.EngineAdapter
             _startText.enabled = false;
 
             _flightText = UiBuilder.CreateText(canvas, "FlightPrompt", LABEL_FONT_SIZE);
-            UiBuilder.SetAnchors(_flightText.rectTransform, new Vector2(0.4f, 0.3f), new Vector2(0.6f, 0.36f));
             _flightText.text = FLIGHT_PROMPT_TEXT;
             _flightText.enabled = false;
         }

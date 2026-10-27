@@ -217,6 +217,18 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// 位置を直接動かされたことを受け取り、壁走りを抜けて通常の移動に戻す。
+        /// 壁に触れたまま動かされても壁走りに入り直さないよう、壁から離れるまで再突入を止める。
+        /// </summary>
+        public void OnTeleported()
+        {
+            _state.SetMode(PlayerMoveMode.Normal);
+            _isWaitingWallRelease = true;
+            _state.SetTargetVelocity(Vector3.zero);
+            StopJumpHold();
+        }
+
+        /// <summary>
         /// 次の Step でプレイヤーを真上へ打ち上げるよう要求する。同じステップに複数の要求があれば、最も速いものを使う。
         /// </summary>
         /// <param name="speed">上向きの打ち出し速度（m/s）</param>
@@ -623,6 +635,11 @@ namespace Kizami.Application
         /// <param name="followDisplacement">続けて飛ぶ向きと距離。続けないときはゼロ</param>
         /// <param name="followDuration">続けて飛ぶ所要時間（秒）</param>
         void RequestFlight(Vector3 displacement, float duration, Vector3 followDisplacement, float followDuration);
+
+        /// <summary>
+        /// 位置を直接動かしたあとに呼ぶ。壁走りを抜けて通常の移動に戻す。
+        /// </summary>
+        void OnTeleported();
 
         /// <summary>
         /// 次の Step でプレイヤーを真上へ打ち上げるよう要求する。
