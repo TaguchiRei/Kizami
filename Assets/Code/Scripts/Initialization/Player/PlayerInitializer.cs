@@ -110,7 +110,7 @@ namespace Kizami.Initialization
             // F は、飛び移れるときは飛び移り、そうでなければスローモードになる為、FlightService を先に生成して渡す
             _flightService = new FlightService(blackBoard, _movementService,
                 displacement => _movementAdapter.PlaceAt(_movementAdapter.Position + displacement),
-                () => _movementAdapter.BodyBounds.center, _effectEvents, sceneId);
+                () => _movementAdapter.BodyBounds.center, _actionEvents, _effectEvents, sceneId);
             if (_flightAdapter == null) _flightAdapter = gameObject.AddComponent<FlightAdapter>();
             _flightAdapter.Initialize(_flightService.SetCandidate);
 

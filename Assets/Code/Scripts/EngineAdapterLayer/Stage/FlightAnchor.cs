@@ -42,10 +42,6 @@ namespace Kizami.EngineAdapter
         [Tooltip("倒れた塔の目印の着地点を、目印から上へ離す距離（m）")]
         private float _fallenTowerLift = 2f;
 
-        [SerializeField, Min(0f)]
-        [Tooltip("倒れた塔へは、着地点よりこの高さだけ上へ上がってから下りてくる。塔の側面に当たらないようにする（m）")]
-        private float _fallenTowerClearance = 15f;
-
         private TowerTopple _tower;
         private bool _isSnapped;
         private bool _isReleased;
@@ -117,12 +113,11 @@ namespace Kizami.EngineAdapter
         /// </summary>
         public FlightTarget GetTarget()
         {
-            if (_isRoof) return new FlightTarget(transform.position + Vector3.up * _roofLift, false, 0f, 0f);
+            if (_isRoof) return new FlightTarget(transform.position + Vector3.up * _roofLift, false, 0f);
 
             return _isFallenTowerFace
-                ? new FlightTarget(transform.position + Vector3.up * _fallenTowerLift, false, 0f,
-                    _fallenTowerClearance)
-                : new FlightTarget(transform.position + Vector3.up * _bandLift - GetOutward() * _bandInset, true, _carveRadius, 0f);
+                ? new FlightTarget(transform.position + Vector3.up * _fallenTowerLift, false, 0f)
+                : new FlightTarget(transform.position + Vector3.up * _bandLift - GetOutward() * _bandInset, true, _carveRadius);
         }
 
         private bool EnsureTower()

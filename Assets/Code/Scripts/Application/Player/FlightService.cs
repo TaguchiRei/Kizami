@@ -16,6 +16,7 @@ namespace Kizami.Application
         private readonly IPlayerMovementController _movementService;
         private readonly Action<Vector3> _teleport;
         private readonly Func<Vector3> _getBodyCenter;
+        private readonly PlayerActionEvents _actionEvents;
         private readonly PlayerSkillEffectEvents _effectEvents;
 
         private FlightTarget? _candidate;
@@ -24,14 +25,17 @@ namespace Kizami.Application
         /// <param name="movementService">飛び始められるかを見て、移動後に通知する先</param>
         /// <param name="teleport">プレイヤーを今の位置からの相対で動かす関数。瞬間移動する</param>
         /// <param name="getBodyCenter">プレイヤーの体の中心（ワールド空間）を返す関数。移動量を求めるのに使う</param>
+        /// <param name="actionEvents">飛んだことを流す、プレイヤーの出来事の流し先</param>
         /// <param name="effectEvents">着地の周囲のボクセルを球で削らせる出来事の流し先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public FlightService(IBlackBoard blackBoard, IPlayerMovementController movementService,
-            Action<Vector3> teleport, Func<Vector3> getBodyCenter, PlayerSkillEffectEvents effectEvents, int sceneId)
+            Action<Vector3> teleport, Func<Vector3> getBodyCenter, PlayerActionEvents actionEvents,
+            PlayerSkillEffectEvents effectEvents, int sceneId)
         {
             _movementService = movementService;
             _teleport = teleport;
             _getBodyCenter = getBodyCenter;
+            _actionEvents = actionEvents;
             _effectEvents = effectEvents;
 
             if (!blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this)) return;
@@ -61,7 +65,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 目印へ瞬間移動する。
+        /// 目印へ瞬間移動して、飛んだことを出来事として流す。
         /// </summary>
         private void Fly(FlightTarget target)
         {
@@ -69,6 +73,7 @@ namespace Kizami.Application
 
             _teleport(target.Position - _getBodyCenter());
             _movementService.OnTeleported();
+            _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.Flew));
         }
     }
 }

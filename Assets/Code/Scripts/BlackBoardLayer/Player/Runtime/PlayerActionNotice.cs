@@ -21,7 +21,10 @@ namespace Kizami.BlackBoard
         WallRunStarted,
 
         /// <summary> 壁走りの最中にジャンプして、壁を蹴った </summary>
-        WallKicked
+        WallKicked,
+
+        /// <summary> F キーで飛び移りの目印へ瞬間移動した </summary>
+        Flew
     }
 
     /// <summary>

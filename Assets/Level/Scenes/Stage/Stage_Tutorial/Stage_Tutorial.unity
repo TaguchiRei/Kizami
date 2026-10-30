@@ -241,6 +241,16 @@ MonoBehaviour:
     _releaseSpawnPointIds: []
     _showObjects: []
   - _condition:
+      _kind: 2
+      _target: {fileID: 0}
+      _targetId: 
+      _count: 1
+      _action: 6
+    _delay: 1
+    _releaseSpawnPoints: []
+    _releaseSpawnPointIds: []
+    _showObjects: []
+  - _condition:
       _kind: 4
       _target: {fileID: 0}
       _targetId: 

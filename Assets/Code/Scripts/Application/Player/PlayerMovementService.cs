@@ -76,12 +76,6 @@ namespace Kizami.Application
         /// <summary> 要求された突進の所要時間（秒） </summary>
         private float _rushDuration;
 
-        /// <summary> 飛びの終わりに続けて飛ぶ向きと距離。続けないときはゼロ </summary>
-        private Vector3 _followFlightDisplacement;
-
-        /// <summary> 続けて飛ぶ所要時間（秒） </summary>
-        private float _followFlightDuration;
-
         /// <summary> 実行中の突進の速度（m/s） </summary>
         private Vector3 _warpVelocity;
 
@@ -192,28 +186,6 @@ namespace Kizami.Application
             _rushDirection = direction.normalized;
             _rushDistance = distance;
             _rushDuration = duration;
-            _followFlightDuration = 0f;
-        }
-
-        /// <summary>
-        /// 次の Step で、決めた時間で displacement だけ一直線に飛ぶよう要求する。向きは上下を含む。
-        /// 続きの飛びを渡すと、最初の飛びが終わった直後に続けて飛ぶ。
-        /// </summary>
-        /// <param name="displacement">飛ぶ向きと距離（ワールド空間）</param>
-        /// <param name="duration">所要時間（秒）</param>
-        /// <param name="followDisplacement">続けて飛ぶ向きと距離。続けないときはゼロ</param>
-        /// <param name="followDuration">続けて飛ぶ所要時間（秒）</param>
-        public void RequestFlight(Vector3 displacement, float duration, Vector3 followDisplacement,
-            float followDuration)
-        {
-            if (displacement.sqrMagnitude <= Mathf.Epsilon || duration <= 0f) return;
-
-            _isRushRequested = true;
-            _rushDirection = displacement.normalized;
-            _rushDistance = displacement.magnitude;
-            _rushDuration = duration;
-            _followFlightDisplacement = followDuration > 0f ? followDisplacement : Vector3.zero;
-            _followFlightDuration = followDuration;
         }
 
         /// <summary>
@@ -289,17 +261,6 @@ namespace Kizami.Application
             {
                 if (_warpTimeRemaining > 0f)
                 {
-                    AdvanceWarp(deltaTime);
-                    return null;
-                }
-
-                if (_followFlightDuration > 0f)
-                {
-                    _rushDirection = _followFlightDisplacement.normalized;
-                    _rushDistance = _followFlightDisplacement.magnitude;
-                    _rushDuration = _followFlightDuration;
-                    _followFlightDuration = 0f;
-                    StartRush();
                     AdvanceWarp(deltaTime);
                     return null;
                 }
@@ -389,7 +350,6 @@ namespace Kizami.Application
             _isRushRequested = false;
             _launchSpeed = 0f;
             _warpTimeRemaining = 0f;
-            _followFlightDuration = 0f;
             StopJumpHold();
             _state.SetMode(PlayerMoveMode.Aiming);
             _state.SetTargetVelocity(Vector3.zero);
@@ -626,15 +586,6 @@ namespace Kizami.Application
         /// <param name="distance">進む距離（m）</param>
         /// <param name="duration">所要時間（秒）</param>
         void RequestRush(Vector3 direction, float distance, float duration);
-
-        /// <summary>
-        /// 次の Step で、決めた時間で displacement だけ一直線に飛ぶよう要求する。
-        /// </summary>
-        /// <param name="displacement">飛ぶ向きと距離（ワールド空間）</param>
-        /// <param name="duration">所要時間（秒）</param>
-        /// <param name="followDisplacement">続けて飛ぶ向きと距離。続けないときはゼロ</param>
-        /// <param name="followDuration">続けて飛ぶ所要時間（秒）</param>
-        void RequestFlight(Vector3 displacement, float duration, Vector3 followDisplacement, float followDuration);
 
         /// <summary>
         /// 位置を直接動かしたあとに呼ぶ。壁走りを抜けて通常の移動に戻す。

@@ -55,16 +55,11 @@ namespace Kizami.BlackBoard
         /// <summary> ボクセルを壊す球の半径（m） </summary>
         public readonly float CarveRadius;
 
-        /// <summary> 着地点より上に上がってから下りてくるときの、着地点からの余裕の高さ（m）。0 なら一直線に飛ぶ </summary>
-        public readonly float ApproachClearance;
-
-        public FlightTarget(Vector3 position, bool carvesVoxels, float carveRadius,
-            float approachClearance)
+        public FlightTarget(Vector3 position, bool carvesVoxels, float carveRadius)
         {
             Position = position;
             CarvesVoxels = carvesVoxels;
             CarveRadius = carveRadius;
-            ApproachClearance = approachClearance;
         }
     }
 }
