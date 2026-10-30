@@ -127,7 +127,11 @@ namespace Kizami.EngineAdapter
 
         [SerializeField, Min(0f)]
         [Tooltip("カメラからの水平な距離（m）がこれ以内の屋上の目印だけを選ぶ")]
-        private float _roofAnchorMaxHorizontalDistance = 20f;
+        private float _roofAnchorMaxHorizontalDistance = 35f;
+
+        [SerializeField, Min(1f)]
+        [Tooltip("屋上の目印を、視線の先とみなす角度に掛ける倍率。FlightAdapter の基準の角度（8 度）より広げて、壁を見たままでも選ばれやすくする")]
+        private float _roofAnchorAimAngleScale = 2f;
 
         private float[] _initialAreas = Array.Empty<float>();
         private float[] _connectionRatios = Array.Empty<float>();
@@ -563,7 +567,8 @@ namespace Kizami.EngineAdapter
                 anchorObject.transform.position = point;
 
                 var anchor = anchorObject.AddComponent<FlightAnchor>();
-                anchor.ConfigureAsRoof(_roofAnchorLift, _roofAnchorMinHeightAbove, _roofAnchorMaxHorizontalDistance);
+                anchor.ConfigureAsRoof(_roofAnchorLift, _roofAnchorMinHeightAbove, _roofAnchorMaxHorizontalDistance,
+                    _roofAnchorAimAngleScale);
                 _roofAnchors.Add(anchor);
             }
 

@@ -49,8 +49,23 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("削られて分かれた塊を、別のピースとして切り離す体積の下限（ワールド空間, m³）。これより小さい塊は切り離さずに消す")]
         private float _minPieceVolume = 0.064f;
 
+        [SerializeField, Min(1f)]
+        [Tooltip("切り離すピースの体積が、下限（_minPieceVolume）のこの倍数より小さいとき、コライダーも Rigidbody も付けずに地面の高さまで落として止める")]
+        private float _colliderlessVolumeScale = 5f;
+
+        [SerializeField]
+        [Tooltip("コライダーを持たないピースが止まる地面のレイヤー。建物のレイヤーを含めない")]
+        private LayerMask _colliderlessGroundLayers = ~0;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("コライダーを持たないピースの下へ、地面を探すレイの長さ（m）")]
+        private float _colliderlessGroundRayLength = 300f;
+
         public float VoxelSize => _voxelSize;
         public float MinPieceVolume => _minPieceVolume;
+        public float ColliderlessVolume => _minPieceVolume * _colliderlessVolumeScale;
+        public LayerMask ColliderlessGroundLayers => _colliderlessGroundLayers;
+        public float ColliderlessGroundRayLength => _colliderlessGroundRayLength;
         public int ChunkSize => _chunkSize;
         public int RemeshChunksPerFrame => _remeshChunksPerFrame;
         public bool UseBlockShape => _useBlockShape;

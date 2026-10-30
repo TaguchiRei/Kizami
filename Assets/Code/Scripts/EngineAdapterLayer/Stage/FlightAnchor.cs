@@ -62,11 +62,14 @@ namespace Kizami.EngineAdapter
         /// <summary> 今、飛び移れるか </summary>
         public bool IsAvailable => !_isFallenTowerFace || _isReleased;
 
-        /// <summary> 飛び先がカメラよりこの高さ（m）以上高いときだけ選ぶ。塔の目印は 0 </summary>
-        public float MinHeightAbove { get; private set; }
+        /// <summary> 飛び先がカメラよりこの高さ（m）以上高いときだけ選ぶ。塔の目印は制限なし </summary>
+        public float MinHeightAbove { get; private set; } = float.NegativeInfinity;
 
         /// <summary> 飛び先までの、カメラからの水平な距離（m）がこれ以内のときだけ選ぶ。塔の目印は無制限 </summary>
         public float MaxHorizontalDistance { get; private set; } = float.PositiveInfinity;
+
+        /// <summary> 視線と飛び先の向きのなす角の許容に、FlightAdapter の基準の角度へ掛ける倍率。塔の目印は 1 </summary>
+        public float AimAngleScale { get; private set; } = 1f;
         private void OnEnable()
         {
             _anchors.Add(this);
@@ -99,12 +102,14 @@ namespace Kizami.EngineAdapter
         /// <param name="lift">着地点を、目印から上へ離す距離（m）</param>
         /// <param name="minHeightAbove">飛び先がカメラよりこの高さ（m）以上高いときだけ選ぶ</param>
         /// <param name="maxHorizontalDistance">飛び先がカメラからの水平な距離（m）でこれ以内のときだけ選ぶ</param>
-        public void ConfigureAsRoof(float lift, float minHeightAbove, float maxHorizontalDistance)
+        /// <param name="aimAngleScale">視線と飛び先の向きのなす角の許容に、FlightAdapter の基準の角度へ掛ける倍率</param>
+        public void ConfigureAsRoof(float lift, float minHeightAbove, float maxHorizontalDistance, float aimAngleScale)
         {
             _isRoof = true;
             _roofLift = lift;
             MinHeightAbove = minHeightAbove;
             MaxHorizontalDistance = maxHorizontalDistance;
+            AimAngleScale = aimAngleScale;
         }
 
         /// <summary>
