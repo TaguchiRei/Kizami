@@ -12,6 +12,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 土遁・造山で、カメラの正面から飛ばしたレイが当たった面に、法線の向きへ伸びる石柱を出す Adapter。
     /// 石柱は 1 つのピースで、根元から先端へ数回に分けてカプセルを足して伸ばす。伸びた範囲にいる敵は倒し、重なったプレイヤーは生えた向きへ弾く。
+    /// 弾いた石柱は、プレイヤーが離れるまでコライダーを無効にして、プレイヤーが引っかからないようにする。
     /// ピースは起動時にプールへ用意し、同時に置ける数を超えたら最も古いものを使い回す。
     /// </summary>
     public sealed class VoxelMoundAdapter : MonoBehaviour
@@ -47,6 +48,7 @@ namespace Kizami.EngineAdapter
         private readonly List<VoxelPiece> _activePieces = new();
         private readonly HashSet<VoxelPiece> _watchedPieces = new();
         private readonly List<Growth> _growths = new();
+        private readonly List<Collider> _colliderBuffer = new();
         private Action<VoxelPiece> _watchPiece;
         private Action<Bounds> _refreshRegion;
         private Action<Vector3, float> _defeatInRadius;
@@ -125,7 +127,8 @@ namespace Kizami.EngineAdapter
                     GrowTo(growth);
                 }
 
-                if (growth.Step >= _growSteps) _growths.RemoveAt(i);
+                if (growth.IsPassthrough) UpdatePassthrough(growth);
+                if (growth.Step >= _growSteps && !growth.IsPassthrough) _growths.RemoveAt(i);
             }
         }
 
@@ -151,11 +154,12 @@ namespace Kizami.EngineAdapter
                 KnockbackSpeed = notice.KnockbackSpeed
             };
             growth.Piece = TakePiece(growth);
-            growth.PreviousTip = growth.Origin - growth.Direction * _embedDepth;
+            growth.BaseCenter = growth.Origin - growth.Direction * _embedDepth;
+            growth.PreviousTip = growth.BaseCenter;
             growth.Step = 1;
             GrowTo(growth);
 
-            if (growth.Step < _growSteps) _growths.Add(growth);
+            if (growth.Step < _growSteps || growth.IsPassthrough) _growths.Add(growth);
         }
 
         private bool TryRaycast(out RaycastHit hit)
@@ -208,6 +212,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 石柱を今の段階の長さまで伸ばす。足したカプセルの範囲にいる敵を倒し、重なったプレイヤーを 1 本につき 1 回だけ弾く。
+        /// 弾いた石柱は、プレイヤーが離れるまでコライダーを無効にする（UpdatePassthrough）。
         /// 先端の球の中心は、先端の面が長さに届く所に置く。
         /// </summary>
         private void GrowTo(Growth growth)
@@ -215,18 +220,48 @@ namespace Kizami.EngineAdapter
             var ratio = (float)growth.Step / _growSteps;
             var distance = Mathf.Max(growth.Length * ratio - growth.Radius, -_embedDepth);
             var tip = growth.Origin + growth.Direction * distance;
-            var baseCenter = growth.Origin - growth.Direction * _embedDepth;
 
-            growth.Piece.ApplyEdit(new CapsuleShape(baseCenter, tip, growth.Radius), VoxelCsgOperation.Union, Space.World);
+            growth.Piece.ApplyEdit(new CapsuleShape(growth.BaseCenter, tip, growth.Radius), VoxelCsgOperation.Union,
+                Space.World);
             DefeatAlong(growth.PreviousTip, tip, growth.Radius);
 
             if (!growth.IsKnocked && OverlapsPlayer(growth.PreviousTip, tip, growth.Radius))
             {
                 growth.IsKnocked = true;
+                growth.IsPassthrough = true;
                 _requestKnockback?.Invoke(growth.Direction * growth.KnockbackSpeed);
             }
 
             growth.PreviousTip = tip;
+        }
+
+        /// <summary>
+        /// プレイヤーが石柱に重なっている間は、ピース配下のコライダーを無効にし続ける。ピースの再メッシュ化でコライダーが有効に戻されるので、毎フレーム無効にし直す。
+        /// 重なりが解けたら、無効にしたコライダーを有効に戻す。
+        /// </summary>
+        private void UpdatePassthrough(Growth growth)
+        {
+            if (OverlapsPlayer(growth.BaseCenter, growth.PreviousTip, growth.Radius))
+            {
+                growth.Piece.GetComponentsInChildren(false, _colliderBuffer);
+                foreach (var collider in _colliderBuffer)
+                {
+                    if (!collider.enabled) continue;
+
+                    collider.enabled = false;
+                    growth.DisabledColliders.Add(collider);
+                }
+
+                return;
+            }
+
+            foreach (var collider in growth.DisabledColliders)
+            {
+                if (collider != null) collider.enabled = true;
+            }
+
+            growth.DisabledColliders.Clear();
+            growth.IsPassthrough = false;
         }
 
         /// <summary>
@@ -277,11 +312,20 @@ namespace Kizami.EngineAdapter
             /// <summary> カプセルを足し終えた回数 </summary>
             public int Step;
 
+            /// <summary> カプセルの根元の球の中心。面の内側へ埋めた位置 </summary>
+            public Vector3 BaseCenter;
+
             /// <summary> 前の段階で足したカプセルの先端の球の中心 </summary>
             public Vector3 PreviousTip;
 
             /// <summary> プレイヤーを弾いたか </summary>
             public bool IsKnocked;
+
+            /// <summary> プレイヤーが離れるまで、コライダーを無効にしている間か </summary>
+            public bool IsPassthrough;
+
+            /// <summary> 透過のために無効にしたコライダー。戻すときに有効にする </summary>
+            public readonly List<Collider> DisabledColliders = new();
         }
     }
 }
