@@ -16,7 +16,7 @@ namespace Kizami.Initialization
     /// <summary>
     /// プレイヤーへダメージを与える操作と、狙った所のボクセルを削る破壊攻撃（G キーを押している間）と、HP・チャージ量・スローモード中か・かけらとオーブの数の画面表示を行うデバッグ用の Initializer。インゲームのシーンへ置く。
     /// 破壊攻撃はデバッグ専用の為、入力マップに Action を足さず Keyboard.current を直接読む。
-    /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動く。
+    /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動き、DebugVisibilityAdapter が出している間だけ操作できる。
     /// PlayerInitializer が登録する State を読むので、それより後に初期化する。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.DefaultLate)]
@@ -91,7 +91,7 @@ namespace Kizami.Initialization
 
         private void OnModeChanged(PlayerMoveMode previous, PlayerMoveMode current)
         {
-            if (_isDamageOnWarpEnabled && current == PlayerMoveMode.Warping)
+            if (DebugVisibilityAdapter.IsVisible && _isDamageOnWarpEnabled && current == PlayerMoveMode.Warping)
             {
                 _healthService?.ApplyDamage(_damageAmount);
             }
@@ -99,7 +99,7 @@ namespace Kizami.Initialization
 
         private void Update()
         {
-            if (_voxelDestructionAdapter == null) return;
+            if (!DebugVisibilityAdapter.IsVisible || _voxelDestructionAdapter == null) return;
 
             var keyboard = Keyboard.current;
             if (keyboard == null || !keyboard.gKey.isPressed) return;
@@ -111,7 +111,7 @@ namespace Kizami.Initialization
 
         private void OnGUI()
         {
-            if (_healthService == null || _healthState == null) return;
+            if (!DebugVisibilityAdapter.IsVisible || _healthService == null || _healthState == null) return;
 
             const float WIDTH = 360f;
             GUILayout.BeginArea(new Rect(10f, Screen.height - 160f, WIDTH, 60f), GUI.skin.box);

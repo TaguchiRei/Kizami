@@ -34,7 +34,7 @@
 | `StageDebugInitializer`（`Initialization/Stage/`） | 流れの状態と破壊対象の壊れ具合の表示 | インゲーム |
 | `EnemyInitializer`（`Initialization/Enemy/` 70〜79 行） | 敵の数・処理時間などを `DebugGUI.ObserveVariable` で出す | インゲーム |
 
-どれも「エディタと Development Build でのみ動く」。製品のビルドでは出ないが、エディタと Development Build では常に出ている。
+どれも「エディタと Development Build でのみ動く」。製品のビルドでは出ないが、エディタと Development Build では常に出ている。ただし `DebugGUI` 自体は全体が `#if UNITY_EDITOR` の中にあり、値の表示が出るのはエディタだけ。Development Build で出るのは、各 Initializer 自前の `OnGUI` とキー操作。
 
 ### ヒットエフェクトを出す所
 
