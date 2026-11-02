@@ -16,11 +16,15 @@ namespace Kizami.EngineAdapter
     /// 範囲にある装甲のパネルには、振りのダメージの種類で1回ずつ当てる。パネルは切断しないので、かけらは出ない。
     /// 破壊タイプを含む振りでは、範囲にあるボクセルのピースを刃の平面で切り分ける（VoxelPiece.Slice）。手付かずの形のメッシュのまま置いたモデルは、ボクセルにしてから切り分ける。
     /// カメラから見て装甲の奥にある対象（ディフェンダーのバリアの中の敵など）は切らない。
+    /// 切る・装甲に当てる・ピースを切り分ける・体力の対象に当てるのいずれかが起きたら、カメラに最も近い当たりの位置にヒットエフェクトを出す。空振りでは出さない。
     /// </summary>
     public sealed class MeleeCutAdapter : InitializableMonoBehaviour
     {
         /// <summary> 範囲内から一度に集めるコライダーの最大数 </summary>
         private const int MAX_HIT_COUNT = 128;
+
+        /// <summary> ヒットエフェクトの位置を求める、カメラの正面へのレイの長さ（m） </summary>
+        private const float HIT_RAY_DISTANCE = 200f;
 
         private readonly Collider[] _hitBuffer = new Collider[MAX_HIT_COUNT];
         private readonly List<CuttableObject> _targets = new();
@@ -64,6 +68,19 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 今回の振りの範囲で刃が入った、体力制の破壊対象。入っていなければ null </summary>
         private HealthTarget _hitHealthTarget;
+
+        /// <summary> 今回の振りで、切る・装甲に当てる・ピースを切り分ける・体力の対象に当てるのいずれかが起きたか </summary>
+        private bool _hasHit;
+
+        /// <summary> ヒットエフェクトを出す位置。当たった対象のうち、カメラに最も近い点 </summary>
+        private Vector3 _hitPoint;
+
+        /// <summary> ヒットエフェクトの向き。当たった面の法線で、カメラの側を向く </summary>
+        private Vector3 _hitNormal;
+
+        private float _hitSqrDistance;
+        private Vector3 _hitRayOrigin;
+        private Vector3 _hitRayDirection;
 
         /// <summary>
         /// Renderer のバウンディングボックスが、指定した点を通り法線に垂直な平面をまたぐかどうか。
@@ -177,6 +194,8 @@ namespace Kizami.EngineAdapter
 
             _pieces.Clear();
 
+            if (_hasHit) HitEffectPlayer.Play(_hitPoint, _hitNormal);
+
             // 体力が尽きる一撃では切り分けないよう、切り分けのあとに報告する
             if (_hitHealthTarget != null) _hitHealthTarget.ReportMeleeHit();
 
@@ -230,6 +249,9 @@ namespace Kizami.EngineAdapter
             _armorPanels.Clear();
             _pieces.Clear();
             _hitHealthTarget = null;
+            _hasHit = false;
+            _hitRayOrigin = origin;
+            _hitRayDirection = forward;
 
             GetCutBox(origin, forward, rangeScale, out var center, out var halfExtents);
             var hitCount = Physics.OverlapBoxNonAlloc(center, halfExtents, _hitBuffer, bladeRotation,
@@ -245,6 +267,7 @@ namespace Kizami.EngineAdapter
                 if (_hitBuffer[i].TryGetComponent(out ArmorPanel armorPanel))
                 {
                     _armorPanels.Add(armorPanel);
+                    RecordHit(_hitBuffer[i]);
                     continue;
                 }
 
@@ -297,6 +320,49 @@ namespace Kizami.EngineAdapter
             if (!IsStraddlingPlane(cuttable, origin, normal) || IsBehindArmor(origin, cuttable)) return;
 
             _targets.Add(cuttable);
+
+            var targetCollider = cuttable.GetComponentInChildren<Collider>();
+            if (targetCollider != null) RecordHit(targetCollider);
+            else RecordHit(cuttable.Renderer.bounds);
+        }
+
+        /// <summary>
+        /// コライダーの面へ、カメラの正面からのレイを当てた点と法線を、ヒットエフェクトの候補にする。
+        /// レイが当たらない（横にある、レイの始点が中にある）ときは、バウンディングボックスのカメラに最も近い点を使う。
+        /// </summary>
+        private void RecordHit(Collider collider)
+        {
+            if (collider.Raycast(new Ray(_hitRayOrigin, _hitRayDirection), out var hit, HIT_RAY_DISTANCE))
+            {
+                RecordHit(hit.point, hit.normal);
+                return;
+            }
+
+            RecordHit(collider.bounds);
+        }
+
+        /// <summary>
+        /// バウンディングボックスのカメラに最も近い点を、ヒットエフェクトの候補にする。法線はその点からカメラへの向き。
+        /// </summary>
+        private void RecordHit(Bounds bounds)
+        {
+            var point = bounds.ClosestPoint(_hitRayOrigin);
+            var toCamera = _hitRayOrigin - point;
+            RecordHit(point, toCamera.sqrMagnitude > 0f ? toCamera.normalized : -_hitRayDirection);
+        }
+
+        /// <summary>
+        /// 候補がカメラに最も近ければ、ヒットエフェクトの位置と向きにする。
+        /// </summary>
+        private void RecordHit(Vector3 point, Vector3 normal)
+        {
+            var sqrDistance = (point - _hitRayOrigin).sqrMagnitude;
+            if (_hasHit && sqrDistance >= _hitSqrDistance) return;
+
+            _hasHit = true;
+            _hitSqrDistance = sqrDistance;
+            _hitPoint = point;
+            _hitNormal = normal;
         }
 
         /// <summary>
@@ -312,11 +378,21 @@ namespace Kizami.EngineAdapter
             if (piece != null)
             {
                 var healthTarget = piece.GetComponentInParent<HealthTarget>();
-                if (healthTarget != null && !IsBehindArmor(origin, piece.WorldBounds.center)) _hitHealthTarget = healthTarget;
+                var isBehindArmor = IsBehindArmor(origin, piece.WorldBounds.center);
+                if (healthTarget != null && !isBehindArmor)
+                {
+                    _hitHealthTarget = healthTarget;
+                    RecordHit(hit);
+                }
 
                 if (!collectsPieces && !piece.IsCutByMelee) return false;
 
-                if (!IsBehindArmor(origin, piece.WorldBounds.center)) _pieces.Add(piece);
+                if (!isBehindArmor)
+                {
+                    _pieces.Add(piece);
+                    RecordHit(hit);
+                }
+
                 return true;
             }
 
@@ -332,6 +408,7 @@ namespace Kizami.EngineAdapter
                 if (part.WorldBounds.Intersects(range) && !IsBehindArmor(origin, part.WorldBounds.center))
                 {
                     _pieces.Add(part);
+                    RecordHit(hit);
                 }
             }
 
