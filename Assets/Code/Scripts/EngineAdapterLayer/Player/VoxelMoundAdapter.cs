@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Kizami.BlackBoard;
 using Kizami.EngineAdapter.Voxel;
+using Unity.Mathematics;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.BlackBoard;
 using UsefulToolkit.BlackBoard.Logger;
@@ -9,14 +10,17 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 土遁・造山で、視線の先にボクセルを盛る Adapter。
-    /// 押している間、一定の間隔でカメラの視線が当たった点に球を足し、1 つのピースを大きくしていく。
+    /// 土遁・造山で、カメラの正面から飛ばしたレイが当たった面に、法線の向きへ伸びる石柱を出す Adapter。
+    /// 石柱は 1 つのピースで、根元から先端へ数回に分けてカプセルを足して伸ばす。伸びた範囲にいる敵は倒し、重なったプレイヤーは生えた向きへ弾く。
     /// ピースは起動時にプールへ用意し、同時に置ける数を超えたら最も古いものを使い回す。
     /// </summary>
     public sealed class VoxelMoundAdapter : MonoBehaviour
     {
+        /// <summary> ピースの範囲を、石柱の周りに余らせる幅（m） </summary>
+        private const float BOX_MARGIN = 1f;
+
         [SerializeField]
-        [Tooltip("盛るピースのプレハブ。品質とマテリアルを設定し、通常攻撃で切れる印を付けておく")]
+        [Tooltip("石柱のピースのプレハブ。品質とマテリアルを設定し、通常攻撃で切れる印を付けておく")]
         private VoxelPiece _piecePrefab;
 
         [SerializeField, Min(1)]
@@ -24,59 +28,65 @@ namespace Kizami.EngineAdapter
         private int _maxCount = 4;
 
         [SerializeField, Min(1f)]
-        [Tooltip("1 つのピースが盛れる範囲の一辺（m）。当たった点を底の中心にする")]
-        private float _boxSize = 8f;
-
-        [SerializeField, Min(1f)]
-        [Tooltip("視線が地形に当たる最大の距離（m）")]
+        [Tooltip("レイが地形に当たる最大の距離（m）")]
         private float _maxDistance = 30f;
 
         [SerializeField]
-        [Tooltip("視線が当たる対象のレイヤー")]
+        [Tooltip("レイが当たる対象のレイヤー")]
         private LayerMask _targetLayers = ~0;
 
-        [SerializeField, Min(0.01f)]
-        [Tooltip("押している間に球を足す間隔（秒）")]
-        private float _interval = 0.25f;
+        [SerializeField, Min(1)]
+        [Tooltip("石柱を伸ばすときに、カプセルを足す回数")]
+        private int _growSteps = 6;
 
-        [SerializeField, Min(0)]
-        [Tooltip("押している間、球を足すたびに消費するチャージ量")]
-        private int _tickCost = 2;
+        [SerializeField, Min(0f)]
+        [Tooltip("石柱の根元を、当たった面の内側へ埋める深さ（m）")]
+        private float _embedDepth = 0.5f;
 
         private readonly List<VoxelPiece> _freePieces = new();
         private readonly List<VoxelPiece> _activePieces = new();
         private readonly HashSet<VoxelPiece> _watchedPieces = new();
-        private readonly VoxelMoundState _state = new();
-        private Func<int, bool> _tryConsume;
+        private readonly List<Growth> _growths = new();
         private Action<VoxelPiece> _watchPiece;
         private Action<Bounds> _refreshRegion;
-        private VoxelPiece _current;
-        private Bounds _currentBox;
-        private float _radius;
-        private double _nextTime;
+        private Action<Vector3, float> _defeatInRadius;
+        private Action<Vector3> _requestKnockback;
+        private Func<Bounds> _getBodyBounds;
+        private IDisposable _pillarSubscription;
 
         /// <summary>
-        /// 盛っている間かを VoxelMoundState に書き、PlayerBoard へ登録する。
+        /// 線分 from-to 上で、点 point に最も近い点を返す。
         /// </summary>
-        /// <param name="blackBoard">VoxelMoundState の登録先</param>
-        /// <param name="tryConsume">チャージを消費する関数。引数は消費量で、足りなければ false を返す</param>
-        /// <param name="watchPiece">盛るピースを、敵の格子と崩落の判定に見張らせる関数。ピースごとに最初に使うときに1回だけ呼ぶ</param>
-        /// <param name="refreshRegion">ピースを使い回して消した範囲を、敵の格子に調べ直させる関数</param>
-        public void Initialize(IBlackBoard blackBoard, Func<int, bool> tryConsume, Action<VoxelPiece> watchPiece,
-            Action<Bounds> refreshRegion)
+        private static Vector3 ClosestPointOnSegment(Vector3 from, Vector3 to, Vector3 point)
         {
-            if (blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this))
-            {
-                playerBoard.RegisterSceneState<IVoxelMoundState>(_state, gameObject.scene.buildIndex);
-            }
+            var segment = to - from;
+            var sqrLength = segment.sqrMagnitude;
+            if (sqrLength <= 0f) return from;
 
-            _tryConsume = tryConsume;
+            return from + segment * Mathf.Clamp01(Vector3.Dot(point - from, segment) / sqrLength);
+        }
+
+        /// <summary>
+        /// 石柱の出来事を購読する。IPlayerSkillEffectEvents の登録より後に呼ぶこと。
+        /// </summary>
+        /// <param name="blackBoard">スキルの効果の出来事の取得元</param>
+        /// <param name="watchPiece">石柱のピースを、敵の格子と崩落の判定に見張らせる関数。ピースごとに最初に使うときに1回だけ呼ぶ</param>
+        /// <param name="refreshRegion">ピースを使い回して消した範囲を、敵の格子に調べ直させる関数</param>
+        /// <param name="defeatInRadius">球の中の敵を倒す関数（EnemySpawnAdapter.DefeatInRadius）。引数は中心と半径</param>
+        /// <param name="requestKnockback">プレイヤーを弾く関数（PlayerMovementService.RequestKnockback）。引数は打ち出し速度</param>
+        /// <param name="getBodyBounds">プレイヤーの体の範囲（ワールド空間）を返す関数</param>
+        public void Initialize(IBlackBoard blackBoard, Action<VoxelPiece> watchPiece, Action<Bounds> refreshRegion,
+            Action<Vector3, float> defeatInRadius, Action<Vector3> requestKnockback, Func<Bounds> getBodyBounds)
+        {
             _watchPiece = watchPiece;
             _refreshRegion = refreshRegion;
+            _defeatInRadius = defeatInRadius;
+            _requestKnockback = requestKnockback;
+            _getBodyBounds = getBodyBounds;
 
             if (_piecePrefab == null)
             {
-                UsefulLogger.LogError("造山のピースのプレハブが設定されていない為、盛れません。", this);
+                UsefulLogger.LogError("石柱のピースのプレハブが設定されていない為、石柱を出せません。", this);
                 return;
             }
 
@@ -86,56 +96,66 @@ namespace Kizami.EngineAdapter
                 piece.gameObject.SetActive(false);
                 _freePieces.Add(piece);
             }
+
+            if (blackBoard.TryGetSceneEvent<PlayerEventBoard, IPlayerSkillEffectEvents>(out var effectEvents, this))
+            {
+                _pillarSubscription = effectEvents.OnPillar.Register(Raise);
+            }
         }
 
         /// <summary>
-        /// 視線の先に盛れる地形があれば、盛り始める。押した瞬間に呼ぶ。ピースと最初の球は、次の Update で足す。
+        /// カメラの正面に、石柱を出せる面があるか。
         /// </summary>
-        /// <param name="radius">足す球の半径（m）</param>
-        /// <returns>盛り始められたら true。視線が何にも当たらなければ false</returns>
-        public bool Begin(float radius)
+        public bool CanRaise()
         {
-            if (_piecePrefab == null || _state.IsMounding || !TryRaycast(out _)) return false;
-
-            _state.SetMounding(true);
-            _current = null;
-            _radius = radius;
-            _nextTime = 0d;
-            return true;
-        }
-
-        /// <summary>
-        /// 盛るのを止める。盛ったピースは残る。
-        /// </summary>
-        public void End()
-        {
-            _state.SetMounding(false);
-            _current = null;
+            return _freePieces.Count + _activePieces.Count > 0 && TryRaycast(out _);
         }
 
         private void Update()
         {
-            if (!_state.IsMounding || Time.unscaledTimeAsDouble < _nextTime) return;
+            for (var i = _growths.Count - 1; i >= 0; i--)
+            {
+                var growth = _growths[i];
+                growth.Elapsed += Time.deltaTime;
+
+                var targetStep = Mathf.Min(_growSteps, 1 + Mathf.FloorToInt(growth.Elapsed / growth.Duration * _growSteps));
+                while (growth.Step < targetStep)
+                {
+                    growth.Step++;
+                    GrowTo(growth);
+                }
+
+                if (growth.Step >= _growSteps) _growths.RemoveAt(i);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            _pillarSubscription?.Dispose();
+        }
+
+        /// <summary>
+        /// レイが当たった面から法線の向きへ、石柱を伸ばし始める。最初の 1 回分はすぐに足す。
+        /// </summary>
+        private void Raise(PillarEffectNotice notice)
+        {
             if (!TryRaycast(out var hit)) return;
 
-            if (_current == null)
+            var growth = new Growth
             {
-                _current = TakePiece(hit.point);
-                _nextTime = Time.unscaledTimeAsDouble + _interval;
-                AddSphere(hit.point);
-                return;
-            }
+                Origin = hit.point,
+                Direction = hit.normal,
+                Radius = notice.Radius,
+                Length = notice.Length,
+                Duration = Mathf.Max(notice.GrowDuration, 0.01f),
+                KnockbackSpeed = notice.KnockbackSpeed
+            };
+            growth.Piece = TakePiece(growth);
+            growth.PreviousTip = growth.Origin - growth.Direction * _embedDepth;
+            growth.Step = 1;
+            GrowTo(growth);
 
-            if (!_currentBox.Contains(hit.point)) return;
-
-            if (_tryConsume != null && !_tryConsume(_tickCost))
-            {
-                End();
-                return;
-            }
-
-            _nextTime = Time.unscaledTimeAsDouble + _interval;
-            AddSphere(hit.point);
+            if (growth.Step < _growSteps) _growths.Add(growth);
         }
 
         private bool TryRaycast(out RaycastHit hit)
@@ -150,9 +170,9 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 当たった点を底の中心にした箱のピースを、空のボリュームで用意する。空きがなければ最も古いものを使い回す。
+        /// 石柱が収まる箱のピースを、空のボリュームで用意する。向きは法線に合わせる。空きがなければ最も古いものを使い回す。
         /// </summary>
-        private VoxelPiece TakePiece(Vector3 groundPoint)
+        private VoxelPiece TakePiece(Growth growth)
         {
             VoxelPiece piece;
             if (_freePieces.Count > 0)
@@ -164,27 +184,104 @@ namespace Kizami.EngineAdapter
             {
                 piece = _activePieces[0];
                 _activePieces.RemoveAt(0);
+                _growths.RemoveAll(other => other.Piece == piece);
                 _refreshRegion?.Invoke(piece.WorldBounds);
                 piece.gameObject.SetActive(false);
             }
 
             if (_watchedPieces.Add(piece)) _watchPiece?.Invoke(piece);
 
-            var center = groundPoint + Vector3.up * (_boxSize * 0.5f);
-            piece.transform.SetPositionAndRotation(center, Quaternion.identity);
+            var bottom = growth.Origin - growth.Direction * (_embedDepth + growth.Radius + BOX_MARGIN);
+            var top = growth.Origin + growth.Direction * (growth.Length + BOX_MARGIN);
+            var halfWidth = growth.Radius + BOX_MARGIN;
+            var halfHeight = (top - bottom).magnitude * 0.5f;
+
+            piece.transform.SetPositionAndRotation((bottom + top) * 0.5f,
+                Quaternion.FromToRotation(Vector3.up, growth.Direction));
             piece.transform.localScale = Vector3.one;
             piece.gameObject.SetActive(true);
-            piece.CreateVolume(VoxelBounds.FromCenterExtents(Unity.Mathematics.float3.zero,
-                new Unity.Mathematics.float3(_boxSize * 0.5f)));
+            piece.CreateVolume(VoxelBounds.FromCenterExtents(float3.zero, new float3(halfWidth, halfHeight, halfWidth)));
 
             _activePieces.Add(piece);
-            _currentBox = new Bounds(center, Vector3.one * _boxSize);
             return piece;
         }
 
-        private void AddSphere(Vector3 worldPoint)
+        /// <summary>
+        /// 石柱を今の段階の長さまで伸ばす。足したカプセルの範囲にいる敵を倒し、重なったプレイヤーを 1 本につき 1 回だけ弾く。
+        /// 先端の球の中心は、先端の面が長さに届く所に置く。
+        /// </summary>
+        private void GrowTo(Growth growth)
         {
-            _current.ApplyEdit(new SphereShape(worldPoint, _radius), VoxelCsgOperation.Union, Space.World);
+            var ratio = (float)growth.Step / _growSteps;
+            var distance = Mathf.Max(growth.Length * ratio - growth.Radius, -_embedDepth);
+            var tip = growth.Origin + growth.Direction * distance;
+            var baseCenter = growth.Origin - growth.Direction * _embedDepth;
+
+            growth.Piece.ApplyEdit(new CapsuleShape(baseCenter, tip, growth.Radius), VoxelCsgOperation.Union, Space.World);
+            DefeatAlong(growth.PreviousTip, tip, growth.Radius);
+
+            if (!growth.IsKnocked && OverlapsPlayer(growth.PreviousTip, tip, growth.Radius))
+            {
+                growth.IsKnocked = true;
+                _requestKnockback?.Invoke(growth.Direction * growth.KnockbackSpeed);
+            }
+
+            growth.PreviousTip = tip;
+        }
+
+        /// <summary>
+        /// from から to までに、半径 radius の球を並べて、中の敵を倒す。
+        /// </summary>
+        private void DefeatAlong(Vector3 from, Vector3 to, float radius)
+        {
+            if (_defeatInRadius == null) return;
+
+            var count = Mathf.Max(1, Mathf.CeilToInt(Vector3.Distance(from, to) / radius));
+            for (var i = 0; i <= count; i++)
+            {
+                _defeatInRadius(Vector3.Lerp(from, to, (float)i / count), radius);
+            }
+        }
+
+        /// <summary>
+        /// プレイヤーの体の範囲が、線分 from-to を中心にした半径 radius のカプセルに重なるか。体の範囲を radius だけ広げた箱に、線分上の最も近い点が入るかで見る。
+        /// </summary>
+        private bool OverlapsPlayer(Vector3 from, Vector3 to, float radius)
+        {
+            if (_getBodyBounds == null) return false;
+
+            var bounds = _getBodyBounds();
+            bounds.Expand(radius * 2f);
+            return bounds.Contains(ClosestPointOnSegment(from, to, bounds.center));
+        }
+
+        /// <summary>
+        /// 伸びている途中の石柱 1 本。
+        /// </summary>
+        private sealed class Growth
+        {
+            public VoxelPiece Piece;
+
+            /// <summary> レイが当たった点 </summary>
+            public Vector3 Origin;
+
+            /// <summary> 当たった面の法線。石柱が伸びる向き </summary>
+            public Vector3 Direction;
+
+            public float Radius;
+            public float Length;
+            public float Duration;
+            public float KnockbackSpeed;
+            public float Elapsed;
+
+            /// <summary> カプセルを足し終えた回数 </summary>
+            public int Step;
+
+            /// <summary> 前の段階で足したカプセルの先端の球の中心 </summary>
+            public Vector3 PreviousTip;
+
+            /// <summary> プレイヤーを弾いたか </summary>
+            public bool IsKnocked;
         }
     }
 }

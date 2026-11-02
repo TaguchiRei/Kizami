@@ -27,7 +27,6 @@ namespace Kizami.Application
         private readonly IPlayerEnhanceState _enhanceState;
         private readonly Action<float, float, DamageType> _onSwing;
         private readonly Func<bool> _tryUseCut;
-        private readonly IVoxelMoundState _moundState;
         private readonly ISkyBeamController _skyBeamService;
         private readonly PlayerActionEvents _actionEvents;
         private readonly List<IDisposable> _subscriptions = new();
@@ -43,7 +42,7 @@ namespace Kizami.Application
         /// <param name="enhanceService">切断にかかる強化を使う操作面</param>
         /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）、範囲に掛ける倍率、ダメージの種類</param>
         /// <param name="tryUseCut">振る直前に呼び、振れる回数を1回使う関数。false なら振らない</param>
-        /// <param name="skyBeamService">羽天轟号の使用中の流れ。必須。使用中は、盛っている間（VoxelMoundState）と同じく、通常攻撃もスキルも出せない</param>
+        /// <param name="skyBeamService">羽天轟号の使用中の流れ。必須。使用中は、通常攻撃もスキルも出せない</param>
         /// <param name="actionEvents">振ったことを流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public MeleeCutService(IBlackBoard blackBoard, PlayerParameterData parameters,
@@ -64,8 +63,6 @@ namespace Kizami.Application
             playerBoard.RegisterSceneState<IMeleeCutState>(_state, sceneId);
             // PlayerEnhanceState は、先に作る PlayerEnhanceService が登録している
             playerBoard.TryGetSceneState(out _enhanceState, out _);
-            // VoxelMoundState は、先に初期化する VoxelMoundAdapter が登録している
-            playerBoard.TryGetSceneState(out _moundState, out _);
 
             // BossBattleState はボスのいるシーンでだけ、ボスの Initializer が登録するので、登録を待ち受けて拾う
             if (blackBoard.TryGetBoard<EnemyBoard>(out var enemyBoard, this))
@@ -121,12 +118,11 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 造山で盛っている間と羽天轟号の使用中でなく、前回、通常攻撃かスキルを出してから、今の攻撃間隔が経っているかを返す。スローモード中も攻撃間隔は実時間で数える。
+        /// 羽天轟号の使用中でなく、前回、通常攻撃かスキルを出してから、今の攻撃間隔が経っているかを返す。スローモード中も攻撃間隔は実時間で数える。
         /// </summary>
         public bool CanAct()
         {
-            if (_skyBeamService.IsActive || (_moundState != null && _moundState.IsMounding)) return false;
-
+            if (_skyBeamService.IsActive) return false;
 
             var intervalScale = 1f;
             _enhanceState?.TryGet(EnhanceKind.Speed, out intervalScale, out _);

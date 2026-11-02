@@ -27,15 +27,13 @@ namespace Kizami.Application
         private readonly IPlayerHealthController _healthService;
         private readonly Func<Bounds> _getBodyBounds;
         private readonly IPlayerMovementController _movementService;
-        private readonly Func<float, bool> _onMoundBegin;
-        private readonly Action _onMoundEnd;
+        private readonly Func<bool> _canRaisePillar;
         private readonly IActionIntervalController _intervalController;
         private readonly ISkyBeamController _skyBeamService;
         private readonly List<IDisposable> _subscriptions = new();
         private readonly PlayerActionEvents _actionEvents;
         private readonly PlayerSkillEffectEvents _effectEvents;
         private readonly IPlayerHealthState _healthState;
-        private int _moundSlot = -1;
 
         /// <param name="blackBoard">SkillSlotState の登録先と、入力・HP の取得元</param>
         /// <param name="equippedSkills">枠ごとに装備するスキル。空きの枠と、SLOT_COUNT を超えた分は無視する</param>
@@ -43,17 +41,16 @@ namespace Kizami.Application
         /// <param name="enhanceService">強化型スキルをかける先</param>
         /// <param name="healthService">回復のスキルで HP を回復する先</param>
         /// <param name="getBodyBounds">プレイヤーの体の範囲（ワールド空間）を返す関数。攻走で削るカプセルの位置に使う</param>
-        /// <param name="onMoundBegin">ボクセルを盛り始める関数。引数は球の半径（m）。盛り始められたら true を返す</param>
-        /// <param name="onMoundEnd">ボクセルを盛るのを止める関数</param>
+        /// <param name="canRaisePillar">視線の先に石柱を出せる面があるかを返す関数。造山の発動の前に呼ぶ</param>
         /// <param name="movementService">攻走の向きを決め、突進を要求する先。突進を始められるかも見る</param>
         /// <param name="intervalController">通常攻撃と共有する攻撃間隔。必須。経っているかを見て、スキルを出したら数え直す</param>
         /// <param name="skyBeamService">羽天轟号の使用中の流れ。使用中は、ほかのスキルを出せず、同じスキルの発動は止める操作になる</param>
         /// <param name="actionEvents">スキルの発動とチャージの消費を流す先</param>
-        /// <param name="effectEvents">スキルの効果（ビーム・爆発・爆弾・薙ぎ払い・攻走の経路・腕のアニメーション）をエンジン側へ実行させる出来事の流し先</param>
+        /// <param name="effectEvents">スキルの効果（ビーム・爆発・爆弾・薙ぎ払い・攻走の経路・石柱・腕のアニメーション）をエンジン側へ実行させる出来事の流し先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public SkillService(IBlackBoard blackBoard, IReadOnlyList<SkillData> equippedSkills,
             IChargeController chargeService, IPlayerEnhanceController enhanceService, IPlayerHealthController healthService,
-            Func<Bounds> getBodyBounds, Func<float, bool> onMoundBegin, Action onMoundEnd, IPlayerMovementController movementService,
+            Func<Bounds> getBodyBounds, Func<bool> canRaisePillar, IPlayerMovementController movementService,
             IActionIntervalController intervalController, ISkyBeamController skyBeamService, PlayerActionEvents actionEvents,
             PlayerSkillEffectEvents effectEvents, int sceneId)
         {
@@ -64,8 +61,7 @@ namespace Kizami.Application
             _enhanceService = enhanceService;
             _healthService = healthService;
             _getBodyBounds = getBodyBounds;
-            _onMoundBegin = onMoundBegin;
-            _onMoundEnd = onMoundEnd;
+            _canRaisePillar = canRaisePillar;
             _movementService = movementService;
             _intervalController = intervalController;
 
@@ -93,18 +89,12 @@ namespace Kizami.Application
         /// <summary>
         /// 羽天轟号の使用中は、その枠を押すと止め（チャージは消費しない）、ほかの枠は何もしない。
         /// 枠にスキルがあり、通常攻撃と共有する攻撃間隔が経っていて、その消費量だけチャージを消費できたら、スキルの発動とチャージの消費を通知して、効果を出す。
-        /// 回復は、HP が0のときと最大のときは発動せず、チャージも消費しない。造山は、押した枠を離すまで盛り続け、視線が何にも当たらないときは発動せず、チャージも消費しない。攻走は、突進を始められないときは発動せず、チャージも消費しない。
+        /// 回復は、HP が0のときと最大のときは発動せず、チャージも消費しない。造山は、視線が何にも当たらないときは発動せず、チャージも消費しない。攻走は、突進を始められないときは発動せず、チャージも消費しない。
         /// </summary>
         private void OnSkill(InputContext<float> context, int slot)
         {
             var skill = _slots[slot];
             if (skill == null) return;
-
-            if (context.Phase == InputPhase.Canceled)
-            {
-                if (_moundSlot == slot) EndMound();
-                return;
-            }
 
             if (context.Phase != InputPhase.Performed) return;
 
@@ -118,14 +108,8 @@ namespace Kizami.Application
             if (!_intervalController.CanAct()) return;
             if (skill.Effect is HealEffect && !CanHeal()) return;
             if (skill.Effect is RushEffect && !_movementService.CanRush) return;
-            if (skill.Effect is MoundEffect mound && (_onMoundBegin == null || !_onMoundBegin(mound.Radius))) return;
-            if (!_chargeService.TryConsume(skill.Cost))
-            {
-                if (skill.Effect is MoundEffect) _onMoundEnd?.Invoke();
-                return;
-            }
-
-            if (skill.Effect is MoundEffect) _moundSlot = slot;
+            if (skill.Effect is MoundEffect && (_canRaisePillar == null || !_canRaisePillar())) return;
+            if (!_chargeService.TryConsume(skill.Cost)) return;
 
             _intervalController.MarkActed();
 
@@ -156,6 +140,10 @@ namespace Kizami.Application
                 case RushEffect rush:
                     Rush(rush);
                     break;
+                case MoundEffect mound:
+                    _effectEvents.RaisePillar(new PillarEffectNotice(mound.Radius, mound.Length, mound.GrowDuration,
+                        mound.KnockbackSpeed));
+                    break;
                 case SkyBeamEffect skyBeam:
                     _skyBeamService.Begin(skyBeam);
                     break;
@@ -175,12 +163,6 @@ namespace Kizami.Application
             _effectEvents.RaiseCapsuleCarve(new CapsuleCarveNotice(shifted, shifted + direction * rush.Distance, rush.Radius, body.center,
                 rush.Falloff));
             _movementService.RequestRush(direction, rush.Distance, rush.Duration);
-        }
-
-        private void EndMound()
-        {
-            _moundSlot = -1;
-            _onMoundEnd?.Invoke();
         }
 
         private bool CanHeal()

@@ -216,17 +216,38 @@ namespace Kizami.External
     }
 
     /// <summary>
-    /// 長押しの間、視線の先にボクセルを盛る効果。
+    /// 視線が当たった面から、法線の向きへ石柱を伸ばす効果。石柱にいる敵は倒し、プレイヤーは生えた向きへ弾く。
     /// </summary>
     [Serializable]
     public sealed class MoundEffect : SkillEffectData
     {
         [SerializeField, Min(0.01f)]
-        [Tooltip("盛る球の半径（m）")]
-        private float _radius = 1.2f;
+        [Tooltip("石柱の半径（m）")]
+        private float _radius = 1.5f;
 
-        /// <summary> 盛る球の半径（m） </summary>
+        [SerializeField, Min(0.01f)]
+        [Tooltip("根元から先端までの長さ（m）")]
+        private float _length = 12f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("根元から先端まで伸びる時間（秒）")]
+        private float _growDuration = 0.3f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("石柱に重なったプレイヤーを、生えた向きへ弾く速さ（m/s）")]
+        private float _knockbackSpeed = 25f;
+
+        /// <summary> 石柱の半径（m） </summary>
         public float Radius => _radius;
+
+        /// <summary> 根元から先端までの長さ（m） </summary>
+        public float Length => _length;
+
+        /// <summary> 根元から先端まで伸びる時間（秒） </summary>
+        public float GrowDuration => _growDuration;
+
+        /// <summary> 石柱に重なったプレイヤーを、生えた向きへ弾く速さ（m/s） </summary>
+        public float KnockbackSpeed => _knockbackSpeed;
     }
 
     /// <summary>

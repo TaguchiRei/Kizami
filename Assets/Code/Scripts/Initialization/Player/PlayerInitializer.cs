@@ -124,9 +124,8 @@ namespace Kizami.Initialization
             _skyBeamAdapter.Initialize(_movementAdapter, _skyBeamService.OnFinished, _skyBeamService.TryContinue,
                 _voxelDestructionAdapter.CarveSkyBeamAt, _enemySpawnAdapter.DefeatInRadius);
 
-            // MeleeCutService が VoxelMoundState を取得する為、MeleeCutService の生成より前に初期化する
-            _voxelMoundAdapter.Initialize(blackBoard, _chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
-                _enemySpawnAdapter.RefreshRegion);
+            _voxelMoundAdapter.Initialize(blackBoard, _enemySpawnAdapter.WatchPiece, _enemySpawnAdapter.RefreshRegion,
+                _enemySpawnAdapter.DefeatInRadius, _movementService.RequestKnockback, () => _movementAdapter.BodyBounds);
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, _skyBeamService, _actionEvents, sceneId);
             if (_bombThrowAdapter == null) _bombThrowAdapter = gameObject.AddComponent<BombThrowAdapter>();
@@ -134,8 +133,8 @@ namespace Kizami.Initialization
             _voxelDestructionAdapter.Initialize(blackBoard);
 
             _skillService = new SkillService(blackBoard, StageSelection.GetEquippedSkillsOrDefault(_progressService, _equippedSkills),
-                _chargeService, _enhanceService, _healthService, () => _movementAdapter.BodyBounds, _voxelMoundAdapter.Begin,
-                _voxelMoundAdapter.End, _movementService, _meleeCutService, _skyBeamService, _actionEvents, _effectEvents, sceneId);
+                _chargeService, _enhanceService, _healthService, () => _movementAdapter.BodyBounds,
+                _voxelMoundAdapter.CanRaise, _movementService, _meleeCutService, _skyBeamService, _actionEvents, _effectEvents, sceneId);
 
             _fragmentThrowAdapter.Initialize();
 
