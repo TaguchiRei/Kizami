@@ -414,6 +414,17 @@ namespace Kizami.EngineAdapter
             _debrisEffect.SendEvent(_debrisEventId, _debrisEventAttribute);
         }
 
+        /// <summary>
+        /// 削った所にヒットエフェクトを出す。火花はカメラの側へ散る。
+        /// </summary>
+        /// <param name="hitPoint">削ったピースの外形で、削った範囲の中心に最も近い点（ワールド空間）</param>
+        private void PlayHitEffect(Vector3 hitPoint)
+        {
+            var cameraMain = Camera.main;
+            var toCamera = cameraMain != null ? cameraMain.transform.position - hitPoint : Vector3.up;
+            HitEffectPlayer.Play(hitPoint, toCamera.sqrMagnitude > 0f ? toCamera.normalized : Vector3.up);
+        }
+
         private bool TryGetCameraTransform(out Transform cameraTransform)
         {
             var cameraMain = Camera.main;
@@ -496,6 +507,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 範囲の問い合わせで集めたコライダーからピースを集め、強さと減衰率の攻撃を当てる。
+        /// 削れたら、削ったピースのうち範囲の中心に最も近い点に、ヒットエフェクトを1回だけ出す。
         /// </summary>
         /// <param name="reach">融点0の素材まで届く範囲（ワールド空間）</param>
         /// <param name="falloff">1m あたりに減る強さ</param>
@@ -533,8 +545,11 @@ namespace Kizami.EngineAdapter
                 }
             }
 
+            Vector3 strikeCenter = reach.Bounds.Center;
             var carvedVolume = 0f;
             var carvedPosition = Vector3.zero;
+            var hitPoint = Vector3.zero;
+            var hitSqrDistance = float.MaxValue;
             HealthTarget hitHealthTarget = null;
             foreach (var piece in _pieces)
             {
@@ -543,6 +558,17 @@ namespace Kizami.EngineAdapter
                 if (hitHealthTarget == null) hitHealthTarget = piece.GetComponentInParent<HealthTarget>();
                 var pieceVolume = piece.ApplyStrike(reach, falloff, Space.World) * piece.VoxelCubicVolume;
                 if (pieceVolume > 0f && carvedVolume <= 0f) carvedPosition = piece.WorldBounds.center;
+                if (pieceVolume > 0f)
+                {
+                    var pieceHitPoint = piece.WorldBounds.ClosestPoint(strikeCenter);
+                    var sqrDistance = (pieceHitPoint - strikeCenter).sqrMagnitude;
+                    if (sqrDistance < hitSqrDistance)
+                    {
+                        hitSqrDistance = sqrDistance;
+                        hitPoint = pieceHitPoint;
+                    }
+                }
+
                 carvedVolume += pieceVolume;
             }
 
@@ -550,6 +576,7 @@ namespace Kizami.EngineAdapter
             if (notifiesCarved && carvedVolume > 0f)
             {
                 SoundPlayer.Play(SoundEffectKind.VoxelHit, carvedPosition);
+                PlayHitEffect(hitPoint);
                 PlayDebrisEffect(reach.Bounds.Center, carvedVolume);
                 _onCarved?.Invoke(carvedVolume);
             }
