@@ -55,6 +55,10 @@ namespace Kizami.Initialization
         private SkyBeamAdapter _skyBeamAdapter;
 
         [SerializeField]
+        [Tooltip("スキル・近接・ジャンプ・被ダメージ・スローモードの効果音を鳴らす Adapter。未設定なら、この GameObject に付ける")]
+        private PlayerSoundAdapter _soundAdapter;
+
+        [SerializeField]
         [Tooltip("アウトゲームを通さずに始めたとき（インゲームのシーンから直接再生したときなど）に、スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
         private SkillData[] _equippedSkills = new SkillData[SkillService.SLOT_COUNT];
 
@@ -152,6 +156,9 @@ namespace Kizami.Initialization
 
             _meleeCutPreviewAdapter.Initialize(blackBoard);
             if (_armAdapter != null) _armAdapter.Initialize(blackBoard);
+
+            if (_soundAdapter == null) _soundAdapter = gameObject.AddComponent<PlayerSoundAdapter>();
+            _soundAdapter.Initialize(blackBoard, _movementAdapter);
 
             base.Initialize(blackBoard);
         }

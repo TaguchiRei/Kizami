@@ -113,7 +113,8 @@ namespace Kizami.Application
 
             _intervalController.MarkActed();
 
-            _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.SkillUsed, skill.DisplayName));
+            _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.SkillUsed, skill.DisplayName,
+                skillEffect: ClassifyEffect(skill.Effect)));
             _actionEvents.Raise(new PlayerActionNotice(PlayerActionKind.ChargeSpent, amount: skill.Cost));
             _effectEvents.RaiseArmAnimation(skill.ArmAnimation);
 
@@ -163,6 +164,17 @@ namespace Kizami.Application
             _effectEvents.RaiseCapsuleCarve(new CapsuleCarveNotice(shifted, shifted + direction * rush.Distance, rush.Radius, body.center,
                 rush.Falloff));
             _movementService.RequestRush(direction, rush.Distance, rush.Duration);
+        }
+
+        private static SkillEffectKind ClassifyEffect(SkillEffectData effect)
+        {
+            return effect switch
+            {
+                RushEffect => SkillEffectKind.Rush,
+                SkyBeamEffect => SkillEffectKind.SkyBeam,
+                HealEffect => SkillEffectKind.Heal,
+                _ => SkillEffectKind.Common
+            };
         }
 
         private bool CanHeal()
