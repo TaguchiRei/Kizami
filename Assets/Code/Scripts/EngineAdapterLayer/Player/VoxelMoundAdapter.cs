@@ -15,8 +15,12 @@ namespace Kizami.EngineAdapter
     /// 弾いた石柱は、プレイヤーが離れるまでコライダーを無効にして、プレイヤーが引っかからないようにする。
     /// ピースは起動時にプールへ用意し、同時に置ける数を超えたら最も古いものを使い回す。
     /// </summary>
+    [DefaultExecutionOrder(EXECUTION_ORDER)]
     public sealed class VoxelMoundAdapter : MonoBehaviour
     {
+        /// <summary> VoxelPiece より後に LateUpdate を実行する為の実行順 </summary>
+        private const int EXECUTION_ORDER = 1000;
+
         /// <summary> ピースの範囲を、石柱の周りに余らせる幅（m） </summary>
         private const float BOX_MARGIN = 1f;
 
@@ -126,7 +130,18 @@ namespace Kizami.EngineAdapter
                     growth.Step++;
                     GrowTo(growth);
                 }
+            }
+        }
 
+        /// <summary>
+        /// ピースの再メッシュ化の反映（VoxelPiece.LateUpdate）で有効に戻されたコライダーを、物理の前に無効にし直す為、ピースより後に実行する。
+        /// 伸び終えて、透過も終えた石柱は、ここで管理から外す。
+        /// </summary>
+        private void LateUpdate()
+        {
+            for (var i = _growths.Count - 1; i >= 0; i--)
+            {
+                var growth = _growths[i];
                 if (growth.IsPassthrough) UpdatePassthrough(growth);
                 if (growth.Step >= _growSteps && !growth.IsPassthrough) _growths.RemoveAt(i);
             }
@@ -221,16 +236,17 @@ namespace Kizami.EngineAdapter
             var distance = Mathf.Max(growth.Length * ratio - growth.Radius, -_embedDepth);
             var tip = growth.Origin + growth.Direction * distance;
 
-            growth.Piece.ApplyEdit(new CapsuleShape(growth.BaseCenter, tip, growth.Radius), VoxelCsgOperation.Union,
-                Space.World);
-            DefeatAlong(growth.PreviousTip, tip, growth.Radius);
-
             if (!growth.IsKnocked && OverlapsPlayer(growth.PreviousTip, tip, growth.Radius))
             {
                 growth.IsKnocked = true;
                 growth.IsPassthrough = true;
                 _requestKnockback?.Invoke(growth.Direction * growth.KnockbackSpeed);
             }
+
+            growth.Piece.ApplyEdit(new CapsuleShape(growth.BaseCenter, tip, growth.Radius), VoxelCsgOperation.Union,
+                Space.World);
+            if (growth.IsPassthrough) DisableColliders(growth);
+            DefeatAlong(growth.PreviousTip, tip, growth.Radius);
 
             growth.PreviousTip = tip;
         }
@@ -243,15 +259,7 @@ namespace Kizami.EngineAdapter
         {
             if (OverlapsPlayer(growth.BaseCenter, growth.PreviousTip, growth.Radius))
             {
-                growth.Piece.GetComponentsInChildren(false, _colliderBuffer);
-                foreach (var collider in _colliderBuffer)
-                {
-                    if (!collider.enabled) continue;
-
-                    collider.enabled = false;
-                    growth.DisabledColliders.Add(collider);
-                }
-
+                DisableColliders(growth);
                 return;
             }
 
@@ -262,6 +270,21 @@ namespace Kizami.EngineAdapter
 
             growth.DisabledColliders.Clear();
             growth.IsPassthrough = false;
+        }
+
+        /// <summary>
+        /// ピース配下の有効なコライダーを無効にし、戻せるように記録する。
+        /// </summary>
+        private void DisableColliders(Growth growth)
+        {
+            growth.Piece.GetComponentsInChildren(false, _colliderBuffer);
+            foreach (var collider in _colliderBuffer)
+            {
+                if (!collider.enabled) continue;
+
+                collider.enabled = false;
+                growth.DisabledColliders.Add(collider);
+            }
         }
 
         /// <summary>
