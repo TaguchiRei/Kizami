@@ -17,14 +17,14 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// インゲームの流れ（StageFlowService / StageFlowState）と、ステージの案内（StageGuideService / StageGuideState）、破壊対象・制限時間・HUD・案内・ポーズ・リザルトの Adapter、ステージシーンにある台本（StageGuideScript）と開始位置の目印（PlayerStartPoint）を繋いで、プレイを始める配線役。インゲームのシーンへ置く。
-    /// 倒れる塔があるステージでは、塔を渡りきったらクリアにする（TowerCrossingAdapter）。
+    /// 倒れる塔があるステージでは、塔に上ってしばらく走ったら先端へ自動で走らせ、塔を渡りきったらクリアにする（TowerCrossingAdapter）。
     /// ボス戦のステージでは、ボスに付いた BossGuideScript に案内の文を出す関数を渡す。
     /// ステージシーンに目標を選ぶ物（TargetSelectorBase）があれば、最も近い目標の位置を画面に出す（TargetIndicatorAdapter）。
     /// Brilliant Skill の判定（BrilliantSkillService）に、ボクセルを壊した体積と建物の倒壊を繋ぎ、成立したら追加スコアを足す。
     /// 失敗条件の判定と、案内のログにプレイヤーの State と出来事の通知、敵を倒した通知を使う為、PlayerInitializer と EnemyInitializer より後に初期化する。
     /// </summary>
     public sealed class StageInitializer : InitializerBase, IInjectable<IGameProgressController>, IInjectable<IGameSceneController>,
-        IInjectable<ITimeScaleController>, IInjectable<IInputController>
+        IInjectable<ITimeScaleController>, IInjectable<IInputController>, IInjectable<IPlayerMovementController>
     {
         private readonly List<System.IDisposable> _buildingSubscriptions = new();
         private readonly BrilliantSkillEvents _brilliantSkillEvents = new();
@@ -63,6 +63,7 @@ namespace Kizami.Initialization
         private IGameSceneController _sceneController;
         private ITimeScaleController _timeScaleController;
         private IInputController _inputController;
+        private IPlayerMovementController _movementController;
         private StageFlowService _flowService;
         private StageGuideService _guideService;
         private BrilliantSkillService _brilliantSkillService;
@@ -155,7 +156,14 @@ namespace Kizami.Initialization
 
             var adapterObject = new GameObject(nameof(TowerCrossingAdapter));
             SceneManager.MoveGameObjectToScene(adapterObject, gameObject.scene);
-            adapterObject.AddComponent<TowerCrossingAdapter>().Initialize(tower, movementAdapter.transform, _flowService.Clear);
+            if (_movementController == null)
+            {
+                UsefulLogger.LogWarning("IPlayerMovementController を受け取れなかった為、塔の上で自動で走れません。", this);
+            }
+
+            adapterObject.AddComponent<TowerCrossingAdapter>().Initialize(tower, movementAdapter.transform, _flowService.Clear,
+                _movementController != null ? _movementController.SetAutoRunDirection : null,
+                _movementController != null ? _movementController.StopAutoRun : null);
         }
 
         /// <summary>
@@ -366,6 +374,11 @@ namespace Kizami.Initialization
         public void Inject(IInputController instance)
         {
             _inputController = instance;
+        }
+
+        public void Inject(IPlayerMovementController instance)
+        {
+            _movementController = instance;
         }
     }
 }

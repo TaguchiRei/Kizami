@@ -88,8 +88,14 @@ namespace Kizami.Application
         /// <summary> 羽天轟号の使用中は true になり、その間は移動モードを Aiming にして静止する </summary>
         private bool _isSkyBeamActive;
 
+        /// <summary> 自動で走る向き（水平、正規化済み）。自動で走っていないときはゼロ </summary>
+        private Vector3 _autoRunDirection;
+
         /// <summary> 言葉をつかんでいるか </summary>
         public bool IsHoldingWord => _isHoldingWord;
+
+        /// <summary> 自動で走っているか </summary>
+        private bool IsAutoRunning => _autoRunDirection.sqrMagnitude > Mathf.Epsilon;
 
         /// <summary> ダッシュ入力の受け付け方に応じて、押下中またはトグルの状態を返す </summary>
         private bool IsSprinting => _settingState.SprintInputMode == SprintInputMode.Hold
@@ -158,6 +164,25 @@ namespace Kizami.Application
         public void SetSkyBeamActive(bool isActive)
         {
             _isSkyBeamActive = isActive;
+        }
+
+        /// <summary>
+        /// 自動で走る向きを設定する。設定している間は、移動の入力の代わりにその向きへダッシュの速さで走る。ジャンプと視点は入力のまま。
+        /// 水平の成分だけを使い、水平の成分がなければ自動で走るのをやめる。
+        /// </summary>
+        /// <param name="direction">走る向き</param>
+        public void SetAutoRunDirection(Vector3 direction)
+        {
+            direction.y = 0f;
+            _autoRunDirection = direction.sqrMagnitude > Mathf.Epsilon ? direction.normalized : Vector3.zero;
+        }
+
+        /// <summary>
+        /// 自動で走るのをやめ、移動の入力で動くように戻す。
+        /// </summary>
+        public void StopAutoRun()
+        {
+            _autoRunDirection = Vector3.zero;
         }
 
         /// <summary> 突進を始められるか。突進中と、突進の要求を受け付け済みのときと、言葉をつかんでいる間と、羽天轟号の使用中は false </summary>
@@ -247,7 +272,7 @@ namespace Kizami.Application
 
             UpdateJumpHold(deltaTime);
 
-            var worldInput = ToWorldDirection(_moveInput);
+            var worldInput = IsAutoRunning ? _autoRunDirection : ToWorldDirection(_moveInput);
             var isJumpRequested = _isJumpRequested;
             _isJumpRequested = false;
             var isRushRequested = _isRushRequested;
@@ -274,7 +299,7 @@ namespace Kizami.Application
                 return null;
             }
 
-            var speed = IsSprinting ? _parameters.SprintSpeed : _parameters.WalkSpeed;
+            var speed = IsSprinting || IsAutoRunning ? _parameters.SprintSpeed : _parameters.WalkSpeed;
 
             if (launchSpeed > 0f || launchHorizontalVelocity.sqrMagnitude > 0f)
             {
@@ -551,8 +576,8 @@ namespace Kizami.Application
     }
 
     /// <summary>
-    /// プレイヤーの移動に、突進・飛び移り・打ち上げ・弾き飛ばし・言葉をつかんでいる間・羽天轟号の間を伝える操作面。
-    /// スキル・羽天轟号・飛び移り・言葉の投擲と、敵・ボスの攻撃が使う。
+    /// プレイヤーの移動に、突進・飛び移り・打ち上げ・弾き飛ばし・言葉をつかんでいる間・羽天轟号の間・自動で走る向きを伝える操作面。
+    /// スキル・羽天轟号・飛び移り・言葉の投擲と、敵・ボスの攻撃と、ステージの配線が使う。
     /// </summary>
     public interface IPlayerMovementController
     {
@@ -603,5 +628,16 @@ namespace Kizami.Application
         /// </summary>
         /// <param name="velocity">打ち出し速度（m/s、ワールド空間）</param>
         void RequestKnockback(Vector3 velocity);
+
+        /// <summary>
+        /// 自動で走る向きを設定する。設定している間は、移動の入力の代わりにその向きへダッシュの速さで走る。
+        /// </summary>
+        /// <param name="direction">走る向き（水平の成分だけを使う）</param>
+        void SetAutoRunDirection(Vector3 direction);
+
+        /// <summary>
+        /// 自動で走るのをやめ、移動の入力で動くように戻す。
+        /// </summary>
+        void StopAutoRun();
     }
 }

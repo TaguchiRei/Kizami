@@ -137,4 +137,4 @@
 
 | # | 内容 | 場所 |
 |---|---|---|
-| 1 | 到達（`ArrivalStageData`）は不安定な為、`GameSceneInitializer._stages` に入れていない（安定版を最後に足す、2026-10-21 ユーザー）。それまでの解放の口として、殲滅を複製した `AnnihilationUltimateStageData`（ID `AnnihilationUltimate`）を一覧の最後に置き、羽天轟号の解放条件にした。到達を足すときに、この複製を外す | 常駐シーン `UsefulToolkitPersistent` の `GameSceneInitializer`、`Assets/Level/Data/Stage/` |
+| 1 | 到達（`ArrivalStageData`）は不安定な為、`GameSceneInitializer._stages` に入れていない（安定版を最後に足す、2026-10-21 ユーザー）。それまでの解放の口として、殲滅を複製した `AnnihilationUltimateStageData`（ID `AnnihilationUltimate`）を一覧の最後に置き、羽天轟号の解放条件にした。到達を足すときに、この複製を外す。**解決（2026-11-03）**：区間45E で到達を `_stages` の最後に戻したので、複製を `_stages` から外した。羽天轟号は到達のクリアで解放する。`AnnihilationUltimateStageData.asset` は参照されないまま残してある | 常駐シーン `UsefulToolkitPersistent` の `GameSceneInitializer`、`Assets/Level/Data/Stage/` |

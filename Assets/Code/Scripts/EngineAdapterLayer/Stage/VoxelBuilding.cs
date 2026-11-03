@@ -316,6 +316,17 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 倒れたまとまり body を、眠ったら止める・形が変わったら落とし直す管理から外す。以降の動きは呼び出し側が決める。
+        /// RegisterOnCollapsed の通知の中で呼ぶ。
+        /// </summary>
+        /// <param name="body">管理から外す、倒れたまとまり</param>
+        public void DetachBody(Rigidbody body)
+        {
+            _fallingBodies.Remove(body);
+            _restingBodies.Remove(body);
+        }
+
+        /// <summary>
         /// 傷を残す範囲（敵の追跡範囲。ワールド座標の x・z）を設定する。範囲の外に出た倒れていない階はメッシュに戻し、記録のある階が範囲に入ったら当て直す。
         /// </summary>
         public void SetRetainArea(Rect area)
