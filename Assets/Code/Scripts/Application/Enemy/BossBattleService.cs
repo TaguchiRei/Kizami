@@ -43,6 +43,9 @@ namespace Kizami.Application
         /// <summary> 最終の段階で、今の周に足踏みした回数 </summary>
         private int _finalStompCount;
 
+        /// <summary> 止まったあと、クリアまでの残り時間（秒）。まだ数え始めていなければ負の値 </summary>
+        private float _stoppedClearRemaining = -1f;
+
         /// <summary> 足踏みとコア露出の段階が続いている時間（秒）。それ以外の段階では 0 </summary>
         private float _fightTime;
 
@@ -102,6 +105,7 @@ namespace Kizami.Application
         {
             if (_healthState == null && _stageBoard != null) _stageBoard.TryGetSceneState(out _healthState, out _);
             UpdateDamageRules(deltaTime);
+            TickStoppedClear(deltaTime);
             SkipUnavailableAction();
             switch (_state.Phase)
             {
@@ -187,10 +191,17 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 体力が尽きたあとに、ボスへ攻撃が当たったことを受け取る。ダウンで攻撃を待っているときだけ、武装を 1 つ壊させる。ダウンの間に壊すのは 1 つだけ。
+        /// ボスへプレイヤーの攻撃が当たったことを受け取る。ダウンで攻撃を待っているときは、武装を 1 つ壊させる（ダウンの間に壊すのは 1 つだけ）。
+        /// 止まったあとの最初の当たりでは、クリアまでの時間を数え始める。ほかの段階では何もしない。
         /// </summary>
-        public void ReportHitWhileDown()
+        public void ReportPlayerHit()
         {
+            if (_state.Phase == BossBattlePhase.Stopped)
+            {
+                if (_stoppedClearRemaining < 0f) _stoppedClearRemaining = _settings.StoppedClearDelay;
+                return;
+            }
+
             if (_state.Phase != BossBattlePhase.Down || _state.Action != BossAction.AwaitHit) return;
 
             _state.SetAction(BossAction.BreakWeapon);
@@ -279,6 +290,17 @@ namespace Kizami.Application
             _health?.SetMode(TargetHealthMode.Broken);
             _state.SetPhase(BossBattlePhase.Stopped);
             _state.SetAction(BossAction.None);
+        }
+
+        /// <summary>
+        /// 止まったあとの最初の当たりから数えたクリアまでの時間が過ぎたら、ボスを倒したことにする。
+        /// </summary>
+        private void TickStoppedClear(float deltaTime)
+        {
+            if (_stoppedClearRemaining < 0f || _state.IsDefeated) return;
+
+            _stoppedClearRemaining -= deltaTime;
+            if (_stoppedClearRemaining <= 0f) _state.SetDefeated();
         }
 
         /// <summary>

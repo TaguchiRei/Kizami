@@ -76,12 +76,6 @@ namespace Kizami.Application
         /// <summary> 要求された突進の所要時間（秒） </summary>
         private float _rushDuration;
 
-        /// <summary> 飛びの終わりに続けて飛ぶ向きと距離。続けないときはゼロ </summary>
-        private Vector3 _followFlightDisplacement;
-
-        /// <summary> 続けて飛ぶ所要時間（秒） </summary>
-        private float _followFlightDuration;
-
         /// <summary> 実行中の突進の速度（m/s） </summary>
         private Vector3 _warpVelocity;
 
@@ -94,8 +88,14 @@ namespace Kizami.Application
         /// <summary> 羽天轟号の使用中は true になり、その間は移動モードを Aiming にして静止する </summary>
         private bool _isSkyBeamActive;
 
+        /// <summary> 自動で走る向き（水平、正規化済み）。自動で走っていないときはゼロ </summary>
+        private Vector3 _autoRunDirection;
+
         /// <summary> 言葉をつかんでいるか </summary>
         public bool IsHoldingWord => _isHoldingWord;
+
+        /// <summary> 自動で走っているか </summary>
+        private bool IsAutoRunning => _autoRunDirection.sqrMagnitude > Mathf.Epsilon;
 
         /// <summary> ダッシュ入力の受け付け方に応じて、押下中またはトグルの状態を返す </summary>
         private bool IsSprinting => _settingState.SprintInputMode == SprintInputMode.Hold
@@ -104,6 +104,9 @@ namespace Kizami.Application
 
         /// <summary> 地面に触れているか </summary>
         private bool IsGrounded => _contactState != null && (_contactState.Contacts & PlayerContact.Ground) != 0;
+
+        /// <summary> 足元の近くに地面があるか </summary>
+        private bool IsNearGround => _contactState != null && (_contactState.Contacts & PlayerContact.NearGround) != 0;
 
         /// <summary> 空中で壁に触れているか。地面と壁の両方に触れているときは地面を優先して false </summary>
         private bool IsTouchingWallInAir => _contactState != null && !IsGrounded &&
@@ -163,6 +166,25 @@ namespace Kizami.Application
             _isSkyBeamActive = isActive;
         }
 
+        /// <summary>
+        /// 自動で走る向きを設定する。設定している間は、移動の入力の代わりにその向きへダッシュの速さで走る。ジャンプと視点は入力のまま。
+        /// 水平の成分だけを使い、水平の成分がなければ自動で走るのをやめる。
+        /// </summary>
+        /// <param name="direction">走る向き</param>
+        public void SetAutoRunDirection(Vector3 direction)
+        {
+            direction.y = 0f;
+            _autoRunDirection = direction.sqrMagnitude > Mathf.Epsilon ? direction.normalized : Vector3.zero;
+        }
+
+        /// <summary>
+        /// 自動で走るのをやめ、移動の入力で動くように戻す。
+        /// </summary>
+        public void StopAutoRun()
+        {
+            _autoRunDirection = Vector3.zero;
+        }
+
         /// <summary> 突進を始められるか。突進中と、突進の要求を受け付け済みのときと、言葉をつかんでいる間と、羽天轟号の使用中は false </summary>
         public bool CanRush => !_isHoldingWord && !_isSkyBeamActive && !_isRushRequested && _state.Mode != PlayerMoveMode.Warping;
 
@@ -189,28 +211,18 @@ namespace Kizami.Application
             _rushDirection = direction.normalized;
             _rushDistance = distance;
             _rushDuration = duration;
-            _followFlightDuration = 0f;
         }
 
         /// <summary>
-        /// 次の Step で、決めた時間で displacement だけ一直線に飛ぶよう要求する。向きは上下を含む。
-        /// 続きの飛びを渡すと、最初の飛びが終わった直後に続けて飛ぶ。
+        /// 位置を直接動かされたことを受け取り、壁走りを抜けて通常の移動に戻す。
+        /// 壁に触れたまま動かされても壁走りに入り直さないよう、壁から離れるまで再突入を止める。
         /// </summary>
-        /// <param name="displacement">飛ぶ向きと距離（ワールド空間）</param>
-        /// <param name="duration">所要時間（秒）</param>
-        /// <param name="followDisplacement">続けて飛ぶ向きと距離。続けないときはゼロ</param>
-        /// <param name="followDuration">続けて飛ぶ所要時間（秒）</param>
-        public void RequestFlight(Vector3 displacement, float duration, Vector3 followDisplacement,
-            float followDuration)
+        public void OnTeleported()
         {
-            if (displacement.sqrMagnitude <= Mathf.Epsilon || duration <= 0f) return;
-
-            _isRushRequested = true;
-            _rushDirection = displacement.normalized;
-            _rushDistance = displacement.magnitude;
-            _rushDuration = duration;
-            _followFlightDisplacement = followDuration > 0f ? followDisplacement : Vector3.zero;
-            _followFlightDuration = followDuration;
+            _state.SetMode(PlayerMoveMode.Normal);
+            _isWaitingWallRelease = true;
+            _state.SetTargetVelocity(Vector3.zero);
+            StopJumpHold();
         }
 
         /// <summary>
@@ -260,7 +272,7 @@ namespace Kizami.Application
 
             UpdateJumpHold(deltaTime);
 
-            var worldInput = ToWorldDirection(_moveInput);
+            var worldInput = IsAutoRunning ? _autoRunDirection : ToWorldDirection(_moveInput);
             var isJumpRequested = _isJumpRequested;
             _isJumpRequested = false;
             var isRushRequested = _isRushRequested;
@@ -278,17 +290,6 @@ namespace Kizami.Application
                     return null;
                 }
 
-                if (_followFlightDuration > 0f)
-                {
-                    _rushDirection = _followFlightDisplacement.normalized;
-                    _rushDistance = _followFlightDisplacement.magnitude;
-                    _rushDuration = _followFlightDuration;
-                    _followFlightDuration = 0f;
-                    StartRush();
-                    AdvanceWarp(deltaTime);
-                    return null;
-                }
-
                 _state.SetMode(PlayerMoveMode.Normal);
             }
             else if (isRushRequested)
@@ -298,7 +299,7 @@ namespace Kizami.Application
                 return null;
             }
 
-            var speed = IsSprinting ? _parameters.SprintSpeed : _parameters.WalkSpeed;
+            var speed = IsSprinting || IsAutoRunning ? _parameters.SprintSpeed : _parameters.WalkSpeed;
 
             if (launchSpeed > 0f || launchHorizontalVelocity.sqrMagnitude > 0f)
             {
@@ -374,19 +375,18 @@ namespace Kizami.Application
             _isRushRequested = false;
             _launchSpeed = 0f;
             _warpTimeRemaining = 0f;
-            _followFlightDuration = 0f;
             StopJumpHold();
             _state.SetMode(PlayerMoveMode.Aiming);
             _state.SetTargetVelocity(Vector3.zero);
         }
 
         /// <summary>
-        /// 壁走りに入れるかどうか。空中で壁に触れ、前向きの移動入力と壁の法線のなす角が WallDetachAngle より大きく、
+        /// 壁走りに入れるかどうか。足元の近くに地面がなく、空中で壁に触れ、前向きの移動入力と壁の法線のなす角が WallDetachAngle より大きく、
         /// 持ち時間が残り、壁ジャンプ後の待ちが解けているときに入れる。
         /// </summary>
         private bool CanEnterWallRun(Vector3 worldInput)
         {
-            return IsTouchingWallInAir && _moveInput.y > 0f && !IsPullingAwayFromWall(worldInput) &&
+            return !IsNearGround && IsTouchingWallInAir && _moveInput.y > 0f && !IsPullingAwayFromWall(worldInput) &&
                    _wallRunTimeRemaining > 0f && !_isWaitingWallRelease;
         }
 
@@ -576,8 +576,8 @@ namespace Kizami.Application
     }
 
     /// <summary>
-    /// プレイヤーの移動に、突進・飛び移り・打ち上げ・弾き飛ばし・言葉をつかんでいる間・羽天轟号の間を伝える操作面。
-    /// スキル・羽天轟号・飛び移り・言葉の投擲と、敵・ボスの攻撃が使う。
+    /// プレイヤーの移動に、突進・飛び移り・打ち上げ・弾き飛ばし・言葉をつかんでいる間・羽天轟号の間・自動で走る向きを伝える操作面。
+    /// スキル・羽天轟号・飛び移り・言葉の投擲と、敵・ボスの攻撃と、ステージの配線が使う。
     /// </summary>
     public interface IPlayerMovementController
     {
@@ -613,13 +613,9 @@ namespace Kizami.Application
         void RequestRush(Vector3 direction, float distance, float duration);
 
         /// <summary>
-        /// 次の Step で、決めた時間で displacement だけ一直線に飛ぶよう要求する。
+        /// 位置を直接動かしたあとに呼ぶ。壁走りを抜けて通常の移動に戻す。
         /// </summary>
-        /// <param name="displacement">飛ぶ向きと距離（ワールド空間）</param>
-        /// <param name="duration">所要時間（秒）</param>
-        /// <param name="followDisplacement">続けて飛ぶ向きと距離。続けないときはゼロ</param>
-        /// <param name="followDuration">続けて飛ぶ所要時間（秒）</param>
-        void RequestFlight(Vector3 displacement, float duration, Vector3 followDisplacement, float followDuration);
+        void OnTeleported();
 
         /// <summary>
         /// 次の Step でプレイヤーを真上へ打ち上げるよう要求する。
@@ -632,5 +628,16 @@ namespace Kizami.Application
         /// </summary>
         /// <param name="velocity">打ち出し速度（m/s、ワールド空間）</param>
         void RequestKnockback(Vector3 velocity);
+
+        /// <summary>
+        /// 自動で走る向きを設定する。設定している間は、移動の入力の代わりにその向きへダッシュの速さで走る。
+        /// </summary>
+        /// <param name="direction">走る向き（水平の成分だけを使う）</param>
+        void SetAutoRunDirection(Vector3 direction);
+
+        /// <summary>
+        /// 自動で走るのをやめ、移動の入力で動くように戻す。
+        /// </summary>
+        void StopAutoRun();
     }
 }

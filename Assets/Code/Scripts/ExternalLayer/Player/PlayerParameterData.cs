@@ -51,11 +51,6 @@ namespace Kizami.External
         [Tooltip("壁ジャンプの水平方向の速さ（m/s）。上向きの速度はジャンプと同じ")]
         private float _wallJumpHorizontalSpeed = 6f;
 
-        [Header("飛び移り")]
-        [SerializeField, Min(1f)]
-        [Tooltip("目印へ飛ぶ速さ（m/s）。所要時間は距離 ÷ この値")]
-        private float _flightSpeed = 120f;
-
         [Header("短距離ワープ")]
         [SerializeField, Min(0f)]
         [Tooltip("ワープで進む距離（m）")]
@@ -151,9 +146,6 @@ namespace Kizami.External
 
         /// <summary> 壁ジャンプの水平方向の速さ（m/s） </summary>
         public float WallJumpHorizontalSpeed => _wallJumpHorizontalSpeed;
-
-        /// <summary> 目印へ飛ぶ速さ（m/s） </summary>
-        public float FlightSpeed => _flightSpeed;
 
         /// <summary> ワープで進む距離（m） </summary>
         public float WarpDistance => _warpDistance;

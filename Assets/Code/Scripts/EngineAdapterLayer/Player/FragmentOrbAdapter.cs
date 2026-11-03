@@ -295,7 +295,10 @@ namespace Kizami.EngineAdapter
                 absorbed++;
             }
 
-            if (absorbed > 0) _onAbsorbed?.Invoke(absorbed);
+            if (absorbed <= 0) return;
+
+            SoundPlayer.Play(SoundEffectKind.OrbAbsorb, cameraMain.transform.position);
+            _onAbsorbed?.Invoke(absorbed);
         }
     }
 }

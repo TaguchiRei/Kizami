@@ -15,6 +15,7 @@ namespace Kizami.BlackBoard
         private readonly ActionChannel<SweepEffectNotice> _onSweep = new();
         private readonly ActionChannel<CapsuleCarveNotice> _onCapsuleCarve = new();
         private readonly ActionChannel<BombEffectNotice> _onBomb = new();
+        private readonly ActionChannel<PillarEffectNotice> _onPillar = new();
         private readonly ActionChannel<string> _onArmAnimation = new();
 
         public IActionChannel<BeamEffectNotice> OnBeam => _onBeam;
@@ -23,6 +24,7 @@ namespace Kizami.BlackBoard
         public IActionChannel<SweepEffectNotice> OnSweep => _onSweep;
         public IActionChannel<CapsuleCarveNotice> OnCapsuleCarve => _onCapsuleCarve;
         public IActionChannel<BombEffectNotice> OnBomb => _onBomb;
+        public IActionChannel<PillarEffectNotice> OnPillar => _onPillar;
         public IActionChannel<string> OnArmAnimation => _onArmAnimation;
 
         /// <summary>
@@ -75,6 +77,14 @@ namespace Kizami.BlackBoard
         }
 
         /// <summary>
+        /// 視線が当たった面から、法線の向きへ石柱を出させる。
+        /// </summary>
+        public void RaisePillar(in PillarEffectNotice notice)
+        {
+            _onPillar.Invoke(notice);
+        }
+
+        /// <summary>
         /// 腕のアニメーションを再生させる。
         /// </summary>
         /// <param name="trigger">Animator のトリガー名。空なら再生しない</param>
@@ -106,6 +116,9 @@ namespace Kizami.BlackBoard
 
         /// <summary> 爆弾を投げるときに流れる </summary>
         IActionChannel<BombEffectNotice> OnBomb { get; }
+
+        /// <summary> 視線が当たった面から石柱を出すときに流れる </summary>
+        IActionChannel<PillarEffectNotice> OnPillar { get; }
 
         /// <summary> スキルを発動したときに流れる。値は腕の Animator のトリガー名 </summary>
         IActionChannel<string> OnArmAnimation { get; }
@@ -222,6 +235,32 @@ namespace Kizami.BlackBoard
             Distance = distance;
             Radius = radius;
             ForwardOffset = forwardOffset;
+        }
+    }
+
+    /// <summary>
+    /// 石柱の太さ、長さ、伸びる時間、プレイヤーを弾く速さ。
+    /// </summary>
+    public readonly struct PillarEffectNotice
+    {
+        /// <summary> 石柱の半径（m） </summary>
+        public float Radius { get; }
+
+        /// <summary> 根元から先端までの長さ（m） </summary>
+        public float Length { get; }
+
+        /// <summary> 根元から先端まで伸びる時間（秒） </summary>
+        public float GrowDuration { get; }
+
+        /// <summary> 石柱に重なったプレイヤーを、生えた向きへ弾く速さ（m/s） </summary>
+        public float KnockbackSpeed { get; }
+
+        public PillarEffectNotice(float radius, float length, float growDuration, float knockbackSpeed)
+        {
+            Radius = radius;
+            Length = length;
+            GrowDuration = growDuration;
+            KnockbackSpeed = knockbackSpeed;
         }
     }
 }

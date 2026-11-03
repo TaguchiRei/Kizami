@@ -35,6 +35,14 @@ namespace Kizami.EngineAdapter
         [Tooltip("ダウンの間に、壊せる武装を塗る色")]
         private Color _highlightColor = new(1f, 0.15f, 0.15f, 1f);
 
+        [SerializeField]
+        [Tooltip("攻撃の予兆で、使う武装を点滅させる色。ダウン中の赤と見分けられる色にする")]
+        private Color _warningColor = new(1f, 0.9f, 0.1f, 1f);
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("予兆の点滅で、色と元の色を切り替える間隔（秒）")]
+        private float _warningBlinkInterval = 0.1f;
+
         [SerializeField, Min(0f)]
         [Tooltip("壊す武装を選ぶとき、画面の中央からの角度の差がこの値（度）以内なら、プレイヤーに近い方を選ぶ")]
         private float _tieAngle = 10f;
@@ -54,6 +62,15 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 種類ごとの、次に使う武装を探し始める番号 </summary>
         private int[] _cursors;
+
+        /// <summary> 武装ごとの、予兆で点滅させているか </summary>
+        private bool[] _isWarning;
+
+        /// <summary> 予兆の点滅で、今 _warningColor を塗っているか </summary>
+        private bool _isWarningLit;
+
+        /// <summary> 次に予兆の点滅を切り替えるまでの時間（秒） </summary>
+        private float _warningBlinkRemaining;
 
         private IDisposable _loadedSubscription;
         private MaterialPropertyBlock _highlightBlock;
@@ -139,6 +156,44 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 種類 kind の武装のうち、順番で次に使う武装の番号を、順番を進めずに返す。その種類の武装がなければ -1。
+        /// </summary>
+        public int PeekNext(BossWeaponKind kind)
+        {
+            var count = _weapons.Length;
+            var cursor = _cursors[(int)kind];
+
+            for (var offset = 0; offset < count; offset++)
+            {
+                var index = (cursor + offset) % count;
+                if (_weapons[index].Kind == kind) return index;
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// 武装 index のパーツを、_warningColor と元の色で点滅させるか、止めて元の色に戻す。壊れた武装は点滅させない。
+        /// </summary>
+        /// <param name="index">武装の番号（設定の並び）</param>
+        /// <param name="isWarning">点滅させるなら true</param>
+        public void SetWarning(int index, bool isWarning)
+        {
+            if (isWarning && _isBroken[index]) return;
+
+            _isWarning[index] = isWarning;
+            if (!isWarning)
+            {
+                SetPaint(index, false, _warningColor);
+                return;
+            }
+
+            _isWarningLit = true;
+            _warningBlinkRemaining = _warningBlinkInterval;
+            SetPaint(index, true, _warningColor);
+        }
+
+        /// <summary>
         /// 壊れていない武装のうち、画面の中央に最も近い武装を 1 つ選んで壊す。画面の中央からの角度の差が _tieAngle 以内なら、プレイヤーに近い方を選ぶ。
         /// </summary>
         /// <param name="viewOrigin">カメラの位置（ワールド座標）</param>
@@ -201,10 +256,24 @@ namespace Kizami.EngineAdapter
             _initialVolumes = new float[_weapons.Length];
             _isBroken = new bool[_weapons.Length];
             _cursors = new int[Enum.GetValues(typeof(BossWeaponKind)).Length];
+            _isWarning = new bool[_weapons.Length];
             for (var i = 0; i < _parts.Length; i++) _parts[i] = new List<VoxelPiece>();
 
             // VoxelModelLoader は Start で読み込むので、Awake で登録すれば読み込みの通知を逃さない
             _loadedSubscription = GetComponent<VoxelModelLoader>().RegisterOnLoaded(OnLoaded);
+        }
+
+        private void Update()
+        {
+            _warningBlinkRemaining -= Time.deltaTime;
+            if (_warningBlinkRemaining > 0f) return;
+
+            _warningBlinkRemaining = _warningBlinkInterval;
+            _isWarningLit = !_isWarningLit;
+            for (var i = 0; i < _isWarning.Length; i++)
+            {
+                if (_isWarning[i]) SetPaint(i, _isWarningLit, _warningColor);
+            }
         }
 
         private void OnDestroy()
@@ -219,6 +288,7 @@ namespace Kizami.EngineAdapter
         private void Break(int index)
         {
             SetHighlight(index, false);
+            _isWarning[index] = false;
             _isBroken[index] = true;
 
             foreach (var part in _parts[index])
@@ -249,12 +319,20 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void SetHighlight(int index, bool isHighlighted)
         {
+            SetPaint(index, isHighlighted, _highlightColor);
+        }
+
+        /// <summary>
+        /// 武装 index のパーツのチャンクの Renderer に color を塗るか、塗った色を外す。
+        /// </summary>
+        private void SetPaint(int index, bool isPainted, Color color)
+        {
             _highlightBlock ??= new MaterialPropertyBlock();
             _highlightBlock.Clear();
-            if (isHighlighted)
+            if (isPainted)
             {
-                _highlightBlock.SetColor(_baseColorId, _highlightColor);
-                _highlightBlock.SetColor(_colorId, _highlightColor);
+                _highlightBlock.SetColor(_baseColorId, color);
+                _highlightBlock.SetColor(_colorId, color);
             }
 
             foreach (var part in _parts[index])
@@ -263,7 +341,7 @@ namespace Kizami.EngineAdapter
 
                 foreach (var chunkRenderer in part.GetComponentsInChildren<MeshRenderer>())
                 {
-                    chunkRenderer.SetPropertyBlock(isHighlighted ? _highlightBlock : null);
+                    chunkRenderer.SetPropertyBlock(isPainted ? _highlightBlock : null);
                 }
             }
         }

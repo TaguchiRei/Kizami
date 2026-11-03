@@ -57,6 +57,14 @@ namespace Kizami.EngineAdapter
         [Tooltip("運ぶ途中で足を持ち上げる高さ（m）")]
         private float _stepHeight = 1.5f;
 
+        [SerializeField, Min(0.01f)]
+        [Tooltip("足を置いた位置が真下の地面よりこの高さ（m）以上浮いたら、その組を運び直す")]
+        private float _floatThreshold = 1f;
+
+        [SerializeField, Min(0.01f)]
+        [Tooltip("置いた足が浮いていないかを調べる間隔（秒）")]
+        private float _groundCheckInterval = 0.5f;
+
         /// <summary> 脚ごとの、休みの姿勢の腿の回転（親の空間） </summary>
         private Quaternion[] _upperRestRotations;
 
@@ -92,6 +100,9 @@ namespace Kizami.EngineAdapter
 
         private Vector3 _previousRootPosition;
 
+        /// <summary> 次に置いた足の浮きを調べるまでの時間（秒） </summary>
+        private float _groundCheckRemaining;
+
         /// <summary> 胴体を動かすか。止めても脚は足を置き直す </summary>
         private bool _isMoving = true;
 
@@ -110,6 +121,22 @@ namespace Kizami.EngineAdapter
         public void SetMoving(bool isMoving)
         {
             _isMoving = isMoving;
+        }
+
+        /// <summary>
+        /// すべての足を、今の胴体の基準の位置の真下の地面に置き直す。運んでいる途中の足も止める。
+        /// 飛来のように胴体が一気に動いたあとや、足を置いた地面がなくなったあとに使う。
+        /// </summary>
+        public void Replant()
+        {
+            _steppingPair = -1;
+            _groundCheckRemaining = _groundCheckInterval;
+            for (var i = 0; i < _legs.Length; i++)
+            {
+                if (_isValid[i]) _planted[i] = GetHomePosition(i);
+            }
+
+            Pose();
         }
 
         private void Awake()
@@ -207,6 +234,7 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 運んでいる組がないとき、足と基準の位置の差が最も大きい組を選び、その差が踏み出す距離を超えていれば運び始める。
+        /// 差が踏み出す距離以内でも、足が真下の地面から _floatThreshold 以上浮いている組があれば、一定の間隔で調べて運び始める。
         /// 運ぶ先は、基準の位置から胴体の速さで運ぶ時間の半分だけ先回りした位置。
         /// </summary>
         private void TryStartStep(Vector3 velocity)
@@ -226,6 +254,7 @@ namespace Kizami.EngineAdapter
                 pair = _legs[i].Pair;
             }
 
+            if (pair < 0) pair = FindFloatingPair();
             if (pair < 0) return;
 
             var lead = velocity * (_stepDuration * 0.5f);
@@ -239,6 +268,31 @@ namespace Kizami.EngineAdapter
 
             _steppingPair = pair;
             _stepProgress = 0f;
+        }
+
+        /// <summary>
+        /// 置いた足が真下の地面から _floatThreshold 以上浮いている脚のうち、最も浮いている脚の組。調べるのは _groundCheckInterval ごとで、浮いた脚がなければ -1。
+        /// </summary>
+        private int FindFloatingPair()
+        {
+            _groundCheckRemaining -= Time.deltaTime;
+            if (_groundCheckRemaining > 0f) return -1;
+
+            _groundCheckRemaining = _groundCheckInterval;
+            var pair = -1;
+            var largest = _floatThreshold;
+            for (var i = 0; i < _legs.Length; i++)
+            {
+                if (!_isValid[i]) continue;
+
+                var floating = _planted[i].y - GetGroundPosition(_planted[i]).y;
+                if (floating < largest) continue;
+
+                largest = floating;
+                pair = _legs[i].Pair;
+            }
+
+            return pair;
         }
 
         /// <summary>

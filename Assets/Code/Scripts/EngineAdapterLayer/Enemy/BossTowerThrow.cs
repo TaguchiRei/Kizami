@@ -7,8 +7,8 @@ using UsefulToolkit.BlackBoard.Logger;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 直接戦闘の専用の攻撃。円形の空間の外の上空から、プレイヤーのいる地点へ細長いボクセルの塔を斜めに投げる。ボスの根に付ける。
-    /// 塔を出す場所は、円の中心からプレイヤーへ引いた線の反対側。出した場所からプレイヤーのいる地点の地面まで空中に予測線を引き、警告の時間のあと、その線に沿って一定の速さで飛ぶ。追尾はしない。
+    /// 直接戦闘の専用の攻撃。円形の空間の外の上空から、円の中心からプレイヤーの方向へ一定の距離の地点へ、細長いボクセルの塔を斜めに投げる。ボスの根に付ける。
+    /// 塔を出す場所は、円の中心からプレイヤーへ引いた線の反対側。出した場所から狙う地点の地面まで空中に予測線を引き、警告の時間のあと、その線に沿って一定の速さで飛ぶ。追尾はしない。
     /// 飛んでいる塔がプレイヤーに触れたら一度だけ大ダメージを与えるが、塔は消えず、そのまま地面に斜めに刺さる。
     /// 刺さった塔の根元をプレイヤーが削ると倒れ始め（ゆっくり落ちる）、ボスに触れたらボスにダメージを与えて砕けて消える。
     /// </summary>
@@ -33,6 +33,10 @@ namespace Kizami.EngineAdapter
         /// <summary> 塔のボリュームの範囲を、形より広げる余白（m）。法線を整える </summary>
         private const float VOLUME_PADDING = 1f;
 
+        private const string DEFAULT_LAYER = "Default";
+        private const string GROUND_LAYER = "Ground";
+        private const string WALL_LAYER = "Wall";
+
         private static readonly Color _lineColor = new(1f, 0.1f, 0.05f, 0.6f);
 
         [SerializeField]
@@ -48,8 +52,8 @@ namespace Kizami.EngineAdapter
         private Material _lineMaterial;
 
         [SerializeField]
-        [Tooltip("狙う地点の地面を探すレイヤー")]
-        private LayerMask _groundLayers = ~0;
+        [Tooltip("狙う地点の地面を探すレイヤー。未設定なら Default・Ground・Wall。敵やバリアの上を地面とみなさないよう、それらのレイヤーは含めない")]
+        private LayerMask _groundLayers;
 
         [SerializeField, Min(0.5f)]
         [Tooltip("塔の太さ（m）")]
@@ -60,8 +64,12 @@ namespace Kizami.EngineAdapter
         private float _length = 30f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("塔の先端を出す、プレイヤーの足元の地面からの高さ（m）")]
+        [Tooltip("塔の先端を出す、狙う地点の地面からの高さ（m）。狙う地点の地面を探すレイもこの高さから撃つ")]
         private float _spawnHeight = 50f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("円の中心からプレイヤーの方向へ、この水平の距離（m）の地点を狙う。塔の長さより短くして、倒れた塔がボスに届くようにする")]
+        private float _aimDistance = 18f;
 
         [SerializeField, Min(0f)]
         [Tooltip("塔を出す場所の、円の外周からの余白（m）")]
@@ -134,7 +142,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 前の塔を消し、プレイヤーの今いる地点を狙って新しい塔を出す。
+        /// 前の塔を消し、円の中心からプレイヤーの方向へ _aimDistance 離れた地点を狙って新しい塔を出す。
         /// </summary>
         /// <returns>出せたか。狙う相手がいないか、塔を作れなければ false</returns>
         public bool Throw()
@@ -148,7 +156,13 @@ namespace Kizami.EngineAdapter
             offset.y = 0f;
             var outward = offset.sqrMagnitude > 1f ? offset.normalized : Vector3.forward;
 
-            _groundPoint = GetGround(_target.position);
+            var centerGround = GetGround(center);
+            var aim = center + outward * _aimDistance;
+            _groundPoint = BossGroundProbe.TryGetGround(transform,
+                new Vector3(aim.x, centerGround.y + _spawnHeight, aim.z), _spawnHeight * 2f, _groundLayers,
+                out var ground)
+                ? ground
+                : new Vector3(aim.x, centerGround.y, aim.z);
             var spawn = center - outward * (radius + _spawnMargin);
             _spawnTip = new Vector3(spawn.x, _groundPoint.y + _spawnHeight, spawn.z);
             _direction = (_groundPoint - _spawnTip).normalized;
@@ -175,6 +189,12 @@ namespace Kizami.EngineAdapter
             _piece = null;
             _body = null;
             _state = TowerState.Idle;
+        }
+
+        private void Awake()
+        {
+            // 実行時に AddComponent で付けるので、Inspector で設定していない値をここで決める
+            if (_groundLayers == 0) _groundLayers = LayerMask.GetMask(DEFAULT_LAYER, GROUND_LAYER, WALL_LAYER);
         }
 
         private void Update()

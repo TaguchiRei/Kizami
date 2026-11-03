@@ -7,7 +7,7 @@ using UnityEngine.UI;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// コンフィグの画面。左に操作の設定（ダッシュ・つかむの受け付け方、切断面の回転角度、視点感度）と音量、右にキーの割り当てを並べる。
+    /// コンフィグの画面。左に操作の設定（ダッシュの受け付け方、切断面の回転角度、視点感度）と音量、右にキーの割り当てを並べる。
     /// OutGameMenuAdapter が用意した 1 つのパネルへ組み立て、値の変更は IOperationSettingController へ渡す。
     /// キーの割り当ては InputRebindAdapter が渡されたときだけ出す。
     /// </summary>
@@ -79,11 +79,6 @@ namespace Kizami.EngineAdapter
             return $"Dash Input: {(mode == SprintInputMode.Hold ? "Hold" : "Toggle")}";
         }
 
-        private static string GetGrabText(GrabInputMode mode)
-        {
-            return $"Grab Input: {(mode == GrabInputMode.Hold ? "Hold" : "Toggle")}";
-        }
-
         private void BuildSettings()
         {
             var sprintButton = CreateButton("SprintButton", LEFT_X, GetRowY(0), LEFT_WIDTH, ROW_HEIGHT, string.Empty);
@@ -96,27 +91,17 @@ namespace Kizami.EngineAdapter
                 sprintLabel.text = GetSprintText(next);
             });
 
-            var grabButton = CreateButton("GrabButton", LEFT_X, GetRowY(1), LEFT_WIDTH, ROW_HEIGHT, string.Empty);
-            var grabLabel = grabButton.GetComponentInChildren<Text>();
-            grabLabel.text = GetGrabText(_state.GrabInputMode);
-            grabButton.onClick.AddListener(() =>
-            {
-                var next = _state.GrabInputMode == GrabInputMode.Hold ? GrabInputMode.Toggle : GrabInputMode.Hold;
-                _controller.SetGrabInputMode(next);
-                grabLabel.text = GetGrabText(next);
-            });
-
-            CreateSliderRow(2, "Cut Rotate Angle", MIN_ANGLE, MAX_ANGLE, true, _state.CutRotateStepAngle, "0",
+            CreateSliderRow(1, "Cut Rotate Angle", MIN_ANGLE, MAX_ANGLE, true, _state.CutRotateStepAngle, "0",
                 _controller.SetCutRotateStepAngle);
-            CreateSliderRow(3, "Horizontal Sensitivity", MIN_SENSITIVITY, MAX_SENSITIVITY, false,
+            CreateSliderRow(2, "Horizontal Sensitivity", MIN_SENSITIVITY, MAX_SENSITIVITY, false,
                 _state.HorizontalSensitivity, "0.0", _controller.SetHorizontalSensitivity);
-            CreateSliderRow(4, "Vertical Sensitivity", MIN_SENSITIVITY, MAX_SENSITIVITY, false,
+            CreateSliderRow(3, "Vertical Sensitivity", MIN_SENSITIVITY, MAX_SENSITIVITY, false,
                 _state.VerticalSensitivity, "0.0", _controller.SetVerticalSensitivity);
-            CreateSliderRow(5, "Master Volume", 0f, OperationSettingState.MAX_VOLUME, true, _state.MasterVolume, "0",
+            CreateSliderRow(4, "Master Volume", 0f, OperationSettingState.MAX_VOLUME, true, _state.MasterVolume, "0",
                 value => _controller.SetMasterVolume(Mathf.RoundToInt(value)));
-            CreateSliderRow(6, "BGM Volume", 0f, OperationSettingState.MAX_VOLUME, true, _state.BgmVolume, "0",
+            CreateSliderRow(5, "BGM Volume", 0f, OperationSettingState.MAX_VOLUME, true, _state.BgmVolume, "0",
                 value => _controller.SetBgmVolume(Mathf.RoundToInt(value)));
-            CreateSliderRow(7, "SE Volume", 0f, OperationSettingState.MAX_VOLUME, true, _state.SeVolume, "0",
+            CreateSliderRow(6, "SE Volume", 0f, OperationSettingState.MAX_VOLUME, true, _state.SeVolume, "0",
                 value => _controller.SetSeVolume(Mathf.RoundToInt(value)));
         }
 

@@ -1,5 +1,4 @@
 using System;
-using Kizami.EngineAdapter.Voxel;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
 
@@ -8,7 +7,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// ボスとの直接戦闘で、プレイヤーを閉じ込める円形の空間を作る。ボスとは別の GameObject に置き、拡大率は 1 にする。
     /// 円周に等間隔でユニットを上空に浮かべ、各ユニットから真下の地面へフィニッシャーのビームを撃ち続けて、円周に光の柵を作る。
-    /// 柵のダメージとボクセルを溶かすのはフィニッシャーのビーム（同じ GameObject の EnemyFinisherBeams）が行い、円の外へ出たときのダメージはこのコンポーネントが与える。
+    /// 柵のビームはボクセルを溶かさず、最初に当たった物までの範囲のダメージだけをフィニッシャーのビーム（同じ GameObject の EnemyFinisherBeams）が与え、円の外へ出たときのダメージはこのコンポーネントが与える。
     /// </summary>
     /// <remarks>
     /// ユニットはフィニッシャーのモデルを見た目だけ置いたもので、吸収型の敵そのものではない。
@@ -129,7 +128,7 @@ namespace Kizami.EngineAdapter
                     _units[i].gameObject.SetActive(true);
                 }
 
-                _shots?[i].BeginContinuous(Vector3.down);
+                _shots?[i].BeginContinuous(Vector3.down, EnemyFinisherBeams.BeamMode.DamageOnly);
             }
 
             IsOpen = true;
@@ -169,8 +168,6 @@ namespace Kizami.EngineAdapter
 
             if (_shots != null)
             {
-                // 柵のビームは一斉に多くのピースを削る為、削るジョブをまとめて待つ
-                using var strikeBatch = VoxelPiece.BeginStrikeBatch();
                 for (var i = 0; i < _unitCount; i++)
                 {
                     _shots[i].Tick(_emitters[i], Time.deltaTime, out _);

@@ -113,6 +113,9 @@ namespace Kizami.EngineAdapter
         /// <summary> 撃っているか（コアをせり出させている間を含む） </summary>
         public bool IsFiring => _firingIndex >= 0;
 
+        /// <summary> 撃っておらず、クールタイムが過ぎているか </summary>
+        public bool IsReady => !IsFiring && _cooldownRemaining <= 0f;
+
         /// <summary>
         /// 狙う相手を target にする。ボスとプレイヤーが別のシーンにあるときに、初期化で渡す。
         /// </summary>

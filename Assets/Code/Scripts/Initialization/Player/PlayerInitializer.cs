@@ -55,6 +55,10 @@ namespace Kizami.Initialization
         private SkyBeamAdapter _skyBeamAdapter;
 
         [SerializeField]
+        [Tooltip("スキル・近接・ジャンプ・被ダメージ・スローモードの効果音を鳴らす Adapter。未設定なら、この GameObject に付ける")]
+        private PlayerSoundAdapter _soundAdapter;
+
+        [SerializeField]
         [Tooltip("アウトゲームを通さずに始めたとき（インゲームのシーンから直接再生したときなど）に、スキル 1〜3 の枠に装備するスキル。空きの枠は None にする")]
         private SkillData[] _equippedSkills = new SkillData[SkillService.SLOT_COUNT];
 
@@ -108,8 +112,9 @@ namespace Kizami.Initialization
             _meleeCutAdapter.Initialize(DistributeCutResults, _armAdapter);
 
             // F は、飛び移れるときは飛び移り、そうでなければスローモードになる為、FlightService を先に生成して渡す
-            _flightService = new FlightService(blackBoard, _movementService, _parameters.FlightSpeed,
-                () => _movementAdapter.BodyBounds.center, _effectEvents, sceneId);
+            _flightService = new FlightService(blackBoard, _movementService,
+                displacement => _movementAdapter.PlaceAt(_movementAdapter.Position + displacement),
+                () => _movementAdapter.BodyBounds.center, _actionEvents, _effectEvents, sceneId);
             if (_flightAdapter == null) _flightAdapter = gameObject.AddComponent<FlightAdapter>();
             _flightAdapter.Initialize(_flightService.SetCandidate);
 
@@ -123,9 +128,8 @@ namespace Kizami.Initialization
             _skyBeamAdapter.Initialize(_movementAdapter, _skyBeamService.OnFinished, _skyBeamService.TryContinue,
                 _voxelDestructionAdapter.CarveSkyBeamAt, _enemySpawnAdapter.DefeatInRadius);
 
-            // MeleeCutService が VoxelMoundState を取得する為、MeleeCutService の生成より前に初期化する
-            _voxelMoundAdapter.Initialize(blackBoard, _chargeService.TryConsume, _enemySpawnAdapter.WatchPiece,
-                _enemySpawnAdapter.RefreshRegion);
+            _voxelMoundAdapter.Initialize(blackBoard, _enemySpawnAdapter.WatchPiece, _enemySpawnAdapter.RefreshRegion,
+                _enemySpawnAdapter.DefeatInRadius, _movementService.RequestKnockback, () => _movementAdapter.BodyBounds);
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
                 _slowModeService.TryUseCut, _skyBeamService, _actionEvents, sceneId);
             if (_bombThrowAdapter == null) _bombThrowAdapter = gameObject.AddComponent<BombThrowAdapter>();
@@ -133,8 +137,8 @@ namespace Kizami.Initialization
             _voxelDestructionAdapter.Initialize(blackBoard);
 
             _skillService = new SkillService(blackBoard, StageSelection.GetEquippedSkillsOrDefault(_progressService, _equippedSkills),
-                _chargeService, _enhanceService, _healthService, () => _movementAdapter.BodyBounds, _voxelMoundAdapter.Begin,
-                _voxelMoundAdapter.End, _movementService, _meleeCutService, _skyBeamService, _actionEvents, _effectEvents, sceneId);
+                _chargeService, _enhanceService, _healthService, () => _movementAdapter.BodyBounds,
+                _voxelMoundAdapter.CanRaise, _movementService, _meleeCutService, _skyBeamService, _actionEvents, _effectEvents, sceneId);
 
             _fragmentThrowAdapter.Initialize();
 
@@ -152,6 +156,9 @@ namespace Kizami.Initialization
 
             _meleeCutPreviewAdapter.Initialize(blackBoard);
             if (_armAdapter != null) _armAdapter.Initialize(blackBoard);
+
+            if (_soundAdapter == null) _soundAdapter = gameObject.AddComponent<PlayerSoundAdapter>();
+            _soundAdapter.Initialize(blackBoard, _movementAdapter);
 
             base.Initialize(blackBoard);
         }

@@ -65,11 +65,11 @@
 
 | # | 項目 | 決定 |
 |---|---|---|
-| 1 | 割り当て直せる操作 | Player マップのキーボード・マウスの割り当て（Move の上下左右の各 2 つ、Attack、Interact、Jump、Sprint、Warp、SlowMode、Throw、LoadLauncher、FireLauncher、Skill1〜3）。Look と CutRotate は動きの入力なので対象外 |
+| 1 | 割り当て直せる操作 | Player マップのキーボード・マウスの割り当て（Move の上下左右の各 2 つ、Attack、Interact、Jump、Sprint、Warp、SlowMode、Skill1〜3）。Look と CutRotate は動きの入力なので対象外。Throw・LoadLauncher・FireLauncher は、かけらを投げる機能の削除と Brilliant Skill の無効化で使われなくなったため一覧から外した |
 | 2 | 重複した割り当て | 入れ替える（重なった相手に元のキーを譲る） |
 | 3 | 音量 | 0〜100、初期値 80（マスター・BGM・SE） |
 | 4 | ポーズから開くか | 今回は見送り（インゲームのポーズの画面に手を入れる為）。必要になった区間で足す |
-| 5 | ダッシュの受け付け方と回転角度 | 画面に出した（ダッシュ・つかむの切り替え、回転角度 1〜90、視点感度 0.1〜5） |
+| 5 | ダッシュの受け付け方と回転角度 | 画面に出した（ダッシュの切り替え、回転角度 1〜90、視点感度 0.1〜5）。つかむの切り替えは、使う `FragmentThrowService` が Brilliant Skill 専用で無効のため画面から外した。`GrabInputMode` と保存項目は残してあり、Brilliant Skill を有効に戻すときに画面へ戻す |
 
 `InputActionAsset` の取り方：`InputDispatcher`（UsefulToolkit.Input）は、シリアライズされたアセットを複製せずそのまま使う。同じアセットを `OperationSettingInitializer` に割り当てれば、割り当ての変更がインゲームの操作へそのまま効く。
 

@@ -51,7 +51,7 @@ namespace Kizami.EngineAdapter
         private Collider[] _hitBuffer = new Collider[INITIAL_HIT_COUNT];
         private VoxelModelLoader _loader;
         private Func<TargetHitKind, float, bool> _reportHit;
-        private Action _onHitWhileDepleted;
+        private Action _onPlayerHit;
         private bool _isProtected;
         private bool _isDepleted;
 
@@ -98,11 +98,11 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 体力が尽きたあとに、通常攻撃かスキルが当たったときに呼ぶ処理を受け取る。体力の配線とは別の Initializer から渡せるよう、Initialize と分ける。
+        /// 通常攻撃・スキル・量を決めたダメージが当たったときに呼ぶ処理を受け取る。落ちてくる塊の当たりでは呼ばない。体力の配線とは別の Initializer から渡せるよう、Initialize と分ける。
         /// </summary>
-        public void SetOnHitWhileDepleted(Action onHitWhileDepleted)
+        public void SetOnPlayerHit(Action onPlayerHit)
         {
-            _onHitWhileDepleted = onHitWhileDepleted;
+            _onPlayerHit = onPlayerHit;
         }
 
         /// <summary>
@@ -162,17 +162,14 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 当たりを報告する。尽きたら保護を解く。尽きたあとの当たりは、報告せずに知らせる。
+        /// 当たりを報告する。尽きたら保護を解く。落ちてくる塊以外の当たりは、体力の報告より先に知らせる。尽きたあとの当たりは報告しない。
         /// </summary>
         private void ReportHit(TargetHitKind kind, float size)
         {
             if (!_isProtected) return;
 
-            if (_isDepleted)
-            {
-                _onHitWhileDepleted?.Invoke();
-                return;
-            }
+            if (kind != TargetHitKind.Collapse) _onPlayerHit?.Invoke();
+            if (_isDepleted) return;
 
             if (!_reportHit(kind, size)) return;
 

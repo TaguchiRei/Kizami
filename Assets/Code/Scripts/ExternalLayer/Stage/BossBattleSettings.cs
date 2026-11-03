@@ -33,6 +33,10 @@ namespace Kizami.External
         [Tooltip("足踏みを始めてから、無敵を解いて落ちてくる塊のダメージを数え始めるまでの猶予（秒）。飛来で崩れた塊が落ちきるのを待つ")]
         private float _collapseGrace = 2f;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("止まったあと、ボスのどこかに攻撃が初めて当たってから、クリアにするまでの時間（秒）")]
+        private float _stoppedClearDelay = 5f;
+
         public float LandingPause => _landingPause;
 
         public int MeleeStrikeCount => _meleeStrikeCount;
@@ -44,5 +48,7 @@ namespace Kizami.External
         public int FinalStomps => _finalStomps;
 
         public float CollapseGrace => _collapseGrace;
+
+        public float StoppedClearDelay => _stoppedClearDelay;
     }
 }

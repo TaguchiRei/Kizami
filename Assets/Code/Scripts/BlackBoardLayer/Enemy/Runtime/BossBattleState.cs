@@ -15,6 +15,7 @@ namespace Kizami.BlackBoard
         public BossAction Action { get; private set; } = BossAction.None;
         public int ActionCount { get; private set; }
         public bool IsStopped => Phase == BossBattlePhase.Stopped;
+        public bool IsDefeated { get; private set; }
 
         public override string GetLog()
         {
@@ -49,6 +50,14 @@ namespace Kizami.BlackBoard
         }
 
         /// <summary>
+        /// ボスを倒したことにする。止まったあと、クリアまでの時間が過ぎたときに設定する。
+        /// </summary>
+        public void SetDefeated()
+        {
+            IsDefeated = true;
+        }
+
+        /// <summary>
         /// 今の行動を設定する。同じ行動を続けて設定しても、新しい指示として数える。
         /// </summary>
         /// <param name="action">ボスの行動</param>
@@ -75,6 +84,9 @@ namespace Kizami.BlackBoard
 
         /// <summary> ボスが止まったか。止まったボスは、武装以外の部位も壊せる </summary>
         bool IsStopped { get; }
+
+        /// <summary> ボスを倒したか。止まったあと、ボスのどこかに攻撃が当たってから決めた時間が過ぎたら true。段階は Stopped のまま </summary>
+        bool IsDefeated { get; }
 
         /// <summary> 今の行動 </summary>
         BossAction Action { get; }

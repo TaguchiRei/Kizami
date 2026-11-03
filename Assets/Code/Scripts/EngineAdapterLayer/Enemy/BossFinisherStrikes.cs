@@ -127,6 +127,9 @@ namespace Kizami.EngineAdapter
             }
         }
 
+        /// <summary> クールタイムが過ぎて、撃てるか </summary>
+        public bool IsReady => _cooldownRemaining <= 0f;
+
         /// <summary>
         /// クールタイムが過ぎていれば、次の番の Hatch でプレイヤーの真上にユニットを置く。
         /// 番の Hatch が壊れていれば、置かずにクールタイムだけを発生させる。

@@ -94,10 +94,6 @@ namespace Kizami.EngineAdapter.Voxel
         [Tooltip("削られて分かれた塊を、別の VoxelPiece として切り離すか")]
         private bool _splittable = true;
 
-        [SerializeField, Min(1)]
-        [Tooltip("内側サンプルがこの数より少ない塊は、切り離さずに消す")]
-        private int _minPieceSamples = 8;
-
         [SerializeField, Min(0.001f)]
         [Tooltip("切り離したピースの密度（kg/m³）。質量は 体積 × 密度")]
         private float _density = 500f;
@@ -128,6 +124,15 @@ namespace Kizami.EngineAdapter.Voxel
         private NativeArray<float> _flightRoundnessScales;
         private double _flightScheduleMilliseconds;
         private MeshCollider _hullCollider;
+
+        /// <summary> コライダーも Rigidbody も持たず、自前で落ちて地面の高さで止まるピースか </summary>
+        private bool _isColliderless;
+
+        /// <summary> コライダーを持たないピースの落下速度（ワールド空間, m/s） </summary>
+        private Vector3 _fallVelocity;
+
+        /// <summary> コライダーを持たないピースが止まるときの、Transform の Y。地面が無ければ負の無限大 </summary>
+        private float _landedY = float.NegativeInfinity;
         private Mesh _hullMesh;
         private bool _needsMeasure;
         private bool _needsSplitCheck;
@@ -970,6 +975,8 @@ namespace Kizami.EngineAdapter.Voxel
                 return;
             }
 
+            if (_isColliderless) StepColliderless();
+
             if (_isRemeshInFlight && _remeshHandle.IsCompleted) CompleteRemesh();
 
             // 積んだ削りはビームの更新の BeginStrikeBatch でまとめて当てる。ここでは長く積んだままの分だけを、待ってでも当てる
@@ -1185,7 +1192,7 @@ namespace Kizami.EngineAdapter.Voxel
                     var component = components[i];
                     LastMeasureOtherMilliseconds += Lap();
 
-                    if (component.SampleCount >= _minPieceSamples)
+                    if (component.SampleCount * VoxelCubicVolume >= _quality.MinPieceVolume)
                     {
                         var extracted = _volume.ExtractComponent(labels, component);
                         LastMeasureExtractMilliseconds += Lap();
@@ -1221,7 +1228,7 @@ namespace Kizami.EngineAdapter.Voxel
         }
 
         /// <summary>
-        /// ボリュームの内側を塊に分け、切り離す最小のサンプル数以上の塊ごとに新しいピースを生成する。
+        /// ボリュームの内側を塊に分け、体積が品質設定の下限以上の塊ごとに新しいピースを生成する。
         /// 小さすぎる塊は捨てる。volume は変更しない。
         /// </summary>
         private VoxelPiece[] SpawnComponents(VoxelVolume volume)
@@ -1238,7 +1245,7 @@ namespace Kizami.EngineAdapter.Voxel
                 for (var i = 0; i < components.Length; i++)
                 {
                     var component = components[i];
-                    if (component.SampleCount < _minPieceSamples) continue;
+                    if (component.SampleCount * VoxelCubicVolume < _quality.MinPieceVolume) continue;
 
                     pieces.Add(SpawnPiece(volume.ExtractComponent(labels, component), component.SampleCount));
                 }
@@ -1297,9 +1304,9 @@ namespace Kizami.EngineAdapter.Voxel
             piece._material = _material;
             piece._materials = _materials;
             piece._strengths = _strengths;
-            piece._colliderMode = VoxelColliderMode.ConvexHull;
+            var isColliderless = sampleCount * VoxelCubicVolume < _quality.ColliderlessVolume;
+            piece._colliderMode = isColliderless ? VoxelColliderMode.None : VoxelColliderMode.ConvexHull;
             piece._splittable = _splittable;
-            piece._minPieceSamples = _minPieceSamples;
             piece._density = _density;
             piece._destroyBelowY = _destroyBelowY;
             piece._cutByMelee = _cutByMelee;
@@ -1322,6 +1329,13 @@ namespace Kizami.EngineAdapter.Voxel
             LastSpawnRemeshColliderMilliseconds += piece.LastRemeshColliderMilliseconds;
 
             spawnWatch.Restart();
+            if (isColliderless)
+            {
+                piece.StartColliderless(GetComponentInParent<Rigidbody>());
+                LastSpawnBodyMilliseconds += spawnWatch.Elapsed.TotalMilliseconds;
+                return piece;
+            }
+
             var body = pieceObject.AddComponent<Rigidbody>();
             body.mass = math.max(piece.Volume * _density, 0.01f);
             body.interpolation = RigidbodyInterpolation.Interpolate;
@@ -1337,6 +1351,39 @@ namespace Kizami.EngineAdapter.Voxel
 
             LastSpawnBodyMilliseconds += spawnWatch.Elapsed.TotalMilliseconds;
             return piece;
+        }
+
+        /// <summary>
+        /// コライダーを持たない落とし方を始める。真下へレイを1本撃って、止まる高さを求める。
+        /// </summary>
+        /// <param name="sourceBody">切り離す元の Rigidbody。あれば、その速度を引き継ぐ</param>
+        private void StartColliderless(Rigidbody sourceBody)
+        {
+            _isColliderless = true;
+            var bounds = WorldBounds;
+            if (sourceBody != null) _fallVelocity = sourceBody.GetPointVelocity(bounds.center);
+
+            if (Physics.Raycast(bounds.center, Vector3.down, out var hit, _quality.ColliderlessGroundRayLength,
+                    _quality.ColliderlessGroundLayers, QueryTriggerInteraction.Ignore))
+            {
+                _landedY = hit.point.y + (transform.position.y - bounds.min.y);
+            }
+        }
+
+        /// <summary>
+        /// 重力で落とし、止まる高さに着いたら動かすのをやめる。
+        /// </summary>
+        private void StepColliderless()
+        {
+            _fallVelocity += Physics.gravity * Time.deltaTime;
+            var position = transform.position + _fallVelocity * Time.deltaTime;
+            if (position.y <= _landedY)
+            {
+                position.y = _landedY;
+                _isColliderless = false;
+            }
+
+            transform.position = position;
         }
 
         private void SetMeasuredSampleCount(int sampleCount)

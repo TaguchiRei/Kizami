@@ -12,7 +12,7 @@ namespace Kizami.Initialization
     /// <summary>
     /// ボスの武装の状態の画面表示と、武装を順番に使わせる操作（6：タレット、7：レーザー、8：降下フィニッシャー、9：アウトリガー。それぞれの武装の攻撃のコンポーネントがあれば撃たせる）を行うデバッグ用の Initializer。インゲームのシーンへ置き、ボスはステージシーンから探す。
     /// 操作はデバッグ専用の為、入力マップに Action を足さず Keyboard.current を直接読む。
-    /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動く。
+    /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動き、DebugVisibilityAdapter が出している間だけ操作できる。
     /// </summary>
     public sealed class BossDebugInitializer : InitializerBase
     {
@@ -73,7 +73,7 @@ namespace Kizami.Initialization
 
         private void Update()
         {
-            if (_weapons == null) return;
+            if (!DebugVisibilityAdapter.IsVisible || _weapons == null) return;
 
             var keyboard = Keyboard.current;
             if (keyboard == null) return;

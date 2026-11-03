@@ -1,5 +1,6 @@
 using Kizami.Application;
 using Kizami.BlackBoard;
+using Kizami.EngineAdapter;
 using UnityEngine;
 using UsefulToolkit.Attributes;
 using UsefulToolkit.BlackBoard.BlackBoard;
@@ -11,7 +12,7 @@ namespace Kizami.Initialization
 {
     /// <summary>
     /// 時間の倍率を実行中に変える操作と、倍率の画面表示を行うデバッグ用の Initializer。常駐シーンへ置く。
-    /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動く。
+    /// 表示には DebugGUI がシーンに必要（UsefulToolkit/ProgramTools/DebugGUI Setup）。エディタと Development Build でのみ動き、DebugVisibilityAdapter が出している間だけ操作できる。
     /// </summary>
     [InitializeOrder(InitializeOrderConst.Initializer)]
     public sealed class TimeScaleDebugInitializer : InitializerBase, IInjectable<ITimeScaleController>
@@ -40,7 +41,7 @@ namespace Kizami.Initialization
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         private void OnGUI()
         {
-            if (_controller == null || _state == null) return;
+            if (!DebugVisibilityAdapter.IsVisible || _controller == null || _state == null) return;
 
             const float WIDTH = 360f;
             GUILayout.BeginArea(new Rect(10f, Screen.height - 90f, WIDTH, 80f), GUI.skin.box);

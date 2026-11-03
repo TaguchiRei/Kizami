@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Kizami.EngineAdapter.Voxel;
+using Unity.Cinemachine;
 using Unity.Mathematics;
 using UnityEngine;
 using UsefulToolkit.BlackBoard.Logger;
@@ -11,15 +12,32 @@ namespace Kizami.EngineAdapter
     /// 天照塔を、ボクセルの帯（VoxelBuilding）が倒壊したときに、少ないボクセルの側へ倒して橋にする。
     /// 倒れる向きは、帯に残ったボクセルの重心から見て反対の側（ボクセルの少ない側）にする。倒れる先の目印を指定したときは、その向きを使う。
     /// 塔の上の部分は一番上の階の付属物としてメッシュのまま置く。
-    /// 倒れ始めたら、倒れたまとまりのコライダーをすべて捨て、全体を包む凸包の MeshCollider 1つに置き換える。ピースのコライダーが消えるので、倒れた塔はスキルで削れず、数千個の箱が物理の負荷になることもない。
-    /// VoxelBuilding が倒れた階を止めてキネマティックにしたら、その凸包を歩ける橋にして、橋の上に敵を出す。
-    /// VoxelBuilding はピースの体積だけで質量を決め、塔の上の部分を数えない為、質量を足す。
-    /// 帯が壊れただけでは塔は根元の面に乗ったまま止まるので、倒れる向きへ角速度を与え、傾きが一定の角度に届くまで角加速度を与え続ける。
+    /// 倒れ始めたら、倒れたまとまりのコライダーをすべて捨て、全体を包む凸包の MeshCollider 1つと、帯の足場の箱 1つに置き換える。ピースのコライダーが消えるので、倒れた塔はスキルで削れず、数千個の箱が物理の負荷になることもない。
+    /// 倒れ方は物理に任せず、まとまりをキネマティックにして、帯の底の縁を軸に一定の角加速度で回す。塔の上の部分の凸包が地面（Ground レイヤー）に届いた角度で止める。
+    /// 止めたら、凸包を歩ける橋にして、橋の上に敵を出す。塔の軸に沿って煙を出して画面を揺らし、塔の下になったビルを、軸に沿った短い区間のキューにして時間をかけて削る。
     /// </summary>
     public sealed class TowerTopple : MonoBehaviour
     {
-        /// <summary> 傾けたあとの眠る閾値。巨大な凸包は地面の上でわずかに揺れ続け、既定の閾値では眠らない </summary>
-        private const float REST_SLEEP_THRESHOLD = 0.5f;
+        private const string GROUND_LAYER = "Ground";
+        private const string PLAYER_LAYER = "Player";
+        private const string ENEMY_LAYER = "Enemy";
+
+        /// <summary> 凸包の範囲と重なる地面のコライダーを一度に受け取る数 </summary>
+        private const int GROUND_OVERLAP_CAPACITY = 64;
+
+        /// <summary> 倒れる先に地面がないときの歯止めになる、倒れる角度の上限（度） </summary>
+        private const float MAX_TOPPLE_ANGLE = 120f;
+
+        /// <summary> 地面に届いた角度を、直前の角度との間で絞り込む二分探索の回数 </summary>
+        private const int CONTACT_REFINE_COUNT = 5;
+
+        /// <summary> 帯の底の縁の角が、同じ縁にあるとみなす距離（m） </summary>
+        private const float EDGE_TOLERANCE = 0.01f;
+
+        private readonly Collider[] _groundOverlaps = new Collider[GROUND_OVERLAP_CAPACITY];
+
+        /// <summary> 削る区間のキュー。両端（ワールド座標）と半径 </summary>
+        private readonly Queue<(Vector3 Start, Vector3 End, float Radius)> _crushQueue = new();
 
         [SerializeField]
         [Tooltip("塔の帯を積んだ建物。倒壊を受け取る")]
@@ -30,20 +48,12 @@ namespace Kizami.EngineAdapter
         private Transform _fallTarget;
 
         [SerializeField, Min(0f)]
-        [Tooltip("倒れ始めに与える、倒れる向きの軸まわりの角速度（rad/s）")]
-        private float _toppleAngularSpeed = 0.05f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("倒れる向きの軸まわりに、傾きが次の角度に届くまで与え続ける角加速度（rad/s²）。質量によらない。倒れ始めの勢いだけでは、根元の面に乗ったまま眠って止まる為")]
-        private float _toppleAngularAcceleration = 0.05f;
+        [Tooltip("倒れ始めから地面に届くまで一定で与える角加速度（rad/s²）。回る速さは時間に比例して増える")]
+        private float _toppleAngularAcceleration = 0.03f;
 
         [SerializeField]
         [Tooltip("帯に残ったボクセルから倒れる向きが決まらないとき（階がメッシュのままのとき）に、倒れる先にするギミックの ID")]
         private string _fallbackTargetId = "Escape_Arrival";
-
-        [SerializeField, Range(1f, 90f)]
-        [Tooltip("傾きがこの角度（度）に届くまで、角加速度を与え続ける。届いたあとは重力に任せる")]
-        private float _driveUntilAngle = 20f;
 
         [SerializeField, Min(0.1f)]
         [Tooltip("倒れた塔が止まったあと、塔の下になったビルを削る半径の、根元での値（m）。塔の半幅に合わせる")]
@@ -54,41 +64,77 @@ namespace Kizami.EngineAdapter
         private float _crushRadiusTip = 8f;
 
         [SerializeField, Min(1f)]
-        [Tooltip("倒れた塔の下になったビルを、塔の軸に沿って削る区間の長さ（m）。区間ごとに 1 フレームずつ削る")]
-        private float _crushSegmentLength = 40f;
+        [Tooltip("倒れた塔の下になったビルを、塔の軸に沿って削る区間の長さ（m）。根元から先端の順に、1 回に 1 区間ずつ削る")]
+        private float _crushSegmentLength = 20f;
+
+        [SerializeField, Min(0.1f)]
+        [Tooltip("倒れた塔の下になったビルを、すべての区間で削り終えるまでの時間（秒）。区間を削る間隔は、この時間を区間の数で割った値")]
+        private float _crushDuration = 10f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("塔の上の部分の質量（kg）。倒れた階のまとまりの質量に足す")]
-        private float _upperMass = 1000000f;
+        [Tooltip("区間を削るのにかかった時間に対する、次の区間を削るまでに空ける時間の倍率。建物が密集した場所は 1 回で重くなるので、削った時間の分だけ間隔を伸ばして、重いフレームが続かないようにする")]
+        private float _crushRestRatio = 4f;
+
+        [SerializeField]
+        [Tooltip("塔が止まったときに、軸に沿って出す煙のパーティクル。ワールド空間でシミュレーションする。未設定なら出さない")]
+        private ParticleSystem _collapseSmoke;
+
+        [SerializeField, Min(1f)]
+        [Tooltip("塔が止まったときに、煙を出す位置の軸に沿った間隔（m）")]
+        private float _smokeSpacing = 40f;
+
+        [SerializeField, Min(0)]
+        [Tooltip("塔が止まったときに、煙を出す位置ごとに出す粒の数")]
+        private int _smokeCountPerPoint = 20;
+
+        [SerializeField, Min(0)]
+        [Tooltip("区間を削るたびに、その区間の中央で出す煙の粒の数")]
+        private int _crushSmokeCount = 8;
 
         [SerializeField, Min(0f)]
-        [Tooltip("倒れたまとまりの質量の下限（kg）。階をボクセルにせずに倒すと、階の体積が質量に入らない為")]
-        private float _minimumMass = 25000000f;
-
-        private const string GROUND_LAYER = "Ground";
-        private const string PLAYER_LAYER = "Player";
-        private const string ENEMY_LAYER = "Enemy";
-
-        /// <summary> 止まったとみなす速さ（m/s） </summary>
-        private const float SETTLED_SPEED = 0.05f;
-
-        /// <summary> 止まったとみなす角速度（rad/s） </summary>
-        private const float SETTLED_ANGULAR_SPEED = 0.005f;
-
-        /// <summary> 止まったとみなす速さが続く時間（秒） </summary>
-        private const float SETTLED_DURATION = 2f;
+        [Tooltip("塔が止まったときに画面を揺らす強さ。0 なら揺らさない")]
+        private float _stopShakeForce = 3f;
 
         private IDisposable _subscription;
         private IDisposable _collapsingSubscription;
-        private Rigidbody _drivenBody;
-        private Vector3 _toppleAxis;
         private Rigidbody _toppledBody;
         private Transform _upperRoot;
         private Mesh _upperHullMesh;
-        private float _settledTime;
-        private int _crushIndex = -1;
+
+        /// <summary> 倒れたまとまりに付けた、塔の上の部分の凸包のコライダー </summary>
+        private MeshCollider _hullCollider;
+
+        /// <summary> 帯の足場の範囲。倒れたまとまりの空間 </summary>
+        private Bounds _bandBounds;
+
+        private bool _hasBandBounds;
+        private Vector3 _toppleAxis;
+
+        /// <summary> 倒れる向き側の、帯の底の縁の中心。回転の軸が通る点 </summary>
+        private Vector3 _pivot;
+
+        private Vector3 _startPosition;
+        private Quaternion _startRotation;
+
+        /// <summary> 倒れ始めから今までの傾き（度） </summary>
+        private float _toppleAngle;
+
+        /// <summary> 今の回る速さ（度/秒） </summary>
+        private float _toppleSpeed;
+
+        private int _groundMask;
+
+        /// <summary> 次の区間を削るまでの残り時間（秒） </summary>
+        private float _crushTimer;
+
+        /// <summary> 区間を削る間隔（秒） </summary>
+        private float _crushInterval;
+
+        private CinemachineImpulseSource _impulseSource;
         private VoxelDestructionAdapter _crushAdapter;
         private bool _hasToppled;
+        private bool _isToppling;
+        private bool _isStopped;
         private bool _hasReleasedSpawns;
 
         /// <summary> 倒れて止まった塔のまとまり。倒れている途中と、倒れる前は null。軸は transform.up </summary>
@@ -125,68 +171,128 @@ namespace Kizami.EngineAdapter
 
         private void Update()
         {
-            StopWhenSettled();
-
-            // 倒れて止まったら（VoxelBuilding がキネマティックにしたら）、橋の上に敵を出す
-            if (_toppledBody != null && !_hasReleasedSpawns && _toppledBody.isKinematic)
+            // 倒れ終わったら、煙で隠しながら、橋の上に敵を出し、塔の下を削り始める
+            if (_isStopped && !_hasReleasedSpawns)
             {
                 _hasReleasedSpawns = true;
+                PlayStopEffects();
                 ReleaseTopFaceSpawns();
-                if (_crushAdapter != null) _crushIndex = 0;
+                EnqueueCrushSegments();
             }
 
             CrushNextSegment();
         }
 
         /// <summary>
-        /// 止まった塔の軸に沿って、塔の下になったビルを区間ごとに 1 フレームずつ削る。削る半径は根元から先端へ線形に細くする。
-        /// 倒れる間は塔がビルと接触しない為、止まったあとに、塔が重なった部分を削って潰す。
+        /// 止まった塔の軸に沿って煙を出し、画面を揺らす。
         /// </summary>
-        private void CrushNextSegment()
+        private void PlayStopEffects()
         {
-            if (_crushIndex < 0) return;
-
-            var length = _upperHullMesh.bounds.max.y;
-            var start = _crushIndex * _crushSegmentLength;
-            if (start >= length || _crushAdapter == null || _toppledBody == null)
+            var axis = _toppledBody.transform;
+            for (var distance = 0f; distance < AxisLength; distance += _smokeSpacing)
             {
-                _crushIndex = -1;
-                return;
+                EmitSmoke(axis.TransformPoint(Vector3.up * distance), _smokeCountPerPoint);
             }
 
-            var end = Mathf.Min(start + _crushSegmentLength, length);
-            var radius = Mathf.Lerp(_crushRadiusBase, _crushRadiusTip, (start + end) * 0.5f / length);
-            var axis = _toppledBody.transform;
-            _crushAdapter.CarveCapsuleAt(axis.TransformPoint(Vector3.up * start), axis.TransformPoint(Vector3.up * end), radius);
-            _crushIndex++;
+            if (_stopShakeForce <= 0f) return;
+
+            if (_impulseSource == null) _impulseSource = CreateImpulseSource();
+            _impulseSource.GenerateImpulseWithForce(_stopShakeForce);
+        }
+
+        private void EmitSmoke(Vector3 position, int count)
+        {
+            if (_collapseSmoke == null || count <= 0) return;
+
+            var emitParams = new ParticleSystem.EmitParams { position = position, applyShapeToPosition = true };
+            _collapseSmoke.Emit(emitParams, count);
         }
 
         /// <summary>
-        /// 倒れた塔が、傾けるのをやめたあとに一定時間ほぼ動かなければ、眠らせる。巨大な凸包は物理の眠る判定を満たさず、止まったことが VoxelBuilding に伝わらない為。
+        /// 画面を揺らす CinemachineImpulseSource を作る。揺れは、カメラの CinemachineImpulseListener が受ける。
         /// </summary>
-        private void StopWhenSettled()
+        private CinemachineImpulseSource CreateImpulseSource()
         {
-            if (_toppledBody == null || _drivenBody != null || _toppledBody.isKinematic || _toppledBody.IsSleeping()) return;
-
-            var isSlow = _toppledBody.linearVelocity.sqrMagnitude < SETTLED_SPEED * SETTLED_SPEED &&
-                         _toppledBody.angularVelocity.sqrMagnitude < SETTLED_ANGULAR_SPEED * SETTLED_ANGULAR_SPEED;
-            _settledTime = isSlow ? _settledTime + Time.deltaTime : 0f;
-            if (_settledTime >= SETTLED_DURATION) _toppledBody.Sleep();
+            var source = gameObject.AddComponent<CinemachineImpulseSource>();
+            source.ImpulseDefinition.ImpulseShape = CinemachineImpulseDefinition.ImpulseShapes.Bump;
+            source.ImpulseDefinition.ImpulseType = CinemachineImpulseDefinition.ImpulseTypes.Uniform;
+            source.ImpulseDefinition.ImpulseDuration = 1.5f;
+            source.DefaultVelocity = Vector3.down;
+            return source;
         }
 
-        private void FixedUpdate()
+        /// <summary>
+        /// 止まった塔の軸に沿って、塔の下になったビルを削る区間を、根元から先端の順にキューへ積む。削る半径は根元から先端へ線形に細くする。
+        /// 倒れる間は塔がビルと接触しない為、止まったあとに、塔が重なった部分を削って潰す。
+        /// </summary>
+        private void EnqueueCrushSegments()
         {
-            if (_drivenBody == null) return;
+            var length = AxisLength;
+            var count = Mathf.CeilToInt(length / _crushSegmentLength);
+            if (_crushAdapter == null || count <= 0) return;
 
-            if (Vector3.Angle(_drivenBody.transform.up, Vector3.up) >= _driveUntilAngle)
+            var axis = _toppledBody.transform;
+            for (var i = 0; i < count; i++)
             {
-                // 以降は重力に任せ、止まったら VoxelBuilding がキネマティックにする
-                _drivenBody.sleepThreshold = REST_SLEEP_THRESHOLD;
-                _drivenBody = null;
-                return;
+                var start = i * _crushSegmentLength;
+                var end = Mathf.Min(start + _crushSegmentLength, length);
+                var radius = Mathf.Lerp(_crushRadiusBase, _crushRadiusTip, (start + end) * 0.5f / length);
+                _crushQueue.Enqueue((axis.TransformPoint(Vector3.up * start), axis.TransformPoint(Vector3.up * end), radius));
             }
 
-            _drivenBody.AddTorque(_toppleAxis * _toppleAngularAcceleration, ForceMode.Acceleration);
+            _crushInterval = _crushDuration / count;
+            _crushTimer = 0f;
+        }
+
+        /// <summary>
+        /// 区間を削る間隔が経ったら、キューの先頭の区間を 1 つ削り、その中央で煙を出す。
+        /// 次までの間隔は、決めた間隔と、削るのにかかった時間の倍率の長いほうにする。
+        /// </summary>
+        private void CrushNextSegment()
+        {
+            if (_crushQueue.Count == 0) return;
+
+            _crushTimer -= Time.deltaTime;
+            if (_crushTimer > 0f) return;
+
+            var (start, end, radius) = _crushQueue.Dequeue();
+            var startTime = Time.realtimeSinceStartupAsDouble;
+            _crushAdapter.CarveCapsuleAt(start, end, radius);
+            var carveTime = (float)(Time.realtimeSinceStartupAsDouble - startTime);
+            EmitSmoke((start + end) * 0.5f, _crushSmokeCount);
+            _crushTimer = Mathf.Max(_crushInterval, carveTime * _crushRestRatio);
+        }
+
+        /// <summary>
+        /// 倒れている間、物理の1ステップごとに一定の角加速度で傾きを進める。次の傾きで凸包の点が地面に届くなら、届く直前の傾きで止める。
+        /// </summary>
+        private void FixedUpdate()
+        {
+            if (!_isToppling) return;
+
+            _toppleSpeed += _toppleAngularAcceleration * Mathf.Rad2Deg * Time.fixedDeltaTime;
+            var nextAngle = _toppleAngle + _toppleSpeed * Time.fixedDeltaTime;
+            var isStopping = false;
+
+            if (nextAngle >= MAX_TOPPLE_ANGLE)
+            {
+                UsefulLogger.LogWarning($"倒れる先に地面がなかった為、{MAX_TOPPLE_ANGLE} 度で止めます。", this);
+                nextAngle = MAX_TOPPLE_ANGLE;
+                isStopping = true;
+            }
+            else if (TouchesGround(nextAngle))
+            {
+                nextAngle = FindContactAngle(_toppleAngle, nextAngle);
+                isStopping = true;
+            }
+
+            _toppleAngle = nextAngle;
+            ApplyAngle(nextAngle);
+            if (!isStopping) return;
+
+            _isToppling = false;
+            _isStopped = true;
+            UsefulLogger.Log($"天照塔が倒れ終わりました。傾き {nextAngle:F2} 度", this);
         }
 
         private void OnDestroy()
@@ -196,7 +302,7 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 倒れた階のまとまりに塔の上の部分が含まれていれば、質量を足し、最初の1回だけ倒れる向きへ回す。
+        /// 倒れた階のまとまりに塔の上の部分が含まれていれば、当たり判定を倒れた塔用に置き換える。
         /// 上の部分を持たないまとまり（上の階が先に倒れたあとの下の階）は何もしない。
         /// </summary>
         private void OnCollapsing(Transform group)
@@ -204,14 +310,12 @@ namespace Kizami.EngineAdapter
             if (_upperRoot != null && _upperRoot.IsChildOf(group)) ReplaceWithHull(group);
         }
 
+        /// <summary>
+        /// 倒れた階のまとまりに塔の上の部分が含まれていれば、最初の1回だけ、物理から外して倒れる向きへ回し始める。
+        /// </summary>
         private void OnCollapsed(Rigidbody body)
         {
-            if (_upperRoot == null || !_upperRoot.IsChildOf(body.transform)) return;
-
-            _toppledBody = body;
-            body.mass = Mathf.Max(body.mass + _upperMass, _minimumMass);
-
-            if (_hasToppled) return;
+            if (_upperRoot == null || !_upperRoot.IsChildOf(body.transform) || _hasToppled) return;
 
             _hasToppled = true;
             var direction = _fallTarget != null
@@ -225,13 +329,110 @@ namespace Kizami.EngineAdapter
             }
 
             UsefulLogger.Log($"天照塔が倒れ始めました。倒れる向き {direction.normalized}（水平の長さ {direction.magnitude:F3}）", this);
-            if (direction.sqrMagnitude < 1e-6f) return;
+            if (direction.sqrMagnitude < 1e-6f)
+            {
+                UsefulLogger.LogError("倒れる向きが決まらない為、塔を物理のまま倒します。", this);
+                return;
+            }
+
+            direction.Normalize();
+            _toppledBody = body;
+            _building.DetachBody(body);
+            body.isKinematic = true;
 
             // 水平な倒れる向きに対して、上向きとの外積が倒れる向きに傾ける回転軸になる
-            _toppleAxis = Vector3.Cross(Vector3.up, direction.normalized);
-            body.angularVelocity = _toppleAxis * _toppleAngularSpeed;
-            _drivenBody = body;
-            body.sleepThreshold = 0f;
+            _toppleAxis = Vector3.Cross(Vector3.up, direction);
+            _pivot = FindPivot(body.transform, direction);
+            _startPosition = body.position;
+            _startRotation = body.rotation;
+            _groundMask = 1 << LayerMask.NameToLayer(GROUND_LAYER);
+
+            UsefulLogger.Log($"回転の軸が通る点 {_pivot}", this);
+            _isToppling = true;
+        }
+
+        /// <summary>
+        /// 倒れた階のまとまり group の、倒れる向き direction 側の底の縁の中心を返す。縁は帯の足場の範囲の底の面にある。足場の範囲がなければ、まとまりの原点を返す。
+        /// </summary>
+        private Vector3 FindPivot(Transform group, Vector3 direction)
+        {
+            if (!_hasBandBounds)
+            {
+                UsefulLogger.LogWarning("帯の足場の範囲が取れなかった為、まとまりの原点を軸にして倒します。", this);
+                return group.position;
+            }
+
+            var min = _bandBounds.min;
+            var max = _bandBounds.max;
+            var corners = new Vector3[4];
+            var best = float.NegativeInfinity;
+            for (var i = 0; i < corners.Length; i++)
+            {
+                corners[i] = group.TransformPoint(new Vector3(
+                    (i & 1) == 0 ? min.x : max.x, min.y, (i & 2) == 0 ? min.z : max.z));
+                best = Mathf.Max(best, Vector3.Dot(corners[i], direction));
+            }
+
+            var sum = Vector3.zero;
+            var count = 0;
+            foreach (var corner in corners)
+            {
+                if (Vector3.Dot(corner, direction) < best - EDGE_TOLERANCE) continue;
+
+                sum += corner;
+                count++;
+            }
+
+            return sum / count;
+        }
+
+        /// <summary>
+        /// まとまりを、倒れ始めの姿勢から軸まわりに angle 度傾けた姿勢にする。
+        /// </summary>
+        private void ApplyAngle(float angle)
+        {
+            var rotation = Quaternion.AngleAxis(angle, _toppleAxis);
+            _toppledBody.MoveRotation(rotation * _startRotation);
+            _toppledBody.MovePosition(_pivot + rotation * (_startPosition - _pivot));
+        }
+
+        /// <summary>
+        /// 軸まわりに angle 度傾けたとき、塔の上の部分の凸包が地面（Ground レイヤー）にめり込むか。
+        /// 凸包の範囲と重なる地面のコライダーだけを、凸包を傾けた姿勢に置いた場合の重なりで確かめる。
+        /// 柱の途中が地面の縁に乗る場合があるので、凸包の頂点ではなく凸包そのものを使う。
+        /// </summary>
+        private bool TouchesGround(float angle)
+        {
+            var rotation = Quaternion.AngleAxis(angle, _toppleAxis);
+            var position = _pivot + rotation * (_startPosition - _pivot);
+            rotation *= _startRotation;
+
+            var bounds = _upperHullMesh.bounds;
+            var count = Physics.OverlapBoxNonAlloc(position + rotation * bounds.center, bounds.extents, _groundOverlaps, rotation,
+                _groundMask, QueryTriggerInteraction.Ignore);
+            for (var i = 0; i < count; i++)
+            {
+                var ground = _groundOverlaps[i];
+                if (Physics.ComputePenetration(_hullCollider, position, rotation, ground, ground.transform.position,
+                        ground.transform.rotation, out _, out _)) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 届いていない傾き clearAngle と、届いている傾き touchingAngle の間を絞り込み、届く直前の傾きを返す。
+        /// </summary>
+        private float FindContactAngle(float clearAngle, float touchingAngle)
+        {
+            for (var i = 0; i < CONTACT_REFINE_COUNT; i++)
+            {
+                var middle = (clearAngle + touchingAngle) * 0.5f;
+                if (TouchesGround(middle)) touchingAngle = middle;
+                else clearAngle = middle;
+            }
+
+            return clearAngle;
         }
 
         /// <summary>
@@ -265,9 +466,8 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// 階のまとまり group の子のコライダーをすべて消し、倒れた塔用の当たり判定に置き換える。
-        /// 塔の上の部分は凸包の MeshCollider 1つ（プレイヤー・敵・地面と接触）。
-        /// 帯は、全体で足場の箱 1 つ（プレイヤー・敵と接触）と、箱の中心に置いた大きな球 1 つ（地面とだけ接触）を付ける。
-        /// 地面以外のコライダー（建物のボクセルなど）とは接触せず、倒れる向きが乱れない。
+        /// 塔の上の部分は凸包の MeshCollider 1つ（プレイヤー・敵・地面と接触）。帯は、全体で足場の箱 1つ（プレイヤー・敵と接触）を付ける。
+        /// 地面以外のコライダー（建物のボクセルなど）とは接触しない。
         /// </summary>
         private void ReplaceWithHull(Transform group)
         {
@@ -295,9 +495,12 @@ namespace Kizami.EngineAdapter
                 Destroy(collider);
             }
 
+            _bandBounds = bandBounds;
+            _hasBandBounds = hasBounds;
+
             var groundMask = 1 << LayerMask.NameToLayer(GROUND_LAYER);
             var peopleMask = (1 << LayerMask.NameToLayer(PLAYER_LAYER)) | (1 << LayerMask.NameToLayer(ENEMY_LAYER));
-            if (hasBounds) AddFootColliders(group, bandBounds, groundMask, peopleMask);
+            if (hasBounds) AddFootCollider(group, bandBounds, peopleMask);
 
             var upperObject = new GameObject("TowerHull_Upper") { layer = group.gameObject.layer };
             upperObject.transform.SetParent(group, false);
@@ -305,12 +508,13 @@ namespace Kizami.EngineAdapter
             upper.convex = true;
             upper.sharedMesh = _upperHullMesh;
             upper.excludeLayers = ~(groundMask | peopleMask);
+            _hullCollider = upper;
         }
 
         /// <summary>
-        /// 帯全体の範囲 bounds に、足場の箱と、地面と接する大きな球を 1 つ付ける。球は箱の中心に置き、箱に収まる最大の半径にする。
+        /// 帯全体の範囲 bounds に、プレイヤーと敵が乗れる足場の箱を 1 つ付ける。
         /// </summary>
-        private void AddFootColliders(Transform group, Bounds bounds, int groundMask, int peopleMask)
+        private void AddFootCollider(Transform group, Bounds bounds, int peopleMask)
         {
             var footObject = new GameObject("TowerFoot") { layer = group.gameObject.layer };
             footObject.transform.SetParent(group, false);
@@ -319,11 +523,6 @@ namespace Kizami.EngineAdapter
             box.center = bounds.center;
             box.size = bounds.size;
             box.excludeLayers = ~peopleMask;
-
-            var sphere = footObject.AddComponent<SphereCollider>();
-            sphere.radius = Mathf.Min(bounds.extents.x, bounds.extents.y, bounds.extents.z);
-            sphere.center = bounds.center;
-            sphere.excludeLayers = ~groundMask;
         }
 
         /// <summary>

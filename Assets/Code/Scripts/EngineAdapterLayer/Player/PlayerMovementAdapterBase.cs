@@ -49,6 +49,14 @@ namespace Kizami.EngineAdapter
         [Tooltip("壁走りのできる壁として判定するレイヤー。ボクセルと Brilliant Skill の言葉は、レイヤーによらず壁として判定する")]
         private LayerMask _wallLayers;
 
+        [SerializeField, Min(0f)]
+        [Tooltip("足元からこの距離（m）以内に地面があるとき、壁走りに入れない")]
+        private float _wallMinGroundClearance = 1.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ボクセルのピースの高さ（m）がこれより小さいと、壁として判定しない")]
+        private float _minWallPieceHeight = 2f;
+
         [SerializeField] private Rigidbody _rigidbody;
         [SerializeField] private CapsuleCollider _collider;
 
@@ -82,6 +90,15 @@ namespace Kizami.EngineAdapter
         [Tooltip("下降の倍率に達するまでの、落下の速さの幅（m/s）。大きいほど加速度が緩やかに上がる")]
         private float _fallRampSpeed = 12f;
 
+        [Header("効果音")]
+        [SerializeField, Min(0.1f)]
+        [Tooltip("足音を1回鳴らす移動距離（m）。地上と壁走りで共通")]
+        private float _footstepStride = 2.2f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("着地の音を鳴らす、着地する直前の落下の速さ（m/s）の下限")]
+        private float _landSoundMinFallSpeed = 4f;
+
         private IPlayerMovementState _movementState;
         private Func<Vector3, float, Vector3?> _step;
         private IDisposable _lookSubscription;
@@ -98,6 +115,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 直前の FixedUpdate で反映した移動モード </summary>
         private PlayerMoveMode _lastAppliedMode;
+
+        /// <summary> 直前の FixedUpdate で地面に触れていたか </summary>
+        private bool _wasGrounded;
+
+        /// <summary> 前回の足音から進んだ水平距離（m） </summary>
+        private float _stepDistance;
 
         /// <summary> プレイヤーの当たり判定のカプセルの、ワールド空間の外接箱 </summary>
         public Bounds BodyBounds => _collider.bounds;
@@ -242,8 +265,35 @@ namespace Kizami.EngineAdapter
                 }
             }
 
+            PlayMovementSounds(isGrounded, isWallRunning);
             UpdateVerticalVelocity(launchVelocity, isGrounded, isWallRunning || hasWarpEnded);
             _rigidbody.linearVelocity = new Vector3(_horizontalVelocity.x, _verticalVelocity, _horizontalVelocity.z);
+        }
+
+        /// <summary>
+        /// 着地と足音の効果音を鳴らす。着地は、空中から地面に触れた瞬間の落下の速さが下限以上のときに鳴らす。
+        /// 足音は、地上か壁走りで水平に動いている間、歩幅の距離を進むたびに鳴らす。縦の速度が0になる前に呼ぶこと。
+        /// </summary>
+        private void PlayMovementSounds(bool isGrounded, bool isWallRunning)
+        {
+            if (isGrounded && !_wasGrounded && -_verticalVelocity >= _landSoundMinFallSpeed)
+            {
+                SoundPlayer.Play(SoundEffectKind.PlayerLand, Position);
+            }
+
+            _wasGrounded = isGrounded;
+
+            if (!isGrounded && !isWallRunning)
+            {
+                _stepDistance = 0f;
+                return;
+            }
+
+            _stepDistance += _horizontalVelocity.magnitude * Time.fixedDeltaTime;
+            if (_stepDistance < _footstepStride) return;
+
+            _stepDistance = 0f;
+            SoundPlayer.Play(SoundEffectKind.PlayerFootstep, Position);
         }
 
         /// <summary>
@@ -309,9 +359,14 @@ namespace Kizami.EngineAdapter
 
             var contacts = PlayerContact.None;
 
-            if (IsGrounded(bottomSphereCenter, radius))
+            if (IsGroundWithin(bottomSphereCenter, radius, _groundCheckDistance))
             {
                 contacts |= PlayerContact.Ground;
+            }
+
+            if (IsGroundWithin(bottomSphereCenter, radius, _wallMinGroundClearance))
+            {
+                contacts |= PlayerContact.NearGround;
             }
 
             if (TryFindWallNormal(bottomSphereCenter, topSphereCenter, radius, out var wallNormal))
@@ -326,9 +381,9 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// カプセルの下側の球を下向きに飛ばし、_groundCheckDistance 以内に地面があるかを判定する。
+        /// カプセルの下側の球を下向きに飛ばし、カプセルの下端から distance 以内に地面があるかを判定する。
         /// </summary>
-        private bool IsGrounded(Vector3 bottomSphereCenter, float radius)
+        private bool IsGroundWithin(Vector3 bottomSphereCenter, float radius, float distance)
         {
             // SphereCast は開始時点で重なっているコライダーを検出しない。
             // 落下中に1ステップで地面へめり込んでも取りこぼさないよう、球をカプセルより SKIN_WIDTH だけ小さくし、
@@ -336,7 +391,7 @@ namespace Kizami.EngineAdapter
             const float SKIN_WIDTH = 0.05f;
             var castRadius = radius - SKIN_WIDTH;
             var castOrigin = bottomSphereCenter + Vector3.up * radius;
-            var castDistance = radius + SKIN_WIDTH + _groundCheckDistance;
+            var castDistance = radius + SKIN_WIDTH + distance;
 
             return Physics.SphereCast(castOrigin, castRadius, Vector3.down, out _, castDistance,
                 _groundLayers, QueryTriggerInteraction.Ignore);
@@ -383,14 +438,17 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// コライダーが壁走りのできる壁か。_wallLayers のレイヤーか、ボクセルのピース、Brilliant Skill の言葉なら壁。
+        /// コライダーが壁走りのできる壁か。ボクセルのピースは、高さが _minWallPieceHeight 以上なら壁（レイヤーによらない）。
+        /// ピース以外は、_wallLayers のレイヤーか、Brilliant Skill の言葉なら壁。
         /// </summary>
         private bool IsWall(Collider wallCollider)
         {
+            var piece = wallCollider.GetComponentInParent<VoxelPiece>();
+            if (piece != null) return piece.WorldBounds.size.y >= _minWallPieceHeight;
+
             if (((1 << wallCollider.gameObject.layer) & _wallLayers.value) != 0) return true;
 
-            return wallCollider.GetComponentInParent<VoxelPiece>() != null ||
-                   wallCollider.GetComponentInParent<BrilliantWord>() != null;
+            return wallCollider.GetComponentInParent<BrilliantWord>() != null;
         }
     }
 }

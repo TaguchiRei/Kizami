@@ -151,21 +151,138 @@ MonoBehaviour:
   _seGroup: {fileID: 6967424047128237549, guid: 0b59da02c04555141ab4cc1f5a6f6e12, type: 2}
   _bgmGroup: {fileID: 7912274171213022086, guid: 0b59da02c04555141ab4cc1f5a6f6e12, type: 2}
   _bgmClip: {fileID: 8300000, guid: e14c1964815e71f4da71265807238193, type: 3}
-  _bgmVolume: 1
-  _glassBreakClips:
-  - {fileID: 8300000, guid: 25912702605db854b9f2538f6e8a0881, type: 3}
-  - {fileID: 8300000, guid: 2e21d2b692ac04c4e8dad52674f47af1, type: 3}
-  - {fileID: 8300000, guid: 56fe567c18ed14240b8815f388f425d2, type: 3}
-  - {fileID: 8300000, guid: c4def0e0874ee1d4497db9117cdef556, type: 3}
-  _armorCutClips:
-  - {fileID: 8300000, guid: b2125f8bb66ae704b85d4d729e5f2474, type: 3}
-  _voxelHitClips:
-  - {fileID: 8300000, guid: 910191b4dd3ba6147bf69dc0d9a31a72, type: 3}
-  _voxelCollapseClips:
-  - {fileID: 8300000, guid: b7db80258ba4ee7488ca7112c8284667, type: 3}
-  - {fileID: 8300000, guid: 5dab3a5989340974db5b29a40d7c97c6, type: 3}
+  _bgmVolume: 0.67
+  _effects:
+  - Kind: 0
+    Clips:
+    - {fileID: 8300000, guid: 25912702605db854b9f2538f6e8a0881, type: 3}
+    - {fileID: 8300000, guid: 2e21d2b692ac04c4e8dad52674f47af1, type: 3}
+    - {fileID: 8300000, guid: 56fe567c18ed14240b8815f388f425d2, type: 3}
+    - {fileID: 8300000, guid: c4def0e0874ee1d4497db9117cdef556, type: 3}
+    Volume: 1
+    PitchRange: 0
+    MinInterval: 0.05
+  - Kind: 1
+    Clips:
+    - {fileID: 8300000, guid: b2125f8bb66ae704b85d4d729e5f2474, type: 3}
+    Volume: 1
+    PitchRange: 0
+    MinInterval: 0.05
+  - Kind: 2
+    Clips:
+    - {fileID: 8300000, guid: 910191b4dd3ba6147bf69dc0d9a31a72, type: 3}
+    Volume: 1
+    PitchRange: 0
+    MinInterval: 0.05
+  - Kind: 3
+    Clips:
+    - {fileID: 8300000, guid: b7db80258ba4ee7488ca7112c8284667, type: 3}
+    - {fileID: 8300000, guid: 5dab3a5989340974db5b29a40d7c97c6, type: 3}
+    Volume: 1
+    PitchRange: 0
+    MinInterval: 0.05
+  - Kind: 4
+    Clips:
+    - {fileID: 8300000, guid: 78e320dfc8c61b94ba5477163aa66f26, type: 3}
+    - {fileID: 8300000, guid: ec361be8d622cf64795578495f89777f, type: 3}
+    Volume: 1
+    PitchRange: 0
+    MinInterval: 0.05
+  - Kind: 5
+    Clips:
+    - {fileID: 8300000, guid: 3f17c99f3e46878468b7c38cf232cc68, type: 3}
+    Volume: 1
+    PitchRange: 0.03
+    MinInterval: 0.1
+  - Kind: 6
+    Clips:
+    - {fileID: 8300000, guid: 0cf044b47ce21c34cb641fb05a27781e, type: 3}
+    Volume: 1
+    PitchRange: 0
+    MinInterval: 0.1
+  - Kind: 7
+    Clips:
+    - {fileID: 8300000, guid: 3bbd14663502799489334a9bd63bd41b, type: 3}
+    Volume: 1
+    PitchRange: 0
+    MinInterval: 0.1
+  - Kind: 8
+    Clips:
+    - {fileID: 8300000, guid: e3cd22ac8470f884a9f4e524bf90849c, type: 3}
+    Volume: 1
+    PitchRange: 0.08
+    MinInterval: 0.05
+  - Kind: 9
+    Clips:
+    - {fileID: 8300000, guid: f5f9ebc7c59a35c488cbd2611d4373cb, type: 3}
+    Volume: 1
+    PitchRange: 0.08
+    MinInterval: 0.05
+  - Kind: 10
+    Clips:
+    - {fileID: 8300000, guid: dfcfe189e5b30fb498d2dad06b5f49b8, type: 3}
+    Volume: 1
+    PitchRange: 0.05
+    MinInterval: 0.1
+  - Kind: 11
+    Clips:
+    - {fileID: 8300000, guid: 3ee94014814bd834086266fe799b59ee, type: 3}
+    Volume: 1
+    PitchRange: 0.05
+    MinInterval: 0.1
+  - Kind: 12
+    Clips:
+    - {fileID: 8300000, guid: 246c9ac96fa1e9c42835fc65e167633b, type: 3}
+    Volume: 1
+    PitchRange: 0.03
+    MinInterval: 0.1
+  - Kind: 13
+    Clips:
+    - {fileID: 8300000, guid: fa0fd5e3e8362054cb13062f66c64cb4, type: 3}
+    - {fileID: 8300000, guid: 48f05a58a54657540a0afdd66ff2dd6d, type: 3}
+    - {fileID: 8300000, guid: 458910217bb9bc34ab2c715d4e15d0db, type: 3}
+    Volume: 1
+    PitchRange: 0.1
+    MinInterval: 0.15
+  - Kind: 14
+    Clips:
+    - {fileID: 8300000, guid: 7d02f27d63baeeb4786793bbadd34ac4, type: 3}
+    Volume: 1
+    PitchRange: 0.03
+    MinInterval: 0.1
+  - Kind: 15
+    Clips:
+    - {fileID: 8300000, guid: 74963ffbca864474bb14384b0c41bf2a, type: 3}
+    Volume: 0.1
+    PitchRange: 0.15
+    MinInterval: 0.06
+  - Kind: 16
+    Clips:
+    - {fileID: 8300000, guid: fe5d553d209ed7c4a940d5f898e71263, type: 3}
+    Volume: 1
+    PitchRange: 0
+    MinInterval: 0.1
+  - Kind: 17
+    Clips:
+    - {fileID: 8300000, guid: 757acc40bab6e4c43a080d30afd46c99, type: 3}
+    Volume: 1
+    PitchRange: 0
+    MinInterval: 0.1
+  - Kind: 29
+    Clips:
+    - {fileID: 8300000, guid: 09a0d2b8abf76114c8d28fe356f64989, type: 3}
+    - {fileID: 8300000, guid: 1ad82335f51fabf44a3c051b41fe23c9, type: 3}
+    - {fileID: 8300000, guid: 8d08a614972ff004687c13ae2a7899d5, type: 3}
+    Volume: 1
+    PitchRange: 0.12
+    MinInterval: 0.08
+  - Kind: 50
+    Clips:
+    - {fileID: 8300000, guid: 0a9c577bdad267f46b07845102fa0ad8, type: 3}
+    Volume: 1
+    PitchRange: 0
+    MinInterval: 0.05
   _voiceCount: 16
-  _minInterval: 0.05
   _spatialBlend: 0.6
   _maxDistance: 80
 --- !u!4 &479034460
@@ -390,7 +507,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d73b8fa6e6c45e943a010cfa75768a5d, type: 2}
   - {fileID: 11400000, guid: 3a29a268965fb6d418cf53672965256f, type: 2}
   - {fileID: 11400000, guid: 3a36dc377610019478c0792dc9c173f9, type: 2}
-  - {fileID: 11400000, guid: 852b81a24799386469e0c6ba3b658737, type: 2}
+  - {fileID: 11400000, guid: 5cbb7e7bf3520e5429d3cfd12807f7f3, type: 2}
   _skills:
   - {fileID: 11400000, guid: ed106c18d54e42b7804f9237315ad9e8, type: 2}
   - {fileID: 11400000, guid: 5c7332ccc0f74149a007736fded64901, type: 2}
@@ -414,6 +531,7 @@ GameObject:
   m_Component:
   - component: {fileID: 752471125}
   - component: {fileID: 752471124}
+  - component: {fileID: 752471126}
   m_Layer: 0
   m_Name: DebugGUI
   m_TagString: Untagged
@@ -448,6 +566,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &752471126
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 752471123}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 07b902d77324a05468c086d879271cd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.DebugVisibilityAdapter
+  _debugGui: {fileID: 752471124}
 --- !u!1 &1862679503
 GameObject:
   m_ObjectHideFlags: 0
@@ -527,6 +658,141 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2058295731
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2058295736}
+  - component: {fileID: 2058295735}
+  - component: {fileID: 2058295734}
+  - component: {fileID: 2058295733}
+  - component: {fileID: 2058295732}
+  m_Layer: 0
+  m_Name: Cube
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!64 &2058295732
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2058295731}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!65 &2058295733
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2058295731}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &2058295734
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2058295731}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &2058295735
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2058295731}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!4 &2058295736
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2058295731}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -81.75082, y: 0, z: -137.9766}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -535,3 +801,4 @@ SceneRoots:
   - {fileID: 752471125}
   - {fileID: 1862679506}
   - {fileID: 479034460}
+  - {fileID: 2058295736}

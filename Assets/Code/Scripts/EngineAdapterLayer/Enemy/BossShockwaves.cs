@@ -93,6 +93,9 @@ namespace Kizami.EngineAdapter
             }
         }
 
+        /// <summary> クールタイムが過ぎて、足踏みできるか </summary>
+        public bool IsReady => _cooldownRemaining <= 0f;
+
         /// <summary>
         /// 弾く相手を target にする。ボスとプレイヤーが別のシーンにあるときに、初期化で渡す。
         /// </summary>
