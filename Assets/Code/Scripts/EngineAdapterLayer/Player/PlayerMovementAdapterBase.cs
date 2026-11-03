@@ -90,6 +90,15 @@ namespace Kizami.EngineAdapter
         [Tooltip("下降の倍率に達するまでの、落下の速さの幅（m/s）。大きいほど加速度が緩やかに上がる")]
         private float _fallRampSpeed = 12f;
 
+        [Header("効果音")]
+        [SerializeField, Min(0.1f)]
+        [Tooltip("足音を1回鳴らす移動距離（m）。地上と壁走りで共通")]
+        private float _footstepStride = 2.2f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("着地の音を鳴らす、着地する直前の落下の速さ（m/s）の下限")]
+        private float _landSoundMinFallSpeed = 4f;
+
         private IPlayerMovementState _movementState;
         private Func<Vector3, float, Vector3?> _step;
         private IDisposable _lookSubscription;
@@ -106,6 +115,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 直前の FixedUpdate で反映した移動モード </summary>
         private PlayerMoveMode _lastAppliedMode;
+
+        /// <summary> 直前の FixedUpdate で地面に触れていたか </summary>
+        private bool _wasGrounded;
+
+        /// <summary> 前回の足音から進んだ水平距離（m） </summary>
+        private float _stepDistance;
 
         /// <summary> プレイヤーの当たり判定のカプセルの、ワールド空間の外接箱 </summary>
         public Bounds BodyBounds => _collider.bounds;
@@ -250,8 +265,35 @@ namespace Kizami.EngineAdapter
                 }
             }
 
+            PlayMovementSounds(isGrounded, isWallRunning);
             UpdateVerticalVelocity(launchVelocity, isGrounded, isWallRunning || hasWarpEnded);
             _rigidbody.linearVelocity = new Vector3(_horizontalVelocity.x, _verticalVelocity, _horizontalVelocity.z);
+        }
+
+        /// <summary>
+        /// 着地と足音の効果音を鳴らす。着地は、空中から地面に触れた瞬間の落下の速さが下限以上のときに鳴らす。
+        /// 足音は、地上か壁走りで水平に動いている間、歩幅の距離を進むたびに鳴らす。縦の速度が0になる前に呼ぶこと。
+        /// </summary>
+        private void PlayMovementSounds(bool isGrounded, bool isWallRunning)
+        {
+            if (isGrounded && !_wasGrounded && -_verticalVelocity >= _landSoundMinFallSpeed)
+            {
+                SoundPlayer.Play(SoundEffectKind.PlayerLand, Position);
+            }
+
+            _wasGrounded = isGrounded;
+
+            if (!isGrounded && !isWallRunning)
+            {
+                _stepDistance = 0f;
+                return;
+            }
+
+            _stepDistance += _horizontalVelocity.magnitude * Time.fixedDeltaTime;
+            if (_stepDistance < _footstepStride) return;
+
+            _stepDistance = 0f;
+            SoundPlayer.Play(SoundEffectKind.PlayerFootstep, Position);
         }
 
         /// <summary>

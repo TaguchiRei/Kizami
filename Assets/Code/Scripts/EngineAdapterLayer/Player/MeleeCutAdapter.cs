@@ -194,7 +194,11 @@ namespace Kizami.EngineAdapter
 
             _pieces.Clear();
 
-            if (_hasHit) HitEffectPlayer.Play(_hitPoint, _hitNormal);
+            if (_hasHit)
+            {
+                HitEffectPlayer.Play(_hitPoint, _hitNormal);
+                SoundPlayer.Play(SoundEffectKind.PlayerCutHit, _hitPoint);
+            }
 
             // 体力が尽きる一撃では切り分けないよう、切り分けのあとに報告する
             if (_hitHealthTarget != null) _hitHealthTarget.ReportMeleeHit();

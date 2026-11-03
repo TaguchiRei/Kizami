@@ -1001,7 +1001,9 @@ namespace Kizami.EngineAdapter
         {
             if (defeatedCount <= 0) return;
 
-            _onDefeated?.Invoke(new EnemyDefeatNotice(defeatedCount, cause, positionSum / defeatedCount));
+            var center = positionSum / defeatedCount;
+            SoundPlayer.Play(SoundEffectKind.EnemyDefeat, center);
+            _onDefeated?.Invoke(new EnemyDefeatNotice(defeatedCount, cause, center));
         }
 
         /// <summary>

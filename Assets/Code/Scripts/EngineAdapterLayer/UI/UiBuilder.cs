@@ -78,6 +78,7 @@ namespace Kizami.EngineAdapter
             var image = CreateChild<Image>(parent, name);
             image.color = color;
             var button = image.gameObject.AddComponent<Button>();
+            button.onClick.AddListener(() => SoundPlayer.PlayUi(SoundEffectKind.UiConfirm));
 
             var text = CreateText(image.transform, "Label", fontSize);
             text.text = label;
