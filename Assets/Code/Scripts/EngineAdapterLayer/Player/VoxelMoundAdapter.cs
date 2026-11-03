@@ -61,15 +61,55 @@ namespace Kizami.EngineAdapter
         private IDisposable _pillarSubscription;
 
         /// <summary>
-        /// 線分 from-to 上で、点 point に最も近い点を返す。
+        /// 線分 p1-q1 と線分 p2-q2 の間の最短距離の 2 乗を返す。
         /// </summary>
-        private static Vector3 ClosestPointOnSegment(Vector3 from, Vector3 to, Vector3 point)
+        private static float SegmentSqrDistance(Vector3 p1, Vector3 q1, Vector3 p2, Vector3 q2)
         {
-            var segment = to - from;
-            var sqrLength = segment.sqrMagnitude;
-            if (sqrLength <= 0f) return from;
+            const float EPSILON = 1e-6f;
+            var d1 = q1 - p1;
+            var d2 = q2 - p2;
+            var r = p1 - p2;
+            var a = Vector3.Dot(d1, d1);
+            var e = Vector3.Dot(d2, d2);
+            var f = Vector3.Dot(d2, r);
+            float s;
+            float t;
 
-            return from + segment * Mathf.Clamp01(Vector3.Dot(point - from, segment) / sqrLength);
+            if (a <= EPSILON && e <= EPSILON) return r.sqrMagnitude;
+
+            if (a <= EPSILON)
+            {
+                s = 0f;
+                t = Mathf.Clamp01(f / e);
+            }
+            else
+            {
+                var c = Vector3.Dot(d1, r);
+                if (e <= EPSILON)
+                {
+                    t = 0f;
+                    s = Mathf.Clamp01(-c / a);
+                }
+                else
+                {
+                    var b = Vector3.Dot(d1, d2);
+                    var denominator = a * e - b * b;
+                    s = denominator > EPSILON ? Mathf.Clamp01((b * f - c * e) / denominator) : 0f;
+                    t = (b * s + f) / e;
+                    if (t < 0f)
+                    {
+                        t = 0f;
+                        s = Mathf.Clamp01(-c / a);
+                    }
+                    else if (t > 1f)
+                    {
+                        t = 1f;
+                        s = Mathf.Clamp01((b - c) / a);
+                    }
+                }
+            }
+
+            return ((p1 + d1 * s) - (p2 + d2 * t)).sqrMagnitude;
         }
 
         /// <summary>
@@ -170,6 +210,8 @@ namespace Kizami.EngineAdapter
             };
             growth.Piece = TakePiece(growth);
             growth.BaseCenter = growth.Origin - growth.Direction * _embedDepth;
+            growth.FinalTip = growth.Origin
+                              + growth.Direction * Mathf.Max(growth.Length - growth.Radius, -_embedDepth);
             growth.PreviousTip = growth.BaseCenter;
             growth.Step = 1;
             GrowTo(growth);
@@ -253,11 +295,12 @@ namespace Kizami.EngineAdapter
 
         /// <summary>
         /// プレイヤーが石柱に重なっている間は、ピース配下のコライダーを無効にし続ける。ピースの再メッシュ化でコライダーが有効に戻されるので、毎フレーム無効にし直す。
+        /// 重なりは、伸び終えた石柱の全体で見る（伸びている途中でも、あとから伸びる範囲にいるプレイヤーを巻き込まない為）。
         /// 重なりが解けたら、無効にしたコライダーを有効に戻す。
         /// </summary>
         private void UpdatePassthrough(Growth growth)
         {
-            if (OverlapsPlayer(growth.BaseCenter, growth.PreviousTip, growth.Radius))
+            if (OverlapsPlayer(growth.BaseCenter, growth.FinalTip, growth.Radius))
             {
                 DisableColliders(growth);
                 return;
@@ -302,15 +345,18 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// プレイヤーの体の範囲が、線分 from-to を中心にした半径 radius のカプセルに重なるか。体の範囲を radius だけ広げた箱に、線分上の最も近い点が入るかで見る。
+        /// プレイヤーが、線分 from-to を軸にした半径 radius のカプセルに触れているか。
+        /// プレイヤーの体の範囲を縦のカプセル（半径は水平の幅の小さい方）とみなし、2 本の軸の距離が半径の和以下かで見る。
         /// </summary>
         private bool OverlapsPlayer(Vector3 from, Vector3 to, float radius)
         {
             if (_getBodyBounds == null) return false;
 
             var bounds = _getBodyBounds();
-            bounds.Expand(radius * 2f);
-            return bounds.Contains(ClosestPointOnSegment(from, to, bounds.center));
+            var bodyRadius = Mathf.Min(bounds.extents.x, bounds.extents.z);
+            var halfAxis = Vector3.up * Mathf.Max(bounds.extents.y - bodyRadius, 0f);
+            var reach = radius + bodyRadius;
+            return SegmentSqrDistance(from, to, bounds.center - halfAxis, bounds.center + halfAxis) <= reach * reach;
         }
 
         /// <summary>
@@ -337,6 +383,9 @@ namespace Kizami.EngineAdapter
 
             /// <summary> カプセルの根元の球の中心。面の内側へ埋めた位置 </summary>
             public Vector3 BaseCenter;
+
+            /// <summary> 伸び終えたときのカプセルの先端の球の中心 </summary>
+            public Vector3 FinalTip;
 
             /// <summary> 前の段階で足したカプセルの先端の球の中心 </summary>
             public Vector3 PreviousTip;
