@@ -253,9 +253,7 @@ MonoBehaviour:
   - Kind: 15
     Clips:
     - {fileID: 8300000, guid: 74963ffbca864474bb14384b0c41bf2a, type: 3}
-    - {fileID: 8300000, guid: b726d5bc404c013488787ff1d510ad29, type: 3}
-    - {fileID: 8300000, guid: 9b8adf604bc14114d990134a6bb66054, type: 3}
-    Volume: 1
+    Volume: 0.4
     PitchRange: 0.15
     MinInterval: 0.06
   - Kind: 16
