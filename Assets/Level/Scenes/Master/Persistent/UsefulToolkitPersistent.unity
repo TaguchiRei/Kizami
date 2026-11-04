@@ -282,6 +282,12 @@ MonoBehaviour:
     Volume: 1
     PitchRange: 0
     MinInterval: 0.05
+  - Kind: 30
+    Clips:
+    - {fileID: 8300000, guid: 2dc6ef7d28a98e1469f5cb37703c0328, type: 3}
+    Volume: 1
+    PitchRange: 0.08
+    MinInterval: 0.05
   _voiceCount: 16
   _spatialBlend: 0.6
   _maxDistance: 80
