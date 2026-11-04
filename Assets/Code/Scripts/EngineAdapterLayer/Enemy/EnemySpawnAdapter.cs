@@ -202,6 +202,14 @@ namespace Kizami.EngineAdapter
         [Tooltip("体の中心が塊の表面からこの距離（m）以内なら、潰されたとする")]
         private float _crushSurfaceMargin = 0.3f;
 
+        [SerializeField, Min(0.01f)]
+        [Tooltip("崩落で倒れた敵の体が出す、小さな爆発の見た目の半径（m）")]
+        private float _collapseBlastRadius = 1.5f;
+
+        [SerializeField, Min(0)]
+        [Tooltip("1フレームに出す、崩落で倒れた敵の爆発の数の上限。大勢が同時に倒れても、爆発が重ならないようにする")]
+        private int _maxCollapseBlastsPerFrame = 4;
+
         [SerializeField]
         [Tooltip("体から外れた切っていない部位を消すディゾルブのマテリアル。シェーダーは float のプロパティ _DissolveAmount（0〜1）で消える")]
         private Material _debrisMaterial;
@@ -259,6 +267,9 @@ namespace Kizami.EngineAdapter
 
         /// <summary> 敵を倒したときに呼ぶ処理。吸収された敵は含めない </summary>
         private Action<EnemyDefeatNotice> _onDefeated;
+
+        /// <summary> 崩落で倒れた敵の体が出す小さな爆発を出す関数。引数は爆発の中心と、見た目の半径（m） </summary>
+        private Action<Vector3, float> _playCollapseBlast;
         private IDisposable _wordImpactSubscription;
 
         private IEnemySquadCommandState _commandState;
@@ -480,6 +491,15 @@ namespace Kizami.EngineAdapter
         public void SetOnDefeated(Action<EnemyDefeatNotice> onDefeated)
         {
             _onDefeated = onDefeated;
+        }
+
+        /// <summary>
+        /// 崩落で倒れた敵の体が出す小さな爆発を出す関数を設定する。未設定なら、爆発は出さない。
+        /// </summary>
+        /// <param name="playCollapseBlast">爆発を出す関数。引数は爆発の中心と、見た目の半径（m）</param>
+        public void SetOnCollapseBlast(Action<Vector3, float> playCollapseBlast)
+        {
+            _playCollapseBlast = playCollapseBlast;
         }
 
         /// <summary>
@@ -972,11 +992,13 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 崩落で倒されたことが記録された敵を数えて倒した数を通知し、体の中心からエネルギーを出して、記録を消す。倒された敵の体は、次の ReturnBodies で返す。
+        /// 崩落で倒されたことが記録された敵を数えて倒した数を通知し、体の中心からエネルギーを出して、記録を消す。
+        /// 体を貸している敵は、切断で倒れたときと同じく体の部位を散らばらせ、体の中心に小さな爆発を出す。爆発の数は1フレームの上限まで。体を貸していない敵は、そのまま消える。
         /// </summary>
         private void CountCollapseDefeats()
         {
             var defeatedCount = 0;
+            var blastCount = 0;
             var positionSum = float3.zero;
             for (var i = 0; i < _agents.Length; i++)
             {
@@ -988,7 +1010,16 @@ namespace Kizami.EngineAdapter
                 CollapseDefeatCount++;
                 defeatedCount++;
                 positionSum += agent.Position;
-                _emitEnergy?.Invoke((Vector3)agent.Position + Vector3.up * _crushBodyCenterHeight);
+
+                var bodyCenter = (Vector3)agent.Position + Vector3.up * _crushBodyCenterHeight;
+                _emitEnergy?.Invoke(bodyCenter);
+
+                var lender = _bodyLenders[(int)agent.Kind];
+                if (lender == null || !lender.DefeatBody(_agents, i) || blastCount >= _maxCollapseBlastsPerFrame) continue;
+
+                blastCount++;
+                _playCollapseBlast?.Invoke(bodyCenter, _collapseBlastRadius);
+                SoundPlayer.Play(SoundEffectKind.EnemyCollapseBlast, bodyCenter);
             }
 
             NotifyDefeated(defeatedCount, EnemyDefeatCause.Collapse, positionSum);

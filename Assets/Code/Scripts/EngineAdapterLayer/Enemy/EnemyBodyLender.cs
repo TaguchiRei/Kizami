@@ -182,6 +182,27 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
+        /// 崩落などで倒れた敵の体を、体に残った部位を散らばらせてから返す。切断で倒れたときと同じく、切断済みの部位はオーブに、切っていない部位は見た目用の物になる。
+        /// 体を貸していない敵と、ディゾルブで消えている途中の体は、何もしない。
+        /// </summary>
+        /// <param name="agents">敵の状態</param>
+        /// <param name="agentIndex">倒れた敵の状態の番号</param>
+        /// <returns>体を散らばらせて返したら true</returns>
+        public bool DefeatBody(NativeArray<EnemyAgent> agents, int agentIndex)
+        {
+            var agent = agents[agentIndex];
+            var bodyIndex = agent.BodyIndex;
+            if (bodyIndex < 0 || _bodyAgents[bodyIndex] != agentIndex || _bodies[bodyIndex].IsDissolving) return false;
+
+            _bodies[bodyIndex].Defeat();
+
+            agent.BodyIndex = -1;
+            agents[agentIndex] = agent;
+            _bodyAgents[bodyIndex] = -1;
+            return true;
+        }
+
+        /// <summary>
         /// 貸す距離の中にいる、体を貸していないこの種類の敵へ、近い順に空いている体を貸す。行動中の敵には、距離によらず最初に貸す。
         /// 空きがなければ、取り上げる距離の中の敵（と行動中の敵）に限り、その敵より取り上げの差以上遠い敵のうち最も遠い敵から体を返させて貸す。
         /// </summary>
