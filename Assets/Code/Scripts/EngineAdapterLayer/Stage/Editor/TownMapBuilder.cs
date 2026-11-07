@@ -14,7 +14,11 @@ namespace Kizami.Editor
     public static class TownMapBuilder
     {
         private const string SCENE_PATH = "Assets/Level/Scenes/Town/TownMap.unity";
+        private const string WIDE_SCENE_PATH = "Assets/Level/Scenes/Town/TownMap_WideRoad.unity";
         private const string ROOT_NAME = "TownMap";
+
+        // 道幅を広げたシーンの、全ての道の幅に掛ける倍率
+        private const float ROAD_WIDTH_SCALE = 1.75f;
         private const string ROAD_FOLDER = "Assets/Level/Prefabs/Stage/Road";
         private const string BUILDING_FOLDER = "Assets/Level/Prefabs/Stage/Town/Buildings";
         private const string PROP_FOLDER = "Assets/Level/Prefabs/Stage/Town/Props";
@@ -59,7 +63,27 @@ namespace Kizami.Editor
         [MenuItem("Kizami/Stage/Build Town Map")]
         public static void Build()
         {
-            var scene = OpenOrCreateScene();
+            Build(SCENE_PATH, 1f);
+        }
+
+        /// <summary>
+        /// 道幅を ROAD_WIDTH_SCALE 倍にした街を、別のシーン TownMap_WideRoad に組み立てる。シーンがなければ TownMap をコピーして作り、地形・遠景・塔は引き継ぐ。
+        /// </summary>
+        [MenuItem("Kizami/Stage/Build Town Map (Wide Roads)")]
+        public static void BuildWideRoads()
+        {
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(WIDE_SCENE_PATH) == null && !AssetDatabase.CopyAsset(SCENE_PATH, WIDE_SCENE_PATH))
+            {
+                Debug.LogError($"{SCENE_PATH} を {WIDE_SCENE_PATH} にコピーできませんでした。");
+                return;
+            }
+
+            Build(WIDE_SCENE_PATH, ROAD_WIDTH_SCALE);
+        }
+
+        private static void Build(string scenePath, float roadWidthScale)
+        {
+            var scene = OpenOrCreateScene(scenePath);
             var old = GameObject.Find(ROOT_NAME);
             if (old != null) Object.DestroyImmediate(old);
 
@@ -68,7 +92,7 @@ namespace Kizami.Editor
             if (oldTower != null) Object.DestroyImmediate(oldTower);
 
             // チュートリアルのダミーの区画には施設を置かない。ダミーが施設に埋まらないようにする為
-            var plan = TownLayout.Plan(SEED, SECTION_SIZE, new[] { GetSection(_tutorialDummyPosition) });
+            var plan = TownLayout.Plan(SEED, SECTION_SIZE, new[] { GetSection(_tutorialDummyPosition) }, roadWidthScale);
             var root = new GameObject(ROOT_NAME).transform;
             var meltSystem = Instantiate($"{BUILDING_FOLDER}/Town_VoxelMeltSystem.prefab", root).GetComponent<VoxelMeltSystem>();
 
@@ -83,7 +107,9 @@ namespace Kizami.Editor
             {
                 var instance = Instantiate($"{ROAD_FOLDER}/Stage_Road_{road.Name}_01.prefab", roads);
                 Pose(instance, road);
-                instance.transform.localScale = new Vector3(1f, 1f, road.LengthScale);
+                // 十字路は正方形なので、幅の倍率を奥行きにも掛ける。直線は奥行きが道の向きの長さ
+                var depthScale = road.Name.EndsWith("_Cross") ? road.WidthScale : road.LengthScale;
+                instance.transform.localScale = new Vector3(road.WidthScale, 1f, depthScale);
             }
 
             var spawnSystem = CreateSpawnSystem(root);
@@ -236,10 +262,10 @@ namespace Kizami.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static UnityEngine.SceneManagement.Scene OpenOrCreateScene()
+        private static UnityEngine.SceneManagement.Scene OpenOrCreateScene(string scenePath)
         {
-            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(SCENE_PATH) != null)
-                return EditorSceneManager.OpenScene(SCENE_PATH);
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) != null)
+                return EditorSceneManager.OpenScene(scenePath);
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
             foreach (var path in _environmentPrefabs)
@@ -251,7 +277,7 @@ namespace Kizami.Editor
             // プレイヤーのカメラが InGame シーンにある為、既定のカメラは置かない
             var camera = Camera.main;
             if (camera != null) Object.DestroyImmediate(camera.gameObject);
-            EditorSceneManager.SaveScene(scene, SCENE_PATH);
+            EditorSceneManager.SaveScene(scene, scenePath);
             return scene;
         }
 
