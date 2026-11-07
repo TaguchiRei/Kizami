@@ -7,19 +7,17 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// プレイヤーの出来事と状態の変化を受けて、効果音を鳴らす Adapter。
-    /// スキル・近接を振る・ジャンプ・壁走りの開始は出来事の通知で、被ダメージは HP の減少で、スローモードの開始と終了はスローモードの状態の変化で鳴らす。
+    /// スキル・近接を振る・ジャンプ・壁走りの開始は出来事の通知で、被ダメージは HP の減少で鳴らす。
     /// 着地と足音は移動の Adapter が、近接が当たった音は近接切断の Adapter が鳴らす。
     /// </summary>
     public sealed class PlayerSoundAdapter : MonoBehaviour
     {
         private PlayerMovementAdapterBase _movementAdapter;
-        private ISlowModeState _slowModeState;
         private IDisposable _actionSubscription;
         private IDisposable _healthSubscription;
-        private bool _wasSlowModeActive;
 
         /// <summary>
-        /// PlayerActionEvents・PlayerHealthState・SlowModeState の登録より後に呼ぶこと。
+        /// PlayerActionEvents・PlayerHealthState の登録より後に呼ぶこと。
         /// </summary>
         /// <param name="blackBoard">出来事と状態の取得元</param>
         /// <param name="movementAdapter">音を鳴らす位置にするプレイヤーの位置の取得元</param>
@@ -36,19 +34,6 @@ namespace Kizami.EngineAdapter
             {
                 _healthSubscription = healthState.RegisterOnHealthChanged(OnHealthChanged);
             }
-
-            if (blackBoard.TryGetSceneState<PlayerBoard, ISlowModeState>(out _slowModeState, this))
-            {
-                _wasSlowModeActive = _slowModeState.IsActive;
-            }
-        }
-
-        private void Update()
-        {
-            if (_slowModeState == null || _slowModeState.IsActive == _wasSlowModeActive) return;
-
-            _wasSlowModeActive = _slowModeState.IsActive;
-            Play(_wasSlowModeActive ? SoundEffectKind.SlowModeStart : SoundEffectKind.SlowModeEnd);
         }
 
         private void OnDestroy()

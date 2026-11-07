@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Kizami.External
 {
     /// <summary>
-    /// プレイヤーの移動・HP・近接切断・チャージ・スローモード・投擲に関わる、遊びのルールのパラメータ。
+    /// プレイヤーの移動・HP・近接切断・チャージ・投擲に関わる、遊びのルールのパラメータ。
     /// </summary>
     [CreateAssetMenu(fileName = "PlayerParameterData", menuName = "Kizami/Player/PlayerParameterData")]
     public sealed class PlayerParameterData : ScriptableObject
@@ -79,7 +79,7 @@ namespace Kizami.External
 
         [Header("近接切断")]
         [SerializeField, Min(0f)]
-        [Tooltip("近接切断の攻撃間隔（秒）。スローモード中も等速で数える")]
+        [Tooltip("近接切断の攻撃間隔（秒）")]
         private float _meleeAttackInterval = 0.3f;
 
         [Header("チャージ")]
@@ -94,23 +94,6 @@ namespace Kizami.External
         [SerializeField, Min(1)]
         [Tooltip("チャージ量の上限")]
         private int _maxCharge = 100;
-
-        [Header("スローモード")]
-        [SerializeField, Range(0.01f, 1f)]
-        [Tooltip("スローモード中の時間の倍率")]
-        private float _slowModeTimeScale = 0.25f;
-
-        [SerializeField, Min(0)]
-        [Tooltip("スローモードの発動時に消費するチャージ量")]
-        private int _slowModeActivationCost = 20;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("スローモードを続けている間に、実時間 1 秒あたりに消費するチャージ量。0 で消費しない")]
-        private float _slowModeDrainPerSecond = 5f;
-
-        [SerializeField, Min(0)]
-        [Tooltip("1 回のスローモードの間に近接切断を振れる回数")]
-        private int _slowModeCutLimit = 5;
 
         [Header("投げる")]
         [SerializeField, Min(0f)]
@@ -165,7 +148,7 @@ namespace Kizami.External
         /// <summary> ワープ中に受けるダメージの軽減率（%、0〜100） </summary>
         public float WarpDamageReduction => _warpDamageReduction;
 
-        /// <summary> 近接切断の攻撃間隔（秒）。スローモード中も等速で数える </summary>
+        /// <summary> 近接切断の攻撃間隔（秒） </summary>
         public float MeleeAttackInterval => _meleeAttackInterval;
 
         /// <summary> かけら1個を吸収したときに増えるチャージ量 </summary>
@@ -176,18 +159,6 @@ namespace Kizami.External
 
         /// <summary> チャージ量の上限 </summary>
         public int MaxCharge => _maxCharge;
-
-        /// <summary> スローモード中の時間の倍率 </summary>
-        public float SlowModeTimeScale => _slowModeTimeScale;
-
-        /// <summary> スローモードの発動時に消費するチャージ量 </summary>
-        public int SlowModeActivationCost => _slowModeActivationCost;
-
-        /// <summary> スローモードを続けている間に、実時間1秒あたりに消費するチャージ量 </summary>
-        public float SlowModeDrainPerSecond => _slowModeDrainPerSecond;
-
-        /// <summary> 1回のスローモードの間に近接切断を振れる回数 </summary>
-        public int SlowModeCutLimit => _slowModeCutLimit;
 
         /// <summary> 投げる物の初速（m/s） </summary>
         public float ThrowSpeed => _throwSpeed;

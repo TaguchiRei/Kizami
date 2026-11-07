@@ -19,7 +19,7 @@ namespace Kizami.EngineAdapter
         private static readonly int _swingHash = Animator.StringToHash("Swing");
         private static readonly int _enhanceHash = Animator.StringToHash("Enhance");
 
-        [SerializeField] [Tooltip("腕の Animator。Update Mode は Unscaled Time にして、スローモード中も等速で動かす")]
+        [SerializeField] [Tooltip("腕の Animator。Update Mode は Unscaled Time にする")]
         private Animator _armAnimator;
 
         [SerializeField] [Tooltip("破壊の強化がかかっている間に出す剣のエフェクト。未設定なら出さない")]
