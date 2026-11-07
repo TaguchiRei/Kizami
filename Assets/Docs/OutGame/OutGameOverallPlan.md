@@ -6,7 +6,7 @@
 
 | 資料 | 場所 |
 |---|---|
-| ゲーム仕様の正本 | Notion「刻断 / 仕様書」（https://app.notion.com/p/49c1ea2aa7fa83aca214017b9e856040） |
+| ゲーム仕様の正本 | Notion「刻身 / 仕様書」（https://app.notion.com/p/49c1ea2aa7fa83aca214017b9e856040） |
 | アウトゲームの仕様 | Notion「仕様リスト / アウトゲーム」（https://app.notion.com/p/3e91ea2aa7fa81e3b271e0fc71189ea6） |
 | スキルの仕様 | Notion「仕様リスト / スキル」（https://app.notion.com/p/3e91ea2aa7fa814ebd59e5038006aa39） |
 | インゲームの全体計画 | [InGameOverallPlan.md](../InGame/InGameOverallPlan.md) |

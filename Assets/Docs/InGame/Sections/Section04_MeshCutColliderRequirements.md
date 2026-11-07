@@ -11,13 +11,13 @@
 
 ## 背景
 
-刻断の近接切断は、刃の範囲（厚さ 0.2m の薄い直方体）に重なるコライダーを `Physics.OverlapBoxNonAlloc` で集め、その `CuttableObject` を切る。
+刻身の近接切断は、刃の範囲（厚さ 0.2m の薄い直方体）に重なるコライダーを `Physics.OverlapBoxNonAlloc` で集め、その `CuttableObject` を切る。
 
 敵の部位を切ると、接続部の側のかけらの形を `AdoptCutShape` で元の部位に移す。このとき、部位にはかけらの球コライダー（`ColliderClusterJob` の k-means による近似）が写り、部位が元から持っていたコライダーは無効になる。
 
 長い部位では、この球の並びに隙間ができる。刃の範囲が隙間に入ると、メッシュは刃の平面をまたいでいるのに、対象として見つからず切れない。
 
-実測（2026-10-06、刻断の仮モデル AttackerEnemy の上の脚）は次のとおり。
+実測（2026-10-06、刻身の仮モデル AttackerEnemy の上の脚）は次のとおり。
 
 | 項目 | 値 |
 |---|---|
@@ -36,9 +36,9 @@
 |---|---|
 | F1 | `AdoptCutShape` で形を移した先のパーツについて、移したメッシュのどこを通る平面でも（メッシュの三角形と交わる平面なら）、有効なコライダーのどれかと交わるようにする。方法は作業者が決めてよい。例：移した先が元から持っていたコライダー（`BoxCollider` など）を無効にせず、移したメッシュの bounds に合わせて有効のまま残す選択肢を設ける |
 | F2 | F1 で元から持っていたコライダーの中心や大きさを変える場合は、`RestoreInitialShape` で初期化の時点の値に戻す |
-| F3 | F1 の動作を選べるようにする場合は、選び方（引数、Inspector の設定など）を作業者が決める。刻断の敵の部位では、F1 を満たす動作を使う |
+| F3 | F1 の動作を選べるようにする場合は、選び方（引数、Inspector の設定など）を作業者が決める。刻身の敵の部位では、F1 を満たす動作を使う |
 | F4（任意） | かけらそのもの（プールの破片）の球コライダーにも、長い形で隙間ができないようにする。対応が大きくなる場合は対象外にしてよい。その場合は README の制約に書く |
-| F5（任意） | `MeshDataCache.Register` で、メッシュの Read/Write が無効（`mesh.isReadable` が false）なときは、原因が分かるエラーログを出して false を返す。今は `NativeMeshDataStore.Add` で「source and destination length must be the same」という `ArgumentException` になり、原因が分かりにくい（刻断の区間4 のコミット 3 で発生） |
+| F5（任意） | `MeshDataCache.Register` で、メッシュの Read/Write が無効（`mesh.isReadable` が false）なときは、原因が分かるエラーログを出して false を返す。今は `NativeMeshDataStore.Add` で「source and destination length must be the same」という `ArgumentException` になり、原因が分かりにくい（刻身の区間4 のコミット 3 で発生） |
 
 ### 互換性
 
@@ -58,7 +58,7 @@
 
 ## 対象外
 
-- 刻断の `MeleeCutAdapter` の、対象を集める方法の変更
+- 刻身の `MeleeCutAdapter` の、対象を集める方法の変更
 - 切断のアルゴリズムと、切断の Job の変更（F4 で `ColliderClusterJob` を直す場合を除く）
 
 ## 受け入れの確認
@@ -72,6 +72,6 @@ UsefulToolkit のサンドボックスで、次のことを確かめる。
 | 3 | F1 の動作を選ばない `AdoptCutShape` は、今と同じ（球コライダーを写し、元のコライダーを無効にする） |
 | 4 | 今の呼び出し元と、右クリックメニュー「切断」が、変更なしで動く |
 
-## 刻断の側の作業（参考）
+## 刻身の側の作業（参考）
 
-UsefulToolkit 側のマージの後で、刻断の `Packages/packages-lock.json` の meshcut の参照を更新する。`EnemyBody.ReceiveCut` で F1 の動作を使うようにし、区間4 の完了条件 5（同じ部位の系統を上限まで切れる）を確かめる。
+UsefulToolkit 側のマージの後で、刻身の `Packages/packages-lock.json` の meshcut の参照を更新する。`EnemyBody.ReceiveCut` で F1 の動作を使うようにし、区間4 の完了条件 5（同じ部位の系統を上限まで切れる）を確かめる。

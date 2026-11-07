@@ -6,7 +6,7 @@
 
 | 資料 | 場所 |
 |---|---|
-| ゲーム仕様の正本 | Notion「刻断 / 仕様書」（https://app.notion.com/p/49c1ea2aa7fa83aca214017b9e856040） |
+| ゲーム仕様の正本 | Notion「刻身 / 仕様書」（https://app.notion.com/p/49c1ea2aa7fa83aca214017b9e856040） |
 | スケジュール | Notion「仕様書 / スケジュール」のマイルストーン（https://app.notion.com/p/3131ea2aa7fa8339acaa01d55399b74a） |
 | 時間制御の設計 | Notion「システムリスト / 時間制御（スローモード）」（https://app.notion.com/p/3ea1ea2aa7fa8183bbfac10bfafd4d70） |
 
