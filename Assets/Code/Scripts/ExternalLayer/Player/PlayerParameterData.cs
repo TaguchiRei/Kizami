@@ -36,7 +36,7 @@ namespace Kizami.External
         private float _wallRunSprintSpeed = 12f;
 
         [SerializeField, Min(0f)]
-        [Tooltip("壁走りの持ち時間（秒）。走っている間もとどまっている間も減り、着地で回復する")]
+        [Tooltip("壁走りの持ち時間（秒）。壁走り中に減り、着地で回復する")]
         private float _wallRunDuration = 1.5f;
 
         [SerializeField, Range(0f, 90f)]
@@ -46,6 +46,10 @@ namespace Kizami.External
         [SerializeField, Min(0f)]
         [Tooltip("壁から離れようとする入力がこの時間（秒）続くと壁走りを抜ける")]
         private float _wallDetachTime = 0.2f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("壁走り中に壁が途切れてから、壁走りを抜けるまでの時間（秒）。この間は壁走りの速度のまま進み、壁の小さな切れ目を越えられる")]
+        private float _wallLostGraceTime = 0.3f;
 
         [SerializeField, Min(0f)]
         [Tooltip("壁ジャンプの水平方向の速さ（m/s）。上向きの速度はジャンプと同じ")]
@@ -126,6 +130,9 @@ namespace Kizami.External
 
         /// <summary> 壁から離れようとする入力が続くと壁走りを抜ける時間（秒） </summary>
         public float WallDetachTime => _wallDetachTime;
+
+        /// <summary> 壁走り中に壁が途切れてから、壁走りを抜けるまでの時間（秒） </summary>
+        public float WallLostGraceTime => _wallLostGraceTime;
 
         /// <summary> 壁ジャンプの水平方向の速さ（m/s） </summary>
         public float WallJumpHorizontalSpeed => _wallJumpHorizontalSpeed;

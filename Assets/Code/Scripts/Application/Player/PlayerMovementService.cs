@@ -49,11 +49,14 @@ namespace Kizami.Application
         /// <summary> 壁走りの残りの持ち時間（秒）。着地で最大値に戻る </summary>
         private float _wallRunTimeRemaining;
 
-        /// <summary> 最後に触れていた壁の法線。壁が途切れて壁走りの途中でとどまっている間も、壁キックと離れる入力の判定に使う </summary>
+        /// <summary> 最後に触れていた壁の法線。壁が途切れてから壁走りを抜けるまでの間も、壁キックと離れる入力の判定に使う </summary>
         private Vector3 _wallNormal;
 
         /// <summary> 壁から離れようとする入力が続いている時間（秒） </summary>
         private float _wallDetachInputTime;
+
+        /// <summary> 壁走り中に壁が途切れてからの時間（秒）。壁に触れている間は 0 </summary>
+        private float _wallLostTime;
 
         /// <summary> 壁ジャンプ後、壁との接触が一度切れるまで true になり、その間は壁走りへの再突入を止める </summary>
         private bool _isWaitingWallRelease;
@@ -346,15 +349,25 @@ namespace Kizami.Application
             {
                 _state.SetMode(PlayerMoveMode.WallRunning);
                 _wallDetachInputTime = 0f;
+                _wallLostTime = 0f;
                 _actionEvents?.Raise(new PlayerActionNotice(PlayerActionKind.WallRunStarted));
             }
 
             if (_state.Mode == PlayerMoveMode.WallRunning)
             {
-                // 壁が途切れたら、壁走りのままその場にとどまる
-                var wallRunSpeed = IsSprinting ? _parameters.WallRunSprintSpeed : _parameters.WallRunWalkSpeed;
-                _state.SetTargetVelocity(IsTouchingWallInAir ? ProjectOnWall(worldInput) * wallRunSpeed : Vector3.zero);
-                return null;
+                if (IsTouchingWallInAir)
+                {
+                    _wallLostTime = 0f;
+                    var wallRunSpeed = IsSprinting ? _parameters.WallRunSprintSpeed : _parameters.WallRunWalkSpeed;
+                    _state.SetTargetVelocity(ProjectOnWall(worldInput) * wallRunSpeed);
+                    return null;
+                }
+
+                // 壁が途切れても猶予の間は直前の目標速度のまま進み、過ぎたら壁走りを抜けて勢いを保ったまま落ちる
+                _wallLostTime += deltaTime;
+                if (_wallLostTime < _parameters.WallLostGraceTime) return null;
+
+                _state.SetMode(PlayerMoveMode.Normal);
             }
 
             _state.SetTargetVelocity(worldInput * speed);

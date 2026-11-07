@@ -56,7 +56,6 @@ namespace Kizami.EngineAdapter
         [SerializeField, Min(0f)]
         [Tooltip("ボクセルのピースの高さ（m）がこれより小さいと、壁として判定しない")]
         private float _minWallPieceHeight = 2f;
-
         [SerializeField] private Rigidbody _rigidbody;
         [SerializeField] private CapsuleCollider _collider;
 
@@ -369,7 +368,7 @@ namespace Kizami.EngineAdapter
                 contacts |= PlayerContact.NearGround;
             }
 
-            if (TryFindWallNormal(bottomSphereCenter, topSphereCenter, radius, out var wallNormal))
+            if (TryFindWallNormal(center, topSphereCenter, radius, out var wallNormal))
             {
                 contacts |= PlayerContact.Wall;
             }
@@ -398,26 +397,39 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// カプセルを水平な 8 方向へ _wallCheckDistance だけ飛ばし、壁に当たったら、最も近い壁の、壁から離れる向きの水平な単位ベクトルを返す。
+        /// 胴体（カプセルの中心）と頭（カプセルの上側の球の中心）の 2 点から、球を水平な 8 方向へ _wallCheckDistance だけ飛ばし、
+        /// どちらかが壁に当たったら、最も近い壁の、壁から離れる向きの水平な単位ベクトルを返す。
+        /// 壁走りは、頭か胴体の 1 点、または足と他の 1 点が壁に付いているときに続ける仕様で、足だけが付いているときは壁とみなさない。
+        /// 足が付いているかは結果を変えないので、足の点は調べない。
         /// 壁は、_wallLayers のコライダーか、ボクセルのピース、Brilliant Skill の言葉（BrilliantWord）で、面の向きが床や天井に近いものは除く。
         /// 凸でない MeshCollider（ボクセルのチャンクの当たり判定）は Collider.ClosestPoint で面の位置を求められない為、キャストで調べる。
-        /// カプセルは WALL_SKIN_WIDTH だけ細くして飛ばし、壁に少しめり込んでいても見つけられるようにする。
+        /// 球は WALL_SKIN_WIDTH だけ細くして飛ばし、壁に少しめり込んでいても見つけられるようにする。
         /// </summary>
-        private bool TryFindWallNormal(Vector3 bottomSphereCenter, Vector3 topSphereCenter, float radius,
-            out Vector3 wallNormal)
+        private bool TryFindWallNormal(Vector3 torsoPoint, Vector3 headPoint, float radius, out Vector3 wallNormal)
         {
             wallNormal = Vector3.zero;
+            var nearestDistance = float.MaxValue;
 
+            FindNearestWallFrom(torsoPoint, radius, ref nearestDistance, ref wallNormal);
+            FindNearestWallFrom(headPoint, radius, ref nearestDistance, ref wallNormal);
+
+            return wallNormal != Vector3.zero;
+        }
+
+        /// <summary>
+        /// point から球を水平な 8 方向へ飛ばし、nearestDistance より近い壁があれば、その距離と壁から離れる向きの水平な単位ベクトルで書き換える。
+        /// </summary>
+        private void FindNearestWallFrom(Vector3 point, float radius, ref float nearestDistance, ref Vector3 wallNormal)
+        {
             var castRadius = radius - WALL_SKIN_WIDTH;
             var castDistance = WALL_SKIN_WIDTH + _wallCheckDistance;
             var castLayers = _wallLayers | _groundLayers;
-            var nearestDistance = float.MaxValue;
 
             for (var i = 0; i < WALL_CAST_DIRECTION_COUNT; i++)
             {
                 var direction = Quaternion.Euler(0f, i * 360f / WALL_CAST_DIRECTION_COUNT, 0f) * Vector3.forward;
-                var hitCount = Physics.CapsuleCastNonAlloc(bottomSphereCenter, topSphereCenter, castRadius, direction,
-                    _wallHitBuffer, castDistance, castLayers, QueryTriggerInteraction.Ignore);
+                var hitCount = Physics.SphereCastNonAlloc(point, castRadius, direction, _wallHitBuffer, castDistance,
+                    castLayers, QueryTriggerInteraction.Ignore);
 
                 for (var h = 0; h < hitCount; h++)
                 {
@@ -433,8 +445,6 @@ namespace Kizami.EngineAdapter
                     wallNormal = horizontal.normalized;
                 }
             }
-
-            return wallNormal != Vector3.zero;
         }
 
         /// <summary>
