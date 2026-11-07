@@ -1334,6 +1334,7 @@ MonoBehaviour:
   _bombThrowAdapter: {fileID: 1258148394}
   _flightAdapter: {fileID: 0}
   _skyBeamAdapter: {fileID: 810375396}
+  _soundAdapter: {fileID: 0}
   _equippedSkills:
   - {fileID: 11400000, guid: 7ae116c07fce44eb9d3d2f376c7e56ab, type: 2}
   - {fileID: 11400000, guid: ed106c18d54e42b7804f9237315ad9e8, type: 2}
@@ -1467,6 +1468,8 @@ MonoBehaviour:
   _apexSpeedThreshold: 1.5
   _fallGravityScale: 2
   _fallRampSpeed: 12
+  _footstepStride: 2.2
+  _landSoundMinFallSpeed: 4
   _cameraTransform: {fileID: 1307013810}
 --- !u!114 &903436368
 MonoBehaviour:
@@ -2315,6 +2318,7 @@ MonoBehaviour:
   _damageSettings:
     _shot: 5
     _finisherBeam: 1
+  _voxelDestructionAdapter: {fileID: 1734900002}
   _spawnAdapter: {fileID: 1539543158}
   _fragmentOrbAdapter: {fileID: 1946405260}
   _energyAdapter: {fileID: 1579939516}
@@ -2386,6 +2390,8 @@ MonoBehaviour:
   _crushMinVolume: 0.5
   _crushBodyCenterHeight: 1.5
   _crushSurfaceMargin: 0.3
+  _collapseBlastRadius: 1.5
+  _maxCollapseBlastsPerFrame: 4
   _debrisMaterial: {fileID: 2100000, guid: 5cfc7be965929784eb5db215773505a4, type: 2}
   _debrisCapacity: 32
   _debrisLifetime: 1
@@ -2996,13 +3002,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelMoundAdapter
   _piecePrefab: {fileID: 7209276436324303460, guid: 61530eb9160a0774ea36b62e68332dba, type: 3}
   _maxCount: 4
-  _boxSize: 8
   _maxDistance: 30
   _targetLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  _interval: 0.25
-  _tickCost: 2
+  _growSteps: 6
+  _embedDepth: 0.5
 --- !u!1 &1879736535
 GameObject:
   m_ObjectHideFlags: 0

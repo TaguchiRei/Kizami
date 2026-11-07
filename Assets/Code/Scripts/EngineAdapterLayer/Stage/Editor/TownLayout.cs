@@ -69,9 +69,19 @@ namespace Kizami.Editor
         private const float FENCE_WIDTH = 2f;
         private const float GUARDRAIL_WIDTH = 4f;
 
-        public static readonly RoadKind Main = new("Main", 13.6f, 4f);
-        public static readonly RoadKind Middle = new("Middle", 7.2f, 2.4f);
-        public static readonly RoadKind Narrow = new("Narrow", 2.4f, 0f);
+        // 道幅の倍率 1 のときの、歩道を含めた半幅（m）。Plan が倍率を掛けた RoadKind を作る
+        private const float MAIN_HALF_WIDTH = 13.6f;
+        private const float MIDDLE_HALF_WIDTH = 7.2f;
+        private const float NARROW_HALF_WIDTH = 2.4f;
+        private const float MAIN_SIDEWALK_WIDTH = 4f;
+        private const float MIDDLE_SIDEWALK_WIDTH = 2.4f;
+
+        // アーケードのモデルが前提にする通りの半幅（m）。道幅の倍率に関わらず、アーケードの区間の道はこの幅に保つ
+        private const float ARCADE_STREET_HALF_WIDTH = 7.2f;
+
+        public static RoadKind Main { get; private set; } = new("Main", MAIN_HALF_WIDTH, MAIN_SIDEWALK_WIDTH);
+        public static RoadKind Middle { get; private set; } = new("Middle", MIDDLE_HALF_WIDTH, MIDDLE_SIDEWALK_WIDTH);
+        public static RoadKind Narrow { get; private set; } = new("Narrow", NARROW_HALF_WIDTH, 0f);
 
         private static readonly BuildingType _largeFactory = new("EnemyFactory_Large", 14.4f, 14.4f);
         private static readonly BuildingType _smallFactory = new("EnemyFactory_Small", 8f, 8f);
@@ -110,8 +120,13 @@ namespace Kizami.Editor
         /// <param name="seed">乱数のシード</param>
         /// <param name="sectionSize">敵の区画の大きさ（m）。生産施設を区画ごとに1つ置く</param>
         /// <param name="skippedSections">生産施設を置かない区画の番号</param>
-        public static TownPlan Plan(int seed, float sectionSize, IReadOnlyCollection<Vector2Int> skippedSections)
+        /// <param name="roadWidthScale">大通り・中通り・小道の幅（歩道を含む）に掛ける倍率。1 で従来の道幅。アーケードの区間の道は倍率に関わらず元の幅</param>
+        public static TownPlan Plan(int seed, float sectionSize, IReadOnlyCollection<Vector2Int> skippedSections, float roadWidthScale = 1f)
         {
+            Main = new RoadKind("Main", MAIN_HALF_WIDTH * roadWidthScale, MAIN_SIDEWALK_WIDTH * roadWidthScale, roadWidthScale);
+            Middle = new RoadKind("Middle", MIDDLE_HALF_WIDTH * roadWidthScale, MIDDLE_SIDEWALK_WIDTH * roadWidthScale, roadWidthScale);
+            Narrow = new RoadKind("Narrow", NARROW_HALF_WIDTH * roadWidthScale, 0f, roadWidthScale);
+
             var random = new Random(seed);
             var plan = new TownPlan();
             var lines = new List<RoadLine>
@@ -274,9 +289,11 @@ namespace Kizami.Editor
 
             var x0 = first;
             var x1 = first + count * ARCADE_MODULE_LENGTH;
-            occupied.Add(Rect.MinMaxRect(x0, MIDDLE_OFFSET - Middle.HalfWidth - ARCADE_SHOP_DEPTH, x1, MIDDLE_OFFSET - Middle.HalfWidth));
-            occupied.Add(Rect.MinMaxRect(x0, MIDDLE_OFFSET + Middle.HalfWidth, x1, MIDDLE_OFFSET + Middle.HalfWidth + ARCADE_SHOP_DEPTH));
-            return Rect.MinMaxRect(x0, MIDDLE_OFFSET - Middle.HalfWidth, x1, MIDDLE_OFFSET + Middle.HalfWidth);
+            occupied.Add(Rect.MinMaxRect(x0, MIDDLE_OFFSET - ARCADE_STREET_HALF_WIDTH - ARCADE_SHOP_DEPTH, x1, MIDDLE_OFFSET - ARCADE_STREET_HALF_WIDTH));
+            occupied.Add(Rect.MinMaxRect(x0, MIDDLE_OFFSET + ARCADE_STREET_HALF_WIDTH, x1, MIDDLE_OFFSET + ARCADE_STREET_HALF_WIDTH + ARCADE_SHOP_DEPTH));
+            // 街灯とベンチを置かない範囲として、店舗の奥行きまで含める。中通りが広いと、歩道の小物が店舗の中に入るため
+            return Rect.MinMaxRect(x0, MIDDLE_OFFSET - ARCADE_STREET_HALF_WIDTH - ARCADE_SHOP_DEPTH, x1,
+                MIDDLE_OFFSET + ARCADE_STREET_HALF_WIDTH + ARCADE_SHOP_DEPTH);
         }
 
         /// <summary>
@@ -307,7 +324,8 @@ namespace Kizami.Editor
             }
 
             foreach (var crossing in crossings)
-                plan.Roads.Add(new PartPlacement(crossing.Kind.Name + "_Cross", new Vector3(crossing.Center.x, 0f, crossing.Center.y), 0f));
+                plan.Roads.Add(new PartPlacement(crossing.Kind.Name + "_Cross", new Vector3(crossing.Center.x, 0f, crossing.Center.y), 0f,
+                    widthScale: crossing.Kind.WidthScale));
 
             foreach (var line in lines)
             {
@@ -360,11 +378,14 @@ namespace Kizami.Editor
             var length = end - start;
             var count = Mathf.Max(1, Mathf.RoundToInt(length / STRAIGHT_LENGTH));
             var tile = length / count;
+            // アーケードの区間（西の大通りと中通りの間）は、アーケードのモデルの幅に合わせて元の幅にする
+            var isArcade = line.Kind == Middle && line.AlongX && Mathf.Approximately(line.Offset, MIDDLE_OFFSET) && end <= 0f;
+            var widthScale = isArcade ? 1f : line.Kind.WidthScale;
             for (var i = 0; i < count; i++)
             {
                 var along = start + tile * (i + 0.5f);
                 var position = line.AlongX ? new Vector3(along, 0f, line.Offset) : new Vector3(line.Offset, 0f, along);
-                plan.Roads.Add(new PartPlacement(line.Kind.Name + "_Straight", position, line.AlongX ? 90f : 0f, tile / STRAIGHT_LENGTH));
+                plan.Roads.Add(new PartPlacement(line.Kind.Name + "_Straight", position, line.AlongX ? 90f : 0f, tile / STRAIGHT_LENGTH, widthScale));
             }
         }
 
@@ -811,7 +832,8 @@ namespace Kizami.Editor
     }
 
     /// <summary>
-    /// 置く物 1 つ。Name は部品やプレハブの名前の一部、Yaw は Y の回転（度）、LengthScale は道路の部品を道の向き（モデルの Z）に伸ばす倍率。
+    /// 置く物 1 つ。Name は部品やプレハブの名前の一部、Yaw は Y の回転（度）、LengthScale は道路の部品を道の向き（モデルの Z）に伸ばす倍率、
+    /// WidthScale は道路の部品を道の幅の向き（モデルの X）に広げる倍率。十字路は幅の向きの倍率を奥行き（モデルの Z）にも掛ける。
     /// </summary>
     public readonly struct PartPlacement
     {
@@ -819,30 +841,34 @@ namespace Kizami.Editor
         public readonly Vector3 Position;
         public readonly float Yaw;
         public readonly float LengthScale;
+        public readonly float WidthScale;
 
-        public PartPlacement(string name, Vector3 position, float yaw, float lengthScale = 1f)
+        public PartPlacement(string name, Vector3 position, float yaw, float lengthScale = 1f, float widthScale = 1f)
         {
             Name = name;
             Position = position;
             Yaw = yaw;
             LengthScale = lengthScale;
+            WidthScale = widthScale;
         }
     }
 
     /// <summary>
-    /// 道の種類。Name は道路の部品の名前の一部、HalfWidth は歩道を含めた幅の半分、SidewalkWidth は片側の歩道の幅（m）。
+    /// 道の種類。Name は道路の部品の名前の一部、HalfWidth は歩道を含めた幅の半分、SidewalkWidth は片側の歩道の幅（m）、WidthScale は部品のモデルの幅に対する倍率。
     /// </summary>
     public sealed class RoadKind
     {
         public readonly string Name;
         public readonly float HalfWidth;
         public readonly float SidewalkWidth;
+        public readonly float WidthScale;
 
-        public RoadKind(string name, float halfWidth, float sidewalkWidth)
+        public RoadKind(string name, float halfWidth, float sidewalkWidth, float widthScale = 1f)
         {
             Name = name;
             HalfWidth = halfWidth;
             SidewalkWidth = sidewalkWidth;
+            WidthScale = widthScale;
         }
     }
 

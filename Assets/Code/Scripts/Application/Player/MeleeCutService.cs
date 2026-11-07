@@ -26,7 +26,6 @@ namespace Kizami.Application
         private readonly IPlayerEnhanceController _enhanceService;
         private readonly IPlayerEnhanceState _enhanceState;
         private readonly Action<float, float, DamageType> _onSwing;
-        private readonly Func<bool> _tryUseCut;
         private readonly ISkyBeamController _skyBeamService;
         private readonly PlayerActionEvents _actionEvents;
         private readonly List<IDisposable> _subscriptions = new();
@@ -41,12 +40,11 @@ namespace Kizami.Application
         /// <param name="parameters">攻撃間隔の取得元</param>
         /// <param name="enhanceService">切断にかかる強化を使う操作面</param>
         /// <param name="onSwing">振ったときに呼ぶ関数。引数は振ったときの切断面の角度（度）、範囲に掛ける倍率、ダメージの種類</param>
-        /// <param name="tryUseCut">振る直前に呼び、振れる回数を1回使う関数。false なら振らない</param>
         /// <param name="skyBeamService">羽天轟号の使用中の流れ。必須。使用中は、通常攻撃もスキルも出せない</param>
         /// <param name="actionEvents">振ったことを流す先</param>
         /// <param name="sceneId">State を紐づけるシーンのビルドインデックス</param>
         public MeleeCutService(IBlackBoard blackBoard, PlayerParameterData parameters,
-            IPlayerEnhanceController enhanceService, Action<float, float, DamageType> onSwing, Func<bool> tryUseCut,
+            IPlayerEnhanceController enhanceService, Action<float, float, DamageType> onSwing,
             ISkyBeamController skyBeamService, PlayerActionEvents actionEvents, int sceneId)
         {
             _actionEvents = actionEvents;
@@ -54,7 +52,6 @@ namespace Kizami.Application
             _parameters = parameters;
             _enhanceService = enhanceService;
             _onSwing = onSwing;
-            _tryUseCut = tryUseCut;
 
             if (!blackBoard.TryGetBoard<PlayerBoard>(out var playerBoard, this) ||
                 !blackBoard.TryGetGameState<InputBoard, IInputState>(out var inputState, this) ||
@@ -102,7 +99,6 @@ namespace Kizami.Application
             if (context.Phase != InputPhase.Performed) return;
 
             if (!CanAct()) return;
-            if (_tryUseCut != null && !_tryUseCut()) return;
 
             _enhanceService.TryUse(EnhanceKind.Speed,  out _);
             _enhanceService.TryUse(EnhanceKind.Range,  out var rangeScale);
@@ -118,7 +114,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 羽天轟号の使用中でなく、前回、通常攻撃かスキルを出してから、今の攻撃間隔が経っているかを返す。スローモード中も攻撃間隔は実時間で数える。
+        /// 羽天轟号の使用中でなく、前回、通常攻撃かスキルを出してから、今の攻撃間隔が経っているかを返す。
         /// </summary>
         public bool CanAct()
         {

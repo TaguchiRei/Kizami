@@ -7,7 +7,7 @@ namespace Kizami.EngineAdapter
     /// <summary>
     /// 攻撃が当たった瞬間に画面へ色収差を掛け、短い時間で戻す Adapter。インゲームのシーンへ置く。
     /// 色収差の強さは専用の全体 Volume の weight で動かす。Volume のプロファイルに ChromaticAberration の上書きを入れ、その強さが最大のときの値になる。
-    /// 呼ぶ側は静的な Play だけを知ればよく、連続で呼ばれても、そのたびに最大から戻し直すだけで強さは重ならない。時間はスローモードに左右されない実時間で進む。
+    /// 呼ぶ側は静的な Play だけを知ればよく、連続で呼ばれても、そのたびに最大から戻し直すだけで強さは重ならない。時間は実時間で進む。
     /// </summary>
     public sealed class HitChromaticAberration : MonoBehaviour
     {

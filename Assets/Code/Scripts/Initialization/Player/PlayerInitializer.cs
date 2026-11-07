@@ -12,11 +12,11 @@ using UsefulToolkit.MeshCut;
 namespace Kizami.Initialization
 {
     /// <summary>
-    /// プレイヤーの移動・視点・HP・近接切断・チャージ・スキル・スローモード・投擲まわり（Service / State / Adapter）を生成して繋ぐ配線役。インゲームのシーンへ置く。
+    /// プレイヤーの移動・視点・HP・近接切断・チャージ・スキル・投擲まわり（Service / State / Adapter）を生成して繋ぐ配線役。インゲームのシーンへ置く。
     /// 投擲の Adapter は、かけらの Adapter の管理から外せたかけらだけをつかむ。
     /// 操作系ごとの視点の回転のさせ方の違いは、シーンへ置く PlayerMovementAdapterBase の派生が吸収する。
     /// </summary>
-    public sealed class PlayerInitializer : InitializerBase, IInjectable<ITimeScaleController>, IInjectable<IGameProgressController>
+    public sealed class PlayerInitializer : InitializerBase, IInjectable<IGameProgressController>
     {
         private readonly PlayerHealthService _healthService = new();
         private readonly PlayerMovementService _movementService = new();
@@ -47,15 +47,11 @@ namespace Kizami.Initialization
         private BombThrowAdapter _bombThrowAdapter;
 
         [SerializeField]
-        [Tooltip("視線の先の飛び移りの目印を探す Adapter。未設定なら、既定の値でこの GameObject に付ける")]
-        private FlightAdapter _flightAdapter;
-
-        [SerializeField]
         [Tooltip("火術奥義・羽天轟号の上昇と戻りでプレイヤーの位置を動かす Adapter。未設定なら、既定の値でこの GameObject に付ける")]
         private SkyBeamAdapter _skyBeamAdapter;
 
         [SerializeField]
-        [Tooltip("スキル・近接・ジャンプ・被ダメージ・スローモードの効果音を鳴らす Adapter。未設定なら、この GameObject に付ける")]
+        [Tooltip("スキル・近接・ジャンプ・被ダメージの効果音を鳴らす Adapter。未設定なら、この GameObject に付ける")]
         private PlayerSoundAdapter _soundAdapter;
 
         [SerializeField]
@@ -67,11 +63,8 @@ namespace Kizami.Initialization
         private MeleeCutService _meleeCutService;
         private ChargeService _chargeService;
         private SkillService _skillService;
-        private SlowModeService _slowModeService;
-        private FlightService _flightService;
         private SkyBeamService _skyBeamService;
         private FragmentThrowService _fragmentThrowService;
-        private ITimeScaleController _timeScaleController;
         private IGameProgressController _progressService;
 
         public override void Initialize(IBlackBoard blackBoard)
@@ -80,11 +73,6 @@ namespace Kizami.Initialization
             {
                 base.Initialize(blackBoard);
                 return;
-            }
-
-            if (_timeScaleController == null)
-            {
-                UsefulLogger.LogError("ITimeScaleController を受け取れなかった為、スローモードを使えません。", this);
             }
 
             var sceneId = gameObject.scene.buildIndex;
@@ -111,16 +99,6 @@ namespace Kizami.Initialization
             _enemyEnergyAdapter.Initialize(_chargeService.AddCollapsedEnemies);
             _meleeCutAdapter.Initialize(DistributeCutResults, _armAdapter);
 
-            // F は、飛び移れるときは飛び移り、そうでなければスローモードになる為、FlightService を先に生成して渡す
-            _flightService = new FlightService(blackBoard, _movementService,
-                displacement => _movementAdapter.PlaceAt(_movementAdapter.Position + displacement),
-                () => _movementAdapter.BodyBounds.center, _actionEvents, _effectEvents, sceneId);
-            if (_flightAdapter == null) _flightAdapter = gameObject.AddComponent<FlightAdapter>();
-            _flightAdapter.Initialize(_flightService.SetCandidate);
-
-            // SlowModeService は ChargeState を取得する為、ChargeService の生成より後に生成する
-            _slowModeService = new SlowModeService(blackBoard, _parameters, _chargeService, _timeScaleController,
-                _flightService.TryFly, sceneId);
             // MeleeCutService が羽天轟号の使用中かを見る為、MeleeCutService の生成より前に生成する
             if (_skyBeamAdapter == null) _skyBeamAdapter = gameObject.AddComponent<SkyBeamAdapter>();
             _skyBeamService = new SkyBeamService(_movementService, _chargeService, _actionEvents, _skyBeamAdapter.Begin,
@@ -130,8 +108,9 @@ namespace Kizami.Initialization
 
             _voxelMoundAdapter.Initialize(blackBoard, _enemySpawnAdapter.WatchPiece, _enemySpawnAdapter.RefreshRegion,
                 _enemySpawnAdapter.DefeatInRadius, _movementService.RequestKnockback, () => _movementAdapter.BodyBounds);
+
             _meleeCutService = new MeleeCutService(blackBoard, _parameters, _enhanceService, _meleeCutAdapter.Swing,
-                _slowModeService.TryUseCut, _skyBeamService, _actionEvents, sceneId);
+                _skyBeamService, _actionEvents, sceneId);
             if (_bombThrowAdapter == null) _bombThrowAdapter = gameObject.AddComponent<BombThrowAdapter>();
             _bombThrowAdapter.Initialize(blackBoard, _voxelDestructionAdapter.CarveExplosionAt);
             _voxelDestructionAdapter.Initialize(blackBoard);
@@ -204,13 +183,7 @@ namespace Kizami.Initialization
             _lookService?.Dispose();
             _meleeCutService?.Dispose();
             _skillService?.Dispose();
-            _slowModeService?.Dispose();
             _fragmentThrowService?.Dispose();
-        }
-
-        public void Inject(ITimeScaleController instance)
-        {
-            _timeScaleController = instance;
         }
 
         public void Inject(IGameProgressController instance)

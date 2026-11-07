@@ -80,7 +80,7 @@ UsefulToolkit.MeshCut（`Library/PackageCache/com.rei.usefultoolkit.meshcut@*/RE
 
 | # | 項目 | 決定 |
 |---|---|---|
-| 1 | 生まれたかけらを受け取る方法 | UsefulToolkit の `MultiCutBlade.ExecuteCut` が、元の対象と表と裏のかけらの組を返すようにする。作業は別の作業者が UsefulToolkit のリポジトリで行い、マージの後で刻断のパッケージを更新する。`MultiMeshCut` を直接使う案は、かけらへの反映（約150行）の重複になるので採らない |
+| 1 | 生まれたかけらを受け取る方法 | UsefulToolkit の `MultiCutBlade.ExecuteCut` が、元の対象と表と裏のかけらの組を返すようにする。作業は別の作業者が UsefulToolkit のリポジトリで行い、マージの後で刻身のパッケージを更新する。`MultiMeshCut` を直接使う案は、かけらへの反映（約150行）の重複になるので採らない |
 | 2 | かけらの通知 | 区間2では、切断の Adapter が結果をログに出すところまでにする。Event（または State）は、受け取り手（チャージ）のできる区間3で作る。区間2で受け取るのがデバッグのログだけの為 |
 | 3 | 切断の Initializer を置くシーン | InGame（インゲーム共通のシステム）に、MeshCut System、切断の Adapter、その Initializer（`MeleeCutInitializer`）を置き、InGame の Compositor を作る。刃はプールと同じシーンに置く必要があり、敵は `MeshDataCache` の子に置く必要がある為。InGame のスコープからは、StandardPlayerControl のスコープに DI 登録した物を受け取れないので、シーンをまたぐ受け渡しは BlackBoard で行う（区間4の「決めること」#7 とは別に決める） |
 | 4 | 攻撃の通知の経路 | EventBoard。`PlayerEventBoard`（ChildEventBoard）に `MeleeCutEvents` を StandardPlayerControl のシーンの Event として登録し、`OnSwing`（中身は振ったときの角度）を流す。「攻撃した」は値を持たない出来事で、シーンをまたぐので直接配線もできない為 |
@@ -157,7 +157,7 @@ sequenceDiagram
 | 4 | `MeleeCutAdapter`、`MeleeCutInitializer`、InGame の Compositor の生成、結果のログ（2-4、2-6） | 完了条件 |
 | 5 | 区間計画書の「実装結果」と全体計画書の更新 | ― |
 
-- コミット0はマージ済み。刻断のパッケージの更新は、コミット1の前に別のコミット（`5220167`）で行った
+- コミット0はマージ済み。刻身のパッケージの更新は、コミット1の前に別のコミット（`5220167`）で行った
 
 ## 実装中に確かめること
 

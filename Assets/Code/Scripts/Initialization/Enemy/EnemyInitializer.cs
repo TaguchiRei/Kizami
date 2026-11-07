@@ -34,6 +34,10 @@ namespace Kizami.Initialization
         [Tooltip("敵の攻撃が与えるダメージ量")]
         private EnemyDamageSettings _damageSettings = new();
 
+        [SerializeField]
+        [Tooltip("崩落で倒れた敵の小さな爆発を出す Adapter。同じシーンにあるので Inspector で渡す。なければ爆発は出さない")]
+        private VoxelDestructionAdapter _voxelDestructionAdapter;
+
         [SerializeField] private EnemySpawnAdapter _spawnAdapter;
         [SerializeField] private FragmentOrbAdapter _fragmentOrbAdapter;
         [SerializeField] private EnemyEnergyAdapter _energyAdapter;
@@ -62,6 +66,7 @@ namespace Kizami.Initialization
                 _healthService != null ? _healthService.ApplyDamage : null, _damageSettings.Shot, _damageSettings.FinisherBeam,
                 _movementService != null ? _movementService.RequestLaunch : null, _squadService.Step, _voxelAttraction);
             _spawnAdapter.SetOnDefeated(_defeatEvents.Raise);
+            if (_voxelDestructionAdapter != null) _spawnAdapter.SetOnCollapseBlast(_voxelDestructionAdapter.PlayBlastAt);
             if (StageSelection.TryGetSelectedStage(_progressService, out var stage))
             {
                 _spawnAdapter.SetMaxAttacking(stage.MaxAttackingAttackers, stage.MaxAttackingFinishers);

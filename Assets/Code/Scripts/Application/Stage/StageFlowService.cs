@@ -276,7 +276,7 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// 購読を解除する。ポーズ中なら倍率を等速に戻す。ポーズ前の倍率（スローモード）は、スローモードの側が自分で戻す。
+        /// 購読を解除する。ポーズ中なら倍率を等速に戻す。
         /// </summary>
         public void Dispose()
         {

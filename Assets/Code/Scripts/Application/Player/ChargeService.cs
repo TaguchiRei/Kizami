@@ -78,7 +78,7 @@ namespace Kizami.Application
     }
 
     /// <summary>
-    /// チャージを消費する操作面。スキル・スローモード・羽天轟号が使う。
+    /// チャージを消費する操作面。スキル・羽天轟号が使う。
     /// </summary>
     public interface IChargeController
     {

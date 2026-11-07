@@ -1,4 +1,4 @@
-# 刻断（kizami）
+# 刻身（kizami）
 
 Unity 6（6000.3.8f1）で作っている 3D アクションゲーム。UsefulToolkit（作者自身の UPM ライブラリ群）と、State-Centrism Architecture（作者自身のアーキテクチャ）で組んでいる。
 

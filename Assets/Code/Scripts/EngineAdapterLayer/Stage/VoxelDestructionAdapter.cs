@@ -356,6 +356,16 @@ namespace Kizami.EngineAdapter
             Carve(new SphereShape(center, reach), _explosionFalloff, hitCount, reportsHealthHit: false);
         }
 
+        /// <summary>
+        /// 地形を削らずに、爆発の球と火花だけを center に出す。敵が倒れたときの小さな爆発に使う。
+        /// </summary>
+        /// <param name="center">爆発の中心（ワールド空間）</param>
+        /// <param name="radius">爆発の見た目の半径（m）</param>
+        public void PlayBlastAt(Vector3 center, float radius)
+        {
+            PlayExplosionEffect(center, radius);
+        }
+
         private void OnDestroy()
         {
             foreach (var subscription in _subscriptions)
