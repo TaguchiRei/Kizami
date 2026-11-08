@@ -1,8 +1,8 @@
 """建物 2 大型ビル B を、VoxelBuilding で積む階ごとのモデルに分けて作る。
 
-36 m → 28 m → 20 m と段々に細くなる 15 階建て。36 m と 28 m の区間は外装まで仕上がり、20 m の区間は柱と床だけ。
+36 m → 28 m → 20 m と段々に細くなる、1 階 8 m の 8 階建て。各階は下と上の 2 パーツに分けて作る（kizami_model.storey_parts）。36 m と 28 m の区間は外装まで仕上がり、20 m の区間は柱と床だけ。
 段差の階は、下の区間の大きさの床を張って外側をテラスにし、縁に手すり壁を立てる。床は各階の床側（下）に張る。
-区間の並び：Ground ×1、Tier36 ×5、Setback28 ×1、Tier28 ×4、Setback20 ×1、Frame20 ×2、Top20 ×1。
+区間の並び：Ground ×1、Tier36 ×2、Setback28 ×1、Tier28 ×1、Setback20 ×1、Frame20 ×1、Top20 ×1。各区間は Lower と Upper の組を積む。
 """
 import importlib
 import os
@@ -17,7 +17,7 @@ MODEL_PREFIX = "Stage_Building_HighRiseB"
 # 区間ごとの平面の一辺（セル数）
 WIDE, MIDDLE, NARROW = 90, 70, 50
 # 1 階の高さ（セル数）
-STOREY = 10
+STOREY = 20
 # 床の厚さ・腰壁の高さ・腰壁の奥行き・ガラスの奥行き（セル数）
 SLAB, SPANDREL, SPANDREL_DEPTH, GLASS_DEPTH = 2, 3, 3, 2
 # 柱の一辺と、柱の間の数（セル数）
@@ -25,7 +25,7 @@ COLUMN, SPANS = 4, 4
 # 中央のコアの一辺と壁の厚さ（セル数）。どの区間でも平面の中心にそろえる
 CORE, CORE_WALL = 20, 3
 # 最上階のコアの壁の上端。鉄筋はその上、階の天端まで突き出す
-TOP_CORE_TOP = 6
+TOP_CORE_TOP = STOREY - 4
 # テラスの縁の手すり壁の厚さと高さ（セル数）
 PARAPET_DEPTH, PARAPET_HEIGHT = 2, 3
 
@@ -183,11 +183,11 @@ def top():
 
 
 result = km.build_floor_models(MODEL_PREFIX, [
-    ("Ground", ground(), (WIDE, WIDE, STOREY)),
-    ("Tier36", tier(WIDE), (WIDE, WIDE, STOREY)),
-    ("Setback28", setback(WIDE, MIDDLE, True), (WIDE, WIDE, STOREY)),
-    ("Tier28", tier(MIDDLE), (MIDDLE, MIDDLE, STOREY)),
-    ("Setback20", setback(MIDDLE, NARROW, False), (MIDDLE, MIDDLE, STOREY)),
-    ("Frame20", frame(), (NARROW, NARROW, STOREY)),
-    ("Top20", top(), (NARROW, NARROW, STOREY)),
+    *km.storey_parts("Ground", ground(), (WIDE, WIDE, STOREY)),
+    *km.storey_parts("Tier36", tier(WIDE), (WIDE, WIDE, STOREY)),
+    *km.storey_parts("Setback28", setback(WIDE, MIDDLE, True), (WIDE, WIDE, STOREY)),
+    *km.storey_parts("Tier28", tier(MIDDLE), (MIDDLE, MIDDLE, STOREY)),
+    *km.storey_parts("Setback20", setback(MIDDLE, NARROW, False), (MIDDLE, MIDDLE, STOREY)),
+    *km.storey_parts("Frame20", frame(), (NARROW, NARROW, STOREY)),
+    *km.storey_parts("Top20", top(), (NARROW, NARROW, STOREY)),
 ])

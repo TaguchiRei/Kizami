@@ -1,8 +1,8 @@
 """建物 9 小さい店舗の長屋を、VoxelBuilding で積む階ごとのモデルに分けて作る。
 
-幅 16 × 奥行き 8 m の 2 階建てに、3 軒の店が並ぶ。1 階の店先はガラスで、上半分に鉄のシャッターが半分下りている。
-2 階は住まいで、南に窓がある。東端の 1 軒は屋根がまだなく、壁の鉄筋が上へ突き出す。床は各階の床側（下）に張り、屋根は 2 階の天井側に張る。
-区間の並び：Ground ×1、Top ×1。
+幅 16 × 奥行き 8 m、高さ 8 m の 1 階建てに、天井の高い 3 軒の店が並ぶ。店先はガラスで、上半分に鉄のシャッターが半分下りている。
+東端の 1 軒は屋根がまだなく、壁の鉄筋が上へ突き出す。床は床側（下）に張り、屋根は天井側に張る。
+1 階は下と上の 2 パーツに分けて作る（kizami_model.storey_parts）。区間の並び：Ground ×1（Lower と Upper の組）。
 """
 import importlib
 import os
@@ -17,13 +17,11 @@ MODEL_PREFIX = "Stage_Building_Rowhouse"
 # 平面の幅・奥行き（セル数）
 WIDTH, DEPTH = 40, 20
 # 1 階の高さと床の厚さと壁の厚さ（セル数）
-STOREY, SLAB, WALL = 10, 2, 3
+STOREY, SLAB, WALL = 20, 2, 3
 # 店の間仕切りの X の位置（セル数）。厚さは WALL
 PARTITIONS = (13, 24)
 # 1 階の店先の上端と、シャッターが下りている下端（床の上からのセル数）
-SHOPFRONT_TOP, SHUTTER_BOTTOM = 7, 4
-# 2 階の窓の下端・上端（床の上からのセル数）
-WINDOW = (3, 6)
+SHOPFRONT_TOP, SHUTTER_BOTTOM = 15, 8
 # 屋根のない東端の店の X の始まり（セル数）
 UNROOFED_X = PARTITIONS[1]
 
@@ -45,9 +43,10 @@ def walls(boxes, z0, z1, openings, rebar_top=None):
 
 
 def ground():
+    """店と屋根。東端の店は屋根がなく、壁の鉄筋が上へ突き出す。"""
     boxes = [("Concrete", (0, 0, 0), (WIDTH, DEPTH, SLAB))]
     openings = [(a + 1, b - 1, SLAB, SLAB + SHOPFRONT_TOP, True) for a, b in shop_ranges()]
-    walls(boxes, SLAB, STOREY, openings)
+    walls(boxes, SLAB, WALL_TOP, openings)
     # 半分下りたシャッター。開口のガラスの上半分を鉄に置き換える
     shutters = []
     for i, box in enumerate(boxes):
@@ -55,14 +54,7 @@ def ground():
         if mat == "Glass":
             boxes[i] = (mat, lo, (hi[0], hi[1], SLAB + SHUTTER_BOTTOM))
             shutters.append(("Metal", (lo[0], lo[1], SLAB + SHUTTER_BOTTOM), hi))
-    return boxes + shutters
-
-
-def top():
-    """2 階と屋根。東端の店は屋根がなく、壁の鉄筋が上へ突き出す。"""
-    boxes = [("Concrete", (0, 0, 0), (WIDTH, DEPTH, SLAB))]
-    openings = [(a + 2, b - 2, SLAB + WINDOW[0], SLAB + WINDOW[1], True) for a, b in shop_ranges()]
-    walls(boxes, SLAB, WALL_TOP, openings)
+    boxes += shutters
     boxes.append(("Concrete", (0, 0, WALL_TOP), (UNROOFED_X + WALL, DEPTH, STOREY)))
     for x in range(UNROOFED_X + WALL + 2, WIDTH - WALL, 4):
         for y in (1, DEPTH - 2):
@@ -72,6 +64,5 @@ def top():
 
 SIZE = (WIDTH, DEPTH, STOREY)
 result = km.build_floor_models(MODEL_PREFIX, [
-    ("Ground", ground(), SIZE),
-    ("Top", top(), SIZE),
+    *km.storey_parts("Ground", ground(), SIZE),
 ])

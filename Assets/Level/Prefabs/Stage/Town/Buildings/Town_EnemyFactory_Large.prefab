@@ -45,9 +45,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
   _sections:
-  - _model: {fileID: 11400000, guid: 94b5e33d382247b4e8665554690b08e7, type: 2}
-    _attachments: {fileID: 0}
-    _proxy: {fileID: 5350418536298000867, guid: 981e28cb2e6e73b4e92cfed90c415aa6, type: 3}
+  - _models:
+    - _model: {fileID: 11400000, guid: 94b5e33d382247b4e8665554690b08e7, type: 2}
+      _attachments: {fileID: 0}
+      _proxy: {fileID: 5350418536298000867, guid: 981e28cb2e6e73b4e92cfed90c415aa6, type: 3}
     _count: 1
   _floorHeight: 8
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}

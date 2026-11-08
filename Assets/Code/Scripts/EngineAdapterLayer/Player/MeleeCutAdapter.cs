@@ -39,6 +39,10 @@ namespace Kizami.EngineAdapter
         [Tooltip("切断の範囲の、カメラから前方への距離（m）")]
         private float _reach = 9f;
 
+        [SerializeField]
+        [Tooltip("プレイヤーの目の位置（CameraPivot）。切断の起点を、カメラの視線上で目と同じ奥行きの点まで進める。カメラを体の後ろへ離す三人称でも、届く距離を体から測る為。未設定ならカメラの位置が起点")]
+        private Transform _eye;
+
         [SerializeField, Min(0f)]
         [Tooltip("切断の範囲の、刃に沿った横方向の幅（m）")]
         private float _width = 6f;
@@ -167,8 +171,8 @@ namespace Kizami.EngineAdapter
             }
 
             var cameraTransform = cameraMain.transform;
-            var origin = cameraTransform.position;
             var forward = cameraTransform.forward;
+            var origin = GetCutOrigin(cameraTransform.position, forward);
             var normal = Quaternion.AngleAxis(angle, forward) * cameraTransform.up;
             var bladeRotation = Quaternion.LookRotation(forward, normal);
 
@@ -230,7 +234,20 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// 切断の範囲の箱を求める。カメラの位置から前方へ届く距離だけ伸びる。
+        /// 切断の起点を求める。カメラの視線上で、目と同じ奥行き（視線の向きへ射影した位置）の点。一人称ではカメラの位置と一致する。
+        /// 目がカメラより後ろにあるときと、目が未設定のときはカメラの位置。
+        /// Cinemachine のカメラの補正（CinemachineCameraOffset など）は CameraPivot の Transform には書かれない為、CameraPivot の位置は目の位置のまま。
+        /// </summary>
+        private Vector3 GetCutOrigin(Vector3 cameraPosition, Vector3 forward)
+        {
+            if (_eye == null) return cameraPosition;
+
+            var depth = Vector3.Dot(_eye.position - cameraPosition, forward);
+            return cameraPosition + forward * Mathf.Max(depth, 0f);
+        }
+
+        /// <summary>
+        /// 切断の範囲の箱を求める。起点から前方へ届く距離だけ伸びる。
         /// </summary>
         private void GetCutBox(Vector3 origin, Vector3 forward, float rangeScale, out Vector3 center,
             out Vector3 halfExtents)

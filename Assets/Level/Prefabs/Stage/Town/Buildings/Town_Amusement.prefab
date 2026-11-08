@@ -45,17 +45,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
   _sections:
-  - _model: {fileID: 11400000, guid: e5599b5b57d7cf5408ef8ffd731c9bd0, type: 2}
-    _attachments: {fileID: 7478254270967849381, guid: 84b37c00b82433249993636caecf3150, type: 3}
-    _proxy: {fileID: 3213648679480262893, guid: dfd0120fdbae9424984e49b6fa6209d6, type: 3}
+  - _models:
+    - _model: {fileID: 11400000, guid: f455012cab38e9e4e906358e52a12043, type: 2}
+      _attachments: {fileID: 6200842776903340047, guid: 06f33dd9bcde35b42b313f6bfeec389e, type: 3}
+      _proxy: {fileID: 7958116866294625995, guid: a3436cc296adb114393a6eb6cc9c6baa, type: 3}
+    - _model: {fileID: 11400000, guid: 84d57b8041955134a8ff8250fed818ef, type: 2}
+      _attachments: {fileID: 0}
+      _proxy: {fileID: 7631513306384065456, guid: bebe0f77bc788984c9a1e070a26b8b1b, type: 3}
     _count: 1
-  - _model: {fileID: 11400000, guid: ea2d5547631c9dc4e8ee840be5df38df, type: 2}
-    _attachments: {fileID: 0}
-    _proxy: {fileID: 6575597146877649259, guid: 6d4aa13949286a14894e6580d497c4de, type: 3}
-    _count: 2
-  - _model: {fileID: 11400000, guid: 6bae342fe65d82045b7c00b63300a842, type: 2}
-    _attachments: {fileID: 0}
-    _proxy: {fileID: 7276941068940124952, guid: d1d601c3794db234f873eeab3e8ef4fc, type: 3}
+  - _models:
+    - _model: {fileID: 11400000, guid: 3df96ee64cfc362449ebcdef0fac2f7f, type: 2}
+      _attachments: {fileID: 0}
+      _proxy: {fileID: 7924078958627690334, guid: 17545efbc0da7b349ad8366c2168df56, type: 3}
+    - _model: {fileID: 11400000, guid: 9ca5d54dfdf731b42b06b06853863c56, type: 2}
+      _attachments: {fileID: 0}
+      _proxy: {fileID: 5161732070437614804, guid: 284ebd4ef002af7449b1cb038608b16a, type: 3}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -63,6 +67,7 @@ MonoBehaviour:
   _connectionThreshold: 0.05
   _hardWeight: 4
   _collapseDensity: 500
+  _loadOnCollapse: 1
   _target: {fileID: 0}
   _swapDistance: 40
   _proxyTransitionHeight: 0.3
