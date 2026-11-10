@@ -1805,17 +1805,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
   _sections:
-  - _models:
-    - _model: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
-      _attachments: {fileID: 0}
+  - _model: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
+    _attachments: {fileID: 0}
     _count: 1
-  - _models:
-    - _model: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
-      _attachments: {fileID: 0}
+  - _model: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
+    _attachments: {fileID: 0}
     _count: 4
-  - _models:
-    - _model: {fileID: 11400000, guid: 3f25c186baa780447aa35910cffcfa9a, type: 2}
-      _attachments: {fileID: 0}
+  - _model: {fileID: 11400000, guid: 3f25c186baa780447aa35910cffcfa9a, type: 2}
+    _attachments: {fileID: 0}
     _count: 1
   _groundFloor: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}
   _middleFloor: {fileID: 11400000, guid: 7edd9758a082ffb4caa09d8fd3deaeb5, type: 2}

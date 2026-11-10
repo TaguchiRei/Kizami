@@ -230,29 +230,6 @@ def wall_with_openings(boxes, along, start, end, offset, z0, z1, openings, cap_b
         wall(boxes, along, cursor, end, offset, z0, z1, cap_bottom=cap_bottom)
 
 
-# VoxelBuilding で積む 1 パーツの高さ（セル数）。建物の 1 階はこの高さのパーツ 2 つで作る
-PART_HEIGHT = 10
-
-
-def storey_parts(kind, boxes, size):
-    """1 階分の箱を高さ PART_HEIGHT で下と上の 2 パーツに切り、build_floor_models に渡す並びにする。
-
-    パーツの名前は `<階の種類>Lower` と `<階の種類>Upper`。上のパーツは底が 0 になるようずらし、PART_HEIGHT より上の箱（屋上の看板など）もすべて含む。
-    箱単位で切るので、切り口も閉じた面になる。ガラスの箱も切れ目で上下の板に分かれる。
-    """
-    lower, upper = [], []
-    for mat_name, lo, hi in boxes:
-        if lo[2] < PART_HEIGHT:
-            lower.append((mat_name, lo, (hi[0], hi[1], min(hi[2], PART_HEIGHT))))
-        if hi[2] > PART_HEIGHT:
-            bottom = max(lo[2], PART_HEIGHT) - PART_HEIGHT
-            upper.append((mat_name, (lo[0], lo[1], bottom), (hi[0], hi[1], hi[2] - PART_HEIGHT)))
-    return [
-        (kind + "Lower", lower, (size[0], size[1], PART_HEIGHT)),
-        (kind + "Upper", upper, (size[0], size[1], size[2] - PART_HEIGHT)),
-    ]
-
-
 def build_floor_models(prefix, parts):
     """建物の階ごとのモデルをまとめて作る。parts は [(階の種類, 箱, (幅, 奥行き, 高さ) のセル数)]。
 

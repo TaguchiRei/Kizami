@@ -1,7 +1,7 @@
 """建物 3 ガラス張りのビルを、VoxelBuilding で積む階ごとのモデルに分けて作る。
 
-28 × 20 m の、1 階 8 m の 5 階建て。各階は下と上の 2 パーツに分けて作る（kizami_model.storey_parts）。柱を外周から内側に下げ、外周を床から天井までガラスにする（カーテンウォール）。上の 2 階はまだガラスがなく、床の縁が見える。
-床は各階の床側（下）に張る。区間の並び：Ground ×1、Curtain ×2、Open ×1、Top ×1。各区間は Lower と Upper の組を積む。
+28 × 20 m の 10 階建て。柱を外周から内側に下げ、外周を床から天井までガラスにする（カーテンウォール）。上の 3 階はまだガラスがなく、床の縁が見える。
+床は各階の床側（下）に張る。区間の並び：Ground ×1、Curtain ×6、Open ×2、Top ×1。
 """
 import importlib
 import os
@@ -16,7 +16,7 @@ MODEL_PREFIX = "Stage_Building_Glass"
 # 平面の幅・奥行き（セル数）
 WIDTH, DEPTH = 70, 50
 # 1 階の高さと床の厚さ（セル数）
-STOREY, SLAB = 20, 2
+STOREY, SLAB = 10, 2
 # ガラスの奥行き（セル数）。床の縁に張る
 GLASS_DEPTH = 1
 # 柱の一辺と、外周から柱を下げる距離（セル数）
@@ -26,7 +26,7 @@ SPANS = (4, 2)
 # 中央のコアの範囲（セル数）と壁の厚さ
 CORE_X, CORE_Y, CORE_WALL = (27, 43), (17, 33), 3
 # 最上階のコアの壁の上端。鉄筋はその上、階の天端まで突き出す
-TOP_CORE_TOP = STOREY - 4
+TOP_CORE_TOP = 6
 # 1 階のロビーの、ガラスを外周から下げる距離（セル数）。上の階の床が庇になる
 LOBBY_SETBACK = 4
 
@@ -127,8 +127,8 @@ def top():
 
 SIZE = (WIDTH, DEPTH, STOREY)
 result = km.build_floor_models(MODEL_PREFIX, [
-    *km.storey_parts("Ground", ground(), SIZE),
-    *km.storey_parts("Curtain", curtain(), SIZE),
-    *km.storey_parts("Open", open_floor(), SIZE),
-    *km.storey_parts("Top", top(), SIZE),
+    ("Ground", ground(), SIZE),
+    ("Curtain", curtain(), SIZE),
+    ("Open", open_floor(), SIZE),
+    ("Top", top(), SIZE),
 ])

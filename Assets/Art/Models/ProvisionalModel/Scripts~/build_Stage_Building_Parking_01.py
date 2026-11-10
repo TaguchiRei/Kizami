@@ -1,8 +1,8 @@
 """建物 4 立体駐車場を、VoxelBuilding で積む階ごとのモデルに分けて作る。
 
-40 × 28 m で、1 階 8 m の地上・2 階と屋上の 3 層。外周は腰の高さの壁だけで、北側に 1 階分を上がるスロープがある。各階は下と上の 2 パーツに分けて作る（kizami_model.storey_parts）。屋上は腰壁の一部がまだ立っていない。
+40 × 28 m で、地上・2〜4 階・屋上の 5 層。外周は腰の高さの壁だけで、北側に 1 階分を上がるスロープがある。屋上は腰壁の一部がまだ立っていない。
 床は各階の天井側に張る。スロープを 1 つの階のモデルの中で上の階の床までつなぐ為。1 階は地面の上に立ち、上の階はその下の階の床の上に載る。
-区間の並び：Ground ×1、Middle ×1（それぞれ Lower と Upper の組）、Roof ×1。
+区間の並び：Ground ×1、Middle ×3、Roof ×1。
 """
 import importlib
 import os
@@ -17,14 +17,14 @@ MODEL_PREFIX = "Stage_Building_Parking"
 # 平面の幅・奥行き（セル数）
 WIDTH, DEPTH = 100, 70
 # 1 階の高さと床の厚さ（セル数）
-STOREY, SLAB = 20, 2
+STOREY, SLAB = 10, 2
 # 柱の一辺と、柱を立てる位置（セル数）
 COLUMN = 4
 COLUMN_X, COLUMN_Y = (0, 32, 64, 96), (0, 33, 66)
 # 外周の腰壁の厚さと高さ（セル数）
 PARAPET_DEPTH, PARAPET_HEIGHT = 2, 3
 # スロープの Y の範囲と X の始まり、段の数と 1 段の長さ（セル数）。段は 1 セルずつ上がり、最後の段が上の階の床の高さになる
-RAMP_Y, RAMP_X, RAMP_STEPS, RAMP_RUN = (52, 66), 8, STOREY, 4
+RAMP_Y, RAMP_X, RAMP_STEPS, RAMP_RUN = (52, 66), 20, 10, 5
 # 屋上で腰壁がまだ立っていない区間（北の面の X の範囲、セル数）。鉄筋だけが立つ
 ROOF_UNBUILT_X = (40, 96)
 
@@ -123,7 +123,7 @@ def roof():
 
 SIZE = (WIDTH, DEPTH, STOREY)
 result = km.build_floor_models(MODEL_PREFIX, [
-    *km.storey_parts("Ground", ground(), SIZE),
-    *km.storey_parts("Middle", middle(), SIZE),
+    ("Ground", ground(), SIZE),
+    ("Middle", middle(), SIZE),
     ("Roof", roof(), (WIDTH, DEPTH, PARAPET_HEIGHT + 3)),
 ])

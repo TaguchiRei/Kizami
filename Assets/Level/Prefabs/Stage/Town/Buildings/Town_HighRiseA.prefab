@@ -45,37 +45,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
   _sections:
-  - _models:
-    - _model: {fileID: 11400000, guid: 9af549f054a570a40a28945a6396e5d5, type: 2}
-      _attachments: {fileID: 593943095864532657, guid: b13b9fa5620e82641b01929cebbabde5, type: 3}
-      _proxy: {fileID: 2335195875433750346, guid: 3a3a95126e2e7a34182e2485c8c238e4, type: 3}
-    - _model: {fileID: 11400000, guid: a35b2b9284dbd4b499c03e2d90b58ae5, type: 2}
-      _attachments: {fileID: 1764967544934041039, guid: 7af59331f8253794795f0609c1b783d7, type: 3}
-      _proxy: {fileID: 4625563468876306190, guid: 501e3503621f6034ebe1d86a8fc4cefd, type: 3}
+  - _model: {fileID: 11400000, guid: 6f41d29a352c3bf43b596b702d6f4581, type: 2}
+    _attachments: {fileID: 3971302975132308412, guid: ef8ae46f74bb9954aab8d8714e2010b8, type: 3}
+    _proxy: {fileID: 7411640700035448166, guid: 7ad7388ee850e174d983e0fb0cc59623, type: 3}
     _count: 1
-  - _models:
-    - _model: {fileID: 11400000, guid: 047887fac4413e149928f1f382c026e2, type: 2}
-      _attachments: {fileID: 9115905164116202777, guid: 5240a34fa4b17454aa87263868446d6b, type: 3}
-      _proxy: {fileID: 483903381361634691, guid: 7e95e5b8526fae04f92447cd4fde94d3, type: 3}
-    - _model: {fileID: 11400000, guid: ea56d352ed954874db921a1a34c5f00b, type: 2}
-      _attachments: {fileID: 5310702545392159765, guid: 2435004881367744d8c34c87c1d20f77, type: 3}
-      _proxy: {fileID: 8453745631096079730, guid: 0ae1d3a1d8c1fd2468187ccf05f35a51, type: 3}
-    _count: 3
-  - _models:
-    - _model: {fileID: 11400000, guid: b9483f1d6b8817f4f9bbbde7007c1284, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 3718939765585409414, guid: 191c7bf2a989c7446a50cbaf7326fe28, type: 3}
-    - _model: {fileID: 11400000, guid: 40b50e91161e1c54a931d72663ced59b, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 15974638471593860, guid: 43d97e03072ea9d46993556a529a5ed8, type: 3}
-    _count: 1
-  - _models:
-    - _model: {fileID: 11400000, guid: ae381bc481732134080dc2270332aa3d, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 5013935909079120051, guid: 190bf248f5175c84888007ad0578e097, type: 3}
-    - _model: {fileID: 11400000, guid: 70ec8eaafddd9cf4c983a11aa6805fa4, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 4943718353696742925, guid: df29dfd7aafaae94fbafc9d07cf6d310, type: 3}
+  - _model: {fileID: 11400000, guid: b3d9c82b046a81143848c4446c2adb05, type: 2}
+    _attachments: {fileID: 2166648548246146167, guid: ef694c03383831644b41fc9be48e56b5, type: 3}
+    _proxy: {fileID: 4318242871979283424, guid: dc8470eb481162443a3a9551b4c6af85, type: 3}
+    _count: 8
+  - _model: {fileID: 11400000, guid: 1eb474ff2ccb51e49876056baa56b2a5, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 6514382882499703723, guid: 528cdd23aea50cd48a0011142188a491, type: 3}
+    _count: 2
+  - _model: {fileID: 11400000, guid: df699168955f83a4b8717df645010407, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 3975987264612754402, guid: b96eb56ea2e6d464495c90aa07ae1c2b, type: 3}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -83,7 +67,6 @@ MonoBehaviour:
   _connectionThreshold: 0.05
   _hardWeight: 4
   _collapseDensity: 500
-  _loadOnCollapse: 1
   _target: {fileID: 0}
   _swapDistance: 40
   _proxyTransitionHeight: 0.3

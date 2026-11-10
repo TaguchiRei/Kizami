@@ -45,13 +45,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
   _sections:
-  - _models:
-    - _model: {fileID: 11400000, guid: c962a829bfef0c4448cc7cce39608e60, type: 2}
-      _attachments: {fileID: 6282729290402081700, guid: cf7037272dfb6e745ab969c84df6ef45, type: 3}
-      _proxy: {fileID: 5473245057951133028, guid: 4b7da270a6c82634b8ef5ca51279a08b, type: 3}
-    - _model: {fileID: 11400000, guid: 5e71c78995be66341ab3c4bab695c3aa, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 6806126994617580424, guid: d12d1f1d63700304c8834fef70287355, type: 3}
+  - _model: {fileID: 11400000, guid: d5ac216ea435b4f438c5da266f625719, type: 2}
+    _attachments: {fileID: 6205263122029394432, guid: db131e2baa7a36645881ed7a729257e9, type: 3}
+    _proxy: {fileID: 4909949776982262412, guid: bada3483f347fac41969bd116b4ae4e7, type: 3}
+    _count: 1
+  - _model: {fileID: 11400000, guid: 6fa6ee9f8e5e41c4c807453ca25411f1, type: 2}
+    _attachments: {fileID: 8419231157667380889, guid: d05dd7cb15af0434a8a772f69af5bdbc, type: 3}
+    _proxy: {fileID: 4256392637422534946, guid: 2e73d91ef07013e459f97e6da832862e, type: 3}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -59,7 +59,6 @@ MonoBehaviour:
   _connectionThreshold: 0.05
   _hardWeight: 4
   _collapseDensity: 500
-  _loadOnCollapse: 1
   _target: {fileID: 0}
   _swapDistance: 40
   _proxyTransitionHeight: 0.3

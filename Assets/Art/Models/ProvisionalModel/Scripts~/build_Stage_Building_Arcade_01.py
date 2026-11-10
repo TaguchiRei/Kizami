@@ -3,12 +3,11 @@
 モジュールは通りの真ん中で東西の 2 棟に分ける。片側の店舗だけを壊したとき、その上の階が反対側の店舗に支えられて宙に残らないようにする為。
 通りに架ける鉄骨の梁と屋根板も、通りの真ん中で切れる。
 
-幅 30.4 m × 通りに沿った長さ 12 m。東西に奥行き 8 m、高さ 8 m の天井の高い店舗、真ん中に幅 14.4 m の通り、その上に鉄骨の屋根を架ける。
+幅 30.4 m × 通りに沿った長さ 12 m。東西に奥行き 8 m の 2 階建ての店舗、真ん中に幅 14.4 m の通り、その上に鉄骨の屋根を架ける。
 モジュールは通り（Y）の向きにつないで延ばす。店舗の間仕切りは各モジュールの南端にだけ置き、隣のモジュールと続いた店並みにする。
 屋根の鉄骨は、通りに面した店舗の壁の上に柱を立てて架ける。屋根は建設途中で、屋根板は南半分だけ張ってある。
 端のモジュールは、北端を店舗の壁で閉じ、看板を掛ける門の骨組みを立てる。床は各階の床側（下）に張る。
-店舗の階は下と上の 2 パーツに分けて作る（kizami_model.storey_parts）。
-1 棟の区間は、直線のモジュールが <West/East>Ground の Lower と Upper の組 ×1、<West/East>Roof ×1。端のモジュールは末尾に End が付く。
+1 棟の区間は、直線のモジュールが <West/East>Ground ×1、<West/East>Upper ×1、<West/East>Roof ×1。端のモジュールは末尾に End が付く。
 """
 import importlib
 import os
@@ -23,11 +22,11 @@ MODEL_PREFIX = "Stage_Building_Arcade"
 # モジュールの幅（X）と、通りに沿った長さ（Y）（セル数）
 WIDTH, LENGTH = 76, 30
 # 1 階の高さと床の厚さと壁の厚さ（セル数）
-STOREY, SLAB, WALL = 20, 2, 3
+STOREY, SLAB, WALL = 10, 2, 3
 # 店舗の奥行き（セル数）。西の店舗は X 0..SHOP、東の店舗は X WIDTH-SHOP..WIDTH
 SHOP = 20
-# 店先の開口（Y の範囲）と、開口の上端（セル数）
-FRONT, SHOPFRONT_TOP = (5, 27), 16
+# 店先の開口（Y の範囲）と、1 階の開口の上端・2 階の窓の上下（セル数）
+FRONT, SHOPFRONT_TOP, WINDOW = (5, 27), 8, (5, 9)
 # 屋根の鉄骨。柱を立てる Y の位置・柱と梁の太さ・梁の高さ・屋根板を張り終えた Y の範囲（セル数）
 POSTS_Y, STEEL, BEAM_Z, ROOFED_Y = (2, 16), 2, 12, (0, 16)
 # 端のモジュールの門の骨組みの Y の位置と、梁の高さ（セル数）
@@ -63,6 +62,13 @@ def ground(end):
     boxes = []
     slabs(boxes)
     shop_walls(boxes, SLAB, STOREY, [(FRONT[0], FRONT[1], SLAB, SHOPFRONT_TOP, True)], end)
+    return boxes
+
+
+def upper(end):
+    boxes = []
+    slabs(boxes)
+    shop_walls(boxes, SLAB, STOREY, [(FRONT[0], FRONT[1], SLAB + WINDOW[0], SLAB + WINDOW[1], True)], end)
     return boxes
 
 
@@ -104,17 +110,14 @@ def split(boxes):
 
 HALF = WIDTH // 2
 parts = []
-for name, boxes, height, end in (
-    ("Ground", ground(False), STOREY, ""),
-    ("Roof", roof(False), ROOF_HEIGHT, ""),
-    ("Ground", ground(True), STOREY, "End"),
-    ("Roof", roof(True), GATE_Z, "End"),
+for name, boxes, height in (
+    ("Ground", ground(False), STOREY),
+    ("Upper", upper(False), STOREY),
+    ("Roof", roof(False), ROOF_HEIGHT),
+    ("GroundEnd", ground(True), STOREY),
+    ("UpperEnd", upper(True), STOREY),
+    ("RoofEnd", roof(True), GATE_Z),
 ):
     west, east = split(boxes)
-    for side, side_boxes in (("West", west), ("East", east)):
-        size = (HALF, LENGTH, height)
-        if name == "Ground":
-            parts += [(kind + end, b, s) for kind, b, s in km.storey_parts(side + name, side_boxes, size)]
-        else:
-            parts.append((side + name + end, side_boxes, size))
+    parts += [("West" + name, west, (HALF, LENGTH, height)), ("East" + name, east, (HALF, LENGTH, height))]
 result = km.build_floor_models(MODEL_PREFIX, parts)

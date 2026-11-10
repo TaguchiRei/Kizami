@@ -1,7 +1,6 @@
 """建物 1 大型ビル A を、VoxelBuilding で積む階ごとのモデルに分けて作る。
 
-32 × 32 × 48 m の、1 階 8 m の 6 階建て。各階は下と上の 2 パーツに分けて作る（kizami_model.storey_parts）。
-区間の並び：Ground ×1、Middle ×3、Frame ×1（柱と床だけ）、Top ×1（最上階）。各区間は Lower と Upper の組を積む。
+32 × 32 × 48 m の 12 階建て。区間の並び：Ground ×1、Middle ×8、Frame ×2（柱と床だけ）、Top ×1（最上階）。
 """
 import importlib
 import os
@@ -16,7 +15,7 @@ MODEL_PREFIX = "Stage_Building_HighRiseA"
 # 平面の一辺（セル数）
 SIZE = 80
 # 1 階の高さ（セル数）
-STOREY = 20
+STOREY = 10
 # 床の厚さ・腰壁の高さ・腰壁の奥行き・ガラスの奥行き（セル数）
 SLAB, SPANDREL, SPANDREL_DEPTH, GLASS_DEPTH = 2, 3, 3, 2
 # 柱の一辺（セル数）と、柱を立てる位置（各軸の最小のセル）
@@ -25,7 +24,7 @@ COLUMN_POSITIONS = (0, 19, 38, 57, 76)
 # 中央の階段・エレベーターのコアの範囲と壁の厚さ（セル数）
 CORE_LO, CORE_HI, CORE_WALL = 30, 50, 3
 # 最上階のコアの壁の上端。鉄筋はその上、階の天端まで突き出す
-TOP_CORE_TOP = STOREY - 4
+TOP_CORE_TOP = 6
 # 最上階で床を張り終えていない側（Y がこの値以上）
 TOP_SLAB_UNFINISHED_Y = CORE_HI
 
@@ -141,8 +140,8 @@ def frame(top_storey):
 
 FLOOR_SIZE = (SIZE, SIZE, STOREY)
 result = km.build_floor_models(MODEL_PREFIX, [
-    *km.storey_parts("Ground", ground(), FLOOR_SIZE),
-    *km.storey_parts("Middle", middle(), FLOOR_SIZE),
-    *km.storey_parts("Frame", frame(False), FLOOR_SIZE),
-    *km.storey_parts("Top", frame(True), FLOOR_SIZE),
+    ("Ground", ground(), FLOOR_SIZE),
+    ("Middle", middle(), FLOOR_SIZE),
+    ("Frame", frame(False), FLOOR_SIZE),
+    ("Top", frame(True), FLOOR_SIZE),
 ])

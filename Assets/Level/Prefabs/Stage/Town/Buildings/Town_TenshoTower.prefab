@@ -4885,40 +4885,33 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
   _sections:
-  - _models:
-    - _model: {fileID: 11400000, guid: 0eabfe3cef755614497aa571e9feb0a0, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 3534704694991030089, guid: 1c7088588f7c9c847af9183ff7fd5c7f, type: 3}
+  - _model: {fileID: 11400000, guid: 0eabfe3cef755614497aa571e9feb0a0, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 3534704694991030089, guid: 1c7088588f7c9c847af9183ff7fd5c7f, type: 3}
     _count: 1
-  - _models:
-    - _model: {fileID: 11400000, guid: 99f494f007c15934da13747c60e39e79, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 2019564289726820770, guid: 79038fc142b41e343a655c0513f27959, type: 3}
+  - _model: {fileID: 11400000, guid: 99f494f007c15934da13747c60e39e79, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 2019564289726820770, guid: 79038fc142b41e343a655c0513f27959, type: 3}
     _count: 1
-  - _models:
-    - _model: {fileID: 11400000, guid: 30b85f2a91852e34cbe7f9a0c7c0135a, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 1303239528459802211, guid: 754e4c1d9dfa1f54492e13825a122976, type: 3}
+  - _model: {fileID: 11400000, guid: 30b85f2a91852e34cbe7f9a0c7c0135a, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 1303239528459802211, guid: 754e4c1d9dfa1f54492e13825a122976, type: 3}
     _count: 1
-  - _models:
-    - _model: {fileID: 11400000, guid: cd3d1ab36295c3642a271d420c65849c, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 7073781558793581155, guid: 5da003e7bd06daf4ca4c759aa0f9b6b6, type: 3}
+  - _model: {fileID: 11400000, guid: cd3d1ab36295c3642a271d420c65849c, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 7073781558793581155, guid: 5da003e7bd06daf4ca4c759aa0f9b6b6, type: 3}
     _count: 1
-  - _models:
-    - _model: {fileID: 11400000, guid: c9693df8cac83344c90df5955251d402, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 4164407803577516826, guid: fb49a2367665f5543b4293836d06b53b, type: 3}
+  - _model: {fileID: 11400000, guid: c9693df8cac83344c90df5955251d402, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 4164407803577516826, guid: fb49a2367665f5543b4293836d06b53b, type: 3}
     _count: 1
-  - _models:
-    - _model: {fileID: 11400000, guid: 078578d43cdf2e641a764a48e365b799, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 4616619017255776022, guid: 5af2afa768391ad4a9da6161a395af98, type: 3}
+  - _model: {fileID: 11400000, guid: 078578d43cdf2e641a764a48e365b799, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 4616619017255776022, guid: 5af2afa768391ad4a9da6161a395af98, type: 3}
     _count: 1
-  - _models:
-    - _model: {fileID: 11400000, guid: 886a47690c5888c44a3b6c9035cf35a7, type: 2}
-      _attachments: {fileID: 4090973175118212271, guid: ce5857d4fd2ac4141af447484e6a7178, type: 3}
-      _proxy: {fileID: 929837833781291176, guid: 9a53efc1bea87a04eadd56b7a34dd7c8, type: 3}
+  - _model: {fileID: 11400000, guid: 886a47690c5888c44a3b6c9035cf35a7, type: 2}
+    _attachments: {fileID: 4090973175118212271, guid: ce5857d4fd2ac4141af447484e6a7178, type: 3}
+    _proxy: {fileID: 929837833781291176, guid: 9a53efc1bea87a04eadd56b7a34dd7c8, type: 3}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}

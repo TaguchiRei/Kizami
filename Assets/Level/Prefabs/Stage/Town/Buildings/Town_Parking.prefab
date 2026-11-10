@@ -45,26 +45,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Kizami.EngineAdapter.Runtime::Kizami.EngineAdapter.VoxelBuilding
   _sections:
-  - _models:
-    - _model: {fileID: 11400000, guid: d178057f3607a2049844c284bcd02358, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 8834691375454333189, guid: aa2cfaecc5f8b9746bd77a128ae0299c, type: 3}
-    - _model: {fileID: 11400000, guid: 7d9df3c39da97a546965654aec725acb, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 4746115694981695730, guid: 8476931cf0736504c959a04eda0f1287, type: 3}
+  - _model: {fileID: 11400000, guid: 9655271648f834d47b65ca92f2c407cf, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 3152752680622470974, guid: f184da781c590ae4eb5a0321ca75298c, type: 3}
     _count: 1
-  - _models:
-    - _model: {fileID: 11400000, guid: c2e6a4ac0c74e1b43874041762480798, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 1397119594702843196, guid: 2eb5293a40893484ba4001facc604fcc, type: 3}
-    - _model: {fileID: 11400000, guid: d3b132b4861d14c47abc3e683c6b0a14, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 1549051599349318441, guid: ba57b3eb025bf0e408d17b8fada412df, type: 3}
-    _count: 1
-  - _models:
-    - _model: {fileID: 11400000, guid: 05e91daa8efc13040aa3d08ff54d1dd3, type: 2}
-      _attachments: {fileID: 0}
-      _proxy: {fileID: 6102518311550143055, guid: b69f2311f8bdd20428d79876d6bc29c0, type: 3}
+  - _model: {fileID: 11400000, guid: f496b0e04bc1b22469424084e8a07408, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 1928356336873268064, guid: a4013f5d6ea90934e89ee94950cdfe85, type: 3}
+    _count: 3
+  - _model: {fileID: 11400000, guid: 05e91daa8efc13040aa3d08ff54d1dd3, type: 2}
+    _attachments: {fileID: 0}
+    _proxy: {fileID: 6102518311550143055, guid: b69f2311f8bdd20428d79876d6bc29c0, type: 3}
     _count: 1
   _floorHeight: 4
   _quality: {fileID: 11400000, guid: a41ea25f1566bde47ac9553461a86b0d, type: 2}
@@ -72,7 +63,6 @@ MonoBehaviour:
   _connectionThreshold: 0.05
   _hardWeight: 4
   _collapseDensity: 500
-  _loadOnCollapse: 1
   _target: {fileID: 0}
   _swapDistance: 40
   _proxyTransitionHeight: 0.3

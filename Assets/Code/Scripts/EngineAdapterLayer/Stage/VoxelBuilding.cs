@@ -10,7 +10,7 @@ namespace Kizami.EngineAdapter
 {
     /// <summary>
     /// 1階分ずつベイクしたボクセルのモデルを、縦に積み重ねた大きな建物。ステージシーンへ置く。
-    /// 階は区間の並びで決め、区間ごとにモデルの並びを指定の回数だけ積む。並びに複数のモデルを入れると、何階か組で1つの形を繰り返せる。上下で平面の大きさが違う階も積める。
+    /// 階は区間の並びで決め、区間ごとに同じモデルを指定の回数だけ積む。上下で平面の大きさが違う階も積める。
     /// 階ごとに別の VoxelModelLoader にし、削ったときの分離の判定を削った階だけで済ませる。
     /// 階は Awake で作り、Start で手付かずの形のメッシュ（VoxelModelLoader.LoadStatic）で置く。
     /// プレイヤーから差し替える距離の中にかかった階と、攻撃が当たった階（VoxelDestructionAdapter が読み込む）だけをボクセルにする。
@@ -21,7 +21,7 @@ namespace Kizami.EngineAdapter
     /// 境目が切れたら、その上の階をまとめて1つの Rigidbody の子にして落とす。当たり判定は各階のチャンクの BoxCollider をそのまま使う。
     /// 落ちた Rigidbody が眠ったらキネマティックにして止め、地形として残す。落ちた階は、以後つながりを判定しない。
     /// 階ごとに、ガラスの板などボクセルにしない付属物のプレハブを、階の子として置く。階と一緒に落ち、倒れ始めたらガラスを割る。
-    /// 階のモデルに遠景用のプレハブ（ベイクの元のモデル）があれば、手付かずの間は遠くでそれを描く（VoxelModelLoader.SetStaticProxy）。マテリアルは階ごとの複製に差し替え、模様を続ける。
+    /// 区間に遠景用のプレハブ（ベイクの元のモデル）があれば、手付かずの間は遠くでそれを描く（VoxelModelLoader.SetStaticProxy）。マテリアルは階ごとの複製に差し替え、模様を続ける。
     /// </summary>
     /// <seealso href="https://github.com/TaguchiRei/Kizami/blob/main/Assets/Docs/Voxel/LargeObjectVoxel.md">説明ドキュメント: 巨大なオブジェクトへのボクセルの適用</seealso>
     public sealed class VoxelBuilding : MonoBehaviour
@@ -61,7 +61,7 @@ namespace Kizami.EngineAdapter
         private readonly ActionChannel<Bounds> _collapsedBounds = new();
 
         [SerializeField]
-        [Tooltip("下から順に積む区間。区間ごとに、モデルの並びを指定の回数だけ積む")]
+        [Tooltip("下から順に積む区間。区間ごとに、モデルと付属物を指定の回数だけ積む")]
         private FloorSection[] _sections = Array.Empty<FloorSection>();
 
         [SerializeField, Min(0.01f)]
@@ -323,16 +323,15 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// floorIndex 階に積むモデル。
+        /// floorIndex 階が属する区間。
         /// </summary>
-        private FloorModel GetFloorModel(int floorIndex)
+        private FloorSection GetSection(int floorIndex)
         {
             foreach (var section in _sections)
             {
-                var floorCount = section.Models.Length * section.Count;
-                if (floorIndex < floorCount) return section.Models[floorIndex % section.Models.Length];
+                if (floorIndex < section.Count) return section;
 
-                floorIndex -= floorCount;
+                floorIndex -= section.Count;
             }
 
             throw new ArgumentOutOfRangeException(nameof(floorIndex));
@@ -341,9 +340,9 @@ namespace Kizami.EngineAdapter
         /// <summary>
         /// 階を作る。読み込みは Start で、手付かずの形のメッシュから始める。付属物があれば階の子に置く。
         /// </summary>
-        private void CreateFloor(int floorIndex, FloorModel floorModel)
+        private void CreateFloor(int floorIndex, FloorSection section)
         {
-            var model = floorModel.Model;
+            var model = section.Model;
             var floorObject = new GameObject($"Floor_{floorIndex:00}")
             {
                 layer = gameObject.layer
@@ -353,14 +352,14 @@ namespace Kizami.EngineAdapter
 
             var loader = floorObject.AddComponent<VoxelModelLoader>();
             // VoxelModelLoader は Awake で子の MeshRenderer を元のモデルとして控えて隠すので、付属物はその後に置く
-            if (floorModel.Attachments != null) Instantiate(floorModel.Attachments, floorObject.transform, false);
+            if (section.Attachments != null) Instantiate(section.Attachments, floorObject.transform, false);
             loader.SetModel(model);
             loader.SetQuality(_quality);
             loader.SetMeltSystem(_meltSystem);
             loader.SetLoadOnStart(false);
             var materials = CreateFloorMaterials(model, floorIndex);
             loader.SetMaterialEntries(materials);
-            if (floorModel.Proxy != null) loader.SetStaticProxy(CreateProxy(floorModel.Proxy, floorObject.transform, model, materials), _proxyTransitionHeight);
+            if (section.Proxy != null) loader.SetStaticProxy(CreateProxy(section.Proxy, floorObject.transform, model, materials), _proxyTransitionHeight);
             _subscriptions.Add(loader.RegisterOnPieceShapeChanged(_ => OnFloorShapeChanged(floorIndex)));
             _subscriptions.Add(loader.RegisterOnPieceSplit(pieces => AttachSeparatedPieces(floorIndex, pieces)));
             _subscriptions.Add(loader.RegisterOnPieceStruck(struck => Record(floorIndex, struck.Piece, FloorEdit.Strike(struck.Record))));
@@ -973,7 +972,7 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private byte[] CreateMaterialWeights(int floorIndex)
         {
-            var weights = new byte[GetFloorModel(floorIndex).Model.Materials.Count];
+            var weights = new byte[GetSection(floorIndex).Model.Materials.Count];
             for (var i = 0; i < weights.Length; i++)
             {
                 weights[i] = _floors[floorIndex].GetMaterialStrength(i) == VoxelStrength.Hard ? (byte)_hardWeight : (byte)1;
@@ -1037,8 +1036,7 @@ namespace Kizami.EngineAdapter
 
         private void Awake()
         {
-            if (_sections.Length == 0 || Array.Exists(_sections, section => section.Models.Length == 0 ||
-                    Array.Exists(section.Models, floorModel => floorModel.Model == null)) || _quality == null)
+            if (_sections.Length == 0 || Array.Exists(_sections, section => section.Model == null) || _quality == null)
             {
                 UsefulLogger.LogError("区間、区間のモデル、または VoxelQualitySettings が設定されていません。", this);
                 return;
@@ -1049,10 +1047,7 @@ namespace Kizami.EngineAdapter
             {
                 for (var i = 0; i < section.Count; i++)
                 {
-                    foreach (var floorModel in section.Models)
-                    {
-                        CreateFloor(floorIndex++, floorModel);
-                    }
+                    CreateFloor(floorIndex++, section);
                 }
             }
         }
@@ -1064,8 +1059,7 @@ namespace Kizami.EngineAdapter
                 InitializeFloors();
             }
 
-            if (Array.Exists(_sections, section => Array.Exists(section.Models, floorModel => floorModel.Attachments != null)) &&
-                GlassShardPool.Instance == null)
+            if (Array.Exists(_sections, section => section.Attachments != null) && GlassShardPool.Instance == null)
             {
                 UsefulLogger.LogWarning("GlassShardPool がステージにない為、ガラスの板は割れても破片が出ません。", this);
             }
@@ -1115,44 +1109,31 @@ namespace Kizami.EngineAdapter
         }
 
         /// <summary>
-        /// モデルの並びを続けて積む区間。並びを1組として、下から順に積む回数だけ繰り返す。
+        /// 同じモデルの階を続けて積む区間。
         /// </summary>
         [Serializable]
         private sealed class FloorSection
         {
             [SerializeField]
-            [Tooltip("1組で下から順に積むモデル")]
-            private FloorModel[] _models = Array.Empty<FloorModel>();
-
-            [SerializeField, Min(1)]
-            [Tooltip("並びを積む回数")]
-            private int _count = 1;
-
-            public FloorModel[] Models => _models;
-            public int Count => _count;
-        }
-
-        /// <summary>
-        /// 1 階分のモデルと、その階に置く付属物と遠景用のプレハブ。
-        /// </summary>
-        [Serializable]
-        private sealed class FloorModel
-        {
-            [SerializeField]
-            [Tooltip("1 階分のモデル。一番上の階以外は、高さを階の高さにそろえる")]
+            [Tooltip("1 階分のモデル。一番上の区間以外は、高さを階の高さにそろえる")]
             private VoxelModelAsset _model;
 
             [SerializeField]
-            [Tooltip("階に置く付属物（ガラスの板など）。未設定なら置かない")]
+            [Tooltip("階ごとに置く付属物（ガラスの板など）。未設定なら置かない")]
             private GameObject _attachments;
 
             [SerializeField]
             [Tooltip("手付かずの間に遠くで描くプレハブ（ベイクの元のモデル）。未設定なら手付かずの形のメッシュだけで描く")]
             private GameObject _proxy;
 
+            [SerializeField, Min(1)]
+            [Tooltip("積む回数")]
+            private int _count = 1;
+
             public VoxelModelAsset Model => _model;
             public GameObject Attachments => _attachments;
             public GameObject Proxy => _proxy;
+            public int Count => _count;
         }
 
         /// <summary>

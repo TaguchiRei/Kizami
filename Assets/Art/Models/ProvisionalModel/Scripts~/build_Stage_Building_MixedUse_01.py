@@ -1,8 +1,8 @@
 """建物 8 中層の雑居ビルを、VoxelBuilding で積む階ごとのモデルに分けて作る。
 
-幅 12 × 奥行き 16 m の、1 階 8 m の 3 階建て。各階は下と上の 2 パーツに分けて作る（kizami_model.storey_parts）。南の正面に 1 階の店先と各階の窓、北に窓があり、東西は隣の建物と接する窓のない壁。
-最上階は建設途中で、壁は階の半ばまでしか立っておらず、壁の鉄筋が上へ突き出す。床は各階の床側（下）に張る。
-区間の並び：Ground ×1、Middle ×1、Top ×1。各区間は Lower と Upper の組を積む。
+幅 12 × 奥行き 16 m の 6 階建て。南の正面に 1 階の店先と各階の窓、北に窓があり、東西は隣の建物と接する窓のない壁。
+最上階は建設途中で、壁は腰の高さまでしか立っておらず、壁の鉄筋が上へ突き出す。床は各階の床側（下）に張る。
+区間の並び：Ground ×1、Middle ×4、Top ×1。
 """
 import importlib
 import os
@@ -17,13 +17,13 @@ MODEL_PREFIX = "Stage_Building_MixedUse"
 # 平面の幅・奥行き（セル数）
 WIDTH, DEPTH = 30, 40
 # 1 階の高さと床の厚さと壁の厚さ（セル数）
-STOREY, SLAB, WALL = 20, 2, 3
+STOREY, SLAB, WALL = 10, 2, 3
 # 1 階の店先（X の範囲）と高さ（セル数）
-SHOPFRONT, SHOPFRONT_TOP = (5, 25), 16
+SHOPFRONT, SHOPFRONT_TOP = (5, 25), 9
 # 南と北の窓（X の範囲）と、窓の下端・上端（床の上からのセル数）
-SOUTH_WINDOWS, NORTH_WINDOWS, WINDOW = ((4, 13), (17, 26)), ((9, 21),), (3, 15)
+SOUTH_WINDOWS, NORTH_WINDOWS, WINDOW = ((4, 13), (17, 26)), ((9, 21),), (3, 7)
 # 最上階で壁を打ち終えた高さ（床の上からのセル数）と、鉄筋の上端
-TOP_WALL, TOP_REBAR = 10, 16
+TOP_WALL, TOP_REBAR = 3, 8
 
 
 def walls(boxes, z1, south, north, rebar_top=None):
@@ -62,7 +62,7 @@ def top():
 
 SIZE = (WIDTH, DEPTH, STOREY)
 result = km.build_floor_models(MODEL_PREFIX, [
-    *km.storey_parts("Ground", ground(), SIZE),
-    *km.storey_parts("Middle", middle(), SIZE),
-    *km.storey_parts("Top", top(), SIZE),
+    ("Ground", ground(), SIZE),
+    ("Middle", middle(), SIZE),
+    ("Top", top(), SIZE),
 ])
