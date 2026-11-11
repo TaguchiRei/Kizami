@@ -14,6 +14,7 @@ namespace Kizami.EngineAdapter
     /// Cinemachine カメラの Pan 軸と Tilt 軸を直接書き換え、可動域は CinemachinePanTilt の各軸の Range（Inspector）で管理する。
     /// 体（補間を有効にした Rigidbody）は回さず、左右の向きもカメラ側で持つ。
     /// 壁走り中は、カメラの上方向が壁から離れる側へ傾くよう、カメラのロール（Lens.Dutch）を傾ける。入るときと出るときは、実時間で滑らかに補間する。
+    /// ダッシュか壁走りで動いている間は、視野角（Lens.FieldOfView）をコンフィグの最大値へ広げ、それ以外は最小値に戻す。こちらも実時間で補間する。
     /// 視点入力はそのフレーム分の移動量なので、経過時間で割らずに届いたその場で回転へ加算する。
     /// Look 入力は Pointer/delta を使い、カーソルが画面外へ出るとデルタが得られないので、有効化中はカーソルを中央にロックして隠す。
     /// </summary>
@@ -39,11 +40,22 @@ namespace Kizami.EngineAdapter
         [Tooltip("壁走りに入るときと出るときに、傾きが目標へ届くまでの時間（秒）")]
         private float _wallRunRollDuration = 0.15f;
 
+        [SerializeField, Min(0.01f)]
+        [Tooltip("視野角を広げるときと戻すときに、歩行時の視野角とダッシュ時の視野角の差を移る時間（秒）")]
+        private float _fieldOfViewDuration = 0.3f;
+
         private IPlayerMovementState _movementState;
         private IPlayerContactState _contactState;
+        private IOperationSettingState _settingState;
 
         /// <summary> 今のロールの角度（度）。Lens.Dutch へ書く値 </summary>
         private float _roll;
+
+        /// <summary> 今の縦の視野角（度）。Lens.FieldOfView へ書く値。まだ書いていなければ負 </summary>
+        private float _fieldOfView = -1f;
+
+        /// <summary> 視野角を広げているか。ワープ中は直前の値を保つ </summary>
+        private bool _isFieldOfViewWide;
 
         /// <summary> 傾ける向きの符号。壁の法線が視点の右を向くとき -1、左を向くとき 1。壁走りを終えて戻る間も、直前の向きを使う </summary>
         private float _rollDirection = 1f;
@@ -71,6 +83,7 @@ namespace Kizami.EngineAdapter
         {
             blackBoard.TryGetSceneState<PlayerBoard, IPlayerMovementState>(out _movementState, this);
             blackBoard.TryGetSceneState<PlayerBoard, IPlayerContactState>(out _contactState, this);
+            blackBoard.TryGetGameState<AppBoard, IOperationSettingState>(out _settingState, this);
         }
 
         protected override void OnDestroy()
@@ -114,12 +127,42 @@ namespace Kizami.EngineAdapter
             var target = isWallRunning ? _rollDirection * _wallRunRollAngle : 0f;
             var maxDelta = _wallRunRollAngle / _wallRunRollDuration * Time.unscaledDeltaTime;
             var roll = Mathf.MoveTowards(_roll, target, maxDelta);
-            if (Mathf.Approximately(roll, _roll)) return;
+            var fieldOfView = GetNextFieldOfView();
+            if (Mathf.Approximately(roll, _roll) && Mathf.Approximately(fieldOfView, _fieldOfView)) return;
 
             _roll = roll;
+            _fieldOfView = fieldOfView;
             var lens = _cinemachineCamera.Lens;
             lens.Dutch = _roll;
+            if (_fieldOfView > 0f) lens.FieldOfView = _fieldOfView;
             _cinemachineCamera.Lens = lens;
+        }
+
+        /// <summary>
+        /// 次のフレームの視野角を返す。ダッシュか壁走りで動いているときは設定の MaxFieldOfView へ、それ以外は MinFieldOfView へ、実時間で近づける。
+        /// 動いているかは目標速度の水平成分で見るので、壁に張り付いて止まっているときと地面で立ち止まっているときは歩行時と同じ視野角になる。
+        /// 設定を取得できていなければ、視野角を変えない（負を返す）。
+        /// </summary>
+        private float GetNextFieldOfView()
+        {
+            if (_settingState == null) return _fieldOfView;
+
+            var mode = _movementState.Mode;
+            if (mode != PlayerMoveMode.Warping)
+            {
+                var velocity = _movementState.TargetVelocity;
+                var isMoving = new Vector2(velocity.x, velocity.z).sqrMagnitude > 0.01f;
+                _isFieldOfViewWide = isMoving && (mode == PlayerMoveMode.WallRunning ||
+                                                  (mode == PlayerMoveMode.Normal && _movementState.IsSprinting));
+            }
+
+            var min = _settingState.MinFieldOfView;
+            var max = Mathf.Max(min, _settingState.MaxFieldOfView);
+            var target = _isFieldOfViewWide ? max : min;
+            if (_fieldOfView < 0f) return target;
+
+            var speed = Mathf.Max(max - min, 1f) / _fieldOfViewDuration;
+            return Mathf.MoveTowards(_fieldOfView, target, speed * Time.unscaledDeltaTime);
         }
 
         /// <summary>

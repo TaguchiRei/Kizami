@@ -7,7 +7,7 @@ using UnityEngine.UI;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// コンフィグの画面。左に操作の設定（ダッシュの受け付け方、切断面の回転角度、視点感度）と音量、右にキーの割り当てを並べる。
+    /// コンフィグの画面。左に操作の設定（ダッシュの受け付け方、切断面の回転角度、視点感度）と音量と視野角、右にキーの割り当てを並べる。
     /// OutGameMenuAdapter が用意した 1 つのパネルへ組み立て、値の変更は IOperationSettingController へ渡す。
     /// キーの割り当ては InputRebindAdapter が渡されたときだけ出す。
     /// </summary>
@@ -103,6 +103,10 @@ namespace Kizami.EngineAdapter
                 value => _controller.SetBgmVolume(Mathf.RoundToInt(value)));
             CreateSliderRow(6, "SE Volume", 0f, OperationSettingState.MAX_VOLUME, true, _state.SeVolume, "0",
                 value => _controller.SetSeVolume(Mathf.RoundToInt(value)));
+            CreateSliderRow(7, "FOV Min", OperationSettingState.MIN_FIELD_OF_VIEW,
+                OperationSettingState.MAX_FIELD_OF_VIEW, true, _state.MinFieldOfView, "0", _controller.SetMinFieldOfView);
+            CreateSliderRow(8, "FOV Max", OperationSettingState.MIN_FIELD_OF_VIEW,
+                OperationSettingState.MAX_FIELD_OF_VIEW, true, _state.MaxFieldOfView, "0", _controller.SetMaxFieldOfView);
         }
 
         private void BuildKeys()

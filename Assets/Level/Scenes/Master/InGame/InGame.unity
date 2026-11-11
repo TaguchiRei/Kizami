@@ -1939,6 +1939,7 @@ MonoBehaviour:
   _cinemachineCamera: {fileID: 0}
   _wallRunRollAngle: 5
   _wallRunRollDuration: 0.15
+  _fieldOfViewDuration: 0.3
 --- !u!114 &1307013808
 MonoBehaviour:
   m_ObjectHideFlags: 0

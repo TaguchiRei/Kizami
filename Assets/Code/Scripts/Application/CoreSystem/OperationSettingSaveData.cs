@@ -36,6 +36,15 @@ namespace Kizami.Application
         /// <summary> SE の音量（0〜100） </summary>
         public int SeVolume;
 
+        /// <summary> 視野角を保存したか。false なら視野角は初期値を使う（視野角を足す前の保存データでは値が 0 になる為） </summary>
+        public bool HasFieldOfView;
+
+        /// <summary> 歩行時の縦の視野角（度） </summary>
+        public float MinFieldOfView;
+
+        /// <summary> ダッシュ・壁走りで動いているときの縦の視野角（度） </summary>
+        public float MaxFieldOfView;
+
         /// <summary> キーの割り当ての変更差分。変更がなければ空 </summary>
         public string BindingOverridesJson = string.Empty;
     }

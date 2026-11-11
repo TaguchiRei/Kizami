@@ -4,7 +4,7 @@ using UsefulToolkit.BlackBoard.BlackBoard;
 namespace Kizami.BlackBoard
 {
     /// <summary>
-    /// 操作に関わる設定（ダッシュ入力の受け付け方・つかむ入力の受け付け方・切断面の回転角度・視点操作の感度・音量）を保持するゲームステート。シーンを跨いで保たれる。
+    /// 操作に関わる設定（ダッシュ入力の受け付け方・つかむ入力の受け付け方・切断面の回転角度・視点操作の感度・音量・視野角）を保持するゲームステート。シーンを跨いで保たれる。
     /// 感度は基準を1.0とする倍率で、生の視点入力の単位が経路ごとに違う（PC / スマホはスクリーン座標の delta、VR はスティックの -1〜1）ため、基準スケールは各入力経路・適用側が定数として持つ。
     /// </summary>
     [RegisterBoard(typeof(AppBoard))]
@@ -22,6 +22,18 @@ namespace Kizami.BlackBoard
         /// <summary> 音量の初期値 </summary>
         public const int DEFAULT_VOLUME = 80;
 
+        /// <summary> 視野角（度）として受け付ける下限 </summary>
+        public const float MIN_FIELD_OF_VIEW = 30f;
+
+        /// <summary> 視野角（度）として受け付ける上限 </summary>
+        public const float MAX_FIELD_OF_VIEW = 120f;
+
+        /// <summary> 歩行時の視野角（度）の初期値 </summary>
+        public const float DEFAULT_MIN_FIELD_OF_VIEW = 40f;
+
+        /// <summary> ダッシュ・壁走りで動いているときの視野角（度）の初期値 </summary>
+        public const float DEFAULT_MAX_FIELD_OF_VIEW = 48f;
+
         public SprintInputMode SprintInputMode { get; private set; } = SprintInputMode.Hold;
 
         public GrabInputMode GrabInputMode { get; private set; } = GrabInputMode.Toggle;
@@ -38,12 +50,17 @@ namespace Kizami.BlackBoard
 
         public int SeVolume { get; private set; } = DEFAULT_VOLUME;
 
+        public float MinFieldOfView { get; private set; } = DEFAULT_MIN_FIELD_OF_VIEW;
+
+        public float MaxFieldOfView { get; private set; } = DEFAULT_MAX_FIELD_OF_VIEW;
+
         public override string GetLog()
         {
             return $"SprintInputMode: {SprintInputMode}  \nGrabInputMode: {GrabInputMode}  \n" +
                    $"CutRotateStepAngle: {CutRotateStepAngle}  \n" +
                    $"HorizontalSensitivity: {HorizontalSensitivity}  \nVerticalSensitivity: {VerticalSensitivity}  \n" +
-                   $"MasterVolume: {MasterVolume}  \nBgmVolume: {BgmVolume}  \nSeVolume: {SeVolume}";
+                   $"MasterVolume: {MasterVolume}  \nBgmVolume: {BgmVolume}  \nSeVolume: {SeVolume}  \n" +
+                   $"MinFieldOfView: {MinFieldOfView}  \nMaxFieldOfView: {MaxFieldOfView}";
         }
 
         /// <summary>
@@ -117,6 +134,24 @@ namespace Kizami.BlackBoard
         {
             SeVolume = Mathf.Clamp(volume, 0, MAX_VOLUME);
         }
+
+        /// <summary>
+        /// 歩行時と、止まっているときの視野角を設定する。値は MIN_FIELD_OF_VIEW 〜 MAX_FIELD_OF_VIEW にクランプされる。
+        /// </summary>
+        /// <param name="fieldOfView">縦の視野角（度）</param>
+        public void SetMinFieldOfView(float fieldOfView)
+        {
+            MinFieldOfView = Mathf.Clamp(fieldOfView, MIN_FIELD_OF_VIEW, MAX_FIELD_OF_VIEW);
+        }
+
+        /// <summary>
+        /// ダッシュ・壁走りで動いているときの視野角を設定する。値は MIN_FIELD_OF_VIEW 〜 MAX_FIELD_OF_VIEW にクランプされる。
+        /// </summary>
+        /// <param name="fieldOfView">縦の視野角（度）</param>
+        public void SetMaxFieldOfView(float fieldOfView)
+        {
+            MaxFieldOfView = Mathf.Clamp(fieldOfView, MIN_FIELD_OF_VIEW, MAX_FIELD_OF_VIEW);
+        }
     }
 
     /// <summary>
@@ -147,6 +182,12 @@ namespace Kizami.BlackBoard
 
         /// <summary> SE の音量（0〜100） </summary>
         int SeVolume { get; }
+
+        /// <summary> 歩行時と、止まっているときの縦の視野角（度） </summary>
+        float MinFieldOfView { get; }
+
+        /// <summary> ダッシュ・壁走りで動いているときの縦の視野角（度）。MinFieldOfView より小さければ広げない </summary>
+        float MaxFieldOfView { get; }
     }
 
     /// <summary>
@@ -180,6 +221,12 @@ namespace Kizami.BlackBoard
 
         /// <summary> SE の音量（0〜100）を変更して保存する </summary>
         void SetSeVolume(int volume);
+
+        /// <summary> 歩行時の視野角（度）を変更して保存する </summary>
+        void SetMinFieldOfView(float fieldOfView);
+
+        /// <summary> ダッシュ・壁走りで動いているときの視野角（度）を変更して保存する </summary>
+        void SetMaxFieldOfView(float fieldOfView);
 
         /// <summary> キーの割り当ての変更差分を保存する。初期値に戻すなら空文字 </summary>
         void SetBindingOverridesJson(string json);

@@ -264,6 +264,7 @@ namespace Kizami.Application
             if (_settingState == null) return null;
 
             UpdateViewForward(viewDirection);
+            _state.SetSprinting(IsSprinting || IsAutoRunning);
 
             if (_isHoldingWord || _isSkyBeamActive)
             {

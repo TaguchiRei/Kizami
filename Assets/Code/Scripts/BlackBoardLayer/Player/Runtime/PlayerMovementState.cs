@@ -15,10 +15,20 @@ namespace Kizami.BlackBoard
         public Vector3 TargetVelocity { get; private set; }
         public PlayerMoveMode Mode { get; private set; }
         public bool IsJumpHolding { get; private set; }
+        public bool IsSprinting { get; private set; }
 
         public override string GetLog()
         {
-            return $"Mode: {Mode}  \nTargetVelocity: {TargetVelocity}  \nIsJumpHolding: {IsJumpHolding}";
+            return $"Mode: {Mode}  \nTargetVelocity: {TargetVelocity}  \nIsJumpHolding: {IsJumpHolding}  \nIsSprinting: {IsSprinting}";
+        }
+
+        /// <summary>
+        /// ダッシュ中かどうかを設定する。
+        /// </summary>
+        /// <param name="isSprinting">ダッシュの入力が有効か、自動で走っているとき true</param>
+        public void SetSprinting(bool isSprinting)
+        {
+            IsSprinting = isSprinting;
         }
 
         /// <summary>
@@ -72,6 +82,9 @@ namespace Kizami.BlackBoard
 
         /// <summary> ジャンプしてからボタンを押し続けていて、長押しの上限時間に達していないか。壁走り・ワープ・打ち上げで解ける </summary>
         bool IsJumpHolding { get; }
+
+        /// <summary> ダッシュの入力が有効か、自動で走っているか。移動しているかは問わない </summary>
+        bool IsSprinting { get; }
 
         /// <summary>
         /// 移動モードが変化した際に発火するイベントを登録する。ワープのエフェクトなどの差し込み口。

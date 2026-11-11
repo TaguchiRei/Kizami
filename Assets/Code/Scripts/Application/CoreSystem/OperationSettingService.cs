@@ -38,6 +38,12 @@ namespace Kizami.Application
                     _state.SetSeVolume(saveData.SeVolume);
                 }
 
+                if (saveData.HasFieldOfView)
+                {
+                    _state.SetMinFieldOfView(saveData.MinFieldOfView);
+                    _state.SetMaxFieldOfView(saveData.MaxFieldOfView);
+                }
+
                 _bindingOverridesJson = saveData.BindingOverridesJson ?? string.Empty;
             }
             else
@@ -109,6 +115,18 @@ namespace Kizami.Application
             Save();
         }
 
+        public void SetMinFieldOfView(float fieldOfView)
+        {
+            _state.SetMinFieldOfView(fieldOfView);
+            Save();
+        }
+
+        public void SetMaxFieldOfView(float fieldOfView)
+        {
+            _state.SetMaxFieldOfView(fieldOfView);
+            Save();
+        }
+
         public void SetBindingOverridesJson(string json)
         {
             _bindingOverridesJson = json ?? string.Empty;
@@ -131,6 +149,9 @@ namespace Kizami.Application
                 MasterVolume = _state.MasterVolume,
                 BgmVolume = _state.BgmVolume,
                 SeVolume = _state.SeVolume,
+                HasFieldOfView = true,
+                MinFieldOfView = _state.MinFieldOfView,
+                MaxFieldOfView = _state.MaxFieldOfView,
                 BindingOverridesJson = _bindingOverridesJson,
             });
         }
