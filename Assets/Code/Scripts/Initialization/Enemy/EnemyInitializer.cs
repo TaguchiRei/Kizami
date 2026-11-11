@@ -64,7 +64,8 @@ namespace Kizami.Initialization
             _squadService.Initialize(blackBoard, gameObject.scene.buildIndex, _retreatLossRatio);
             _spawnAdapter.Initialize(blackBoard, _fragmentOrbAdapter.SpawnOrb, _energyAdapter.Emit,
                 _healthService != null ? _healthService.ApplyDamage : null, _damageSettings.Shot, _damageSettings.FinisherBeam,
-                _movementService != null ? _movementService.RequestLaunch : null, _squadService.Step, _voxelAttraction);
+                _movementService != null ? _movementService.RequestLaunch : null,
+                _movementService != null ? _movementService.GetLaunchSpeed : null, _squadService.Step, _voxelAttraction);
             _spawnAdapter.SetOnDefeated(_defeatEvents.Raise);
             if (_voxelDestructionAdapter != null) _spawnAdapter.SetOnCollapseBlast(_voxelDestructionAdapter.PlayBlastAt);
             if (StageSelection.TryGetSelectedStage(_progressService, out var stage))

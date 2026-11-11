@@ -238,6 +238,17 @@ namespace Kizami.Application
         }
 
         /// <summary>
+        /// 真上へ打ち上げて height だけ上がる速さを返す。打ち上げのあとは上昇中の重力の倍率で上がるので、重力の強さにその倍率を掛けて
+        /// v = √(2gh) で求め、PlayerParameterData.LaunchSpeedScale を掛ける。最高点の前後の弱い重力は含めないので、倍率 1 では少しだけ高く上がる。
+        /// </summary>
+        /// <param name="height">上がりたい高さ（m）</param>
+        public float GetLaunchSpeed(float height)
+        {
+            var gravity = _parameters.Gravity * _parameters.RiseGravityScale;
+            return Mathf.Sqrt(2f * gravity * Mathf.Max(height, 0f)) * _parameters.LaunchSpeedScale;
+        }
+
+        /// <summary>
         /// 次の Step でプレイヤーを velocity の向きへ弾くよう要求する。上向きの成分は RequestLaunch と同じく最も速いものを使い、
         /// 水平の成分は同じステップの要求のうち最も速いものを使う。
         /// </summary>
@@ -486,11 +497,11 @@ namespace Kizami.Application
         }
 
         /// <summary>
-        /// ジャンプの高さから、ジャンプの初速を求める。高さ h まで上がる初速は v = √(2gh)。
+        /// ジャンプの高さから、ジャンプの初速を求める。高さ h まで上がる初速は v = √(2gh)。g はプレイヤーにかける重力の強さ（PlayerParameterData.Gravity）。
         /// </summary>
         private float CalculateJumpSpeed()
         {
-            return Mathf.Sqrt(2f * Mathf.Abs(Physics.gravity.y) * _parameters.JumpHeight);
+            return Mathf.Sqrt(2f * _parameters.Gravity * _parameters.JumpHeight);
         }
 
         /// <summary>
@@ -644,6 +655,12 @@ namespace Kizami.Application
         /// </summary>
         /// <param name="speed">上向きの打ち出し速度（m/s）</param>
         void RequestLaunch(float speed);
+
+        /// <summary>
+        /// 真上へ打ち上げて height だけ上がる速さ（m/s）を返す。プレイヤーにかける重力と、打ち上げの速さの倍率から求める。
+        /// </summary>
+        /// <param name="height">上がりたい高さ（m）</param>
+        float GetLaunchSpeed(float height);
 
         /// <summary>
         /// 次の Step でプレイヤーを velocity の向きへ弾くよう要求する。

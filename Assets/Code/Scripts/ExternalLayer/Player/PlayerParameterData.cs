@@ -19,12 +19,46 @@ namespace Kizami.External
 
         [Header("ジャンプ")]
         [SerializeField, Min(0f)]
-        [Tooltip("初速を決める高さ（m）。重力の倍率が 1 のときにこの高さまで上がる初速で跳ぶ。実際の高さは Adapter の重力の倍率で決まる")]
+        [Tooltip("初速を決める高さ（m）。重力の倍率が 1 のときにこの高さまで上がる初速で跳ぶ。実際の高さは重力の倍率で決まる")]
         private float _jumpHeight = 1.5f;
 
         [SerializeField, Min(0f)]
         [Tooltip("ジャンプボタンの長押しで、上昇の重力を弱めていられる時間（秒）")]
         private float _jumpHoldTime = 0.5f;
+
+        [Header("重力")]
+        [SerializeField, Min(0.01f)]
+        [Tooltip("プレイヤーにかける重力の強さ（m/s^2）。倍率 1 のときの下向きの加速度。ジャンプの初速もこの値から求めるので、強くしても跳ぶ高さは変わらず、上り下りが速くなる。プレイヤー以外の物理の重力は変えない")]
+        private float _gravity = 9.81f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("上昇中の重力の倍率。大きいほど素早く上がり、ボタンを放して跳ぶ低いジャンプが低くなる")]
+        private float _riseGravityScale = 2f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("ジャンプボタンの長押し中の、上昇中の重力の倍率。上昇中の倍率より小さくして、高く跳べるようにする")]
+        private float _holdRiseGravityScale = 0.8f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("最高点の前後（縦の速さが閾値より小さいとき）の重力の倍率。小さいほどふわっとする")]
+        private float _apexGravityScale = 0.6f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("最高点の前後とみなす、縦の速さの閾値（m/s）")]
+        private float _apexSpeedThreshold = 1.5f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("下降中の重力の倍率。足場から歩いて落ちたときは最初からこの倍率。ジャンプのあとは、落下の速さが増えると最高点の前後の倍率からここへ近づく")]
+        private float _fallGravityScale = 2f;
+
+        [SerializeField, Min(0f)]
+        [Tooltip("下降中の倍率に達するまでの、落下の速さの幅（m/s）。大きいほど加速度が緩やかに上がる")]
+        private float _fallRampSpeed = 12f;
+
+        [Header("打ち上げ")]
+        [SerializeField, Min(0f)]
+        [Tooltip("敵のバリアがプレイヤーを打ち上げる速さの倍率。1 で、上昇中の重力の倍率を含めて、求めた高さへちょうど届く速さ")]
+        private float _launchSpeedScale = 1f;
 
         [Header("壁走り")]
         [SerializeField, Min(0f)]
@@ -119,6 +153,30 @@ namespace Kizami.External
 
         /// <summary> ジャンプボタンの長押しで、上昇の重力を弱めていられる時間（秒） </summary>
         public float JumpHoldTime => _jumpHoldTime;
+
+        /// <summary> プレイヤーにかける重力の強さ（m/s^2） </summary>
+        public float Gravity => _gravity;
+
+        /// <summary> 上昇中の重力の倍率 </summary>
+        public float RiseGravityScale => _riseGravityScale;
+
+        /// <summary> ジャンプボタンの長押し中の、上昇中の重力の倍率 </summary>
+        public float HoldRiseGravityScale => _holdRiseGravityScale;
+
+        /// <summary> 最高点の前後の重力の倍率 </summary>
+        public float ApexGravityScale => _apexGravityScale;
+
+        /// <summary> 最高点の前後とみなす、縦の速さの閾値（m/s） </summary>
+        public float ApexSpeedThreshold => _apexSpeedThreshold;
+
+        /// <summary> 下降中の重力の倍率 </summary>
+        public float FallGravityScale => _fallGravityScale;
+
+        /// <summary> 下降中の倍率に達するまでの、落下の速さの幅（m/s） </summary>
+        public float FallRampSpeed => _fallRampSpeed;
+
+        /// <summary> 敵のバリアがプレイヤーを打ち上げる速さの倍率 </summary>
+        public float LaunchSpeedScale => _launchSpeedScale;
 
         /// <summary> ダッシュしていないときの壁走りの速度（m/s） </summary>
         public float WallRunWalkSpeed => _wallRunWalkSpeed;

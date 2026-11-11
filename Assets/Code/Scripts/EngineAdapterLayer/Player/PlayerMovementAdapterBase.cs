@@ -60,31 +60,6 @@ namespace Kizami.EngineAdapter
         [Tooltip("空中で目標速度へ近づける加速度（m/s^2）。地上と壁走り中は目標速度へ即座に合わせる")]
         private float _airAcceleration = 25f;
 
-        [Header("ジャンプの軌道（重力の倍率）")]
-        [SerializeField, Min(0f)]
-        [Tooltip("上昇中の倍率。大きいほど素早く上がり、ボタンを放して跳ぶ低いジャンプが低くなる")]
-        private float _riseGravityScale = 2f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("ジャンプボタンの長押し中の、上昇中の倍率。上昇中の倍率より小さくして、高く跳べるようにする")]
-        private float _holdRiseGravityScale = 0.8f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("最高点の前後（縦の速さが閾値より小さいとき）の倍率。小さいほどふわっとする")]
-        private float _apexGravityScale = 0.6f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("最高点の前後とみなす、縦の速さの閾値（m/s）")]
-        private float _apexSpeedThreshold = 1.5f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("下降中の倍率。落下の速さが増えると、最高点の前後の倍率からここへ近づく")]
-        private float _fallGravityScale = 2f;
-
-        [SerializeField, Min(0f)]
-        [Tooltip("下降の倍率に達するまでの、落下の速さの幅（m/s）。大きいほど加速度が緩やかに上がる")]
-        private float _fallRampSpeed = 12f;
-
         [Header("効果音")]
         [SerializeField, Min(0.1f)]
         [Tooltip("足音を1回鳴らす移動距離（m）。地上と壁走りで共通")]
@@ -98,6 +73,9 @@ namespace Kizami.EngineAdapter
         private Func<Vector3, float, Vector3?> _step;
         private IDisposable _lookSubscription;
         private Vector3 _horizontalVelocity;
+
+        /// <summary> プレイヤーにかける重力の強さと、ジャンプの軌道の重力の倍率 </summary>
+        private PlayerGravity _gravity;
 
         /// <summary> 縦の速度の正本。重力は Rigidbody ではなくこの値に足す </summary>
         private float _verticalVelocity;
@@ -128,8 +106,11 @@ namespace Kizami.EngineAdapter
         /// </summary>
         /// <param name="blackBoard">PlayerContactState の登録先と、移動・視点ステートの取得元</param>
         /// <param name="step">FixedUpdate ごとに視線の向きと経過時間を渡して呼び、打ち出し速度を受け取る処理（PlayerMovementService.Step）</param>
-        public void Initialize(IBlackBoard blackBoard, Func<Vector3, float, Vector3?> step)
+        /// <param name="gravity">プレイヤーにかける重力の強さと、ジャンプの軌道の重力の倍率（PlayerParameterData の値）</param>
+        public void Initialize(IBlackBoard blackBoard, Func<Vector3, float, Vector3?> step, PlayerGravity gravity)
         {
+            _gravity = gravity;
+
             if (_rigidbody == null || _collider == null)
             {
                 UsefulLogger.LogError("Rigidbody または CapsuleCollider が設定されていません。", this);
@@ -305,7 +286,7 @@ namespace Kizami.EngineAdapter
             }
 
             _verticalVelocity = Mathf.Min(_verticalVelocity, _rigidbody.linearVelocity.y);
-            _verticalVelocity += Physics.gravity.y * GetGravityScale() * Time.fixedDeltaTime;
+            _verticalVelocity -= _gravity.Strength * GetGravityScale() * Time.fixedDeltaTime;
 
             if (launchVelocity.HasValue)
             {
@@ -325,17 +306,18 @@ namespace Kizami.EngineAdapter
         private float GetGravityScale()
         {
             // ジャンプの軌道の緩急は、ジャンプや打ち上げの空中だけに付ける。歩いて落ちたときは最初から下降中の倍率で落ちる
-            if (!_isJumpArc) return _fallGravityScale;
+            if (!_isJumpArc) return _gravity.FallScale;
 
-            if (Mathf.Abs(_verticalVelocity) < _apexSpeedThreshold) return _apexGravityScale;
+            if (Mathf.Abs(_verticalVelocity) < _gravity.ApexSpeedThreshold) return _gravity.ApexScale;
             if (_verticalVelocity < 0f)
             {
                 // 落下の速さが増えるにつれて、最高点の前後の倍率から下降中の倍率へ緩やかに近づける
-                var ramp = Mathf.Clamp01((-_verticalVelocity - _apexSpeedThreshold) / Mathf.Max(_fallRampSpeed, 0.01f));
-                return Mathf.Lerp(_apexGravityScale, _fallGravityScale, ramp);
+                var ramp = Mathf.Clamp01((-_verticalVelocity - _gravity.ApexSpeedThreshold) /
+                                         Mathf.Max(_gravity.FallRampSpeed, 0.01f));
+                return Mathf.Lerp(_gravity.ApexScale, _gravity.FallScale, ramp);
             }
 
-            return _movementState.IsJumpHolding ? _holdRiseGravityScale : _riseGravityScale;
+            return _movementState.IsJumpHolding ? _gravity.HoldRiseScale : _gravity.RiseScale;
         }
 
         /// <summary>

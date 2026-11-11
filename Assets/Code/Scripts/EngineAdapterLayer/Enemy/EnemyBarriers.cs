@@ -81,6 +81,9 @@ namespace Kizami.EngineAdapter
         /// <summary> プレイヤーを真上へ打ち上げる関数。引数は上向きの打ち出し速度（m/s）。null なら打ち上げない </summary>
         private Action<float> _requestLaunch;
 
+        /// <summary> プレイヤーを真上へ打ち上げて、引数の高さ（m）だけ上がる速さ（m/s）を返す関数 </summary>
+        private Func<float, float> _getLaunchSpeed;
+
         /// <summary> バリアの耐久値の最大。プレハブの ArmorPanel から読む </summary>
         private int _maxDurability;
 
@@ -95,8 +98,11 @@ namespace Kizami.EngineAdapter
         /// <param name="target">プレイヤー。子に当たり判定を持つ</param>
         /// <param name="groupCapacity">グループの数（EnemyGroups.Groups の長さ）</param>
         /// <param name="requestLaunch">プレイヤーを真上へ打ち上げる関数（PlayerMovementService.RequestLaunch）。引数は上向きの打ち出し速度（m/s）</param>
-        public void Initialize(Transform target, int groupCapacity, Action<float> requestLaunch)
+        /// <param name="getLaunchSpeed">打ち上げて引数の高さ（m）だけ上がる速さ（m/s）を返す関数（PlayerMovementService.GetLaunchSpeed）</param>
+        public void Initialize(Transform target, int groupCapacity, Action<float> requestLaunch,
+            Func<float, float> getLaunchSpeed)
         {
+            _getLaunchSpeed = getLaunchSpeed;
             _targetCollider = target != null ? target.GetComponentInChildren<CapsuleCollider>() : null;
             if (_barrierPrefab == null || _targetCollider == null)
             {
@@ -106,7 +112,7 @@ namespace Kizami.EngineAdapter
 
             _targetBody = _targetCollider.attachedRigidbody;
             _requestLaunch = requestLaunch;
-            if (_requestLaunch == null || _targetBody == null)
+            if (_requestLaunch == null || _getLaunchSpeed == null || _targetBody == null)
             {
                 UsefulLogger.LogWarning("打ち上げの関数か、プレイヤーの Rigidbody がない為、バリアの中のプレイヤーを打ち上げません。", this);
             }
@@ -262,14 +268,14 @@ namespace Kizami.EngineAdapter
         /// </summary>
         private void TryLaunch(Vector3 center)
         {
-            if (_requestLaunch == null || _targetBody == null) return;
+            if (_requestLaunch == null || _getLaunchSpeed == null || _targetBody == null) return;
 
             CapsuleGeometry.GetAxis(_targetCollider, out var bottomSphereCenter, out var topSphereCenter, out var radius);
             var height = center.y + _radius + _launchMargin - (bottomSphereCenter.y - radius);
             if (height <= 0f) return;
 
-            // 高さ h まで上がる初速は v = √(2gh)。打ち上げたあとは上がるほど要る速度も同じだけ減るので、要る速度の9割を保つ間は要求し直さない
-            var speed = Mathf.Sqrt(2f * Mathf.Abs(Physics.gravity.y) * height);
+            // 打ち上げたあとは上がるほど要る速度も同じだけ減るので、要る速度の9割を保つ間は要求し直さない
+            var speed = _getLaunchSpeed(height);
             if (_targetBody.linearVelocity.y >= speed * 0.9f) return;
 
             if (Physics.CapsuleCast(bottomSphereCenter, topSphereCenter, radius, Vector3.up, height, _ceilingLayers,

@@ -376,11 +376,12 @@ namespace Kizami.EngineAdapter
         /// <param name="shotDamage">アタッカーの弾がプレイヤーに当たったときのダメージ量</param>
         /// <param name="finisherBeamDamage">フィニッシャーのビームに当たっているときに、間隔ごとに与えるダメージ量</param>
         /// <param name="requestLaunch">プレイヤーを真上へ打ち上げる関数（PlayerMovementService.RequestLaunch）。引数は上向きの打ち出し速度（m/s）</param>
+        /// <param name="getLaunchSpeed">打ち上げて引数の高さ（m）だけ上がる速さ（m/s）を返す関数（PlayerMovementService.GetLaunchSpeed）</param>
         /// <param name="stepSquads">部隊の命令を決める関数（EnemySquadService.Step）。引数は経過時間（秒）</param>
         /// <param name="attraction">部隊の中心を渡す吸い寄せ。なければ渡さない</param>
         public void Initialize(IBlackBoard blackBoard, Action<Vector3> spawnOrb, Action<Vector3> emitEnergy, Action<int> applyDamage,
-            int shotDamage, int finisherBeamDamage, Action<float> requestLaunch, Action<float> stepSquads,
-            VoxelAttraction attraction)
+            int shotDamage, int finisherBeamDamage, Action<float> requestLaunch, Func<float, float> getLaunchSpeed,
+            Action<float> stepSquads, VoxelAttraction attraction)
         {
             _attraction = attraction;
             _emitEnergy = emitEnergy;
@@ -469,7 +470,7 @@ namespace Kizami.EngineAdapter
             }
             else
             {
-                _barriers.Initialize(_target, _groups.Groups.Length, requestLaunch);
+                _barriers.Initialize(_target, _groups.Groups.Length, requestLaunch, getLaunchSpeed);
             }
 
             if (_finisherAttack == null)

@@ -125,7 +125,9 @@ namespace Kizami.Initialization
                 _fragmentThrowAdapter.TryGrabWord, () => _fragmentThrowAdapter.IsHolding, _fragmentThrowAdapter.TryThrow);
 
             // 以降の Adapter は Service が登録した State を取得する為、Service の生成より後に初期化する
-            _movementAdapter.Initialize(blackBoard, _movementService.Step);
+            _movementAdapter.Initialize(blackBoard, _movementService.Step, new PlayerGravity(_parameters.Gravity,
+                _parameters.RiseGravityScale, _parameters.HoldRiseGravityScale, _parameters.ApexGravityScale,
+                _parameters.ApexSpeedThreshold, _parameters.FallGravityScale, _parameters.FallRampSpeed));
 
             // カメラの上下方向反映は操作系によっては使わない（例: VR は HMD の姿勢が担う）為、未設定でもエラーにしない
             if (_cameraAdapter != null)
