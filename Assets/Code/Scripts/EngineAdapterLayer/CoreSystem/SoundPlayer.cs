@@ -10,9 +10,15 @@ namespace Kizami.EngineAdapter
     /// 効果音と BGM を鳴らす Adapter。常駐シーンへ置く。
     /// 効果音は事前に作った AudioSource を使い回し、全部使い中なら鳴らさない。同じ種類は種類ごとの最小間隔より短く続けて鳴らさない。
     /// 音量は AudioMixer のグループ経由で設定に従い、種類ごとの音量とピッチの幅は登録で調整する。クリップが空なら何もしない。
+    /// AudioListener もここに 1 つだけ持ち、毎フレームメインカメラの位置と向きに合わせる。
+    /// 場面シーンのカメラに持たせると、切り替えの間に 0 個や 2 個になる為。
     /// </summary>
+    [DefaultExecutionOrder(EXECUTION_ORDER)]
     public sealed class SoundPlayer : MonoBehaviour
     {
+        /// <summary> 実行順。カメラを動かす CinemachineBrain や StandardPlayerCameraAdapter（既定の0）より後 </summary>
+        private const int EXECUTION_ORDER = 1000;
+
         private const float DEFAULT_MIN_INTERVAL = 0.05f;
 
         [SerializeField]
@@ -50,6 +56,7 @@ namespace Kizami.EngineAdapter
         private readonly Dictionary<SoundEffectKind, Entry> _entries = new();
         private AudioSource[] _voices;
         private float[] _lastPlayedTimes;
+        private Transform _listener;
 
         /// <summary> 常駐シーンにある SoundPlayer。置かれていなければ null </summary>
         public static SoundPlayer Instance { get; private set; }
@@ -110,6 +117,11 @@ namespace Kizami.EngineAdapter
                 voice.maxDistance = _maxDistance;
                 _voices[i] = voice;
             }
+
+            var listenerObject = new GameObject("AudioListener");
+            listenerObject.transform.SetParent(transform, false);
+            listenerObject.AddComponent<AudioListener>();
+            _listener = listenerObject.transform;
         }
 
         private void Start()
@@ -123,6 +135,18 @@ namespace Kizami.EngineAdapter
             bgm.spatialBlend = 0f;
             bgm.outputAudioMixerGroup = _bgmGroup;
             bgm.Play();
+        }
+
+        /// <summary>
+        /// リスナーをメインカメラの位置と向きに合わせる。メインカメラが無いフレームは前の位置のまま。
+        /// </summary>
+        private void LateUpdate()
+        {
+            var cameraMain = Camera.main;
+            if (cameraMain == null) return;
+
+            cameraMain.transform.GetPositionAndRotation(out var position, out var rotation);
+            _listener.SetPositionAndRotation(position, rotation);
         }
 
         private void OnDestroy()

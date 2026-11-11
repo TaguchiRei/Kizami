@@ -107,7 +107,7 @@
 |---|---|
 | シーン | StandardPlayerControl の `PlayerRoot`、`CameraPivot`、`Main Camera`、`MeleeCutPreview` を InGame へ移す。Initializer（`StandardPlayerInputRouteInitializer` / `PlayerInitializer` / `PlayerDebugInitializer`）は InGame の `Compositor` と同じ GameObject かその近くに置き直し、`InGameCompositor` を作り直す。StandardPlayerControl を削除し、Build Settings から外して `BuildScenes` を作り直す |
 | SceneGroup | `InGameGroup` = InGame だけ、`OutGameGroup` = OutGame だけ |
-| OutGame | 地面を削除し、カメラを置く。カメラに AudioListener は付けない（遷移の間は 2 つの場面シーンのカメラが同時にあり、AudioListener が 2 つあるという警告が出る為） |
+| OutGame | 地面を削除し、カメラを置く。場面シーンのカメラには AudioListener を付けない（遷移の間は 2 つの場面シーンのカメラが同時にあり、AudioListener が 2 つあるという警告が出る為）。AudioListener は常駐シーンの `SoundPlayer` が 1 つだけ持ち、メインカメラに合わせて動かす |
 | `GameSceneInitializer` / `GameSceneController` | 場面ごとに 1 つのシーングループを持つ。`IBuildModeState` を使わなくなる |
 | `MeleeCutService` | `PlayerEventBoard` の代わりに、振ったときに呼ぶ関数（`Action<float>`）を受け取る |
 | `MeleeCutAdapter` | `Initialize()` は引数なし。振りは `PlayerInitializer` から渡された関数経由で呼ばれる |
@@ -184,7 +184,7 @@ sequenceDiagram
 |---|---|---|
 | 1 | `MeleeCutAdapter.Initialize` の引数 | コミット0では引数なしにしたが、コミット1で切断の結果を渡す関数（`Action<MultiCutResult[]>`）を受け取る形にした |
 | 2 | 切り直しの途中のかけら | 非アクティブなかけらはオーブにしない（上の「実装中に確かめたこと」） |
-| 3 | アウトゲームのカメラ | AudioListener を付けない（遷移の間、2 つの場面シーンのカメラが同時にある為） |
+| 3 | アウトゲームのカメラ | AudioListener を付けない（遷移の間、2 つの場面シーンのカメラが同時にある為）。インゲームのカメラからも外し、常駐シーンの `SoundPlayer` が持つ 1 つをメインカメラに合わせて動かす |
 | 4 | Initialization の asmdef | `UsefulToolkit.MeshCut.Runtime` の参照を足した（`PlayerInitializer` が `MultiCutResult` を扱う為） |
 | 5 | ステージの外周 | 下側の範囲外の Trigger は使わず、地面とその下の床の二重にした。各面の厚さは 5m |
 
