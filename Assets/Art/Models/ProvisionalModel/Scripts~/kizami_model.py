@@ -140,18 +140,52 @@ def build_model_from_boxes(model_name, boxes, size):
 # 窓のガラスの板 1 枚の最大の幅（m）。開口はこの幅以下の板に等分する
 GLASS_PANE_MAX_WIDTH = 1.6
 
+# 窓のガラスの板の厚さ（m）。build_Stage_Glass_Pane_01.py の THICKNESS と同じ
+GLASS_PANE_THICKNESS = 0.05
+
+# 窓枠の外の面を探す、ガラスの箱の外の面からの最大の距離（セル）。張り出した床などを窓枠に含めない
+GLASS_FRAME_MAX_DEPTH = 3
+
+
+def _glass_outer_face(glass_lo, glass_hi, along, across, outward, rest):
+    """ガラスの箱の窓枠の外の面の、厚さの向きの座標（セル）を返す。
+
+    窓枠は、ガラスの箱の幅の向きの両端か上下の面に接し、厚さの向きで重なる箱。外の面は、窓枠とガラスの箱のうち最も外側の面で、
+    ガラスの箱の外の面から GLASS_FRAME_MAX_DEPTH セルより外へ張り出す箱は窓枠に含めない。窓枠がなければ（カーテンウォール）ガラスの箱の外の面。
+    """
+    own = glass_hi[across] if outward > 0 else glass_lo[across]
+    limit = own + outward * GLASS_FRAME_MAX_DEPTH
+    face = own
+
+    def overlaps(lo, hi, axis):
+        return lo[axis] < glass_hi[axis] and hi[axis] > glass_lo[axis]
+
+    for _, lo, hi in rest:
+        if not overlaps(lo, hi, across):
+            continue
+        touches_side = (hi[along] == glass_lo[along] or lo[along] == glass_hi[along]) and overlaps(lo, hi, 2)
+        touches_cap = (hi[2] == glass_lo[2] or lo[2] == glass_hi[2]) and overlaps(lo, hi, along)
+        if not (touches_side or touches_cap):
+            continue
+        outer = hi[across] if outward > 0 else lo[across]
+        if (outer - limit) * outward > 0:
+            continue
+        face = max(face, outer) if outward > 0 else min(face, outer)
+    return face
+
 
 def extract_glass(boxes, size):
     """boxes から Glass の箱を抜き、残りの箱と、ガラスの板の配置を返す。
 
     ガラスはボクセルにせず、Unity で GlassPane の板を置く。配置は Unity の座標（FBX の書き出しで (-x, z, -y) になる）で、
     板の底面の中心 `Position`、幅と高さ `Size`、Y 軸まわりの回転 `Yaw`（度）を持つ。板は厚さの向きが Z のときに yaw 0。
+    板は、窓枠の外の面に板の内側の面が接するように、窓枠の外側へ付ける。外側は、厚さの向きでモデルの外周に近い側。
     """
-    rest, panes = [], []
+    rest = [box for box in boxes if box[0] != "Glass"]
+    panes = []
     offset = (-size[0] * CELL / 2, -size[1] * CELL / 2, 0.0)
     for mat_name, lo_c, hi_c in boxes:
         if mat_name != "Glass":
-            rest.append((mat_name, lo_c, hi_c))
             continue
         lo = [c * CELL + o for c, o in zip(lo_c, offset)]
         hi = [c * CELL + o for c, o in zip(hi_c, offset)]
@@ -161,7 +195,9 @@ def extract_glass(boxes, size):
         width, height = hi[along] - lo[along], hi[2] - lo[2]
         count = max(1, math.ceil(width / GLASS_PANE_MAX_WIDTH - 1e-6))
         pane_width = width / count
-        middle = (lo[across] + hi[across]) / 2
+        outward = -1 if lo_c[across] <= size[across] - hi_c[across] else 1
+        face = _glass_outer_face(lo_c, hi_c, along, across, outward, rest)
+        middle = face * CELL + offset[across] + outward * GLASS_PANE_THICKNESS / 2
         for i in range(count):
             center = [0.0, 0.0]
             center[along] = lo[along] + pane_width * (i + 0.5)
@@ -233,18 +269,21 @@ def wall_with_openings(boxes, along, start, end, offset, z0, z1, openings, cap_b
 def build_floor_models(prefix, parts):
     """建物の階ごとのモデルをまとめて作る。parts は [(階の種類, 箱, (幅, 奥行き, 高さ) のセル数)]。
 
-    ガラスの箱は抜き出して配置の JSON にし、環境変数 KIZAMI_EXPORT が 1 なら FBX と JSON を Stage に書き出す。モデルごとの report を返す。
+    ガラスの箱は抜き出して配置の JSON にし、環境変数 KIZAMI_EXPORT が 1 なら FBX と JSON を Stage に書き出す。
+    KIZAMI_EXPORT_GLASS が 1 なら JSON だけを書き出し、FBX は書き出し直さない。モデルごとの report を返す。
     """
+    exports_model = os.environ.get("KIZAMI_EXPORT") == "1"
+    exports_glass = exports_model or os.environ.get("KIZAMI_EXPORT_GLASS") == "1"
     result = {}
     for part, boxes, size in parts:
         clear_scene()
         boxes, panes = extract_glass(boxes, size)
         root = build_model_from_boxes(f"{prefix}_{part}_01", boxes, size)
         result[root.name] = dict(report(root), glass_panes=len(panes))
-        if os.environ.get("KIZAMI_EXPORT") == "1":
+        if exports_model:
             save_and_export(root, STAGE_DIR)
-            if panes:
-                save_glass(root.name, panes, STAGE_DIR)
+        if exports_glass and panes:
+            save_glass(root.name, panes, STAGE_DIR)
     return result
 
 
