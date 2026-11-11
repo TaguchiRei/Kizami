@@ -1452,10 +1452,9 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 65527
   _wallCheckDistance: 0.1
-  _glassContactDistance: 0.1
   _wallLayers:
     serializedVersion: 2
-    m_Bits: 512
+    m_Bits: 16896
   _wallMinGroundClearance: 1.5
   _minWallPieceHeight: 2
   _rigidbody: {fileID: 903436360}

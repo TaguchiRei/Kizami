@@ -4,10 +4,11 @@ using UnityEngine;
 namespace Kizami.EngineAdapter
 {
     /// <summary>
-    /// 窓のガラスの1枚の板。ボクセルにはせず、攻撃が当たったら、板を消して GlassShardPool の破片を飛ばす。
-    /// 板はコライダーを持たず、割れる前の板だけが静的な空間グリッドに載る。範囲の判定は ShatterInSphere・ShatterInCapsule・ShatterInBox が、範囲が通るセルの板だけを板の箱との距離で調べる。
+    /// 窓のガラスの1枚の板。ボクセルにはせず、攻撃が当たったときと、周りのボクセルが削られたときに、板を消して GlassShardPool の破片を飛ばす。
+    /// プレイヤーが触れても割れず、壁と同じく止められて壁走りもできる。割れる前の板（_intact）は Glass レイヤーの静的なコライダーを持ち、Glass レイヤーはプレイヤーとだけ衝突する。
+    /// 攻撃の範囲の判定はコライダーを使わず、割れる前の板だけが載る静的な空間グリッドで行う。ShatterInSphere・ShatterInCapsule・ShatterInBox が、範囲が通るセルの板だけを板の箱との距離で調べる。
     /// 割れる前の板は動かない前提で、有効になった時点の中心と外接球の半径でセルに登録し、遠い板を Transform を読まずに除く。
-    /// 建物には板が数百枚並ぶので、コライダーを付けると崩落で建物ごと落とすときの物理の負荷になる。
+    /// 建物の崩落では、落とす階の板を Rigidbody を付ける前に割り、板のコライダーを落とす物理に含めない。
     /// 破片は物理を使わず、寿命が来たらプールへ戻る。
     /// </summary>
     public sealed class GlassPane : MonoBehaviour

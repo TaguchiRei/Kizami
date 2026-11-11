@@ -588,6 +588,7 @@ namespace Kizami.EngineAdapter
         {
             var groupObject = CreateGroupObject(firstFloor);
             groupObject.transform.SetParent(transform, false);
+            var glassOrigin = GetFloorsCenter(firstFloor, _standingFloorCount);
 
             for (var i = firstFloor; i < _standingFloorCount; i++)
             {
@@ -600,9 +601,10 @@ namespace Kizami.EngineAdapter
             _standingFloorCount = firstFloor;
 
             _collapsing.Invoke(groupObject.transform);
+            // ガラスの板の当たり判定が Rigidbody の質量の分布に入らないよう、Rigidbody を付ける前に割る
+            ShatterGlass(groupObject.transform, glassOrigin);
             var body = AddGroupBody(groupObject);
             _fallingBodies.Add(body);
-            ShatterGlass(groupObject.transform, body.worldCenterOfMass);
             SoundPlayer.Play(SoundEffectKind.VoxelCollapse, body.worldCenterOfMass);
             NotifyCollapsed(body);
         }
@@ -614,6 +616,20 @@ namespace Kizami.EngineAdapter
         {
             _collapsed.Invoke(body);
             if (TryGetPiecesBounds(body, out var bounds)) _collapsedBounds.Invoke(bounds);
+        }
+
+        /// <summary>
+        /// first 階から end - 1 階までの範囲（_floorBounds）をまとめた箱の中心。
+        /// </summary>
+        private Vector3 GetFloorsCenter(int first, int end)
+        {
+            var bounds = _floorBounds[first];
+            for (var i = first + 1; i < end; i++)
+            {
+                bounds.Encapsulate(_floorBounds[i]);
+            }
+
+            return bounds.center;
         }
 
         /// <summary>

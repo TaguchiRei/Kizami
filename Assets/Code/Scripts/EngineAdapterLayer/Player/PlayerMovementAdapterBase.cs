@@ -41,10 +41,6 @@ namespace Kizami.EngineAdapter
         [Tooltip("カプセルの側面から、壁に触れているとみなす距離（m）")]
         private float _wallCheckDistance = 0.1f;
 
-        [SerializeField, Min(0f)]
-        [Tooltip("カプセルの側面から、ガラスの板に触れて割るとみなす距離（m）")]
-        private float _glassContactDistance = 0.1f;
-
         [SerializeField]
         [Tooltip("壁走りのできる壁として判定するレイヤー。ボクセルと Brilliant Skill の言葉は、レイヤーによらず壁として判定する")]
         private LayerMask _wallLayers;
@@ -374,9 +370,6 @@ namespace Kizami.EngineAdapter
             }
 
             _contactState.SetContacts(contacts, wallNormal);
-
-            // ガラスの板はコライダーを持たず、触れたら割れて通り抜けられる。割れの起点はプレイヤーの中心
-            GlassPane.ShatterInCapsule(bottomSphereCenter, topSphereCenter, radius + _glassContactDistance, center);
         }
 
         /// <summary>
